@@ -11,6 +11,7 @@ import { modernAIProvider } from '../ai/modern-ai-provider'
 import { backgroundAgentService } from '../background-agents/background-agent-service'
 import { unifiedRAGSystem } from '../context/rag-system'
 import { workspaceContext } from '../context/workspace-context'
+import { aiSdkEmbeddingProvider } from '../context/ai-sdk-embedding-provider'
 import { agentFactory } from '../core/agent-factory'
 import { AgentManager } from '../core/agent-manager'
 import { agentStream } from '../core/agent-stream'
@@ -74,6 +75,16 @@ const ModelCommandSchema = z.object({
   provider: z.enum(['anthropic', 'openai', 'google', 'ollama']).optional(),
   model: z.string().min(1),
   temperature: z.number().min(0).max(2).optional(),
+})
+
+const EmbeddingModelCommandSchema = z.object({
+  model: z.string().min(1),
+  provider: z.enum(['openai', 'google', 'anthropic', 'openrouter']).optional(),
+  dimensions: z.number().int().positive().optional(),
+  maxTokens: z.number().int().positive().optional(),
+  batchSize: z.number().int().positive().optional(),
+  costPer1KTokens: z.number().nonnegative().optional(),
+  baseURL: z.string().url().optional(),
 })
 
 // File operations schema
@@ -218,7 +229,13 @@ export class SlashCommandHandler {
     this.commands.set('model', this.modelCommand.bind(this))
     this.commands.set('models', this.modelsCommand.bind(this))
     this.commands.set('models-open', this.modelsOpenCommand.bind(this))
+    this.commands.set('embed-models-open', this.embedModelsOpenCommand.bind(this))
+    this.commands.set('embed-model', this.embedModelCommand.bind(this))
+    this.commands.set('embed-models', this.embedModelsCommand.bind(this))
+    this.commands.set('embed', this.embedStatusCommand.bind(this))
+    this.commands.set('embeds', this.embedStatusCommand.bind(this))
     this.commands.set('set-key', this.setKeyCommand.bind(this))
+    this.commands.set('set-key-embed', this.setKeyEmbedCommand.bind(this))
     this.commands.set('set-key-nikdrive', this.setKeyNikdriveCommand.bind(this))
     this.commands.set('config', this.configCommand.bind(this))
     this.commands.set('env', this.envCommand.bind(this))
@@ -347,10 +364,7 @@ export class SlashCommandHandler {
     this.commands.set('defi', this.goatCommand.bind(this))
     this.commands.set('polymarket', this.polymarketCommand.bind(this))
 
-    // Web3 Toolchains
-    this.commands.set('web3-toolchain', this.web3ToolchainCommand.bind(this))
-    this.commands.set('w3-toolchain', this.web3ToolchainCommand.bind(this))
-    this.commands.set('defi-toolchain', this.defiToolchainCommand.bind(this))
+
 
     // IDE diagnostic commands
     this.commands.set('diagnostic', this.diagnosticCommand.bind(this))
@@ -460,6 +474,7 @@ ${chalk.cyan('/default')} - Switch to default chat mode
 ${chalk.blue.bold('API Keys & Authentication:')}
 ${chalk.cyan('/set-key <model> <key>')} - Set API key for a model
 ${chalk.gray('  e.g. /set-key openrouter sk-or-v1-...')}
+${chalk.cyan('/set-key-embed <provider|model> <key>')} - Set API key for embedding/reranker models
 ${chalk.cyan('/set-coin-keys')} - Interactive wizard for Coinbase keys
 ${chalk.cyan('/set-key-bb')} - Configure Browserbase API key and project
 ${chalk.cyan('/set-key-figma')} - Configure Figma and v0 API credentials
@@ -470,6 +485,10 @@ ${chalk.blue.bold('Model Management:')}
 ${chalk.cyan('/model <name>')} - Switch to a model
 ${chalk.cyan('/models')} - List available models
 ${chalk.cyan('/models-open')} - Interactive OpenRouter models browser (search & select)
+${chalk.cyan('/embed-models-open')} - Interactive OpenRouter embedding models browser (search & select)
+${chalk.cyan('/embed-model <name>')} - Switch embedding model (OpenRouter/AISDK compatible)
+${chalk.cyan('/embed-models')} - List configured embedding models
+${chalk.cyan('/embed')} - Embedding/RAG stats (cost, model, cache, vector store)
 ${chalk.gray('  Fetches models from OpenRouter API with interactive search')}
 ${chalk.cyan('/set-key <model> <key>')} - Set API key for a model
 ${chalk.gray('  e.g. /set-key openrouter sk-or-v1-...')}
@@ -1535,6 +1554,128 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     }
   }
 
+  private async embedModelCommand(args: string[]): Promise<CommandResult> {
+    const boxen = (await import('boxen')).default
+
+    if (args.length === 0) {
+      const current = configManager.getCurrentEmbeddingModel()
+      const cfg = current ? configManager.getEmbeddingModelConfig(current) : undefined
+      const provider = cfg?.provider || 'openrouter'
+      const dims = cfg?.dimensions || aiSdkEmbeddingProvider.getCurrentDimensions()
+      this.printPanel(
+        boxen(
+          [
+            chalk.cyan(current || 'not set'),
+            chalk.gray(`Provider: ${provider}`),
+            chalk.gray(`Model: ${cfg?.model || current || ''}`),
+            chalk.gray(`Dimensions: ${dims}`),
+          ].join('\n'),
+          {
+            title: '🧭 Current Embedding Model',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'blue',
+          }
+        )
+      )
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+
+    const modelArgs = parseKeyValueArgs(args.slice(1))
+    const embeddingData = {
+      model: args[0],
+      provider: modelArgs.provider,
+      dimensions: modelArgs.dimensions ? Number(modelArgs.dimensions) : undefined,
+      maxTokens: modelArgs.maxTokens ? Number(modelArgs.maxTokens) : undefined,
+      batchSize: modelArgs.batchSize ? Number(modelArgs.batchSize) : undefined,
+      costPer1KTokens: modelArgs.costPer1KTokens ? Number(modelArgs.costPer1KTokens) : undefined,
+      baseURL: modelArgs.baseURL,
+    }
+
+    const validated = validateCommandArgs(EmbeddingModelCommandSchema, embeddingData, 'embed-model')
+    if (!validated) {
+      console.log(chalk.gray(`Usage: /embed-model <model> [provider=<provider>] [dimensions=<n>] [batchSize=<n>]`))
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+
+    try {
+      configManager.setCurrentEmbeddingModel(validated.model, {
+        provider: validated.provider,
+        dimensions: validated.dimensions,
+        maxTokens: validated.maxTokens,
+        batchSize: validated.batchSize,
+        costPer1KTokens: validated.costPer1KTokens,
+        baseURL: validated.baseURL,
+      })
+
+      const cfg = configManager.getEmbeddingModelConfig(validated.model)
+      const provider = cfg?.provider || validated.provider || 'openrouter'
+      const dims = cfg?.dimensions || validated.dimensions || aiSdkEmbeddingProvider.getCurrentDimensions()
+
+      this.printPanel(
+        boxen(
+          [
+            chalk.green(`✓ Switched embedding model to:`),
+            chalk.cyan(validated.model),
+            chalk.gray(`Provider: ${provider}`),
+            chalk.gray(`Dimensions: ${dims}`),
+          ].join('\n'),
+          {
+            title: 'Embedding Model Updated',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'green',
+          }
+        )
+      )
+      return { shouldExit: false, shouldUpdatePrompt: true }
+    } catch (error: any) {
+      console.log(chalk.red(`❌ ${error.message}`))
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+  }
+
+  private async embedModelsCommand(): Promise<CommandResult> {
+    const boxen = (await import('boxen')).default
+
+    const currentModel = configManager.getCurrentEmbeddingModel()
+    const models = configManager.get('embeddingModels') || {}
+
+    const lines: string[] = []
+    lines.push(chalk.blue.bold('🧭 Embedding Models'))
+    lines.push(chalk.gray('─'.repeat(40)))
+
+    Object.entries(models).forEach(([name, config]) => {
+      const isCurrent = name === currentModel
+      const hasKey = configManager.getApiKey(name) !== undefined || configManager.getApiKey(config.provider) !== undefined
+      const status = hasKey ? chalk.green('✓') : chalk.red('❌')
+      const prefix = isCurrent ? chalk.yellow('→ ') : '  '
+      const dims = (config as any).dimensions || aiSdkEmbeddingProvider.getCurrentDimensions()
+
+      lines.push(`${prefix}${status} ${chalk.bold(name)}`)
+      lines.push(`    ${chalk.gray(`Provider: ${(config as any).provider} | Model: ${(config as any).model || name}`)}`)
+      lines.push(`    ${chalk.gray(`Dimensions: ${dims}`)}`)
+    })
+
+    lines.push('')
+    lines.push(chalk.gray('Use /embed-model <name> to switch embedding models'))
+    lines.push(chalk.gray('Use /set-key <provider|model> <key> to add API keys'))
+
+    this.printPanel(
+      boxen(lines.join('\n'), {
+        title: 'Embedding Models',
+        padding: 1,
+        margin: 1,
+        borderStyle: 'round',
+        borderColor: 'blue',
+      })
+    )
+
+    return { shouldExit: false, shouldUpdatePrompt: false }
+  }
+
   private async modelsCommand(): Promise<CommandResult> {
     console.log(chalk.blue.bold('\n🤖 Available Models:'))
     console.log(chalk.gray('─'.repeat(40)))
@@ -1594,7 +1735,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       const response = await fetch('https://openrouter.ai/api/v1/models', {
         headers: {
           'Authorization': `Bearer ${apiKey}`,
-          'HTTP-Referer': 'https://nikcli.ai',
+          'HTTP-Referer': 'https://nikcli.mintlify.app',
           'X-Title': 'NikCLI',
         },
       })
@@ -1739,6 +1880,297 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       nik?.renderPromptAfterOutput?.()
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
+  }
+
+  private async setKeyEmbedCommand(args: string[]): Promise<CommandResult> {
+    if (args.length < 2) {
+      console.log(chalk.red('Usage: /set-key-embed <provider|model> <api-key>'))
+      console.log(chalk.gray('Examples:'))
+      console.log(chalk.gray('  /set-key-embed openrouter sk-or-v1-...'))
+      console.log(chalk.gray('  /set-key-embed openai/text-embedding-3-small sk-or-v1-...'))
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+
+    const target = args[0]
+    const key = args[1]
+
+    try {
+      configManager.setApiKey(target, key)
+      console.log(chalk.green(`✓ Embedding key set for ${target}`))
+
+      // If looks like OpenRouter, also set openrouter
+      if (target === 'openrouter' || target.startsWith('sk-or-')) {
+        configManager.setApiKey('openrouter', key)
+      }
+
+      return { shouldExit: false, shouldUpdatePrompt: true }
+    } catch (error: any) {
+      console.log(chalk.red(`❌ Failed to set embedding key: ${error.message}`))
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+  }
+
+  private async embedModelsOpenCommand(): Promise<CommandResult> {
+    try {
+      const nik: any = (global as any).__nikCLI
+      const inquirer = (await import('inquirer')).default
+      const { inputQueue } = await import('../core/input-queue')
+
+      const apiKey = process.env.OPENROUTER_API_KEY || configManager.getApiKey('openrouter')
+      if (!apiKey) {
+        this.printPanel(
+          boxen(chalk.red('❌ OPENROUTER_API_KEY not found\n\nSet it with: /set-key openrouter <your-api-key>'), {
+            title: '🔑 Missing API Key',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'red',
+          })
+        )
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
+
+      nik?.beginPanelOutput?.()
+      const typeAnswer = await inquirer.prompt([
+        {
+          type: 'list',
+          name: 'mode',
+          message: 'Select type',
+          choices: [
+            { name: 'Embeddings (classic vectors)', value: 'embeddings' },
+            { name: 'Rerankers (relevance scoring)', value: 'rerankers' },
+          ],
+          default: 'embeddings',
+        },
+      ])
+      const modelType = typeAnswer.mode as 'embeddings' | 'rerankers'
+      const endpoint =
+        modelType === 'rerankers'
+          ? 'https://openrouter.ai/api/v1/rerankers'
+          : 'https://openrouter.ai/api/v1/embeddings/models'
+
+      this.printPanel(
+        boxen(
+          modelType === 'rerankers'
+            ? '🚀 OpenRouter Rerankers Browser'
+            : '🚀 OpenRouter Embedding Models Browser',
+          {
+            title: modelType === 'rerankers' ? '📦 Fetching Rerankers' : '📦 Fetching Embeddings',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'blue',
+          }
+        )
+      )
+      nik?.endPanelOutput?.()
+
+      const response = await fetch(endpoint, {
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'HTTP-Referer': 'https://nikcli.mintlify.app',
+          'X-Title': 'NikCLI',
+        },
+      })
+
+      if (!response.ok) {
+        this.printPanel(
+          boxen(
+            chalk.red(
+              `❌ Error fetching ${modelType}: ${response.status} ${response.statusText}\n\nCheck your API key with: /set-key openrouter <your-api-key>`
+            ),
+            {
+              title: '❌ API Error',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'red',
+            }
+          )
+        )
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
+
+      const data = (await response.json()) as any
+      const allModels = (data.data || []) as Array<{ id: string; name?: string; description?: string; pricing?: any; context_length?: number }>
+
+      nik?.beginPanelOutput?.()
+      this.printPanel(
+        boxen(`✓ Found ${allModels.length} ${modelType}`, {
+          title: modelType === 'rerankers' ? '📦 Rerankers Loaded' : '📦 Embeddings Loaded',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'green',
+        })
+      )
+      nik?.endPanelOutput?.()
+
+      nik?.suspendPrompt?.()
+      inputQueue.enableBypass()
+      let selectedModel: string | null = null
+
+      try {
+        const searchAnswer = await inquirer.prompt([
+          {
+            type: 'input',
+            name: 'search',
+            message: modelType === 'rerankers' ? 'Search rerankers (by name or ID)' : 'Search embedding models (by name or ID)',
+            default: '',
+          },
+        ])
+
+        const searchQuery = searchAnswer.search.toLowerCase()
+        const filtered = allModels.filter(
+          (m) =>
+            m.id.toLowerCase().includes(searchQuery) ||
+            (m.name && m.name.toLowerCase().includes(searchQuery)) ||
+            (m.description && m.description.toLowerCase().includes(searchQuery))
+        )
+
+        if (filtered.length === 0) {
+          console.log(chalk.yellow('\n⚠️  No embedding models found matching your search'))
+          inputQueue.disableBypass()
+          nik?.renderPromptAfterOutput?.()
+          return { shouldExit: false, shouldUpdatePrompt: false }
+        }
+
+        const displayModels = filtered.slice(0, 20).map((m) => {
+          const pricing = m.pricing
+            ? ` (cost: $${m.pricing?.prompt || 0}/1M)`
+            : ''
+          const ctx = m.context_length ? ` ctx:${m.context_length}` : ''
+          return {
+            name: `${chalk.bold(m.id)}${chalk.dim(pricing + ctx)}`,
+            value: m.id,
+          }
+        })
+
+        const selectAnswer = await inquirer.prompt([
+          {
+            type: 'list',
+            name: 'model',
+            message: `Select ${modelType === 'rerankers' ? 'reranker' : 'embedding model'} (${filtered.length} results):`,
+            choices: displayModels,
+            pageSize: 15,
+          },
+        ])
+
+        selectedModel = selectAnswer.model
+
+        const setCurrentAnswer = await inquirer.prompt([
+          {
+            type: 'confirm',
+            name: 'setCurrent',
+            message: `Set ${chalk.bold(selectedModel)} as current embedding model?`,
+            default: true,
+          },
+        ])
+
+        if (setCurrentAnswer.setCurrent) {
+          configManager.setCurrentEmbeddingModel(selectedModel as string)
+          console.log(chalk.green(`✓ Current embedding model set to: ${selectedModel}`))
+        }
+      } finally {
+        inputQueue.disableBypass()
+        nik?.renderPromptAfterOutput?.()
+      }
+
+      if (selectedModel) {
+        this.printPanel(
+          boxen(`✓ Selected: ${chalk.bold(selectedModel)}\n\nEmbedding model applied`, {
+            title: '✅ Embedding Model Selected',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'green',
+          })
+        )
+      }
+
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    } catch (error: any) {
+      const nik: any = (global as any).__nikCLI
+      nik?.suspendPrompt?.()
+
+      this.printPanel(
+        boxen(chalk.red(`❌ Error: ${error.message}`), {
+          title: '❌ Error',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+      )
+
+      nik?.renderPromptAfterOutput?.()
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+  }
+
+  private async embedStatusCommand(): Promise<CommandResult> {
+    const boxen = (await import('boxen')).default
+
+    const current = configManager.getCurrentEmbeddingModel()
+    const cfg = current ? configManager.getEmbeddingModelConfig(current) : undefined
+    const provider = cfg?.provider || 'openrouter'
+    const dims = cfg?.dimensions || aiSdkEmbeddingProvider.getCurrentDimensions()
+
+    const providerStats = aiSdkEmbeddingProvider.getStats()
+    const ragStats: any = unifiedRAGSystem.getStats()
+    const vectorStats = (unifiedRAGSystem as any).getVectorStoreStats?.() || null
+
+    const lines: string[] = []
+    lines.push(chalk.blue.bold('🧭 Embedding/RAG Status'))
+    lines.push(chalk.gray('─'.repeat(50)))
+    lines.push(`${chalk.white('Current Model:')} ${chalk.cyan(current || 'not set')}`)
+    lines.push(`${chalk.white('Provider:')} ${chalk.cyan(provider)}  ${chalk.white('Dims:')} ${chalk.cyan(dims)}`)
+    lines.push('')
+    lines.push(chalk.green('Usage'))
+    lines.push(`  Requests: ${providerStats.totalRequests}`)
+    lines.push(`  Tokens: ${providerStats.totalTokens.toLocaleString()}`)
+    lines.push(`  Cost: $${providerStats.totalCost.toFixed(6)}`)
+    lines.push(`  Success: ${(providerStats.successRate * 100).toFixed(1)}%`)
+    lines.push(`  Avg Latency: ${Math.round(providerStats.averageLatency)}ms`)
+    if (Object.keys(providerStats.providerUsage || {}).length > 0) {
+      lines.push('  Provider usage:')
+      Object.entries(providerStats.providerUsage).forEach(([p, c]) => {
+        lines.push(`    • ${p}: ${c} reqs`)
+      })
+    }
+    lines.push('')
+    lines.push(chalk.green('Vector Store'))
+    lines.push(
+      `  Status: ${ragStats.vectorDBAvailable ? chalk.green('available') : chalk.yellow('unavailable')}` +
+      (vectorStats?.provider ? ` (${vectorStats.provider})` : '')
+    )
+    if (vectorStats) {
+      lines.push(`  Indexed docs: ${vectorStats.indexedDocuments ?? vectorStats.documentsCount ?? 0}`)
+      lines.push(`  Total cost: $${(vectorStats.totalCost || 0).toFixed(6)}`)
+      lines.push(`  Searches: ${vectorStats.searchQueries ?? 0}`)
+    }
+    lines.push('')
+    lines.push(chalk.green('Caches'))
+    lines.push(
+      `  Embeddings: ${ragStats?.caches?.embeddings?.entries ?? 0} entries | ` +
+      `hit ${ragStats?.caches?.embeddings?.hits ?? 0} / miss ${ragStats?.caches?.embeddings?.misses ?? 0} | ` +
+      `rate ${ragStats?.caches?.embeddings?.hitRate ?? '0%'}`
+    )
+    lines.push(
+      `  Analysis: ${ragStats?.caches?.analysis?.entries ?? 0} entries | rate ${ragStats?.caches?.analysis?.hitRate ?? '0%'}`
+    )
+
+    this.printPanel(
+      boxen(lines.join('\n'), {
+        title: 'Embeddings Overview',
+        padding: 1,
+        margin: 1,
+        borderStyle: 'round',
+        borderColor: 'blue',
+      })
+    )
+
+    return { shouldExit: false, shouldUpdatePrompt: false }
   }
 
   private async routerCommand(args: string[] = []): Promise<CommandResult> {
@@ -8272,169 +8704,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     return { shouldExit: false, shouldUpdatePrompt: false }
   }
 
-  /**
-   * Web3 Toolchain command
-   */
-  private async web3ToolchainCommand(args: string[]): Promise<CommandResult> {
-    if (args.length === 0) {
-      this.cliInstance.printPanel(
-        boxen(
-          [
-            chalk.bold('🔗 Web3 Toolchain Commands'),
-            chalk.gray('────────────────────────────────────────────'),
-            '',
-            `${chalk.cyan('/web3-toolchain list')}    – List available Web3 toolchains`,
-            `${chalk.cyan('/web3-toolchain run <name>')} – Execute a Web3 toolchain`,
-            `${chalk.cyan('/web3-toolchain status')}  – Show active executions`,
-            `${chalk.cyan('/web3-toolchain cancel <id>')} – Cancel running execution`,
-            '',
-            chalk.gray('Available toolchains:'),
-            chalk.gray('• defi-analysis - DeFi protocol analysis'),
-            chalk.gray('• polymarket-strategy - Prediction market trading'),
-            chalk.gray('• portfolio-management - Multi-chain portfolio'),
-            chalk.gray('• nft-analysis - NFT collection analytics'),
-            chalk.gray('• contract-audit - Smart contract security'),
-            chalk.gray('• yield-optimizer - Yield farming optimization'),
-            chalk.gray('• bridge-analysis - Cross-chain bridge analysis'),
-            chalk.gray('• mev-protection - MEV protection strategy'),
-            chalk.gray('• governance-analysis - DAO governance analysis'),
-          ].join('\n'),
-          { title: 'Web3 Toolchains', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'cyan' }
-        )
-      )
-      return { shouldExit: false, shouldUpdatePrompt: false }
-    }
 
-    const action = args[0].toLowerCase()
-    const nik: any = (global as any).__nikCLI
-    nik?.beginPanelOutput?.()
-
-    try {
-      const { web3ToolchainRegistry } = await import('../toolchains/web3-toolchains')
-
-      switch (action) {
-        case 'list':
-          const toolchains = web3ToolchainRegistry.listToolchains()
-          const listContent = this.formatWeb3ToolchainListPanel(toolchains)
-          this.cliInstance.printPanel(listContent)
-          break
-
-        case 'run':
-          if (!args[1]) {
-            this.cliInstance.printPanel(
-              boxen('Usage: /web3-toolchain run <toolchain-name> [--chain <chain>] [--dry-run]', {
-                title: 'Web3 Toolchain Run',
-                padding: 1,
-                margin: 1,
-                borderStyle: 'round',
-                borderColor: 'yellow',
-              })
-            )
-            break
-          }
-
-          const toolchainName = args[1]
-          const options: any = {}
-
-          for (let i = 2; i < args.length; i++) {
-            if (args[i] === '--chain' && args[i + 1]) {
-              options.chain = args[i + 1]
-              i++
-            } else if (args[i] === '--dry-run') {
-              options.dryRun = true
-            }
-          }
-
-          const execution = await web3ToolchainRegistry.executeToolchain(toolchainName, {}, options)
-          const execContent = this.formatWeb3ToolchainExecutionPanel(execution)
-          this.cliInstance.printPanel(execContent)
-          break
-
-        case 'status':
-          const activeExecutions = web3ToolchainRegistry.getActiveExecutions()
-          const statusContent = this.formatWeb3ToolchainStatusPanel(activeExecutions)
-          this.cliInstance.printPanel(statusContent)
-          break
-
-        case 'cancel':
-          if (!args[1]) {
-            this.cliInstance.printPanel(
-              boxen('Usage: /web3-toolchain cancel <execution-id>', {
-                title: 'Web3 Toolchain Cancel',
-                padding: 1,
-                margin: 1,
-                borderStyle: 'round',
-                borderColor: 'yellow',
-              })
-            )
-            break
-          }
-
-          const executionId = args[1]
-          const cancelled = web3ToolchainRegistry.cancelExecution(executionId)
-          const cancelContent = this.formatWeb3ToolchainCancelPanel(cancelled, executionId)
-          this.cliInstance.printPanel(cancelContent)
-          break
-
-        default:
-          this.cliInstance.printPanel(
-            boxen(`Unknown toolchain command: ${action}`, {
-              title: 'Web3 Toolchain Error',
-              padding: 1,
-              margin: 1,
-              borderStyle: 'round',
-              borderColor: 'red',
-            })
-          )
-      }
-    } catch (error: any) {
-      this.cliInstance.printPanel(
-        boxen(`Web3 toolchain command failed: ${error.message}`, {
-          title: 'Web3 Toolchain Error',
-          padding: 1,
-          margin: 1,
-          borderStyle: 'round',
-          borderColor: 'red',
-        })
-      )
-    } finally {
-      if (nik) {
-        nik.endPanelOutput?.()
-        nik.renderPromptAfterOutput?.()
-      }
-    }
-
-    return { shouldExit: false, shouldUpdatePrompt: false }
-  }
-
-  /**
-   * DeFi Toolchain shortcut command
-   */
-  private async defiToolchainCommand(args: string[]): Promise<CommandResult> {
-    // Redirect to specific DeFi toolchains
-    if (args.length === 0) {
-      return await this.web3ToolchainCommand(['list'])
-    }
-
-    const action = args[0].toLowerCase()
-
-    // Map common DeFi actions to toolchains
-    const toolchainMap: Record<string, string> = {
-      'analyze': 'defi-analysis',
-      'yield': 'yield-optimizer',
-      'portfolio': 'portfolio-management',
-      'bridge': 'bridge-analysis',
-      'mev': 'mev-protection',
-      'governance': 'governance-analysis'
-    }
-
-    const toolchainName = toolchainMap[action]
-    if (toolchainName) {
-      return await this.web3ToolchainCommand(['run', toolchainName, ...args.slice(1)])
-    } else {
-      return await this.web3ToolchainCommand([action, ...args.slice(1)])
-    }
-  }
 
   // ====================== GOAT PANEL FORMATTERS ======================
 
@@ -13942,131 +14212,6 @@ export async function handlePolymarketCommand(args: string[]): Promise<void> {
   }
 }
 
-/**
- * Web3 Toolchain command
- */
-export async function handleWeb3ToolchainCommand(args: string[]): Promise<void> {
-  if (args.length === 0) {
-    console.log(
-      boxen(
-        [
-          chalk.bold('🔗 Web3 Toolchain Commands'),
-          chalk.gray('────────────────────────────────────────────'),
-          '',
-          `${chalk.cyan('/web3-toolchain list')}    – List available Web3 toolchains`,
-          `${chalk.cyan('/web3-toolchain run <name>')} – Execute a Web3 toolchain`,
-          `${chalk.cyan('/web3-toolchain status')}  – Show active executions`,
-          `${chalk.cyan('/web3-toolchain cancel <id>')} – Cancel running execution`,
-          '',
-          chalk.gray('Available toolchains:'),
-          chalk.gray('• defi-analysis - DeFi protocol analysis'),
-          chalk.gray('• polymarket-strategy - Prediction market trading'),
-          chalk.gray('• portfolio-management - Multi-chain portfolio'),
-          chalk.gray('• nft-analysis - NFT collection analytics'),
-          chalk.gray('• contract-audit - Smart contract security'),
-          chalk.gray('• yield-optimizer - Yield farming optimization'),
-          chalk.gray('• bridge-analysis - Cross-chain bridge analysis'),
-          chalk.gray('• mev-protection - MEV protection strategy'),
-          chalk.gray('• governance-analysis - DAO governance analysis'),
-        ].join('\n'),
-        { title: 'Web3 Toolchains', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'cyan' }
-      )
-    )
-    return
-  }
-
-  const action = args[0].toLowerCase()
-
-  try {
-    const { web3ToolchainRegistry } = await import('../toolchains/web3-toolchains')
-
-    switch (action) {
-      case 'list':
-        const toolchains = web3ToolchainRegistry.listToolchains()
-        const listContent = formatWeb3ToolchainListPanel(toolchains)
-        console.log(listContent)
-        break
-
-      case 'run':
-        if (!args[1]) {
-          console.log(
-            boxen('Usage: /web3-toolchain run <toolchain-name> [--chain <chain>] [--dry-run]', {
-              title: 'Web3 Toolchain Run',
-              padding: 1,
-              margin: 1,
-              borderStyle: 'round',
-              borderColor: 'yellow',
-            })
-          )
-          break
-        }
-
-        const toolchainName = args[1]
-        const options: any = {}
-
-        for (let i = 2; i < args.length; i++) {
-          if (args[i] === '--chain' && args[i + 1]) {
-            options.chain = args[i + 1]
-            i++
-          } else if (args[i] === '--dry-run') {
-            options.dryRun = true
-          }
-        }
-
-        const execution = await web3ToolchainRegistry.executeToolchain(toolchainName, {}, options)
-        const execContent = formatWeb3ToolchainExecutionPanel(execution)
-        console.log(execContent)
-        break
-
-      case 'status':
-        const activeExecutions = web3ToolchainRegistry.getActiveExecutions()
-        const statusContent = formatWeb3ToolchainStatusPanel(activeExecutions)
-        console.log(statusContent)
-        break
-
-      case 'cancel':
-        if (!args[1]) {
-          console.log(
-            boxen('Usage: /web3-toolchain cancel <execution-id>', {
-              title: 'Web3 Toolchain Cancel',
-              padding: 1,
-              margin: 1,
-              borderStyle: 'round',
-              borderColor: 'yellow',
-            })
-          )
-          break
-        }
-
-        const executionId = args[1]
-        const cancelled = web3ToolchainRegistry.cancelExecution(executionId)
-        const cancelContent = formatWeb3ToolchainCancelPanel(cancelled, executionId)
-        console.log(cancelContent)
-        break
-
-      default:
-        console.log(
-          boxen(`Unknown toolchain command: ${action}`, {
-            title: 'Web3 Toolchain Error',
-            padding: 1,
-            margin: 1,
-            borderStyle: 'round',
-            borderColor: 'red',
-          })
-        )
-    }
-  } catch (error: any) {
-    console.log(
-      boxen(`Web3 toolchain command failed: ${error.message}`, {
-        title: 'Web3 Toolchain Error',
-        padding: 1,
-        margin: 1,
-        borderStyle: 'round',
-        borderColor: 'red',
-      })
-    )
-  }
-}
 
 // ====================== GOAT PANEL FORMATTERS ======================
 

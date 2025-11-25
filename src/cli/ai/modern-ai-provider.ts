@@ -21,18 +21,18 @@ import { ReasoningDetector } from './reasoning-detector'
 
 export interface ModelConfig {
   provider:
-    | 'openai'
-    | 'anthropic'
-    | 'google'
-    | 'vercel'
-    | 'gateway'
-    | 'openrouter'
-    | 'ollama'
-    | 'cerebras'
-    | 'groq'
-    | 'llamacpp'
-    | 'lmstudio'
-    | 'openai-compatible'
+  | 'openai'
+  | 'anthropic'
+  | 'google'
+  | 'vercel'
+  | 'gateway'
+  | 'openrouter'
+  | 'ollama'
+  | 'cerebras'
+  | 'groq'
+  | 'llamacpp'
+  | 'lmstudio'
+  | 'openai-compatible'
   model: string
   temperature?: number
   maxTokens?: number
@@ -576,7 +576,7 @@ export class ModernAIProvider {
           apiKey,
           baseURL: 'https://openrouter.ai/api/v1',
           headers: {
-            'HTTP-Referer': 'https://nikcli.ai', // Optional: for attribution
+            'HTTP-Referer': 'https://nikcli.mintlify.app', // Optional: for attribution
             'X-Title': 'NikCLI',
           },
         })

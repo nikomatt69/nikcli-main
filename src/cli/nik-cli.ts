@@ -86,6 +86,7 @@ import { terminalOutputManager } from './ui/terminal-output-manager'
 
 // VM System imports
 import { vmSelector } from './virtualized-agents/vm-selector'
+import { aiSdkEmbeddingProvider } from './context/ai-sdk-embedding-provider'
 
 
 
@@ -1131,6 +1132,26 @@ export class NikCLI {
       try {
         this.renderPromptAfterOutput()
       } catch { }
+    })
+
+    // Listen for auth events to sync memory with user
+    authProvider.on('signed_in', ({ profile }) => {
+      if (profile?.id) {
+        memoryService.setCurrentUserId(profile.id)
+        console.log(chalk.green(`✓ Memory system synced with user: ${profile.email || profile.username}`))
+      }
+    })
+
+    authProvider.on('signed_out', () => {
+      memoryService.setCurrentUserId(null)
+      console.log(chalk.blue('🧹 Memory system cleared'))
+    })
+
+    authProvider.on('auto_login_success', ({ profile }) => {
+      if (profile?.id) {
+        memoryService.setCurrentUserId(profile.id)
+        console.log(chalk.green(`✓ Memory system restored for user: ${profile.email || profile.username}`))
+      }
     })
   }
   // Bridge StreamingOrchestrator agent lifecycle events into NikCLI output
@@ -3261,6 +3282,36 @@ export class NikCLI {
         case 'models':
           await this.showModelsPanel()
           break
+
+        case 'embed-model':
+          await this.handleEmbeddingModelCommand(args)
+          break
+
+        case 'embed-models':
+          await this.showEmbeddingModelsPanel()
+          break
+
+        case 'embed-models-open': {
+          await this.browseOpenRouterEmbeddingModels()
+          break
+        }
+        case 'embed':
+        case 'embeds': {
+          const result = await this.slashHandler.handle(`/${command}`)
+          if (result.shouldExit) {
+            await this.shutdown()
+            return
+          }
+          break
+        }
+        case 'set-key-embed': {
+          const result = await this.slashHandler.handle(`/set-key-embed ${args.join(' ')}`)
+          if (result.shouldExit) {
+            await this.shutdown()
+            return
+          }
+          break
+        }
 
         case 'set-key':
           await this.handleModelConfig('set-key', args)
@@ -20945,6 +20996,359 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       this.printPanel(modelsBox, 'general')
     } catch (error: any) {
       console.log(chalk.red(`❌ Failed to show models: ${error.message}`))
+    }
+  }
+
+  /**
+   * Handle embedding model selection and display
+   */
+  private async handleEmbeddingModelCommand(args: string[]): Promise<void> {
+    const kvArgs: Record<string, string> = {}
+    for (const part of args.slice(1)) {
+      const [k, ...rest] = part.split('=')
+      if (k && rest.length > 0) {
+        kvArgs[k.trim()] = rest.join('=').trim()
+      }
+    }
+
+    if (args.length === 0) {
+      await this.showEmbeddingModelsPanel()
+      return
+    }
+
+    if (args.length === 1 && !args[0].includes('=')) {
+      // Just switch embedding model
+      try {
+        configManager.setCurrentEmbeddingModel(args[0])
+        const cfg = configManager.getEmbeddingModelConfig(args[0])
+        const provider = cfg?.provider || 'openrouter'
+        const dims = cfg?.dimensions || aiSdkEmbeddingProvider.getCurrentDimensions()
+        this.printPanel(
+          boxen(
+            `Switched embedding model: ${args[0]}\nProvider: ${provider}\nDimensions: ${dims}`,
+            {
+              title: 'Embedding Model Updated',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'green',
+            }
+          ),
+          'general'
+        )
+      } catch (error: any) {
+        this.printPanel(
+          boxen(`Failed to set embedding model: ${error.message}`, {
+            title: 'Embedding Error',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'red',
+          }),
+          'general'
+        )
+      }
+      return
+    }
+
+    const modelName = args[0]
+    const provider = kvArgs.provider as any
+    const dimensions = kvArgs.dimensions ? Number(kvArgs.dimensions) : undefined
+    const maxTokens = kvArgs.maxTokens ? Number(kvArgs.maxTokens) : undefined
+    const batchSize = kvArgs.batchSize ? Number(kvArgs.batchSize) : undefined
+    const costPer1KTokens = kvArgs.costPer1KTokens ? Number(kvArgs.costPer1KTokens) : undefined
+    const baseURL = kvArgs.baseURL
+
+    try {
+      configManager.setCurrentEmbeddingModel(modelName, {
+        provider,
+        dimensions,
+        maxTokens,
+        batchSize,
+        costPer1KTokens,
+        baseURL,
+      })
+
+      const cfg = configManager.getEmbeddingModelConfig(modelName)
+      const dims = cfg?.dimensions || aiSdkEmbeddingProvider.getCurrentDimensions()
+      this.printPanel(
+        boxen(
+          [
+            chalk.green(`Embedding model set: ${modelName}`),
+            chalk.gray(`Provider: ${cfg?.provider || provider || 'openrouter'}`),
+            chalk.gray(`Dimensions: ${dims}`),
+            cfg?.baseURL ? chalk.gray(`Base URL: ${cfg.baseURL}`) : '',
+          ].filter(Boolean).join('\n'),
+          {
+            title: 'Embedding Model Updated',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'green',
+          }
+        ),
+        'general'
+      )
+    } catch (error: any) {
+      this.printPanel(
+        boxen(`Failed to set embedding model: ${error.message}`, {
+          title: 'Embedding Error',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        }),
+        'general'
+      )
+    }
+  }
+
+  /**
+   * Interactive OpenRouter embeddings browser (search & select)
+   */
+  private async browseOpenRouterEmbeddingModels(): Promise<void> {
+    try {
+      const apiKey =
+        process.env.OPENROUTER_API_KEY ||
+        configManager.getApiKey('openrouter') ||
+        configManager.getApiKey(configManager.getCurrentEmbeddingModel())
+      if (!apiKey) {
+        this.printPanel(
+          boxen(chalk.red('❌ OPENROUTER_API_KEY not found\n\nSet it with: /set-key openrouter <your-api-key>'), {
+            title: '🔑 Missing API Key',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'red',
+          }),
+          'general'
+        )
+        return
+      }
+
+      const inquirer = (await import('inquirer')).default
+      const typeAnswer = await inquirer.prompt([
+        {
+          type: 'list',
+          name: 'mode',
+          message: 'Select type',
+          choices: [
+            { name: 'Embeddings (classic vectors)', value: 'embeddings' },
+            { name: 'Rerankers (relevance scoring)', value: 'rerankers' },
+          ],
+          default: 'embeddings',
+        },
+      ])
+      const modelType = typeAnswer.mode as 'embeddings' | 'rerankers'
+      const endpoint =
+        modelType === 'rerankers'
+          ? 'https://openrouter.ai/api/v1/rerankers'
+          : 'https://openrouter.ai/api/v1/embeddings/models'
+
+      this.printPanel(
+        boxen(
+          modelType === 'rerankers'
+            ? '🚀 OpenRouter Rerankers Browser'
+            : '🚀 OpenRouter Embedding Models Browser',
+          {
+            title: modelType === 'rerankers' ? '📦 Fetching Rerankers' : '📦 Fetching Embeddings',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'blue',
+          }
+        ),
+        'general'
+      )
+
+      const response = await fetch(endpoint, {
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'HTTP-Referer': 'https://nikcli.mintlify.app',
+          'X-Title': 'NikCLI',
+        },
+      })
+
+      if (!response.ok) {
+        this.printPanel(
+          boxen(
+            chalk.red(
+              `❌ Error fetching embedding models: ${response.status} ${response.statusText}\n\nCheck your API key with: /set-key openrouter <your-api-key>`
+            ),
+            {
+              title: '❌ API Error',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'red',
+            }
+          ),
+          'general'
+        )
+        return
+      }
+
+      const data = (await response.json()) as any
+      const allModels = (data.data || []) as Array<{ id: string; name?: string; description?: string; pricing?: any; context_length?: number }>
+
+      this.printPanel(
+        boxen(`✓ Found ${allModels.length} ${modelType}`, {
+          title: modelType === 'rerankers' ? '📦 Rerankers Loaded' : '📦 Embedding Models Loaded',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'green',
+        }),
+        'general'
+      )
+
+      // Interactive search & select
+      const { inputQueue } = await import('./core/input-queue')
+
+
+      this.suspendPrompt()
+      inputQueue.enableBypass()
+      let selectedModel: string | null = null
+
+      try {
+        const searchAnswer = await inquirer.prompt([
+          {
+            type: 'input',
+            name: 'search',
+            message: modelType === 'rerankers' ? 'Search rerankers (by name or ID)' : 'Search embedding models (by name or ID)',
+            default: '',
+          },
+        ])
+
+        const searchQuery = searchAnswer.search.toLowerCase()
+        const filtered = allModels.filter(
+          (m) =>
+            m.id.toLowerCase().includes(searchQuery) ||
+            (m.name && m.name.toLowerCase().includes(searchQuery)) ||
+            (m.description && m.description.toLowerCase().includes(searchQuery))
+        )
+
+        if (filtered.length === 0) {
+          console.log(chalk.yellow('\n⚠️  No embedding models found matching your search'))
+          return
+        }
+
+        const displayModels = filtered.slice(0, 20).map((m) => {
+          const pricing = m.pricing
+            ? ` (cost: $${m.pricing?.prompt || 0}/1M)`
+            : ''
+          const ctx = m.context_length ? ` ctx:${m.context_length}` : ''
+          return {
+            name: `${chalk.bold(m.id)}${chalk.dim(pricing + ctx)}`,
+            value: m.id,
+          }
+        })
+
+        const selectAnswer = await inquirer.prompt([
+          {
+            type: 'list',
+            name: 'model',
+            message: `Select ${modelType === 'rerankers' ? 'reranker' : 'embedding model'} (${filtered.length} results):`,
+            choices: displayModels,
+            pageSize: 15,
+          },
+        ])
+
+        selectedModel = selectAnswer.model
+
+        const setCurrentAnswer = await inquirer.prompt([
+          {
+            type: 'confirm',
+            name: 'setCurrent',
+            message: `Set ${chalk.bold(selectedModel)} as current embedding model?`,
+            default: true,
+          },
+        ])
+
+        if (setCurrentAnswer.setCurrent) {
+          configManager.setCurrentEmbeddingModel(selectedModel as string)
+          this.printPanel(
+            boxen(
+              `✓ Selected embedding model: ${chalk.bold(selectedModel)}\nApplied immediately (no restart needed)`,
+              {
+                title: '✅ Embedding Model Selected',
+                padding: 1,
+                margin: 1,
+                borderStyle: 'round',
+                borderColor: 'green',
+              }
+            ),
+            'general'
+          )
+        }
+      } finally {
+        inputQueue.disableBypass()
+        this.renderPromptAfterOutput()
+      }
+    } catch (error: any) {
+      this.printPanel(
+        boxen(chalk.red(`❌ Error: ${error.message}`), {
+          title: '❌ Error',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        }),
+        'general'
+      )
+    }
+  }
+
+  /**
+   * Show embedding models panel with proper formatting
+   */
+  private async showEmbeddingModelsPanel(): Promise<void> {
+    try {
+      const currentEmbedding = configManager.getCurrentEmbeddingModel()
+      const embeddingModels = configManager.get('embeddingModels') || {}
+
+      let content = chalk.blue.bold('🧭 Embedding Models Dashboard\n')
+      content += `${chalk.gray('─'.repeat(50))}\n\n`
+
+      // Current active embedding model
+      content += chalk.green('🟢 Current Embedding Model:\n')
+      content += `   ${chalk.yellow.bold(currentEmbedding)}\n\n`
+
+      // Available embedding models
+      content += chalk.green('📋 Available Embedding Models:\n')
+      Object.entries(embeddingModels).forEach(([name, cfg]) => {
+        const isCurrent = name === currentEmbedding
+        const hasKey =
+          configManager.getApiKey(name) !== undefined || configManager.getApiKey((cfg as any).provider) !== undefined
+        const currentIndicator = isCurrent ? chalk.yellow('→ ') : '  '
+        const keyStatus = hasKey ? chalk.green('✓') : chalk.red('❌')
+        const dims = (cfg as any).dimensions || aiSdkEmbeddingProvider.getCurrentDimensions()
+
+        content += `${currentIndicator}${keyStatus} ${chalk.bold(name)}\n`
+        content += `     ${chalk.gray(`Provider: ${(cfg as any).provider || 'openrouter'}`)}\n`
+        content += `     ${chalk.gray(`Model: ${(cfg as any).model || name}`)}\n`
+        content += `     ${chalk.gray(`Dimensions: ${dims}`)}\n`
+        if (!hasKey) {
+          content += `     ${chalk.red('🚨  API key required')}\n`
+        }
+        content += '\n'
+      })
+
+      content += chalk.green('💡 Usage:\n')
+      content += `   ${chalk.cyan('/embed-model <name>')}     - Switch embedding model\n`
+      content += `   ${chalk.cyan('/set-key <provider> <key>')} - Configure API key (openrouter/openai/google)\n`
+
+      const box = boxen(content.trim(), {
+        title: '🧭 Embedding Models',
+        padding: 1,
+        margin: 1,
+        borderStyle: 'round',
+        borderColor: 'blue',
+      })
+
+      this.printPanel(box, 'general')
+    } catch (error: any) {
+      console.log(chalk.red(`❌ Failed to show embedding models: ${error.message}`))
     }
   }
 

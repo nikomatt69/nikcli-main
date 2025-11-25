@@ -863,14 +863,14 @@ class OnboardingModule {
     // Check if already logged in via authProvider (which handles session restoration automatically)
     try {
       const { authProvider } = await import('./providers/supabase/auth-provider')
-      
+
       // Check if user is authenticated (authProvider.restoreSession() is called during initialization)
       if (authProvider.isAuthenticated()) {
         const profile = authProvider.getCurrentProfile()
         const email = profile?.email || 'user'
-        
+
         const alreadyLoggedBox = boxen(
-          chalk.green(`✓ Already logged in as ${email}\n`) + 
+          chalk.green(`✓ Already logged in as ${email}\n`) +
           chalk.gray('Session restored from saved credentials.'),
           {
             padding: 1,
@@ -1873,7 +1873,7 @@ class StreamingModule extends EventEmitter {
   }
 
   private gracefulExit(): void {
-    advancedUI.logWarning('\nShutting down orchestrator...')
+    advancedUI.logWarning('Shutting down orchestrator...')
 
     if (this.activeAgents.size > 0) {
       advancedUI.logWarning(`⏳ Waiting for ${this.activeAgents.size} agents to finish...`)

@@ -178,7 +178,7 @@ export class WebSearchProvider {
           apiKey,
           baseURL: 'https://openrouter.ai/api/v1',
           headers: {
-            'HTTP-Referer': 'https://nikcli.ai',
+            'HTTP-Referer': 'https://nikcli.mintlify.app',
             'X-Title': 'NikCLI',
           },
         })

@@ -11,13 +11,13 @@ import { redisProvider } from '../redis/redis-provider'
 export interface ImageGenerationOptions {
   prompt: string
   model?:
-    | 'gpt-image-1'
-    | 'dall-e-2'
-    | 'dall-e-3'
-    | 'google/gemini-2.5-flash-image'
-    | 'google/gemini-3-pro-image-preview'
-    | 'openai/gpt-5-image-mini'
-    | 'openai/gpt-5-image'
+  | 'gpt-image-1'
+  | 'dall-e-2'
+  | 'dall-e-3'
+  | 'google/gemini-2.5-flash-image'
+  | 'google/gemini-3-pro-image-preview'
+  | 'openai/gpt-5-image-mini'
+  | 'openai/gpt-5-image'
   provider?: 'openai' | 'google' | 'openrouter'
   size?: '1024x1024' | '1536x1024' | '1024x1536' | '1792x1024' | '1024x1792' | '512x512' | '256x256'
   quality?: 'low' | 'medium' | 'high' | 'auto' | 'standard' | 'hd'
@@ -46,13 +46,13 @@ export interface ImageGenerationResult {
 export interface ImageGeneratorConfig {
   enabled: boolean
   default_model:
-    | 'gpt-image-1'
-    | 'dall-e-2'
-    | 'dall-e-3'
-    | 'google/gemini-2.5-flash-image'
-    | 'google/gemini-3-pro-image-preview'
-    | 'openai/gpt-5-image-mini'
-    | 'openai/gpt-5-image'
+  | 'gpt-image-1'
+  | 'dall-e-2'
+  | 'dall-e-3'
+  | 'google/gemini-2.5-flash-image'
+  | 'google/gemini-3-pro-image-preview'
+  | 'openai/gpt-5-image-mini'
+  | 'openai/gpt-5-image'
   default_provider: 'openai' | 'google' | 'openrouter'
   fallback_providers: ('openai' | 'google' | 'openrouter')[]
   default_size: '1024x1024' | '1536x1024' | '1024x1536' | '1792x1024' | '1024x1792'
@@ -487,7 +487,7 @@ export class ImageGenerator extends EventEmitter {
       headers: {
         Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://nikcli.ai',
+        'HTTP-Referer': 'https://nikcli.mintlify.app',
         'X-Title': 'NikCLI',
       },
       body: JSON.stringify({
@@ -563,7 +563,7 @@ export class ImageGenerator extends EventEmitter {
       headers: {
         Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://nikcli.ai',
+        'HTTP-Referer': 'https://nikcli.mintlify.app',
         'X-Title': 'NikCLI',
       },
       body: JSON.stringify({

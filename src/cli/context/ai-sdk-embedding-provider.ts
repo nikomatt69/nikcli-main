@@ -12,6 +12,9 @@ export interface EmbeddingConfig {
   batchSize: number
   maxTokens: number
   costPer1KTokens: number
+  baseURL?: string
+  headers?: Record<string, string>
+  dimensions?: number
 }
 
 export interface EmbeddingResult {
@@ -20,6 +23,11 @@ export interface EmbeddingResult {
   cost: number
   provider: string
   model: string
+}
+
+type ResolvedEmbeddingModel = {
+  name: string
+  config: Required<EmbeddingConfig> & { dimensions: number }
 }
 
 export interface EmbeddingStats {
@@ -45,27 +53,9 @@ export class AiSdkEmbeddingProvider {
     successRate: 0,
   }
 
-  private readonly providerConfigs: Record<string, EmbeddingConfig & { dimensions: number }> = {
-    openai: {
-      provider: 'openai',
-      model: 'text-embedding-3-small',
-      batchSize: 100, // Configurable via env
-      maxTokens: 8000, // Set to 8000 instead of 8191 for safety margin (model limit is 8192)
-      costPer1KTokens: 0.00002,
-      dimensions: 1536,
-    },
-    google: {
-      provider: 'google',
-      model: 'text-embedding-004',
-      batchSize: 50,
-      maxTokens: 2048,
-      costPer1KTokens: 0.000025,
-      dimensions: 768,
-    },
-  }
-
   private availableProviders: string[] = []
   private currentProvider: string | null = null
+  private lastUsedDimensions: number = 1536
 
   constructor() {
     this.initializeProviders()
@@ -76,36 +66,190 @@ export class AiSdkEmbeddingProvider {
    * ALWAYS use OpenAI for embeddings (even via OpenRouter)
    */
   private initializeProviders(): void {
-    this.availableProviders = []
+    const models = configManager.get('embeddingModels') || {}
+    const configuredProviders = new Set<string>()
 
-    // Primary: Check OpenAI API key (direct or via OpenRouter)
+    Object.values(models).forEach((cfg: any) => configuredProviders.add(cfg.provider))
+
     const hasOpenAI = configManager.getApiKey('openai') || process.env.OPENAI_API_KEY
+    const hasGoogle = configManager.getApiKey('google') || process.env.GOOGLE_GENERATIVE_AI_API_KEY
     const hasOpenRouter = configManager.getApiKey('openrouter') || process.env.OPENROUTER_API_KEY
 
-    if (hasOpenAI || hasOpenRouter) {
-      this.availableProviders.push('openai')
-      this.currentProvider = 'openai' // ALWAYS use OpenAI for embeddings
+    this.availableProviders = Array.from(configuredProviders).filter((p) => {
+      if (p === 'openai') return !!hasOpenAI || !!hasOpenRouter
+      if (p === 'google') return !!hasGoogle
+      if (p === 'openrouter') return !!hasOpenRouter
+      if (p === 'anthropic') return false
+      return false
+    })
 
-    } else {
-      // Fallback: Check Google only if no OpenAI key available
-      if (configManager.getApiKey('google') || process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
-        this.availableProviders.push('google')
-        this.currentProvider = 'google'
-
-      }
-    }
+    this.currentProvider = this.availableProviders[0] || null
 
     if (this.availableProviders.length === 0) {
       advancedUI.logInfo('⚡︎ RAG using local workspace analysis (no API keys configured)')
     }
   }
 
+  private getDefaultDimensions(provider: string): number {
+    switch (provider) {
+      case 'google':
+        return 768
+      case 'anthropic':
+        return 1536
+      case 'openrouter':
+        return this.lastUsedDimensions || 1536
+      case 'openai':
+      default:
+        return 1536
+    }
+  }
+
+  private buildModelCandidates(): ResolvedEmbeddingModel[] {
+    const models = configManager.get('embeddingModels') || {}
+    const currentName = configManager.getCurrentEmbeddingModel() || Object.keys(models)[0]
+    const fallbackProviders = configManager.get('embeddingProvider')?.fallbackChain || []
+
+    const requestedOrder: string[] = []
+    if (currentName) requestedOrder.push(currentName)
+
+    for (const provider of fallbackProviders) {
+      const fallbackEntry = Object.entries(models).find(
+        ([name, cfg]) => (cfg as any).provider === provider && name !== currentName
+      )
+      if (fallbackEntry) requestedOrder.push(fallbackEntry[0])
+    }
+
+    if (requestedOrder.length === 0) {
+      requestedOrder.push(...Object.keys(models))
+    }
+
+    return requestedOrder
+      .filter((name, idx, arr) => name && arr.indexOf(name) === idx)
+      .map((name) => {
+        const cfg: any = (models as any)[name] || {}
+        const provider = cfg.provider || 'openrouter'
+        return {
+          name,
+          config: {
+            provider,
+            model: cfg.model || name,
+            dimensions: cfg.dimensions || this.getDefaultDimensions(provider),
+            batchSize: cfg.batchSize || Number(process.env.EMBED_BATCH_SIZE || 300),
+            maxTokens: cfg.maxTokens || 8191,
+            costPer1KTokens: cfg.costPer1KTokens ?? 0,
+            baseURL: cfg.baseURL,
+            headers: cfg.headers,
+          },
+        }
+      })
+  }
+
+  private hasApiKey(provider: string): boolean {
+    switch (provider) {
+      case 'openai':
+        return !!(
+          configManager.getApiKey('openai') ||
+          process.env.OPENAI_API_KEY ||
+          configManager.getApiKey(configManager.getCurrentEmbeddingModel()) ||
+          configManager.getApiKey('openrouter') ||
+          process.env.OPENROUTER_API_KEY
+        )
+      case 'google':
+        return !!(configManager.getApiKey('google') || process.env.GOOGLE_GENERATIVE_AI_API_KEY)
+      case 'openrouter':
+        return !!(
+          configManager.getApiKey('openrouter') ||
+          configManager.getApiKey(configManager.getCurrentEmbeddingModel()) ||
+          process.env.OPENROUTER_API_KEY
+        )
+      case 'anthropic':
+        return !!configManager.getApiKey('anthropic')
+      default:
+        return false
+    }
+  }
+
+  private async collectCachedEmbeddings(
+    texts: string[],
+    candidate: ResolvedEmbeddingModel
+  ): Promise<{
+    cachedResults: Array<number[] | null>
+    uncachedTexts: string[]
+    uncachedIndices: number[]
+  }> {
+    const cachedResults: Array<number[] | null> = []
+    const uncachedTexts: string[] = []
+    const uncachedIndices: number[] = []
+
+    for (let i = 0; i < texts.length; i++) {
+      const text = texts[i]
+      const cached = await redisProvider.getCachedVector(text, candidate.config.provider, candidate.config.model)
+      if (cached) {
+        cachedResults[i] = cached.embedding
+      } else {
+        cachedResults[i] = null
+        uncachedTexts.push(text)
+        uncachedIndices.push(i)
+      }
+    }
+
+    return { cachedResults, uncachedTexts, uncachedIndices }
+  }
+
+  private async cacheEmbeddings(
+    texts: string[],
+    embeddings: number[][],
+    candidate: ResolvedEmbeddingModel,
+    costPerVector: number
+  ): Promise<void> {
+    const cachePromises = texts.map(async (text, idx) => {
+      const embedding = embeddings[idx]
+      if (!embedding) return
+      await redisProvider.cacheVector(
+        text,
+        embedding,
+        candidate.config.provider,
+        candidate.config.model,
+        costPerVector,
+        300
+      )
+    })
+
+    await Promise.allSettled(cachePromises)
+  }
+
+  private mergeResults(
+    total: number,
+    cachedResults: Array<number[] | null>,
+    newEmbeddings: number[][],
+    uncachedIndices: number[]
+  ): number[][] {
+    const finalResults: number[][] = []
+    let uncachedIndex = 0
+
+    for (let i = 0; i < total; i++) {
+      if (cachedResults[i] !== null) {
+        finalResults[i] = cachedResults[i]!
+      } else {
+        finalResults[i] = newEmbeddings[uncachedIndex]
+        uncachedIndex++
+      }
+    }
+
+    return finalResults
+  }
+
   /**
    * Get the dimensions for the current provider
    */
   getCurrentDimensions(): number {
-    if (!this.currentProvider) return 1536 // Default
-    return this.providerConfigs[this.currentProvider]?.dimensions || 1536
+    const modelName = configManager.getCurrentEmbeddingModel()
+    const cfg = modelName ? configManager.getEmbeddingModelConfig(modelName) : undefined
+    return cfg?.dimensions || this.lastUsedDimensions || 1536
+  }
+
+  setLastUsedDimensions(dim: number): void {
+    this.lastUsedDimensions = dim
   }
 
   /**
@@ -114,128 +258,74 @@ export class AiSdkEmbeddingProvider {
   async generate(texts: string[]): Promise<number[][]> {
     if (texts.length === 0) return []
 
-    if (!this.currentProvider) {
-      throw new Error('No embedding providers available. Configure API keys for OpenAI, Google, or Anthropic.')
-    }
-
     const startTime = Date.now()
     this.stats.totalRequests++
+    this.initializeProviders()
 
-    // Check cache for each text
-    const config = this.providerConfigs[this.currentProvider]
-    const cachedResults: Array<number[] | null> = []
-    const uncachedTexts: string[] = []
-    const uncachedIndices: number[] = []
+    const candidates = this.buildModelCandidates()
+    if (candidates.length === 0) {
+      throw new Error('No embedding models configured. Use /embed-model to set one or configure API keys.')
+    }
 
-    for (let i = 0; i < texts.length; i++) {
-      const text = texts[i]
-      const cached = await redisProvider.getCachedVector(text, this.currentProvider, config.model)
+    let lastError: Error | null = null
 
-      if (cached) {
-        cachedResults[i] = cached.embedding
+    for (const candidate of candidates) {
+      if (!this.hasApiKey(candidate.config.provider)) {
+        advancedUI.logWarning(`⚠️ No API key for ${candidate.config.provider}, skipping ${candidate.name}`)
+        continue
+      }
 
-      } else {
-        cachedResults[i] = null
-        uncachedTexts.push(text)
-        uncachedIndices.push(i)
+      const { cachedResults, uncachedTexts, uncachedIndices } = await this.collectCachedEmbeddings(texts, candidate)
+
+      if (uncachedTexts.length === 0) {
+        this.currentProvider = candidate.config.provider
+        this.lastUsedDimensions = candidate.config.dimensions
+        advancedUI.logSuccess(`✓ All ${texts.length} embeddings served from cache (${candidate.name})`)
+        return cachedResults as number[][]
+      }
+
+      try {
+        const result = await this.generateWithModel(uncachedTexts, candidate.config)
+
+        const perVectorCost =
+          result.embeddings.length > 0 ? result.cost / result.embeddings.length : 0
+        await this.cacheEmbeddings(uncachedTexts, result.embeddings, candidate, perVectorCost)
+
+        const finalResults = this.mergeResults(texts.length, cachedResults, result.embeddings, uncachedIndices)
+
+        this.currentProvider = candidate.config.provider
+        this.lastUsedDimensions = candidate.config.dimensions
+
+        this.updateStats(
+          {
+            ...result,
+            provider: candidate.config.provider,
+            model: candidate.config.model,
+            cost: result.cost,
+          },
+          Date.now() - startTime,
+          true
+        )
+
+        return finalResults
+      } catch (error: any) {
+        lastError = error instanceof Error ? error : new Error(String(error))
+        advancedUI.logWarning(`⚠️ Embedding failed with ${candidate.name}: ${lastError.message}`)
       }
     }
 
-    // If all results are cached, return immediately
-    if (uncachedTexts.length === 0) {
-      advancedUI.logSuccess(`✓ All ${texts.length} embeddings served from cache`)
-      return cachedResults as number[][]
-    }
-
-    try {
-      const result = await this.generateWithProvider(uncachedTexts, this.currentProvider)
-
-      // Cache new embeddings
-      const cachePromises = uncachedTexts.map(async (text, idx) => {
-        const embedding = result.embeddings[idx]
-        if (embedding) {
-          await redisProvider.cacheVector(
-            text,
-            embedding,
-            this.currentProvider!,
-            config.model,
-            result.cost / uncachedTexts.length, // Proportional cost
-            300 // 5 min TTL
-          )
-        }
-      })
-
-      // Cache in background, don't wait
-      Promise.allSettled(cachePromises).catch(() => {
-        console.log(chalk.yellow('⚠️ Some embeddings failed to cache'))
-      })
-
-      // Merge cached and new results
-      const finalResults: number[][] = []
-      let uncachedIndex = 0
-
-      for (let i = 0; i < texts.length; i++) {
-        if (cachedResults[i] !== null) {
-          finalResults[i] = cachedResults[i]!
-        } else {
-          finalResults[i] = result.embeddings[uncachedIndex]
-          uncachedIndex++
-        }
-      }
-
-      // Update stats (only for uncached requests)
-      this.updateStats(result, Date.now() - startTime, true)
-
-      return finalResults
-    } catch (error: any) {
-      advancedUI.logWarning(`⚠️ Embedding failed with ${this.currentProvider}: ${error.message}`)
-
-      // Try fallback providers for uncached texts only
-      for (const provider of this.availableProviders) {
-        if (provider !== this.currentProvider) {
-          try {
-            advancedUI.logInfo(`⚡︎ Trying fallback provider: ${provider}`)
-            const result = await this.generateWithProvider(uncachedTexts, provider)
-
-            // Update current provider to working one
-            this.currentProvider = provider
-            this.updateStats(result, Date.now() - startTime, true)
-
-            // Merge results and return
-            const finalResults: number[][] = []
-            let uncachedIndex = 0
-
-            for (let i = 0; i < texts.length; i++) {
-              if (cachedResults[i] !== null) {
-                finalResults[i] = cachedResults[i]!
-              } else {
-                finalResults[i] = result.embeddings[uncachedIndex]
-                uncachedIndex++
-              }
-            }
-
-            return finalResults
-          } catch (fallbackError: any) {
-            advancedUI.logWarning(`⚠️ Fallback ${provider} also failed: ${fallbackError.message}`)
-          }
-        }
-      }
-
-      // All providers failed
-      this.updateStats(
-        { embeddings: [], tokensUsed: 0, cost: 0, provider: this.currentProvider, model: '' },
-        Date.now() - startTime,
-        false
-      )
-      throw new Error(`All embedding providers failed. Last error: ${error.message}`)
-    }
+    this.updateStats(
+      { embeddings: [], tokensUsed: 0, cost: 0, provider: this.currentProvider || 'unknown', model: '' },
+      Date.now() - startTime,
+      false
+    )
+    throw lastError || new Error('All embedding providers failed.')
   }
 
   /**
    * Generate embeddings with a specific provider using concurrent processing
    */
-  private async generateWithProvider(texts: string[], providerName: string): Promise<EmbeddingResult> {
-    const config = this.providerConfigs[providerName]
+  private async generateWithModel(texts: string[], config: ResolvedEmbeddingModel['config']): Promise<EmbeddingResult> {
 
     // Truncate texts to fit within token limits with safety margin
     const processedTexts = texts.map((text) => {
@@ -251,9 +341,10 @@ export class AiSdkEmbeddingProvider {
     })
 
     // Create batches
+    const effectiveBatchSize = this._calculateOptimalBatchSize(processedTexts, config.batchSize)
     const batches: string[][] = []
-    for (let i = 0; i < processedTexts.length; i += config.batchSize) {
-      batches.push(processedTexts.slice(i, i + config.batchSize))
+    for (let i = 0; i < processedTexts.length; i += effectiveBatchSize) {
+      batches.push(processedTexts.slice(i, i + effectiveBatchSize))
     }
 
     // Process batches concurrently with controlled concurrency
@@ -267,7 +358,7 @@ export class AiSdkEmbeddingProvider {
 
       const batchPromises = batchGroup.map(async (batch, batchIndex) => {
         try {
-          const batchResult = await this.generateBatch(batch, providerName)
+          const batchResult = await this.generateBatch(batch, config)
           return { index: i + batchIndex, result: batchResult }
         } catch (error) {
           advancedUI.logWarning(`⚠️ Batch ${i + batchIndex} failed: ${(error as Error).message}`)
@@ -296,7 +387,7 @@ export class AiSdkEmbeddingProvider {
       embeddings: results,
       tokensUsed: totalTokens,
       cost,
-      provider: providerName,
+      provider: config.provider,
       model: config.model,
     }
   }
@@ -304,8 +395,11 @@ export class AiSdkEmbeddingProvider {
   /**
    * Calculate optimal batch size based on text characteristics and success rate
    */
-  private _calculateOptimalBatchSize(texts: string[], recentSuccessRate: number = 1.0): number {
-    const base = Number(process.env.EMBED_BATCH_SIZE || 300)
+  private _calculateOptimalBatchSize(
+    texts: string[],
+    base: number,
+    recentSuccessRate: number = 1.0
+  ): number {
     const adaptiveEnabled = process.env.EMBED_ADAPTIVE_BATCHING !== 'false'
 
     if (!adaptiveEnabled) return base
@@ -333,29 +427,35 @@ export class AiSdkEmbeddingProvider {
   /**
    * Generate embeddings for a batch of texts
    */
-  private async generateBatch(texts: string[], providerName: string): Promise<EmbeddingResult> {
-    const config = this.providerConfigs[providerName]
+  private async generateBatch(texts: string[], config: ResolvedEmbeddingModel['config']): Promise<EmbeddingResult> {
 
     try {
       // Configure AI SDK provider and generate embeddings
       let embeddings: number[][]
       let usage: any
 
-      switch (providerName) {
+      switch (config.provider) {
         case 'openai':
           {
             // Configure OpenAI with API key from config or environment
-            // Also accepts OpenRouter key as fallback for OpenAI embeddings
-            const apiKey = configManager.getApiKey('openai') ||
-              process.env.OPENAI_API_KEY ||
-              configManager.getApiKey('openrouter') ||
-              process.env.OPENROUTER_API_KEY
+            const modelKey = configManager.getApiKey(config.model)
+            const apiKey = config.baseURL?.includes('openrouter.ai')
+              ? (configManager.getApiKey('openrouter') ||
+                modelKey ||
+                process.env.OPENROUTER_API_KEY ||
+                configManager.getApiKey('openai') ||
+                process.env.OPENAI_API_KEY)
+              : (modelKey || configManager.getApiKey('openai') || process.env.OPENAI_API_KEY)
 
             if (!apiKey) {
-              throw new Error('OpenAI or OpenRouter API key not found')
+              throw new Error('OpenAI API key not found')
             }
 
-            const openaiProvider = createOpenAI({ apiKey })
+            const openaiProvider = createOpenAI({
+              apiKey,
+              baseURL: config.baseURL,
+              headers: config.headers,
+            })
             const model = openaiProvider.embedding(config.model)
 
             // Helper function for embedding with retry and timeout
@@ -423,31 +523,77 @@ export class AiSdkEmbeddingProvider {
             usage = { tokens: this.estimateTokens(texts.join(' ')) }
           }
           break
+        case 'openrouter': {
+          const apiKey =
+            configManager.getApiKey('openrouter') ||
+            configManager.getApiKey(config.model) ||
+            process.env.OPENROUTER_API_KEY
+          if (!apiKey) {
+            throw new Error('OpenRouter API key not found')
+          }
+
+          const openrouterProvider = createOpenAI({
+            apiKey,
+            baseURL: config.baseURL || 'https://openrouter.ai/api/v1',
+            headers: {
+              'HTTP-Referer': 'https://nikcli.mintlify.app',
+              'X-Title': 'NikCLI',
+              ...(config.headers || {}),
+            },
+          })
+          const model = openrouterProvider.embedding(config.model)
+
+          const embedWithRetry = async (text: string, retries = 3): Promise<number[]> => {
+            for (let attempt = 1; attempt <= retries; attempt++) {
+              try {
+                const result = await embed({
+                  model,
+                  value: text,
+                })
+                return result.embedding
+              } catch (error) {
+                if (attempt === retries) throw error
+                const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000)
+                await new Promise(resolve => setTimeout(resolve, delay))
+              }
+            }
+            throw new Error('Max retries exceeded')
+          }
+
+          if (texts.length > 1) {
+            const results = await Promise.all(texts.map(async (text) => embedWithRetry(text)))
+            embeddings = results
+          } else {
+            embeddings = [await embedWithRetry(texts[0])]
+          }
+          usage = { tokens: this.estimateTokens(texts.join(' ')) }
+          break
+        }
         case 'anthropic':
           // Anthropic doesn't have direct embedding model via AI SDK yet
           // Fallback to simpler approach
           throw new Error('Anthropic embeddings not yet supported via AI SDK')
         default:
-          throw new Error(`Unsupported provider: ${providerName}`)
+          throw new Error(`Unsupported provider: ${config.provider}`)
       }
 
       return {
         embeddings,
         tokensUsed: usage?.tokens || this.estimateTokens(texts.join(' ')),
         cost: 0, // Will be calculated by caller
-        provider: providerName,
+        provider: config.provider,
         model: config.model,
       }
     } catch (error: any) {
       // Enhanced error handling
       if (error.message?.includes('rate limit')) {
-        advancedUI.logWarning(`⚠️ Rate limit reached for ${providerName}, waiting...`)
+        advancedUI.logWarning(`⚠️ Rate limit reached for ${config.provider}, waiting...`)
         await new Promise((resolve) => setTimeout(resolve, 2000))
         // Retry once
-        return this.generateBatch(texts, providerName)
+        return this.generateBatch(texts, config)
       }
 
-      throw new Error(`${providerName} embedding failed: ${error.message}`)
+      throw new Error(`${config.provider} embedding failed: ${error.message}`)
     }
   }
 
@@ -494,20 +640,21 @@ export class AiSdkEmbeddingProvider {
   /**
    * Estimate cost for given texts
    */
-  static estimateCost(texts: string[] | string, provider: string = 'openai'): number {
-    const instance = new AiSdkEmbeddingProvider()
-    const config = instance.providerConfigs[provider] || instance.providerConfigs.openai
+  static estimateCost(texts: string[] | string, modelName?: string): number {
+    const activeModel = modelName || configManager.getCurrentEmbeddingModel()
+    const config = activeModel ? configManager.getEmbeddingModelConfig(activeModel) : undefined
 
     const totalChars = typeof texts === 'string' ? texts.length : texts.reduce((sum, text) => sum + text.length, 0)
     const estimatedTokens = Math.ceil(totalChars / 4)
 
-    return (estimatedTokens / 1000) * config.costPer1KTokens
+    return (estimatedTokens / 1000) * (config?.costPer1KTokens ?? 0)
   }
 
   /**
    * Get available providers
    */
   getAvailableProviders(): string[] {
+    this.initializeProviders()
     return [...this.availableProviders]
   }
 
@@ -559,12 +706,17 @@ export class AiSdkEmbeddingProvider {
   async healthCheck(): Promise<Record<string, boolean>> {
     const health: Record<string, boolean> = {}
 
-    for (const provider of this.availableProviders) {
+    const candidates = this.buildModelCandidates()
+    for (const candidate of candidates) {
+      if (!this.hasApiKey(candidate.config.provider)) {
+        health[candidate.name] = false
+        continue
+      }
       try {
-        await this.generateWithProvider(['test'], provider)
-        health[provider] = true
+        await this.generateWithModel(['test'], candidate.config)
+        health[candidate.name] = true
       } catch {
-        health[provider] = false
+        health[candidate.name] = false
       }
     }
 
@@ -578,7 +730,9 @@ export class AiSdkEmbeddingProvider {
     console.log(chalk.blue.bold('\n🔌 AI SDK Embedding Provider Status'))
     console.log(chalk.gray('═'.repeat(50)))
 
+    const currentEmbeddingModel = configManager.getCurrentEmbeddingModel()
     console.log(`Current Provider: ${this.currentProvider || 'None'}`)
+    console.log(`Current Embedding Model: ${currentEmbeddingModel || 'None'}`)
     console.log(`Available Providers: ${this.availableProviders.join(', ') || 'None'}`)
 
     if (this.stats.totalRequests > 0) {

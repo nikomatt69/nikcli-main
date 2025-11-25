@@ -195,9 +195,7 @@ export class WorkspaceContextManager {
       this.context.ragAvailable = !ragResult.fallbackMode
       this.ragInitialized = true
 
-      advancedUI.logSuccess(
-        chalk.green(`✓ RAG integration ${this.context.ragAvailable ? 'enabled' : 'disabled (fallback mode)'}`)
-      )
+
     } catch (_error) {
       advancedUI.logWarning(chalk.yellow('⚠️ RAG integration failed, using basic workspace analysis'))
       this.context.ragAvailable = false
@@ -208,7 +206,7 @@ export class WorkspaceContextManager {
   // Initialize integrated components
   private async initializeIntegratedComponents(): Promise<void> {
     try {
-      advancedUI.logFunctionUpdate('info', 'Initializing integrated file filtering and semantic search...', 'ℹ')
+
 
       // File filter is already initialized in constructor
 
@@ -216,7 +214,7 @@ export class WorkspaceContextManager {
       await this.refreshWorkspaceIndex()
 
       this.isInitialized = true
-      advancedUI.logSuccess(chalk.green('✓ Integrated components initialized successfully'))
+
     } catch (error) {
       advancedUI.logWarning(chalk.yellow('⚠️ Failed to initialize integrated components:', error))
       this.isInitialized = false
@@ -960,8 +958,6 @@ Selected Paths: ${this.context.selectedPaths.join(', ')}`
     try {
       // Get filtered file list by scanning directory
       const filteredFiles = await this.scanDirectoryWithFilter(this.context.rootPath)
-
-      advancedUI.logSuccess(chalk.green(`✓ Found ${filteredFiles.length} files after filtering`))
 
       // Update file context with filtered results
       for (const filePath of filteredFiles) {

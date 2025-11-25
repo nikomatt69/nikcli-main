@@ -13,13 +13,17 @@ import { type QueryAnalysis, type ScoringContext, semanticSearchEngine } from '.
 
 // Import unified embedding and vector store infrastructure
 import { unifiedEmbeddingInterface } from './unified-embedding-interface'
-import { createVectorStoreManager, type VectorDocument, type VectorStoreManager } from './vector-store-abstraction'
+import { createVectorStoreManager, type VectorDocument, type VectorStoreManager, type VectorStoreStats } from './vector-store-abstraction'
+import { unifiedRerankingInterface, type RerankingDocument } from './unified-reranking-interface'
 
 // Import ultra-fast RAG inference layer
 import { getRAGInference, type RAGSearchResult as RAGInferenceResult } from '../ai/rag-inference-layer'
 // Import workspace analysis types for integration
 import type { FileEmbedding, WorkspaceContext } from './workspace-rag'
 import { WorkspaceRAG } from './workspace-rag'
+import { embed } from 'ai'
+import { createOpenAI } from '@ai-sdk/openai'
+import { configManager } from '../core/config-manager'
 
 // Unified RAG interfaces
 export interface UnifiedRAGConfig {
@@ -33,6 +37,9 @@ export interface UnifiedRAGConfig {
   enableSemanticSearch: boolean
   cacheEmbeddings: boolean
   costThreshold: number
+  enableReranking: boolean
+  rerankingModel?: string | null
+  rerankingTopK?: number
 }
 
 export interface RAGSearchResult {
@@ -64,6 +71,9 @@ export interface RAGSearchResult {
     queryConfidence?: number
     hash?: string
     language?: string
+    reranked?: boolean
+    rerankingScore?: number
+    originalScore?: number
   }
 }
 
@@ -266,6 +276,10 @@ export class UnifiedRAGSystem {
     errors: 0,
     queryOptimizations: 0,
     reranks: 0,
+    rerankingLatency: 0,
+    rerankingCost: 0,
+    rerankingModel: null as string | null,
+    rerankingFallbacks: 0,
   }
 
   private initialized = false
@@ -283,7 +297,18 @@ export class UnifiedRAGSystem {
       enableSemanticSearch: true,
       cacheEmbeddings: true,
       costThreshold: 0.1, // $0.10 threshold
+      enableReranking: process.env.RERANKING_ENABLED !== 'false',
+      rerankingModel: process.env.RERANKING_MODEL || 'cohere/rerank-english-v3.0',
+      rerankingTopK: Number(process.env.RERANKING_TOP_K || 10),
       ...config,
+    }
+
+    // Initialize reranking interface if enabled
+    if (this.config.enableReranking && this.config.rerankingModel) {
+      unifiedRerankingInterface.updateConfig({
+        model: this.config.rerankingModel,
+        topK: this.config.rerankingTopK,
+      })
     }
 
     // Initialize cache providers
@@ -382,11 +407,7 @@ export class UnifiedRAGSystem {
           this.vectorStoreManager = createVectorStoreManager(vectorConfigs)
 
           const initialized = await this.vectorStoreManager.initialize()
-          if (initialized) {
-            this.config.useVectorDB = false
-          } else {
-            this.config.useVectorDB = false
-          }
+          this.config.useVectorDB = initialized
         } catch (error: any) {
           this.config.useVectorDB = false
         }
@@ -449,10 +470,12 @@ export class UnifiedRAGSystem {
     if (this.config.enableWorkspaceAnalysis && this.workspaceRAG) {
 
       workspaceContext = await this.workspaceRAG.analyzeWorkspace()
+      indexedFiles = workspaceContext?.files?.size || indexedFiles
 
     } else {
       // Fallback minimal analysis
       workspaceContext = this.createMinimalWorkspaceContext(projectPath)
+      indexedFiles = workspaceContext?.files?.size || indexedFiles
     }
 
     // 2. Vector DB Indexing (if available and cost-effective)
@@ -612,13 +635,8 @@ export class UnifiedRAGSystem {
       const cacheHits = results.filter((r) => r.metadata.cached).length
       this.searchMetrics.cacheHits += cacheHits
 
-      // 3. Hybrid scoring and deduplication with re-ranking tracking
-      const shouldRerank = this.shouldRerank(query)
-      if (shouldRerank) {
-        this.searchMetrics.reranks++
-      }
-
-      const uniqueResults = this.deduplicateAndRank(results, query)
+      // 3. Hybrid scoring and deduplication with re-ranking
+      const uniqueResults = await this.deduplicateAndRank(results, query, limit)
       const finalResults = uniqueResults.slice(0, limit)
 
       // Update performance metrics
@@ -628,10 +646,17 @@ export class UnifiedRAGSystem {
 
 
 
+      const rerankingInfo =
+        this.searchMetrics.reranks > 0
+          ? `, reranked (${this.searchMetrics.rerankingModel || 'model'})`
+          : this.searchMetrics.rerankingFallbacks > 0
+            ? ', rerank-fallback'
+            : ''
+
       advancedUI.logFunctionCall('unifiedraganalysis')
       advancedUI.logFunctionUpdate(
         'success',
-        `Found ${finalResults.length} results in ${duration}ms(${searchTypes.join('+')}, ${cacheHits} cached${shouldRerank ? ', reranked' : ''})`
+        `Found ${finalResults.length} results in ${duration}ms(${searchTypes.join('+')}, ${cacheHits} cached${rerankingInfo})`
       )
 
       return finalResults
@@ -1401,7 +1426,11 @@ export class UnifiedRAGSystem {
     }
   }
 
-  private deduplicateAndRank(results: RAGSearchResult[], query: string): RAGSearchResult[] {
+  private async deduplicateAndRank(
+    results: RAGSearchResult[],
+    query: string,
+    limit: number
+  ): Promise<RAGSearchResult[]> {
     const pathMap = new Map<string, RAGSearchResult>()
     const queryWords = query.toLowerCase().split(/\s+/)
 
@@ -1409,23 +1438,271 @@ export class UnifiedRAGSystem {
     for (const result of results) {
       const existing = pathMap.get(result.path)
       if (!existing || result.score > existing.score) {
-        // Enhanced scoring based on query relevance
-        let enhancedScore = result.score
-
-        // Apply intelligent re-ranking if conditions are met
-        if (this.shouldRerank(query)) {
-          enhancedScore = this.applyIntelligentReranking(result, query, queryWords)
-        } else {
-          // Basic scoring for simple queries
-          enhancedScore = this.applyBasicScoring(result, query, queryWords)
-        }
-
-        pathMap.set(result.path, { ...result, score: enhancedScore })
+        pathMap.set(result.path, result)
       }
     }
 
-    return Array.from(pathMap.values()).sort((a, b) => b.score - a.score)
+    let uniqueResults = Array.from(pathMap.values())
+
+    // Apply reranking if enabled and conditions are met
+    if (this.config.enableReranking && this.shouldUseReranking(query, uniqueResults.length)) {
+      try {
+        const rerankingStartTime = Date.now()
+        const rerankedResults = await this.applyReranking(query, uniqueResults, limit)
+        const rerankingLatency = Date.now() - rerankingStartTime
+
+        this.searchMetrics.reranks++
+        this.searchMetrics.rerankingLatency =
+          (this.searchMetrics.rerankingLatency * (this.searchMetrics.reranks - 1) + rerankingLatency) /
+          this.searchMetrics.reranks
+        this.searchMetrics.rerankingModel = this.config.rerankingModel || null
+
+        // Update reranking cost from stats
+        const rerankingStats = unifiedRerankingInterface.getStats()
+        this.searchMetrics.rerankingCost = rerankingStats.totalCost
+
+        return rerankedResults
+      } catch (error) {
+        // Fallback to heuristic reranking
+        this.searchMetrics.rerankingFallbacks++
+        advancedUI.logWarning(`⚠️ Reranking failed, using heuristic fallback: ${(error as Error).message}`)
+        return this.applyHeuristicReranking(uniqueResults, query, queryWords)
+      }
+    } else {
+      // Use heuristic reranking
+      return this.applyHeuristicReranking(uniqueResults, query, queryWords)
+    }
   }
+
+  /**
+   * Apply ML-based reranking using OpenRouter
+   */
+  private async applyReranking(
+    query: string,
+    results: RAGSearchResult[],
+    limit: number
+  ): Promise<RAGSearchResult[]> {
+    if (!this.config.enableReranking || !this.config.rerankingModel) {
+      return results
+    }
+
+    // Special-case: use embedding similarity reranker for sentence-transformers/paraphrase-minilm-l6-v2 via OpenRouter
+    if (this.config.rerankingModel === 'sentence-transformers/paraphrase-minilm-l6-v2') {
+      return await this.rerankWithEmbeddingSimilarity(query, results, limit)
+    }
+
+    // Prepare documents for reranking
+    const documents: RerankingDocument[] = results.map((result, index) => ({
+      id: result.path || `doc-${index}`,
+      content: result.content,
+      metadata: {
+        ...result.metadata,
+        originalScore: result.score,
+        path: result.path,
+      },
+    }))
+
+    // Get top K candidates for reranking (usually 2-3x the final limit)
+    const rerankingTopK = Math.min(this.config.rerankingTopK || limit * 2, documents.length)
+    const candidates = documents.slice(0, rerankingTopK)
+
+    // Call reranking interface
+    const rerankingResult = await unifiedRerankingInterface.rerank({
+      query,
+      documents: candidates,
+      topK: limit,
+      useCache: true,
+    })
+
+    // Map reranked results back to original results
+    const rerankedResults: RAGSearchResult[] = []
+    const resultMap = new Map(results.map((r, idx) => [r.path || `doc-${idx}`, r]))
+
+    for (const reranked of rerankingResult.results) {
+      const originalIndex = reranked.index
+      if (originalIndex < candidates.length) {
+        const candidate = candidates[originalIndex]
+        const originalResult = resultMap.get(candidate.id)
+        if (originalResult) {
+          // Update score with reranking score (normalize to 0-100 range)
+          rerankedResults.push({
+            ...originalResult,
+            score: reranked.relevanceScore * 100,
+            metadata: {
+              ...originalResult.metadata,
+              reranked: true,
+              rerankingScore: reranked.relevanceScore,
+              originalScore: originalResult.score,
+            },
+          })
+        }
+      }
+    }
+
+    // Add any remaining results that weren't reranked (shouldn't happen, but safety)
+    const rerankedIds = new Set(rerankedResults.map((r) => r.path))
+    for (const result of results) {
+      if (!rerankedIds.has(result.path) && rerankedResults.length < limit) {
+        rerankedResults.push(result)
+      }
+    }
+
+    return rerankedResults.sort((a, b) => b.score - a.score)
+  }
+
+  /**
+   * Lightweight embedding-similarity reranker using OpenRouter embedding endpoint
+   */
+  private async rerankWithEmbeddingSimilarity(
+    query: string,
+    results: RAGSearchResult[],
+    limit: number
+  ): Promise<RAGSearchResult[]> {
+    const apiKey = configManager.getApiKey('openrouter') || process.env.OPENROUTER_API_KEY
+    if (!apiKey) return results
+
+    const model = 'sentence-transformers/paraphrase-minilm-l6-v2'
+    const openrouter = createOpenAI({
+      apiKey,
+      baseURL: 'https://openrouter.ai/api/v1',
+      headers: {
+        'HTTP-Referer': 'https://nikcli.mintlify.app',
+        'X-Title': 'NikCLI',
+      },
+    })
+
+    const embedModel = openrouter.embedding(model)
+
+    const embedText = async (text: string) => {
+      const truncated = text.length > 2000 ? text.substring(0, 2000) : text
+      const res = await embed({
+        model: embedModel,
+        value: truncated,
+      })
+      return res.embedding as number[]
+    }
+
+    try {
+      const rerankingStart = Date.now()
+      const queryEmbedding = await embedText(query)
+
+      // Take topK candidates for rerank
+      const topK = Math.min(this.config.rerankingTopK || limit * 2, results.length)
+      const candidates = results.slice(0, topK)
+
+      // Embed candidates with limited concurrency
+      const embeddings: number[][] = []
+      const batchSize = 8
+      for (let i = 0; i < candidates.length; i += batchSize) {
+        const batch = candidates.slice(i, i + batchSize)
+        const batchEmbeds = await Promise.all(batch.map((doc) => embedText(doc.content)))
+        for (let j = 0; j < batchEmbeds.length; j++) {
+          embeddings[i + j] = batchEmbeds[j]
+        }
+      }
+
+      const reranked = candidates.map((doc, idx) => {
+        const docEmbedding = embeddings[idx]
+        const score = docEmbedding ? this.cosineSimilarity(queryEmbedding, docEmbedding) : 0
+        return {
+          ...doc,
+          score: score * 100,
+          metadata: {
+            ...doc.metadata,
+            reranked: true,
+            rerankingScore: score,
+          },
+        }
+      })
+
+      // Append remaining (unreranked) if needed
+      const rerankedPaths = new Set(reranked.map((r) => r.path))
+      for (const doc of results) {
+        if (reranked.length >= limit) break
+        if (!rerankedPaths.has(doc.path)) {
+          reranked.push({
+            ...doc,
+            score: doc.score,
+            metadata: {
+              ...doc.metadata,
+              reranked: true,
+              rerankingScore: doc.score,
+            },
+          })
+        }
+      }
+
+      const rerankingLatency = Date.now() - rerankingStart
+      this.searchMetrics.reranks++
+      this.searchMetrics.rerankingModel = model
+      this.searchMetrics.rerankingLatency =
+        (this.searchMetrics.rerankingLatency * (this.searchMetrics.reranks - 1) + rerankingLatency) /
+        this.searchMetrics.reranks
+
+      return reranked.sort((a, b) => b.score - a.score).slice(0, limit)
+    } catch (_err) {
+      return results
+    }
+  }
+
+  private cosineSimilarity(a: number[], b: number[]): number {
+    const minLen = Math.min(a.length, b.length)
+    let dot = 0
+    let normA = 0
+    let normB = 0
+    for (let i = 0; i < minLen; i++) {
+      dot += a[i] * b[i]
+      normA += a[i] * a[i]
+      normB += b[i] * b[i]
+    }
+    if (normA === 0 || normB === 0) return 0
+    return dot / (Math.sqrt(normA) * Math.sqrt(normB))
+  }
+
+  /**
+   * Apply heuristic reranking (fallback)
+   */
+  private applyHeuristicReranking(
+    results: RAGSearchResult[],
+    query: string,
+    queryWords: string[]
+  ): RAGSearchResult[] {
+    return results.map((result) => {
+      let enhancedScore = result.score
+
+      // Apply intelligent re-ranking if conditions are met
+      if (this.shouldRerank(query)) {
+        enhancedScore = this.applyIntelligentReranking(result, query, queryWords)
+      } else {
+        // Basic scoring for simple queries
+        enhancedScore = this.applyBasicScoring(result, query, queryWords)
+      }
+
+      return { ...result, score: enhancedScore }
+    })
+  }
+
+  /**
+   * Determine if ML reranking should be used
+   */
+  private shouldUseReranking(query: string, resultCount: number): boolean {
+    if (!this.config.enableReranking || !this.config.rerankingModel) {
+      return false
+    }
+
+    // Check if we have enough results to rerank
+    if (resultCount < 2) {
+      return false
+    }
+
+    // Check if query is complex enough to benefit from reranking
+    return (
+      query.length > 20 || // Longer queries benefit more
+      query.split(/\s+/).length > 3 || // Multi-word queries
+      process.env.RERANKING_ENABLED === 'true' // Force enable
+    )
+  }
+
 
   /**
    * Determine if intelligent re-ranking should be applied
@@ -1824,6 +2101,10 @@ export class UnifiedRAGSystem {
     }
   }
 
+  getVectorStoreStats(): VectorStoreStats | null {
+    return this.vectorStoreManager?.getStats() || null
+  }
+
   /**
    * Get comprehensive performance metrics
    */
@@ -1850,6 +2131,10 @@ export class UnifiedRAGSystem {
         queryOptimizations: this.searchMetrics.queryOptimizations,
         reranks: this.searchMetrics.reranks,
         rerankRate: totalSearches > 0 ? `${((this.searchMetrics.reranks / totalSearches) * 100).toFixed(1)}% ` : '0%',
+        rerankingLatency: Math.round(this.searchMetrics.rerankingLatency),
+        rerankingCost: this.searchMetrics.rerankingCost,
+        rerankingModel: this.searchMetrics.rerankingModel,
+        rerankingFallbacks: this.searchMetrics.rerankingFallbacks,
       },
     }
   }
@@ -1869,6 +2154,10 @@ export class UnifiedRAGSystem {
       errors: 0,
       queryOptimizations: 0,
       reranks: 0,
+      rerankingLatency: 0,
+      rerankingCost: 0,
+      rerankingModel: null,
+      rerankingFallbacks: 0,
     }
     advancedUI.logFunctionCall('unifiedraganalysis')
     advancedUI.logFunctionUpdate('success', 'RAG performance metrics reset')

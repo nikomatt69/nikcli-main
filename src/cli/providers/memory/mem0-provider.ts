@@ -1,4 +1,6 @@
 import { EventEmitter } from 'node:events'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
 import chalk from 'chalk'
 import { simpleConfigManager } from '../../core/config-manager'
 import { advancedUI } from '../../ui/advanced-cli-ui'
@@ -63,6 +65,8 @@ export class Mem0Provider extends EventEmitter {
   private memories: Map<string, MemoryEntry> = new Map()
   private vectorStore: any = null
   private isInitialized = false
+  private memoriesDir: string
+  private currentUserId: string | null = null
 
   constructor() {
     super()
@@ -77,8 +81,30 @@ export class Mem0Provider extends EventEmitter {
       importance_decay_days: 30,
     }
 
+    // Directory per salvare le memories persistenti
+    this.memoriesDir = join(process.cwd(), '.nikcli', 'memories')
+    if (!existsSync(this.memoriesDir)) {
+      mkdirSync(this.memoriesDir, { recursive: true })
+    }
+
     advancedUI.logFunctionCall('mem0providerinit')
     advancedUI.logFunctionUpdate('success', 'Mem0 Provider initialized', '✓')
+  }
+
+  /**
+   * Set current user ID for memory persistence
+   */
+  setCurrentUserId(userId: string | null): void {
+    this.currentUserId = userId
+    if (userId) {
+      // Carica memories dell'utente dal file locale
+      this.loadMemoriesFromFile(userId)
+      structuredLogger.success('Memory', `✓ Loaded memories for user: ${userId.substring(0, 8)}...`)
+    } else {
+      // Pulisci memories quando si fa logout
+      this.memories.clear()
+      structuredLogger.info('Memory', '📝 Cleared memories (user logged out)')
+    }
   }
 
   /**
@@ -148,6 +174,11 @@ export class Mem0Provider extends EventEmitter {
 
     // Cache to Redis
     await this.cacheMemory(memory)
+
+    // Salva in file locale se c'è un userId
+    if (memory.metadata.userId) {
+      await this.saveMemoriesToFile(memory.metadata.userId)
+    }
 
     console.log(chalk.gray(` Stored memory: ${memoryId.substring(0, 8)}... | "${content.substring(0, 50)}..."`))
 
@@ -270,6 +301,8 @@ export class Mem0Provider extends EventEmitter {
     const memory = this.memories.get(memoryId)
     if (!memory) return false
 
+    const userId = memory.metadata.userId
+
     // Remove from memory
     this.memories.delete(memoryId)
 
@@ -280,6 +313,11 @@ export class Mem0Provider extends EventEmitter {
 
     // Remove from cache
     await this.removeCachedMemory(memoryId)
+
+    // Salva in file locale se c'è un userId
+    if (userId) {
+      await this.saveMemoriesToFile(userId)
+    }
 
     console.log(chalk.gray(`🗑️ Deleted memory: ${memoryId.substring(0, 8)}...`))
 
@@ -715,6 +753,59 @@ export class Mem0Provider extends EventEmitter {
     this.config = { ...this.config, ...newConfig }
     structuredLogger.info('Memory', '⚡︎ Mem0 configuration updated')
     this.emit('config_updated', this.config)
+  }
+
+  /**
+   * Save memories to local file for user
+   */
+  private async saveMemoriesToFile(userId: string): Promise<void> {
+    try {
+      // Filtra memories per questo utente
+      const userMemories = Array.from(this.memories.values()).filter(
+        (memory) => memory.metadata.userId === userId
+      )
+
+      const filePath = join(this.memoriesDir, `${userId}.json`)
+      const data = {
+        userId,
+        lastUpdated: Date.now(),
+        memories: userMemories,
+      }
+
+      writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8')
+    } catch (error: any) {
+      structuredLogger.warning('Memory', `⚠️ Failed to save memories to file: ${error.message}`)
+    }
+  }
+
+  /**
+   * Load memories from local file for user
+   */
+  private loadMemoriesFromFile(userId: string): void {
+    try {
+      const filePath = join(this.memoriesDir, `${userId}.json`)
+
+      if (!existsSync(filePath)) {
+        structuredLogger.info('Memory', `📝 No saved memories found for user: ${userId.substring(0, 8)}...`)
+        return
+      }
+
+      const fileContent = readFileSync(filePath, 'utf-8')
+      const data = JSON.parse(fileContent)
+
+      if (data.userId === userId && Array.isArray(data.memories)) {
+        // Carica memories in memoria
+        for (const memory of data.memories) {
+          this.memories.set(memory.id, memory)
+        }
+        structuredLogger.success(
+          'Memory',
+          `✓ Loaded ${data.memories.length} memories from file for user: ${userId.substring(0, 8)}...`
+        )
+      }
+    } catch (error: any) {
+      structuredLogger.warning('Memory', `⚠️ Failed to load memories from file: ${error.message}`)
+    }
   }
 }
 

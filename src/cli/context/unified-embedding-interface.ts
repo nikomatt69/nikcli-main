@@ -5,6 +5,7 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import chalk from 'chalk'
 import { AiSdkEmbeddingProvider, aiSdkEmbeddingProvider } from './ai-sdk-embedding-provider'
+import { configManager } from '../core/config-manager'
 
 export interface EmbeddingConfig {
   provider: 'openai' | 'google' | 'anthropic' | 'openrouter'
@@ -82,6 +83,7 @@ export class UnifiedEmbeddingInterface {
   private lastOptimization = Date.now()
   private readonly CACHE_TTL = 24 * 60 * 60 * 1000 // 24 hours
   private readonly MAX_MEMORY_CACHE = 10000
+  private lastDimensionWarning: { expected: number; actual: number } | null = null
 
   // Enhanced stats tracking
   private batchLatencies: number[] = []
@@ -102,15 +104,34 @@ export class UnifiedEmbeddingInterface {
       ...config,
     }
 
+    this.syncConfigFromManager()
+
     this.persistentCacheDir = join(homedir(), '.nikcli', 'vector-cache')
     this.stats = this.initializeStats()
     this.initializePersistentCache()
+  }
+
+  private syncConfigFromManager(): void {
+    const currentModel = configManager.getCurrentEmbeddingModel()
+    const cfg = currentModel ? configManager.getEmbeddingModelConfig(currentModel) : undefined
+
+    if (cfg) {
+      this.config = {
+        ...this.config,
+        provider: cfg.provider,
+        model: cfg.model || currentModel,
+        dimensions: cfg.dimensions || this.provider.getCurrentDimensions(),
+        maxTokens: cfg.maxTokens || this.config.maxTokens,
+        batchSize: cfg.batchSize || this.config.batchSize,
+      }
+    }
   }
 
   /**
    * Generate embeddings for single text or batch of texts
    */
   async generateEmbeddings(queries: EmbeddingQuery[]): Promise<EmbeddingResult[]> {
+    this.syncConfigFromManager()
     const startTime = Date.now()
     const results: EmbeddingResult[] = []
 
@@ -169,13 +190,18 @@ export class UnifiedEmbeddingInterface {
 
             this.updateStats(result, Date.now() - startTime)
 
-            // Log warning if dimensions don't match expected, but still use it
-            if (vector.length !== actualDimensions) {
+            // If dimensions differ, update provider/config and warn once per change
+            if (vector.length !== actualDimensions && this.shouldWarnDimensions(actualDimensions, vector.length)) {
               console.warn(
                 chalk.yellow(
                   `⚠️ Embedding dimensions mismatch: expected ${actualDimensions}, got ${vector.length} from ${currentProvider}. Using actual dimensions.`
                 )
               )
+              this.lastDimensionWarning = { expected: actualDimensions, actual: vector.length }
+              this.provider.setLastUsedDimensions(vector.length)
+              configManager.setEmbeddingModelConfig(this.config.model, {
+                dimensions: vector.length,
+              })
             }
           } else {
             console.warn(
@@ -451,6 +477,14 @@ export class UnifiedEmbeddingInterface {
 
   private estimateTokens(text: string): number {
     return Math.ceil(text.length / 4)
+  }
+
+  private shouldWarnDimensions(expected: number, actual: number): boolean {
+    if (!this.lastDimensionWarning) return true
+    return (
+      this.lastDimensionWarning.expected !== expected ||
+      this.lastDimensionWarning.actual !== actual
+    )
   }
 
   private updateStats(result: EmbeddingResult, latency: number): void {

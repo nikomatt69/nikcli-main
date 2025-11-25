@@ -37,8 +37,29 @@ const ModelConfigSchema = z.object({
   headers: z.record(z.string()).optional().describe('Custom headers for OpenAI-compatible providers'),
 })
 
+const EmbeddingModelConfigSchema = z.object({
+  provider: z.enum(['openai', 'google', 'anthropic', 'openrouter']),
+  model: z.string(),
+  dimensions: z.number().int().positive().optional(),
+  maxTokens: z.number().int().positive().optional(),
+  batchSize: z.number().int().positive().optional(),
+  costPer1KTokens: z.number().nonnegative().optional(),
+  baseURL: z.string().url().optional(),
+  headers: z.record(z.string()).optional(),
+})
+
+const RerankingModelConfigSchema = z.object({
+  provider: z.enum(['openrouter']),
+  model: z.string(),
+  topK: z.number().int().positive().optional(),
+  maxDocuments: z.number().int().positive().optional(),
+  baseURL: z.string().url().optional(),
+  headers: z.record(z.string()).optional(),
+})
+
 const ConfigSchema = z.object({
   currentModel: z.string(),
+  currentEmbeddingModel: z.string().default('openai/text-embedding-3-small'),
   temperature: z.number().min(0).max(2).default(0.7),
   maxTokens: z.number().min(1).max(8000).default(8000),
   chatHistory: z.boolean().default(true),
@@ -60,6 +81,9 @@ const ConfigSchema = z.object({
     },
   }),
   models: z.record(ModelConfigSchema),
+  embeddingModels: z.record(EmbeddingModelConfigSchema).default({}),
+  rerankingModels: z.record(RerankingModelConfigSchema).default({}),
+  currentRerankingModel: z.string().optional(),
   apiKeys: z.record(z.string()).optional(),
   environmentVariables: z.record(z.string()).default({}),
   environmentSources: z.array(z.string()).default([]),
@@ -1536,8 +1560,33 @@ export class SimpleConfigManager {
     },
   }
 
+  private defaultEmbeddingModels: Record<string, z.infer<typeof EmbeddingModelConfigSchema>> = {
+    'openai/text-embedding-3-small': {
+      provider: 'openrouter',
+      model: 'openai/text-embedding-3-small',
+      dimensions: 1536,
+      maxTokens: 8191,
+      batchSize: 256,
+      costPer1KTokens: 0.00002,
+      baseURL: 'https://openrouter.ai/api/v1',
+      headers: {
+        'HTTP-Referer': 'https://nikcli.mintlify.app',
+        'X-Title': 'NikCLI',
+      },
+    },
+    'google/text-embedding-004': {
+      provider: 'google',
+      model: 'text-embedding-004',
+      dimensions: 768,
+      maxTokens: 2048,
+      batchSize: 128,
+      costPer1KTokens: 0.000025,
+    },
+  }
+
   private defaultConfig: ConfigType = {
     currentModel: '@preset/nikcli',
+    currentEmbeddingModel: 'openai/text-embedding-3-small',
     nikdrive: {
       enabled: true,
       endpoint: 'https://nikcli-drive-production.up.railway.app',
@@ -1573,6 +1622,21 @@ export class SimpleConfigManager {
       },
     },
     models: this.defaultModels,
+    embeddingModels: this.defaultEmbeddingModels,
+    rerankingModels: {
+      'sentence-transformers/paraphrase-minilm-l6-v2': {
+        provider: 'openrouter',
+        model: 'sentence-transformers/paraphrase-minilm-l6-v2',
+        topK: 20,
+        maxDocuments: 100,
+        baseURL: 'https://openrouter.ai/api/v1',
+        headers: {
+          'HTTP-Referer': 'https://nikcli.mintlify.app',
+          'X-Title': 'NikCLI',
+        },
+      },
+    },
+    currentRerankingModel: process.env.RERANKING_MODEL || 'sentence-transformers/paraphrase-minilm-l6-v2',
     monitoring: {
       enabled: true,
       opentelemetry: {
@@ -2042,8 +2106,16 @@ export class SimpleConfigManager {
 
     // Then check environment variables
     const modelConfig = this.config.models[model]
-    if (modelConfig) {
-      switch (modelConfig.provider) {
+    const embedConfig = this.config.embeddingModels?.[model]
+    const provider = modelConfig?.provider || embedConfig?.provider
+
+    // If a provider-level key is stored, decrypt and use it
+    if (provider && this.config.apiKeys?.[provider]) {
+      return KeyEncryption.decrypt(this.config.apiKeys[provider])
+    }
+
+    if (provider) {
+      switch (provider) {
         case 'openai':
           return process.env.OPENAI_API_KEY
         case 'anthropic':
@@ -2182,6 +2254,129 @@ export class SimpleConfigManager {
     }
   }
 
+  setCurrentEmbeddingModel(model: string, config?: Partial<z.infer<typeof EmbeddingModelConfigSchema>>): void {
+    this.ensureEmbeddingModel(model, config)
+    this.config.currentEmbeddingModel = model
+    this.saveConfig()
+  }
+
+  getCurrentEmbeddingModel(): string {
+    return this.config.currentEmbeddingModel || 'openai/text-embedding-3-small'
+  }
+
+  getCurrentRerankingModel(): string {
+    return this.config.currentRerankingModel || 'sentence-transformers/paraphrase-minilm-l6-v2'
+  }
+
+  getEmbeddingModelConfig(
+    model: string
+  ): z.infer<typeof EmbeddingModelConfigSchema> | undefined {
+    const existing = this.config.embeddingModels?.[model]
+    if (existing) return existing
+
+    if (this.isOpenRouterModelId(model)) {
+      return {
+        provider: 'openrouter',
+        model,
+        baseURL: 'https://openrouter.ai/api/v1',
+        headers: {
+          'HTTP-Referer': 'https://nikcli.mintlify.app',
+          'X-Title': 'NikCLI',
+        },
+        dimensions: this.getDefaultEmbeddingDimensions('openrouter'),
+        maxTokens: 8191,
+        batchSize: 256,
+        costPer1KTokens: 0,
+      }
+    }
+
+    return undefined
+  }
+
+  getRerankingModelConfig(
+    model: string
+  ): z.infer<typeof RerankingModelConfigSchema> | undefined {
+    const existing = this.config.rerankingModels?.[model]
+    if (existing) return existing
+
+    if (this.isOpenRouterModelId(model)) {
+      return {
+        provider: 'openrouter',
+        model,
+        baseURL: 'https://openrouter.ai/api/v1',
+        headers: {
+          'HTTP-Referer': 'https://nikcli.ai',
+          'X-Title': 'NikCLI',
+        },
+        topK: 10,
+        maxDocuments: 100,
+      }
+    }
+
+    return undefined
+  }
+
+  setEmbeddingModelConfig(
+    model: string,
+    config: Partial<z.infer<typeof EmbeddingModelConfigSchema>>
+  ): void {
+    const baseConfig =
+      this.config.embeddingModels?.[model] ||
+      this.getEmbeddingModelConfig(model) || {
+        provider: this.inferEmbeddingProvider(model),
+        model,
+      }
+
+    this.config.embeddingModels = {
+      ...this.config.embeddingModels,
+      [model]: {
+        ...baseConfig,
+        ...config,
+        provider: config.provider || baseConfig.provider || this.inferEmbeddingProvider(model),
+        model,
+        baseURL: config.baseURL || baseConfig.baseURL,
+        headers: config.headers || baseConfig.headers,
+        dimensions: config.dimensions ?? baseConfig.dimensions ?? this.getDefaultEmbeddingDimensions(baseConfig.provider),
+        maxTokens: config.maxTokens ?? baseConfig.maxTokens ?? 8191,
+        batchSize: config.batchSize ?? baseConfig.batchSize ?? 256,
+        costPer1KTokens: config.costPer1KTokens ?? baseConfig.costPer1KTokens ?? 0,
+      },
+    }
+    this.saveConfig()
+  }
+
+  setRerankingModelConfig(
+    model: string,
+    config: Partial<z.infer<typeof RerankingModelConfigSchema>>
+  ): void {
+    const baseConfig =
+      this.config.rerankingModels?.[model] || {
+        provider: 'openrouter',
+        model,
+      }
+
+    this.config.rerankingModels = {
+      ...this.config.rerankingModels,
+      [model]: {
+        ...baseConfig,
+        ...config,
+        provider: config.provider || baseConfig.provider || 'openrouter',
+        model,
+        baseURL: config.baseURL || baseConfig.baseURL,
+        headers: config.headers || baseConfig.headers,
+        topK: config.topK ?? baseConfig.topK ?? 10,
+        maxDocuments: config.maxDocuments ?? baseConfig.maxDocuments ?? 100,
+      },
+    }
+    this.saveConfig()
+  }
+
+  setCurrentRerankingModel(model: string, config?: Partial<z.infer<typeof RerankingModelConfigSchema>>): void {
+    this.ensureRerankingModel(model, config)
+    this.config.currentRerankingModel = model
+    this.saveConfig()
+  }
+
   getCurrentModel(): string {
     return this.config.currentModel
   }
@@ -2260,6 +2455,60 @@ export class SimpleConfigManager {
 
     // Default
     return 128000
+  }
+
+  private inferEmbeddingProvider(model: string): 'openai' | 'google' | 'anthropic' | 'openrouter' {
+    if (model.startsWith('google/')) return 'google'
+    if (model.startsWith('openai/')) return 'openai'
+    if (model.includes('claude') || model.includes('anthropic')) return 'anthropic'
+    if (model.includes('/')) return 'openrouter'
+    return 'openai'
+  }
+
+  private getDefaultEmbeddingDimensions(provider: string | undefined): number {
+    switch (provider) {
+      case 'google':
+        return 768
+      case 'anthropic':
+        return 1536
+      case 'openrouter':
+        return 1536
+      case 'openai':
+      default:
+        return 1536
+    }
+  }
+
+  private ensureEmbeddingModel(
+    model: string,
+    config?: Partial<z.infer<typeof EmbeddingModelConfigSchema>>
+  ): void {
+    if (!this.config.embeddingModels) {
+      this.config.embeddingModels = { ...this.defaultEmbeddingModels }
+    }
+    if (!this.config.embeddingModels[model]) {
+      this.setEmbeddingModelConfig(model, config || {})
+      return
+    }
+    if (config) {
+      this.setEmbeddingModelConfig(model, config)
+    }
+  }
+
+  private ensureRerankingModel(
+    model: string,
+    config?: Partial<z.infer<typeof RerankingModelConfigSchema>>
+  ): void {
+    if (!this.config.rerankingModels) {
+      this.config.rerankingModels = {}
+    }
+    if (!this.config.rerankingModels[model]) {
+      this.setRerankingModelConfig(model, config || {})
+      return
+    }
+    if (config) {
+      this.setRerankingModelConfig(model, config)
+    }
   }
 
   addModel(name: string, config: ModelConfig): void {

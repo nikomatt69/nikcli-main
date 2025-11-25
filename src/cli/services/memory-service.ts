@@ -5,6 +5,7 @@ import { semanticSearchEngine } from '../context/semantic-search-engine'
 import { unifiedEmbeddingInterface } from '../context/unified-embedding-interface'
 import { type MemoryEntry, type MemorySearchOptions, type MemorySearchResult, mem0Provider } from '../providers/memory'
 import { structuredLogger } from '../utils/structured-logger'
+import { authProvider } from '../providers/supabase/auth-provider'
 
 export interface ConversationContext {
   sessionId: string
@@ -48,6 +49,18 @@ export class MemoryService extends EventEmitter {
     mem0Provider.on('memory_updated', (data) => {
       this.emit('memory_updated', data)
     })
+  }
+
+  /**
+   * Set current user ID for persistent memory storage
+   */
+  setCurrentUserId(userId: string | null): void {
+    mem0Provider.setCurrentUserId(userId)
+
+    // Aggiorna anche il currentSession con il nuovo userId
+    if (this.currentSession && userId) {
+      this.currentSession.userId = userId
+    }
   }
 
   /**
@@ -110,11 +123,15 @@ export class MemoryService extends EventEmitter {
   async addMemory(content: string, metadata: Partial<MemoryEntry['metadata']> = {}): Promise<string> {
     if (!this.isInitialized) await this.initialize()
 
-    // Enhance metadata with current session context
+    // Get current user from auth provider
+    const currentUser = authProvider.getCurrentUser()
+    const userId = currentUser?.id || this.currentSession?.userId || metadata.userId
+
+    // Enhance metadata with current session context and user ID
     const enhancedMetadata: Partial<MemoryEntry['metadata']> = {
       ...metadata,
       sessionId: this.currentSession?.sessionId || metadata.sessionId,
-      userId: this.currentSession?.userId || metadata.userId,
+      userId: userId,
       timestamp: Date.now(),
     }
 

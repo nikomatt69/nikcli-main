@@ -198,7 +198,7 @@ export class ModelProvider {
             apiKey,
             baseURL: 'https://openrouter.ai/api/v1',
             headers: {
-              'HTTP-Referer': 'https://nikcli.ai',
+              'HTTP-Referer': 'https://nikcli.mintlify.app',
               'X-Title': 'NikCLI',
             },
           })
@@ -210,7 +210,7 @@ export class ModelProvider {
             apiKey,
             baseURL: 'https://openrouter.ai/api/v1',
             headers: {
-              'HTTP-Referer': 'https://nikcli.ai',
+              'HTTP-Referer': 'https://nikcli.mintlify.app',
               'X-Title': 'NikCLI',
             },
           })
@@ -220,7 +220,7 @@ export class ModelProvider {
             apiKey,
             baseURL: 'https://openrouter.ai/api/v1',
             headers: {
-              'HTTP-Referer': 'https://nikcli.ai',
+              'HTTP-Referer': 'https://nikcli.mintlify.app',
               'X-Title': 'NikCLI',
             },
           })
@@ -354,11 +354,11 @@ export class ModelProvider {
     // Always honor explicit user settings for all providers
     if (validatedOptions.maxTokens != null) {
       baseOptions.maxTokens = validatedOptions.maxTokens
-    } else if (currentModelConfig.provider !== 'openai') {
-      baseOptions.maxTokens = 6000 // provider-specific default when not supplied
     } else if (currentModelConfig.provider === 'openrouter') {
       // OpenRouter needs maxTokens set for all models
-      baseOptions.maxTokens = validatedOptions.maxTokens ?? 4000
+      baseOptions.maxTokens = 8000
+    } else if (currentModelConfig.provider !== 'openai') {
+      baseOptions.maxTokens = 6000 // provider-specific default when not supplied
     }
     const resolvedTemp = validatedOptions.temperature ?? configManager.get('temperature')
     if (resolvedTemp != null) {
@@ -384,8 +384,8 @@ export class ModelProvider {
           exclude: false,
           enabled: true,
         }
-        // Preserve reasoning blocks when supported
-        ;(reasoningConfig as any).include_reasoning = (reasoningConfig as any).include_reasoning ?? true
+          // Preserve reasoning blocks when supported
+          ; (reasoningConfig as any).include_reasoning = (reasoningConfig as any).include_reasoning ?? true
         baseOptions.experimental_providerMetadata.openrouter.reasoning = reasoningConfig
       }
 
@@ -551,8 +551,8 @@ export class ModelProvider {
           exclude: false,
           enabled: true,
         }
-        // Preserve reasoning blocks when supported
-        ;(reasoningConfig as any).include_reasoning = (reasoningConfig as any).include_reasoning ?? true
+          // Preserve reasoning blocks when supported
+          ; (reasoningConfig as any).include_reasoning = (reasoningConfig as any).include_reasoning ?? true
         streamOptions.experimental_providerMetadata.openrouter.reasoning = reasoningConfig
       }
 

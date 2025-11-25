@@ -55,8 +55,8 @@ export class VisionProvider extends EventEmitter {
 
     this.config = {
       enabled: true,
-      default_provider: 'claude',
-      fallback_providers: ['openrouter', 'openai', 'google'],
+      default_provider: 'openrouter',
+      fallback_providers: ['claude', 'openai', 'google', 'sam3'],
       cache_enabled: true,
       cache_ttl: 3600, // 1 hour
       max_file_size_mb: 20,
@@ -314,6 +314,7 @@ Provide thorough, useful insights for understanding the image content and contex
 
     // Available OpenRouter vision models
     const availableVisionModels = [
+      'google/gemini-nano-banana-image-pro-3',
       'openai/gpt-4o',
       'openai/gpt-4o-mini',
       'openai/gpt-5',
@@ -329,10 +330,25 @@ Provide thorough, useful insights for understanding the image content and contex
       '@preset/nikcli-pro'
     ]
 
-    // Use the current model if it supports vision, otherwise default to gpt-4o
+    const preferredVisionModels = [
+      'google/gemini-nano-banana-image-pro-3', // requested default vision model on OpenRouter
+      'google/gemini-1.5-pro',
+      'google/gemini-1.5-flash',
+      'openai/gpt-5.1',
+      'openai/gpt-4o',
+    ]
+
+    // Use the preferred model list, optionally including user-specified or current model
     const currentModel = simpleConfigManager.get('currentModel')
-    const selectedModel = model ||
-      (availableVisionModels.includes(currentModel) ? currentModel : 'openai/gpt-5.1')
+    const modelCandidates = (
+      model
+        ? [model]
+        : [
+          ...preferredVisionModels,
+          ...(currentModel ? [currentModel] : []),
+          ...availableVisionModels,
+        ]
+    ).filter((m, idx, arr) => arr.indexOf(m) === idx) // unique
 
     const systemPrompt =
       customPrompt ||
@@ -348,58 +364,69 @@ Provide thorough, useful insights for understanding the image content and contex
 
 Provide thorough, useful insights for understanding the image content and context.`
 
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://nikcli.ai',
-        'X-Title': 'NikCLI',
-      },
-      body: JSON.stringify({
-        model: selectedModel,
-        messages: [
-          {
-            role: 'user',
-            content: [
-              { type: 'text', text: systemPrompt },
+    let lastError: Error | null = null
+    for (const selectedModel of modelCandidates) {
+      try {
+        const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+            'HTTP-Referer': 'https://nikcli.mintlify.app',
+            'X-Title': 'NikCLI',
+          },
+          body: JSON.stringify({
+            model: selectedModel,
+            messages: [
               {
-                type: 'image_url',
-                image_url: { url: imageData }
+                role: 'user',
+                content: [
+                  { type: 'text', text: systemPrompt },
+                  {
+                    type: 'image_url',
+                    image_url: { url: imageData }
+                  }
+                ]
               }
-            ]
-          }
-        ],
-        temperature: 0.3,
-        max_tokens: 1500,
-      }),
-    })
+            ],
+            temperature: 0.3,
+            max_tokens: 1500,
+          }),
+        })
 
-    if (!response.ok) {
-      const errorData: any = await response.json()
-      throw new Error(`OpenRouter vision API error: ${errorData.error?.message || 'Unknown error'}`)
+        if (!response.ok) {
+          const errorData: any = await response.json().catch(() => ({}))
+          throw new Error(`OpenRouter vision API error (${selectedModel}): ${errorData.error?.message || response.statusText}`)
+        }
+
+        const data: any = await response.json()
+        const analysisText = data.choices?.[0]?.message?.content
+
+        if (!analysisText) {
+          throw new Error(`No analysis returned from OpenRouter vision API (${selectedModel})`)
+        }
+
+        // Parse the analysis text into structured format
+        // This is a simplified parser - in production you'd want more robust parsing
+        const result = this.parseAnalysisText(analysisText)
+
+        return {
+          ...result,
+          metadata: {
+            model_used: `openrouter-${selectedModel}`,
+            processing_time_ms: 0,
+            file_size_bytes: metadata?.size || 0,
+            image_dimensions: metadata?.dimensions,
+          },
+        }
+      } catch (error: any) {
+        lastError = error instanceof Error ? error : new Error(String(error))
+        console.log(chalk.yellow(`⚠️ OpenRouter model ${selectedModel} failed: ${lastError.message}`))
+        continue
+      }
     }
 
-    const data: any = await response.json()
-    const analysisText = data.choices?.[0]?.message?.content
-
-    if (!analysisText) {
-      throw new Error('No analysis returned from OpenRouter vision API')
-    }
-
-    // Parse the analysis text into structured format
-    // This is a simplified parser - in production you'd want more robust parsing
-    const result = this.parseAnalysisText(analysisText)
-
-    return {
-      ...result,
-      metadata: {
-        model_used: `openrouter-${selectedModel}`,
-        processing_time_ms: 0,
-        file_size_bytes: metadata?.size || 0,
-        image_dimensions: metadata?.dimensions,
-      },
-    }
+    throw lastError || new Error('OpenRouter vision API failed for all candidate models')
   }
 
   /**
@@ -717,6 +744,19 @@ Deliver detailed, structured insights for complete image understanding.`
     try {
       const googleKey = simpleConfigManager.getApiKey('gemini-1.5-pro') || simpleConfigManager.getApiKey('google')
       if (googleKey) providers.push('google')
+    } catch { }
+
+    // Check OpenRouter
+    try {
+      const openrouterKey = simpleConfigManager.getApiKey('openrouter') || process.env.OPENROUTER_API_KEY
+      if (openrouterKey) providers.push('openrouter')
+    } catch { }
+
+    // Check SAM3 (OpenAI-compatible endpoint)
+    try {
+      const sam3Key = process.env.SAM3_API_KEY || process.env.OPENAI_COMPATIBLE_API_KEY
+      const sam3Base = process.env.SAM3_BASE_URL || process.env.OPENAI_COMPATIBLE_BASE_URL
+      if (sam3Key && sam3Base) providers.push('sam3')
     } catch { }
 
     // Check Vercel

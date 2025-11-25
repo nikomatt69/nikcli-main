@@ -262,7 +262,7 @@ export class NotificationService {
     const message = this.formatMessage(payload, 'discord')
 
     try {
-      advancedUI.logFunctionUpdate('info', `Sending Discord notification to ${webhookUrl.substring(0, 50)}...`, '📤')
+
 
       const response = await axios.post(webhookUrl, message, {
         timeout,
@@ -271,7 +271,7 @@ export class NotificationService {
         },
       })
 
-      advancedUI.logFunctionUpdate('success', `Discord notification sent successfully (status: ${response.status})`, '✓')
+      advancedUI.logFunctionUpdate('success', `Discord notification ${response.status})`, '✓')
     } catch (error: any) {
       advancedUI.logFunctionUpdate('error', `Discord notification failed: ${error.message}`, '❌')
       if (error.response) {

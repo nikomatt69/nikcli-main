@@ -5,7 +5,7 @@ import { sanitizePath, validateIsFile } from './secure-file-tools'
 
 // Zod schemas for type validation
 export const VisionAnalysisOptionsSchema = z.object({
-  provider: z.enum(['claude', 'openai', 'google', 'sam3']).optional(),
+  provider: z.enum(['claude', 'openai', 'google', 'openrouter', 'sam3']).optional(),
   prompt: z.string().optional(),
   cache: z.boolean().default(true),
 })
@@ -170,7 +170,7 @@ export class VisionAnalysisTool extends BaseTool {
 Vision Analysis Tool
 ===================
 
-Analyzes images using AI vision models (Claude, GPT-4V, Gemini Pro Vision).
+Analyzes images using AI vision models (OpenRouter Gemini Nano Banana Image Pro 3 by default, with Claude/GPT/Gemini fallbacks).
 
 Usage:
   execute(imagePath: string, options?: VisionAnalysisOptions)
@@ -180,7 +180,7 @@ Parameters:
   - options: Optional configuration object
 
 Options:
-  - provider: 'claude' | 'openai' | 'google' (auto-select if not specified)
+  - provider: 'openrouter' | 'claude' | 'openai' | 'google' | 'sam3' (auto-select if not specified)
   - prompt: Custom analysis prompt (uses default comprehensive analysis if not specified)
   - cache: Enable/disable caching (default: true)
 
@@ -211,7 +211,7 @@ Analysis includes:
 
 Example:
   const result = await visionTool.execute('./image.png', {
-    provider: 'claude',
+    provider: 'openrouter',
     prompt: 'Analyze this UI mockup and identify all interactive elements'
   });
 `
