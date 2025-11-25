@@ -2,7 +2,7 @@
 // Global state management with Zustand
 
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { persist, createJSONStorage } from 'zustand/middleware'
 import type { Message, AuthTokens, ApprovalRequest } from './api-client'
 
 export interface ChatMessage extends Message {
@@ -310,13 +310,57 @@ export const useStore = create<AppState>()(
       processOfflineQueue: async () => {
         const queue = get().offlineQueue
 
-        // TODO: Process queue items
-        // This will be implemented when API client is integrated
+        if (queue.length === 0) return
 
         console.log('[Store] Processing offline queue:', queue.length, 'items')
 
+        const { apiClient } = await import('./api-client')
+        const errors: string[] = []
+
+        for (const item of queue) {
+          try {
+            switch (item.type) {
+              case 'message':
+                await apiClient.sendMessage(
+                  item.data.message,
+                  item.data.sessionId,
+                  item.data.options
+                )
+                break
+
+              case 'command':
+                await apiClient.executeCommand(
+                  item.data.command,
+                  item.data.sessionId,
+                  item.data.options
+                )
+                break
+
+              case 'approval':
+                await apiClient.respondToApproval(
+                  item.data.id,
+                  item.data.approved,
+                  item.data.reason
+                )
+                break
+
+              default:
+                console.warn(`[Store] Unknown queue item type: ${item.type}`)
+            }
+          } catch (error) {
+            console.error(`[Store] Failed to process queue item:`, error)
+            errors.push(`${item.type}: ${error instanceof Error ? error.message : 'Unknown error'}`)
+          }
+        }
+
         // Clear queue after processing
         set({ offlineQueue: [] })
+
+        if (errors.length > 0) {
+          console.error('[Store] Queue processing completed with errors:', errors)
+        } else {
+          console.log('[Store] Queue processing completed successfully')
+        }
       },
 
       clearOfflineQueue: () => {
@@ -325,6 +369,7 @@ export const useStore = create<AppState>()(
     }),
     {
       name: 'nikcli-mobile-storage',
+      storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         // Only persist these fields
         userId: state.userId,

@@ -3,7 +3,6 @@
 
 import { EventEmitter } from 'node:events'
 import type { NikCLI } from '../nik-cli'
-import type { ChatSession } from '../chat/chat-manager'
 
 export interface HeadlessMessage {
   type: 'user' | 'assistant' | 'system' | 'tool' | 'error'
@@ -72,25 +71,30 @@ export type ApprovalResponse = {
   reason?: string
 }
 
+interface HeadlessSession {
+  id: string
+  userId?: string
+  workspaceId?: string
+  createdAt: Date
+  messages: HeadlessMessage[]
+}
+
 /**
  * HeadlessMode - Enables NikCLI to run without terminal UI
  * All I/O happens through events and API calls
  */
 export class HeadlessMode extends EventEmitter {
   private nikCLI: NikCLI | null = null
-  private activeSessions: Map<string, ChatSession> = new Map()
+  private activeSessions: Map<string, HeadlessSession> = new Map()
   private pendingApprovals: Map<string, ApprovalRequest> = new Map()
   private messageBuffer: Map<string, HeadlessMessage[]> = new Map()
   private isInitialized = false
 
   constructor() {
     super()
-    this.setMaxListeners(50) // Support many concurrent sessions
+    this.setMaxListeners(50)
   }
 
-  /**
-   * Initialize headless mode with NikCLI instance
-   */
   async initialize(nikCLI: NikCLI): Promise<void> {
     if (this.isInitialized) {
       throw new Error('HeadlessMode already initialized')
@@ -103,9 +107,6 @@ export class HeadlessMode extends EventEmitter {
     this.emit('initialized')
   }
 
-  /**
-   * Execute a command in headless mode
-   */
   async executeCommand(cmd: HeadlessCommand): Promise<HeadlessResponse> {
     if (!this.isInitialized || !this.nikCLI) {
       throw new Error('HeadlessMode not initialized')
@@ -115,38 +116,28 @@ export class HeadlessMode extends EventEmitter {
     const { command, sessionId, options = {} } = cmd
 
     try {
-      // Get or create session
       let session = this.activeSessions.get(sessionId)
       if (!session) {
         session = await this.createSession(sessionId, cmd.userId, cmd.workspaceId)
       }
 
-      // Clear message buffer for this session
       this.messageBuffer.set(sessionId, [])
-
-      // Emit command start
       this.emit('command:start', { sessionId, command })
 
-      // Detect command type
       const isSlashCommand = command.startsWith('/')
       const commandType = isSlashCommand ? 'slash_command' : 'chat'
 
-      // Execute command through NikCLI
       let result: any
 
       if (isSlashCommand) {
-        // Execute slash command
         result = await this.executeSlashCommand(command, sessionId, options)
       } else {
-        // Execute as chat message
         result = await this.executeChatMessage(command, sessionId, options)
       }
 
-      // Collect messages from buffer
       const messages = this.messageBuffer.get(sessionId) || []
       const executionTime = Date.now() - startTime
 
-      // Build response
       const response: HeadlessResponse = {
         success: true,
         sessionId,
@@ -159,7 +150,6 @@ export class HeadlessMode extends EventEmitter {
         },
       }
 
-      // Emit command complete
       this.emit('command:complete', { sessionId, response })
 
       return response
@@ -187,16 +177,15 @@ export class HeadlessMode extends EventEmitter {
     }
   }
 
-  /**
-   * Execute slash command
-   */
   private async executeSlashCommand(
     command: string,
     sessionId: string,
     options: any,
   ): Promise<any> {
-    // TODO: Integrate with actual slash command handler
-    // For now, emit message that command was received
+    if (!this.nikCLI) {
+      throw new Error('NikCLI not initialized')
+    }
+
     this.addMessage(sessionId, {
       type: 'system',
       content: `Executing command: ${command}`,
@@ -204,65 +193,247 @@ export class HeadlessMode extends EventEmitter {
       metadata: { commandType: 'slash_command' },
     })
 
-    // Simulate command execution
-    // In real implementation, this would call nikCLI's command handler
-    await new Promise((resolve) => setTimeout(resolve, 100))
+    try {
+      const result = await this.executeNikCLICommand(command, sessionId, options)
 
-    this.addMessage(sessionId, {
-      type: 'assistant',
-      content: `Command executed: ${command}`,
-      timestamp: new Date(),
-    })
+      this.addMessage(sessionId, {
+        type: 'assistant',
+        content: result.output || 'Command completed successfully',
+        timestamp: new Date(),
+        metadata: {
+          toolsUsed: result.toolsUsed,
+          tokensUsed: result.tokensUsed,
+        },
+      })
 
-    return { success: true }
+      return result
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+
+      this.addMessage(sessionId, {
+        type: 'error',
+        content: `Command failed: ${errorMessage}`,
+        timestamp: new Date(),
+      })
+
+      throw error
+    }
   }
 
-  /**
-   * Execute chat message
-   */
   private async executeChatMessage(
     message: string,
     sessionId: string,
     options: any,
   ): Promise<any> {
-    // Add user message
+    if (!this.nikCLI) {
+      throw new Error('NikCLI not initialized')
+    }
+
     this.addMessage(sessionId, {
       type: 'user',
       content: message,
       timestamp: new Date(),
     })
 
-    // TODO: Integrate with actual chat handler
-    // For now, emit that we're processing
-    this.addMessage(sessionId, {
-      type: 'system',
-      content: 'Processing message...',
-      timestamp: new Date(),
-      metadata: { streaming: options.streaming },
-    })
+    try {
+      const result = await this.executeNikCLIChat(message, sessionId, options)
 
-    // Simulate AI response
-    await new Promise((resolve) => setTimeout(resolve, 100))
+      if (options.streaming && result.stream) {
+        for await (const chunk of result.stream) {
+          this.streamChunk(sessionId, chunk.content, chunk.metadata)
+        }
+      }
 
-    this.addMessage(sessionId, {
-      type: 'assistant',
-      content: 'Response to: ' + message,
-      timestamp: new Date(),
-    })
+      this.addMessage(sessionId, {
+        type: 'assistant',
+        content: result.content || result.output,
+        timestamp: new Date(),
+        metadata: {
+          toolsUsed: result.toolsUsed,
+          tokensUsed: result.tokensUsed,
+        },
+      })
 
-    return { success: true }
+      return result
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+
+      this.addMessage(sessionId, {
+        type: 'error',
+        content: `Chat failed: ${errorMessage}`,
+        timestamp: new Date(),
+      })
+
+      throw error
+    }
   }
 
-  /**
-   * Create new session
-   */
+  private async executeNikCLICommand(
+    command: string,
+    sessionId: string,
+    options: any,
+  ): Promise<any> {
+    if (!this.nikCLI) {
+      throw new Error('NikCLI instance not available')
+    }
+
+    const parts = command.trim().split(' ')
+    const cmd = parts[0].replace(/^\//, '')
+    const args = parts.slice(1)
+
+    const startTime = Date.now()
+    const toolsUsed: string[] = []
+
+    try {
+      let output: string
+
+      const nikCLI = this.nikCLI as any
+
+      if (nikCLI.commandHandler?.execute) {
+        const result = await nikCLI.commandHandler.execute(cmd, args, {
+          sessionId,
+          headless: true,
+          ...options,
+        })
+        output = result.output || result.message || 'Command executed'
+        if (result.toolsUsed) toolsUsed.push(...result.toolsUsed)
+      } else if (nikCLI.slashCommandHandler?.handleCommand) {
+        const result = await nikCLI.slashCommandHandler.handleCommand(command, {
+          sessionId,
+          headless: true,
+          ...options,
+        })
+        output = result.output || result.message || 'Command executed'
+        if (result.toolsUsed) toolsUsed.push(...result.toolsUsed)
+      } else {
+        output = await this.executeCommandDirect(cmd, args, sessionId, options)
+      }
+
+      const executionTime = Date.now() - startTime
+
+      return {
+        success: true,
+        output,
+        toolsUsed,
+        tokensUsed: 0,
+        executionTime,
+      }
+    } catch (error) {
+      throw new Error(`Command execution failed: ${error instanceof Error ? error.message : String(error)}`)
+    }
+  }
+
+  private async executeNikCLIChat(
+    message: string,
+    sessionId: string,
+    options: any,
+  ): Promise<any> {
+    if (!this.nikCLI) {
+      throw new Error('NikCLI instance not available')
+    }
+
+    const startTime = Date.now()
+    const toolsUsed: string[] = []
+    let tokensUsed = 0
+
+    try {
+      const nikCLI = this.nikCLI as any
+      const chatManager = nikCLI.chatManager
+
+      if (!chatManager) {
+        throw new Error('Chat manager not available in NikCLI instance')
+      }
+
+      if (options.streaming) {
+        const stream = this.executeStreamingChat(chatManager, message, sessionId, options)
+        return {
+          success: true,
+          content: '',
+          stream,
+          toolsUsed,
+          tokensUsed,
+        }
+      } else {
+        const result = await chatManager.sendMessage(message, {
+          sessionId,
+          headless: true,
+          ...options,
+        })
+
+        if (result.toolCalls) {
+          toolsUsed.push(...result.toolCalls.map((t: any) => t.name))
+        }
+        if (result.usage) {
+          tokensUsed = result.usage.totalTokens || 0
+        }
+
+        return {
+          success: true,
+          content: result.content || result.text || '',
+          toolsUsed,
+          tokensUsed,
+          executionTime: Date.now() - startTime,
+        }
+      }
+    } catch (error) {
+      throw new Error(`Chat execution failed: ${error instanceof Error ? error.message : String(error)}`)
+    }
+  }
+
+  private async *executeStreamingChat(
+    chatManager: any,
+    message: string,
+    sessionId: string,
+    options: any,
+  ) {
+    const stream = await chatManager.streamMessage(message, {
+      sessionId,
+      headless: true,
+      ...options,
+    })
+
+    for await (const chunk of stream) {
+      yield {
+        content: chunk.delta || chunk.content || '',
+        metadata: {
+          toolCalls: chunk.toolCalls,
+          finishReason: chunk.finishReason,
+        },
+      }
+    }
+  }
+
+  private async executeCommandDirect(
+    command: string,
+    args: string[],
+    sessionId: string,
+    options: any,
+  ): Promise<string> {
+    const nikCLI = this.nikCLI as any
+
+    switch (command) {
+      case 'help':
+        return 'NikCLI Mobile - Available commands: /agents, /tools, /plan, etc.'
+
+      case 'agents':
+        const agents = nikCLI.agentManager?.getRegisteredAgents?.() || []
+        return `Available agents: ${agents.map((a: any) => a.name).join(', ')}`
+
+      case 'tools':
+        const tools = nikCLI.toolService?.getAvailableTools?.() || []
+        return `Available tools: ${tools.map((t: any) => t.name).join(', ')}`
+
+      default:
+        throw new Error(`Command '${command}' not supported in headless mode yet`)
+    }
+  }
+
   private async createSession(
     sessionId: string,
     userId?: string,
     workspaceId?: string,
-  ): Promise<ChatSession> {
-    // TODO: Integrate with actual ChatManager
-    const session: any = {
+  ): Promise<HeadlessSession> {
+    const session: HeadlessSession = {
       id: sessionId,
       userId,
       workspaceId,
@@ -276,9 +447,6 @@ export class HeadlessMode extends EventEmitter {
     return session
   }
 
-  /**
-   * Stream message chunk (for streaming responses)
-   */
   streamChunk(sessionId: string, chunk: string, metadata?: any): void {
     this.emit('stream:chunk', {
       sessionId,
@@ -288,9 +456,6 @@ export class HeadlessMode extends EventEmitter {
     })
   }
 
-  /**
-   * Request approval for sensitive operation
-   */
   async requestApproval(
     sessionId: string,
     request: Omit<ApprovalRequest, 'id' | 'timestamp'>,
@@ -304,18 +469,16 @@ export class HeadlessMode extends EventEmitter {
 
     this.pendingApprovals.set(approvalId, fullRequest)
 
-    // Emit approval request
     this.emit('approval:requested', {
       sessionId,
       approval: fullRequest,
     })
 
-    // Wait for approval response (with timeout)
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
         this.pendingApprovals.delete(approvalId)
         reject(new Error('Approval timeout'))
-      }, 5 * 60 * 1000) // 5 minutes timeout
+      }, 5 * 60 * 1000)
 
       const handler = (response: ApprovalResponse) => {
         if (response.id === approvalId) {
@@ -330,49 +493,29 @@ export class HeadlessMode extends EventEmitter {
     })
   }
 
-  /**
-   * Respond to approval request
-   */
   respondToApproval(response: ApprovalResponse): void {
     this.emit('approval:response', response)
   }
 
-  /**
-   * Get pending approvals for session
-   */
   getPendingApprovals(sessionId: string): ApprovalRequest[] {
-    // Filter approvals by session (stored in events)
     return Array.from(this.pendingApprovals.values())
   }
 
-  /**
-   * Get session messages
-   */
   getSessionMessages(sessionId: string): HeadlessMessage[] {
     return this.messageBuffer.get(sessionId) || []
   }
 
-  /**
-   * Get active sessions
-   */
   getActiveSessions(): string[] {
     return Array.from(this.activeSessions.keys())
   }
 
-  /**
-   * Close session
-   */
   async closeSession(sessionId: string): Promise<void> {
     this.activeSessions.delete(sessionId)
     this.messageBuffer.delete(sessionId)
     this.emit('session:closed', { sessionId })
   }
 
-  /**
-   * Shutdown headless mode
-   */
   async shutdown(): Promise<void> {
-    // Close all sessions
     for (const sessionId of this.activeSessions.keys()) {
       await this.closeSession(sessionId)
     }
@@ -382,26 +525,28 @@ export class HeadlessMode extends EventEmitter {
     this.emit('shutdown')
   }
 
-  /**
-   * Setup event handlers for NikCLI integration
-   */
   private setupEventHandlers(): void {
-    // These will be connected to actual NikCLI events
-    // For now, just setup the structure
+    // Connect to NikCLI events when available
+    const nikCLI = this.nikCLI as any
+
+    if (nikCLI.on) {
+      nikCLI.on('tool:call', (data: any) => {
+        this.emit('tool:call', data)
+      })
+
+      nikCLI.on('approval:needed', (data: any) => {
+        this.requestApproval(data.sessionId, data.request)
+      })
+    }
   }
 
-  /**
-   * Add message to session buffer
-   */
   private addMessage(sessionId: string, message: HeadlessMessage): void {
     const buffer = this.messageBuffer.get(sessionId) || []
     buffer.push(message)
     this.messageBuffer.set(sessionId, buffer)
 
-    // Emit message event for real-time listeners
     this.emit('message', { sessionId, message })
   }
 }
 
-// Singleton instance
 export const headlessMode = new HeadlessMode()

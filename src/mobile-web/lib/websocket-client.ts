@@ -1,7 +1,57 @@
 // lib/websocket-client.ts
 // WebSocket client with auto-reconnection
 
-import { EventEmitter } from 'events'
+// Browser-compatible EventEmitter
+class BrowserEventEmitter {
+  private listeners: Map<string, Set<Function>> = new Map()
+
+  on(event: string, listener: Function): this {
+    if (!this.listeners.has(event)) {
+      this.listeners.set(event, new Set())
+    }
+    this.listeners.get(event)!.add(listener)
+    return this
+  }
+
+  once(event: string, listener: Function): this {
+    const onceWrapper = (...args: any[]) => {
+      this.removeListener(event, onceWrapper)
+      listener(...args)
+    }
+    return this.on(event, onceWrapper)
+  }
+
+  emit(event: string, ...args: any[]): boolean {
+    const listeners = this.listeners.get(event)
+    if (!listeners || listeners.size === 0) return false
+
+    listeners.forEach(listener => {
+      try {
+        listener(...args)
+      } catch (error) {
+        console.error(`Error in listener for event ${event}:`, error)
+      }
+    })
+    return true
+  }
+
+  removeListener(event: string, listener: Function): this {
+    const listeners = this.listeners.get(event)
+    if (listeners) {
+      listeners.delete(listener)
+    }
+    return this
+  }
+
+  removeAllListeners(event?: string): this {
+    if (event) {
+      this.listeners.delete(event)
+    } else {
+      this.listeners.clear()
+    }
+    return this
+  }
+}
 
 export const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3000'
 
@@ -24,7 +74,7 @@ export interface WSConfig {
 /**
  * WebSocket Client with reconnection
  */
-export class WebSocketClient extends EventEmitter {
+export class WebSocketClient extends BrowserEventEmitter {
   private ws: WebSocket | null = null
   private config: Required<WSConfig>
   private reconnectAttempts = 0
