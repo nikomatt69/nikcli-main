@@ -36,6 +36,7 @@ export class TaskExecutor {
   private workingDir: string
   private executionMode: ExecutionMode
   private useBackgroundAgents: boolean
+  private slackService?: any
 
   constructor(octokit: Octokit, config: GitHubBotConfig, executionMode: ExecutionMode = 'auto') {
     this.octokit = octokit
@@ -53,7 +54,29 @@ export class TaskExecutor {
       mkdirSync(this.workingDir, { recursive: true })
     }
 
+    // Initialize Slack service if configured
+    if (process.env.SLACK_BOT_TOKEN) {
+      this.initializeSlackService().catch(err => {
+        console.error('⚠️ Failed to initialize Slack service in TaskExecutor:', err)
+      })
+    }
+
     console.log(` TaskExecutor initialized in ${this.executionMode} mode (BG agents: ${this.useBackgroundAgents})`)
+  }
+
+  private async initializeSlackService(): Promise<void> {
+    try {
+      const { EnhancedSlackService } = await import('../integrations/slack/slack-service')
+      this.slackService = new EnhancedSlackService({
+        token: process.env.SLACK_BOT_TOKEN!,
+        signingSecret: process.env.SLACK_SIGNING_SECRET!,
+        botToken: process.env.SLACK_BOT_TOKEN!,
+        webhookUrl: process.env.SLACK_WEBHOOK_URL,
+      })
+      console.log('✅ Slack service initialized in TaskExecutor')
+    } catch (error) {
+      console.error('❌ Error initializing Slack service:', error)
+    }
   }
 
   /**
@@ -95,15 +118,26 @@ export class TaskExecutor {
       // Determine execution mode
       const shouldUseBackgroundAgent = this.shouldUseBackgroundAgent(parsedCommand)
 
+      let result: TaskResult
+
       if (shouldUseBackgroundAgent) {
         advancedUI.logFunctionUpdate('info', 'Routing to background agent service', 'ℹ')
-        return await this.executeViaBackgroundAgent(job, parsedCommand)
+        result = await this.executeViaBackgroundAgent(job, parsedCommand)
       } else {
         advancedUI.logFunctionUpdate('info', 'Executing locally', 'ℹ')
-        return await this.executeLocally(job, parsedCommand)
+        result = await this.executeLocally(job, parsedCommand)
       }
-    } catch (error) {
+
+      // Notify Slack of completion
+      await this.notifySlackCompletion(job, result)
+
+      return result
+    } catch (error: any) {
       console.error(`❌ Task execution failed:`, error)
+
+      // Notify Slack of failure
+      await this.notifySlackFailure(job, error)
+
       throw error
     }
   }
@@ -819,5 +853,163 @@ ${result.analysis ? `## Analysis\n${result.analysis}\n` : ''}
     }
 
     return false
+  }
+
+  // ========== SLACK NOTIFICATIONS ==========
+
+  /**
+   * Notify Slack of task completion
+   */
+  private async notifySlackCompletion(job: ProcessingJob, result: TaskResult): Promise<void> {
+    if (!this.slackService || !job.slackThreadTs || !process.env.SLACK_DEFAULT_CHANNEL) {
+      return
+    }
+
+    try {
+      const commandText = `${job.mention.command} ${job.mention.args.join(' ')}`.trim()
+
+      await this.slackService.webClient.chat.postMessage({
+        channel: process.env.SLACK_DEFAULT_CHANNEL,
+        thread_ts: job.slackThreadTs,
+        text: `✅ Task completed successfully`,
+        blocks: [
+          {
+            type: 'section',
+            text: {
+              type: 'mrkdwn',
+              text: `*✅ Task Completed*\n\`@nikcli ${commandText}\``,
+            },
+          },
+          {
+            type: 'section',
+            fields: [
+              {
+                type: 'mrkdwn',
+                text: `*Repository*\n${job.repository}`,
+              },
+              {
+                type: 'mrkdwn',
+                text: `*Issue/PR*\n#${job.issueNumber}`,
+              },
+              {
+                type: 'mrkdwn',
+                text: `*Files Modified*\n${result.files?.length || 0}`,
+              },
+              {
+                type: 'mrkdwn',
+                text: `*Status*\n${result.success ? 'Success ✓' : 'Partial ⚠'}`,
+              },
+            ],
+          },
+        ].concat(
+          result.prUrl
+            ? [
+                {
+                  type: 'actions',
+                  elements: [
+                    {
+                      type: 'button',
+                      text: {
+                        type: 'plain_text',
+                        text: '👁️ View Results on GitHub',
+                      },
+                      url: `https://github.com/${job.repository}/issues/${job.issueNumber}`,
+                    },
+                    {
+                      type: 'button',
+                      text: {
+                        type: 'plain_text',
+                        text: '🔀 View Pull Request',
+                      },
+                      url: result.prUrl,
+                      style: 'primary',
+                    },
+                  ],
+                },
+              ]
+            : [
+                {
+                  type: 'actions',
+                  elements: [
+                    {
+                      type: 'button',
+                      text: {
+                        type: 'plain_text',
+                        text: '👁️ View Results on GitHub',
+                      },
+                      url: `https://github.com/${job.repository}/issues/${job.issueNumber}`,
+                    },
+                  ],
+                },
+              ],
+        ) as any,
+      })
+
+      console.log(`✅ Notified Slack of task completion`)
+    } catch (error) {
+      console.error('⚠️ Failed to notify Slack of completion:', error)
+    }
+  }
+
+  /**
+   * Notify Slack of task failure
+   */
+  private async notifySlackFailure(job: ProcessingJob, error: Error): Promise<void> {
+    if (!this.slackService || !job.slackThreadTs || !process.env.SLACK_DEFAULT_CHANNEL) {
+      return
+    }
+
+    try {
+      const commandText = `${job.mention.command} ${job.mention.args.join(' ')}`.trim()
+
+      await this.slackService.webClient.chat.postMessage({
+        channel: process.env.SLACK_DEFAULT_CHANNEL,
+        thread_ts: job.slackThreadTs,
+        text: `❌ Task failed`,
+        blocks: [
+          {
+            type: 'section',
+            text: {
+              type: 'mrkdwn',
+              text: `*❌ Task Failed*\n\`@nikcli ${commandText}\``,
+            },
+          },
+          {
+            type: 'section',
+            fields: [
+              {
+                type: 'mrkdwn',
+                text: `*Repository*\n${job.repository}`,
+              },
+              {
+                type: 'mrkdwn',
+                text: `*Issue/PR*\n#${job.issueNumber}`,
+              },
+              {
+                type: 'mrkdwn',
+                text: `*Error*\n${error.message.substring(0, 200)}`,
+              },
+            ],
+          },
+          {
+            type: 'actions',
+            elements: [
+              {
+                type: 'button',
+                text: {
+                  type: 'plain_text',
+                  text: '👁️ View on GitHub',
+                },
+                url: `https://github.com/${job.repository}/issues/${job.issueNumber}`,
+              },
+            ],
+          },
+        ],
+      })
+
+      console.log(`✅ Notified Slack of task failure`)
+    } catch (slackError) {
+      console.error('⚠️ Failed to notify Slack of failure:', slackError)
+    }
   }
 }

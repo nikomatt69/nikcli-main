@@ -1423,7 +1423,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
   }
 
   private gracefulExit(): void {
-    console.log(chalk.blue('\n👋 Shutting down orchestrator...'))
+
 
     if (this.activeAgents.size > 0) {
       console.log(chalk.yellow(`⏳ Waiting for ${this.activeAgents.size} agents to finish...`))

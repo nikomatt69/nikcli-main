@@ -1873,7 +1873,7 @@ class StreamingModule extends EventEmitter {
   }
 
   private gracefulExit(): void {
-    advancedUI.logWarning('Shutting down orchestrator...')
+
 
     if (this.activeAgents.size > 0) {
       advancedUI.logWarning(`⏳ Waiting for ${this.activeAgents.size} agents to finish...`)
@@ -2011,6 +2011,85 @@ class MainOrchestrator {
 }
 
 /**
+ * Lightweight menubar command handler for macOS
+ */
+async function maybeHandleMenubar(argv: string[]): Promise<boolean> {
+  const menubarCommand = argv[0] === 'menubar'
+  const menubarFlag = argv.includes('--menubar') || argv.includes('-m')
+
+  if (!menubarCommand && !menubarFlag) {
+    return false
+  }
+
+  if (process.platform !== 'darwin') {
+    console.error(chalk.red('The menubar companion is only available on macOS.'))
+    return true
+  }
+
+  const action = menubarCommand ? argv[1]?.toLowerCase() ?? 'start' : 'start'
+
+  try {
+    const { menubarLauncher } = await import('./native/tauri-launcher')
+
+    if (action === 'stop') {
+      const result = await menubarLauncher.stop()
+      console.log(
+        result.running ? chalk.yellow('⚠️  Menubar still running') : chalk.green('🛑 Menubar stopped'),
+        result.pid ? chalk.gray(`(pid ${result.pid})`) : ''
+      )
+      if (result.message) console.log(result.message)
+      return true
+    }
+
+    if (action === 'status') {
+      const result = await menubarLauncher.status()
+      if (result.running) {
+        console.log(chalk.green('🟢 Menubar running'), result.pid ? chalk.gray(`(pid ${result.pid})`) : '')
+        if (result.binary) console.log(chalk.gray(`binary: ${result.binary}`))
+      } else {
+        console.log(chalk.yellow('🟠 Menubar not running'))
+      }
+      return true
+    }
+
+    const result = await menubarLauncher.start()
+    if (result.running) {
+      console.log(chalk.green('✅ Menubar started'), result.pid ? chalk.gray(`(pid ${result.pid})`) : '')
+      if (result.binary) console.log(chalk.gray(`using: ${result.binary}`))
+      if (result.message) console.log(result.message)
+    } else {
+      console.log(chalk.red('❌ Failed to start menubar'), result.message ? chalk.gray(result.message) : '')
+    }
+  } catch (error: any) {
+    console.error(chalk.red('Failed to control menubar:'), error?.message || error)
+  }
+
+  return true
+}
+
+async function autoStartMenubar(argv: string[]): Promise<void> {
+  if (process.platform !== 'darwin') return
+  if (argv.includes('--no-menubar')) return
+
+  const disabled = ['1', 'true', 'yes'].includes((process.env.NIKCLI_DISABLE_MENUBAR || '').toLowerCase())
+  if (disabled) return
+
+  try {
+    const { menubarLauncher } = await import('./native/tauri-launcher')
+    const status = await menubarLauncher.start()
+
+    if (status.running) {
+      const pidInfo = status.pid ? chalk.gray(`(pid ${status.pid})`) : ''
+      console.log(chalk.green('🟢 Menubar running'), pidInfo)
+    } else if (status.message) {
+      console.log(chalk.yellow('Menubar not started:'), status.message)
+    }
+  } catch (error: any) {
+    console.log(chalk.yellow('Menubar auto-start skipped:'), error?.message || error)
+  }
+}
+
+/**
  * Main entry point function
  */
 async function main() {
@@ -2028,6 +2107,12 @@ async function main() {
 
   // Parse command line arguments
   const argv = process.argv.slice(2)
+
+  // Handle macOS menubar controls before starting the full orchestrator
+  const menubarHandled = await maybeHandleMenubar(argv)
+  if (menubarHandled) {
+    return
+  }
 
   // Minimal non-interactive report mode for CI/VS Code
   if (argv[0] === 'report' || argv.includes('--report')) {
@@ -2052,6 +2137,9 @@ async function main() {
 
   // Check for --skip-onboarding or --no-interactive flag
   const skipOnboarding = argv.includes('--skip-onboarding') || argv.includes('--no-interactive')
+
+  // Auto-start menubar companion on macOS (unless explicitly disabled)
+  await autoStartMenubar(argv)
 
   const orchestrator = new MainOrchestrator(skipOnboarding)
   await orchestrator.start()

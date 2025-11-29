@@ -4699,6 +4699,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     }
 
     try {
+      const nik: any = (global as any).__nikCLI
       const [command, ...commandArgs] = args
       const fullCommand = `${command} ${commandArgs.join(' ')}`
 
@@ -4728,6 +4729,9 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     } catch (error: any) {
       advancedUI.logError(`Error running command: ${error.message}`)
       console.log(chalk.red(`❌ Error running command: ${error.message}`))
+    } finally {
+      const nik: any = (global as any).__nikCLI
+      nik?.requestPromptCleanup?.()
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }

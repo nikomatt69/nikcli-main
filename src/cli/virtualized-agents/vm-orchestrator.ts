@@ -117,6 +117,7 @@ export class VMOrchestrator extends EventEmitter {
         repositoryUrl: config.repositoryUrl,
         localRepositoryPath: config.localRepoPath,
         repositoryPath: '/workspace/repo',
+        repositoryReady: false,
         createdAt: new Date(),
         status: 'running',
         vscodePort: this.extractVSCodePort(containerConfig.ports[0]),
@@ -176,7 +177,7 @@ export class VMOrchestrator extends EventEmitter {
       const command = initCommands[i]
       try {
         advancedUI.logInfo(`Executing init command ${i + 1}/${initCommands.length}`)
-        await this.executeCommand(containerId, command)
+        await this.executeCommand(containerId, command, { useRepoWorkdir: false })
 
         // Wait after package installation
         if (i === 0) {
@@ -257,7 +258,7 @@ export class VMOrchestrator extends EventEmitter {
         ]
 
       for (const command of setupCommands) {
-        await this.executeCommand(containerId, command)
+        await this.executeCommand(containerId, command, { useRepoWorkdir: false })
       }
 
       // Update container info
@@ -266,6 +267,7 @@ export class VMOrchestrator extends EventEmitter {
         containerInfo.localRepositoryPath = useLocalPath
           ? containerInfo.localRepositoryPath || (this.looksLikeLocalPath(repositoryUrl) ? repositoryUrl : undefined)
           : undefined
+        containerInfo.repositoryReady = true
         this.activeContainers.set(containerId, containerInfo)
       }
 
@@ -336,9 +338,18 @@ export class VMOrchestrator extends EventEmitter {
   /**
    * Execute command in container
    */
-  async executeCommand(containerId: string, command: string): Promise<string> {
+  async executeCommand(
+    containerId: string,
+    command: string,
+    options: { workdir?: string; useRepoWorkdir?: boolean } = {}
+  ): Promise<string> {
     try {
-      const result = await this.containerManager.executeCommand(containerId, command)
+      const containerInfo = this.activeContainers.get(containerId)
+      const shouldUseRepo = options.useRepoWorkdir !== false
+      const workdir = options.workdir || (shouldUseRepo && containerInfo?.repositoryReady ? containerInfo.repositoryPath : '')
+      const commandWithCwd = workdir ? `cd ${workdir} && ${command}` : command
+
+      const result = await this.containerManager.executeCommand(containerId, commandWithCwd)
 
       // Log command execution for debugging
       advancedUI.logInfo(`🔧 Container ${containerId.slice(0, 8)}: ${command}`)
@@ -372,9 +383,15 @@ export class VMOrchestrator extends EventEmitter {
    */
   async *executeCommandStreaming(
     containerId: string,
-    command: string
+    command: string,
+    options: { workdir?: string; useRepoWorkdir?: boolean } = {}
   ): AsyncGenerator<CommandStreamChunk, void, unknown> {
     try {
+      const containerInfo = this.activeContainers.get(containerId)
+      const shouldUseRepo = options.useRepoWorkdir !== false
+      const workdir = options.workdir || (shouldUseRepo && containerInfo?.repositoryReady ? containerInfo.repositoryPath : '')
+      const commandWithCwd = workdir ? `cd ${workdir} && ${command}` : command
+
       advancedUI.logInfo(`🌊 Streaming command in ${containerId.slice(0, 8)}: ${command}`)
 
       // Emit start event
@@ -386,7 +403,7 @@ export class VMOrchestrator extends EventEmitter {
       }
 
       // Execute command and stream output line by line
-      const result = await this.containerManager.executeCommand(containerId, command)
+      const result = await this.containerManager.executeCommand(containerId, commandWithCwd)
       const lines = result.split('\n')
 
       for (const line of lines) {
@@ -965,6 +982,7 @@ export interface ContainerInfo {
   repositoryUrl: string
   localRepositoryPath?: string
   repositoryPath?: string
+  repositoryReady?: boolean
   createdAt: Date
   status: 'running' | 'stopped' | 'error'
   vscodePort: number

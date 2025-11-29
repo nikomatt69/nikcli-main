@@ -135,6 +135,7 @@ export interface ProcessingJob {
   isIssue?: boolean // Is this an issue body?
   isPRReview?: boolean // Is this a PR review comment?
   pullRequest?: GitHubPullRequest // Full PR data if available
+  slackThreadTs?: string // Slack thread timestamp for GitHub ↔ Slack sync
 }
 
 export type JobStatus = 'queued' | 'processing' | 'completed' | 'failed'

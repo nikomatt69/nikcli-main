@@ -277,7 +277,7 @@ export class GoatTool extends BaseTool {
       // Load GOAT credentials from config if not in env
       try {
         if (!process.env.GOAT_EVM_PRIVATE_KEY) {
-          const keyFromConfig = 
+          const keyFromConfig =
             configManager.getApiKey('goat_private_key') ||
             configManager.getApiKey('goat-private-key') ||
             configManager.getApiKey('evm_private_key')
@@ -293,7 +293,7 @@ export class GoatTool extends BaseTool {
           const baseRpc = configManager.getApiKey('base_rpc_url')
           if (baseRpc) process.env.BASE_RPC_URL = baseRpc
         }
-      } catch {}
+      } catch { }
 
       // Check if dependencies are installed
       const isInstalled = await GoatProvider.isInstalled()
@@ -432,12 +432,12 @@ IMPORTANT INSTRUCTIONS FOR ETHEREUM ADDRESSES:
 BLOCKCHAIN CHAINS & TOKENS:
 - Polymarket ALWAYS uses Polygon (chainId: 137) - NEVER use other chains for Polymarket
 - Polymarket bets use USDC token on Polygon
-- USDC on Polygon contract address: 0x2791Bca1f2de4661ED88A30C99a7a9449Aa84174 (checksummed)
-- ERC20 operations can use Base (chainId: 8453) or Polygon (chainId: 137)
+- USDC on Polygon contract address: 0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174 (checksummed)
+- ERC20 operations can use Polygon (chainId: 137)
 - Default to Polygon if not specified
 
 POLYMARKET OPERATIONS:
-- IMPORTANT: Always use USDC (0x2791Bca1f2de4661ED88A30C99a7a9449Aa84174 - checksummed) on Polygon for Polymarket
+- IMPORTANT: Always use USDC (0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174 - checksummed) on Polygon for Polymarket
 - Market IDs must be actual market identifiers (hex string or market slug)
 - Text-based market search by description DOES NOT WORK with Polymarket API
 - To find markets, you MUST:
@@ -564,7 +564,7 @@ ALWAYS confirm with user before executing any blockchain transaction.`,
 
     try {
       const isInstalled = await GoatProvider.isInstalled()
-      
+
       let envStatus = 'missing'
       try {
         GoatProvider.validateEnvironment()

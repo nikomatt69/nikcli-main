@@ -293,6 +293,7 @@ export class NikCLI {
   private statusBarStep: number = 0
   private isInquirerActive: boolean = false
   private lastBarSegments: number = -1
+  private promptCleanupRequested: boolean = false
 
   // Clean chat mode: hide ephemeral tool logs from transcript
   private cleanChatMode: boolean = false
@@ -13507,6 +13508,10 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       try {
         if (!this.isPrintingPanel && !this.isInquirerActive && !(inputQueue.isBypassEnabled?.() ?? false)) {
           // Add a spacer to ensure prompt is below the latest output without clearing previous lines
+          if (this.promptCleanupRequested) {
+            this.clearPromptLeaks()
+            this.promptCleanupRequested = false
+          }
           process.stdout.write('\n')
           void this.renderPromptArea()
           this.lastPromptRenderAt = Date.now()
@@ -13521,6 +13526,30 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
 
     // Unlock prompt area after rendering (split-screen protection)
 
+  }
+
+  /**
+   * Clear transient UI artifacts before redrawing prompt to avoid lingering timers/outputs
+   */
+  private clearPromptLeaks(): void {
+    try {
+      terminalOutputManager.clearExpiredOutputs()
+      terminalOutputManager.clearComponentOutputs('PromptSpacer')
+    } catch {
+      /* ignore cleanup issues */
+    }
+    try {
+      this.advancedUI?.clearCompletedAgents?.()
+    } catch {
+      /* ignore cleanup issues */
+    }
+  }
+
+  /**
+   * Signal that the next prompt render should perform leak cleanup (scoped to specific commands)
+   */
+  requestPromptCleanup(): void {
+    this.promptCleanupRequested = true
   }
 
   /**

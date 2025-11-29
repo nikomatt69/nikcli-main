@@ -6,9 +6,10 @@
  * Integrates with native Polymarket APIs and builder program
  */
 
-import { EventEmitter } from 'events'
+import { EventBus, EventTypes } from './event-bus'
 import { BaseAgent } from './base-agent'
-import type { AgentTask, AgentInstance, AgentMetrics, AgentStatus } from './types'
+import type { AgentTask, AgentInstance, AgentStatus } from './agent-router'
+import type { AgentMetrics } from './base-agent'
 
 // ============================================================
 // POLYMARKET AGENT TYPES
@@ -57,6 +58,7 @@ export interface PolymarketPosition {
 // ============================================================
 
 export class PolymarketAgent extends BaseAgent implements AgentInstance {
+  private goatProvider: any
   id = 'polymarket-agent'
   capabilities = [
     'market-analysis',
@@ -78,14 +80,18 @@ export class PolymarketAgent extends BaseAgent implements AgentInstance {
   private positionCache: Map<string, PolymarketPosition> = new Map()
   private orderHistory: PolymarketOrderIntent[] = []
   private metrics: AgentMetrics = {
-    tasksCompleted: 0,
+    tasksExecuted: 0,
+    tasksSucceeded: 0,
     tasksFailed: 0,
-    avgTaskDuration: 0,
-    successRate: 0,
+    averageExecutionTime: 0,
+    totalExecutionTime: 0,
+    lastActive: new Date(),
+
   }
 
-  constructor(private goatProvider: any) {
-    super()
+  constructor(goatProvider: any, workingDirectory: string = process.cwd()) {
+    super(workingDirectory)
+    this.goatProvider = goatProvider
     this.setup()
   }
 
@@ -93,13 +99,13 @@ export class PolymarketAgent extends BaseAgent implements AgentInstance {
    * Setup agent
    */
   private setup(): void {
-    this.eventBus = new EventEmitter()
+    // EventBus is already initialized in BaseAgent constructor
   }
 
   /**
    * Initialize agent
    */
-  async initialize(): Promise<void> {
+  async onInitialize(): Promise<void> {
     try {
       console.log(`🐐 Initializing ${this.specialization}...`)
 
@@ -118,7 +124,7 @@ export class PolymarketAgent extends BaseAgent implements AgentInstance {
       // Pre-load markets
       await this.preloadMarkets()
 
-      this.status = 'idle'
+      this.status = 'available'
       console.log(`✅ ${this.specialization} ready`)
     } catch (error: any) {
       this.status = 'error'
@@ -145,7 +151,7 @@ export class PolymarketAgent extends BaseAgent implements AgentInstance {
   /**
    * Execute a task
    */
-  async executeTask(task: AgentTask): Promise<any> {
+  async onExecuteTask(task: AgentTask): Promise<any> {
     if (this.currentTasks >= this.maxConcurrentTasks) {
       throw new Error('Max concurrent tasks reached')
     }
@@ -176,35 +182,29 @@ export class PolymarketAgent extends BaseAgent implements AgentInstance {
 
       const duration = Date.now() - startTime
       this.updateMetrics(true, duration)
-      task.actualDuration = duration
-      task.status = 'completed'
-      task.result = result
-
-      this.eventBus.emit('taskCompleted', {
-        taskId: task.id,
-        result,
-        duration
-      })
+      task.metadata = {
+        ...task.metadata,
+        actualDuration: duration,
+        status: 'completed',
+        result
+      }
 
       return result
     } catch (error: any) {
       const duration = Date.now() - startTime
       this.updateMetrics(false, duration)
-      task.status = 'failed'
-      task.error = error.message
-      task.actualDuration = duration
-
-      this.eventBus.emit('taskFailed', {
-        taskId: task.id,
+      task.metadata = {
+        ...task.metadata,
+        status: 'failed',
         error: error.message,
-        duration
-      })
+        actualDuration: duration
+      }
 
       throw error
     } finally {
       this.currentTasks--
       if (this.currentTasks === 0) {
-        this.status = 'idle'
+        this.status = 'available'
       }
     }
   }
@@ -422,7 +422,7 @@ export class PolymarketAgent extends BaseAgent implements AgentInstance {
 
     // Pattern 3: Try to extract from cached markets if market name mentioned
     if (!tokenId) {
-      for (const [id, analysis] of this.marketCache.entries()) {
+      for (const [id, analysis] of Array.from(this.marketCache.entries())) {
         if (lower.includes(id) || lower.includes(analysis.tokenId)) {
           tokenId = id
           break
@@ -491,35 +491,43 @@ export class PolymarketAgent extends BaseAgent implements AgentInstance {
    */
   private updateMetrics(success: boolean, duration: number): void {
     if (success) {
-      this.metrics.tasksCompleted++
+      this.metrics.tasksSucceeded++
+      this.metrics.tasksExecuted++
     } else {
       this.metrics.tasksFailed++
+      this.metrics.tasksExecuted++
     }
 
-    const total = this.metrics.tasksCompleted + this.metrics.tasksFailed
-    this.metrics.successRate = (this.metrics.tasksCompleted / total) * 100
-    this.metrics.avgTaskDuration =
-      (this.metrics.avgTaskDuration * (total - 1) + duration) / total
+    const total = this.metrics.tasksSucceeded + this.metrics.tasksFailed
+    this.agentMetrics.tasksSucceeded = total > 0 ? (this.metrics.tasksSucceeded / total) * 100 : 0
+    this.metrics.averageExecutionTime =
+      total > 0 ? (this.metrics.totalExecutionTime! * (total - 1) + duration) / total : duration
+    this.metrics.lastActive = new Date()
   }
 
   /**
    * Get agent capabilities
    */
   getCapabilities(): string[] {
-    return this.capabilities
+    return [...this.capabilities]
   }
 
   /**
    * Get agent metrics
    */
   getMetrics(): AgentMetrics {
-    return { ...this.metrics }
+    return {
+      ...this.metrics,
+      totalTasks: this.metrics.tasksSucceeded + this.metrics.tasksFailed,
+      tasksCompleted: this.metrics.tasksSucceeded,
+      lastExecutionTime: this.metrics.lastActive
+    }
   }
 
   /**
    * Clean up resources
    */
-  async cleanup(): Promise<void> {
+  async onStop(): Promise<void> {
     try {
       const wsManager = this.goatProvider.getWebSocketManager()
       if (wsManager) {

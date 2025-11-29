@@ -57,11 +57,27 @@ export class JobQueue extends EventEmitter {
   }
 
   /**
+   * Handle Upstash errors and disable if limit exceeded
+   */
+  private handleUpstashError(error: any): void {
+    if (error.message?.includes('max requests limit exceeded')) {
+      console.error('❌ Upstash limit exceeded, permanently disabling Upstash Redis for this session')
+      this.upstashRedis = undefined
+      this.config.type = 'local'
+    }
+  }
+
+  /**
    * Redis helper methods - work with both IORedis and Upstash
    */
   private async redisZadd(key: string, score: number, member: string): Promise<void> {
     if (this.upstashRedis) {
-      await this.upstashRedis.zadd(key, { score, member })
+      try {
+        await this.upstashRedis.zadd(key, { score, member })
+      } catch (error: any) {
+        this.handleUpstashError(error)
+        throw error
+      }
     } else if (this.redis) {
       await this.redis.zadd(key, score, member)
     }
@@ -69,7 +85,12 @@ export class JobQueue extends EventEmitter {
 
   private async redisZrem(key: string, member: string): Promise<void> {
     if (this.upstashRedis) {
-      await this.upstashRedis.zrem(key, member)
+      try {
+        await this.upstashRedis.zrem(key, member)
+      } catch (error: any) {
+        this.handleUpstashError(error)
+        throw error
+      }
     } else if (this.redis) {
       await this.redis.zrem(key, member)
     }
@@ -77,8 +98,13 @@ export class JobQueue extends EventEmitter {
 
   private async redisZrangebyscore(key: string, min: number, max: number, limit: number): Promise<string[]> {
     if (this.upstashRedis) {
-      const result = await this.upstashRedis.zrange(key, min, max, { byScore: true, offset: 0, count: limit })
-      return result as string[]
+      try {
+        const result = await this.upstashRedis.zrange(key, min, max, { byScore: true, offset: 0, count: limit })
+        return result as string[]
+      } catch (error: any) {
+        this.handleUpstashError(error)
+        throw error
+      }
     } else if (this.redis) {
       return await this.redis.zrangebyscore(key, min, max, 'LIMIT', 0, limit)
     }
@@ -87,13 +113,18 @@ export class JobQueue extends EventEmitter {
 
   private async redisZpopmin(key: string, count: number): Promise<(string | object)[]> {
     if (this.upstashRedis) {
-      const result = await this.upstashRedis.zpopmin(key, count)
-      // Upstash returns [member1, score1, member2, score2, ...], we need only members
-      // Upstash may deserialize JSON strings automatically, so we return both strings and objects
-      if (Array.isArray(result)) {
-        return result.filter((_, i) => i % 2 === 0) as (string | object)[]
+      try {
+        const result = await this.upstashRedis.zpopmin(key, count)
+        // Upstash returns [member1, score1, member2, score2, ...], we need only members
+        // Upstash may deserialize JSON strings automatically, so we return both strings and objects
+        if (Array.isArray(result)) {
+          return result.filter((_, i) => i % 2 === 0) as (string | object)[]
+        }
+        return []
+      } catch (error: any) {
+        this.handleUpstashError(error)
+        throw error
       }
-      return []
     } else if (this.redis) {
       const result = await this.redis.zpopmin(key, count)
       return Array.isArray(result) ? result : []
@@ -103,7 +134,12 @@ export class JobQueue extends EventEmitter {
 
   private async redisZcard(key: string): Promise<number> {
     if (this.upstashRedis) {
-      return await this.upstashRedis.zcard(key)
+      try {
+        return await this.upstashRedis.zcard(key)
+      } catch (error: any) {
+        this.handleUpstashError(error)
+        throw error
+      }
     } else if (this.redis) {
       return await this.redis.zcard(key)
     }
@@ -112,7 +148,12 @@ export class JobQueue extends EventEmitter {
 
   private async redisHset(key: string, field: string, value: string): Promise<void> {
     if (this.upstashRedis) {
-      await this.upstashRedis.hset(key, { [field]: value })
+      try {
+        await this.upstashRedis.hset(key, { [field]: value })
+      } catch (error: any) {
+        this.handleUpstashError(error)
+        throw error
+      }
     } else if (this.redis) {
       await this.redis.hset(key, field, value)
     }
@@ -120,7 +161,12 @@ export class JobQueue extends EventEmitter {
 
   private async redisHdel(key: string, field: string): Promise<number> {
     if (this.upstashRedis) {
-      return await this.upstashRedis.hdel(key, field)
+      try {
+        return await this.upstashRedis.hdel(key, field)
+      } catch (error: any) {
+        this.handleUpstashError(error)
+        throw error
+      }
     } else if (this.redis) {
       return await this.redis.hdel(key, field)
     }
@@ -129,8 +175,13 @@ export class JobQueue extends EventEmitter {
 
   private async redisSet(key: string, value: string, ex?: number): Promise<string | null> {
     if (this.upstashRedis) {
-      await this.upstashRedis.set(key, value, ex ? { ex } : {})
-      return 'OK'
+      try {
+        await this.upstashRedis.set(key, value, ex ? { ex } : {})
+        return 'OK'
+      } catch (error: any) {
+        this.handleUpstashError(error)
+        throw error
+      }
     } else if (this.redis) {
       if (ex) {
         return await this.redis.set(key, value, 'EX', ex, 'NX')
@@ -142,7 +193,12 @@ export class JobQueue extends EventEmitter {
 
   private async redisDel(...keys: string[]): Promise<void> {
     if (this.upstashRedis) {
-      await this.upstashRedis.del(...keys)
+      try {
+        await this.upstashRedis.del(...keys)
+      } catch (error: any) {
+        this.handleUpstashError(error)
+        throw error
+      }
     } else if (this.redis) {
       await this.redis.del(...keys)
     }

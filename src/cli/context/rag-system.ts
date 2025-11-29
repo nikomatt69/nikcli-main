@@ -298,7 +298,7 @@ export class UnifiedRAGSystem {
       cacheEmbeddings: true,
       costThreshold: 0.1, // $0.10 threshold
       enableReranking: process.env.RERANKING_ENABLED !== 'false',
-      rerankingModel: process.env.RERANKING_MODEL || 'cohere/rerank-english-v3.0',
+      rerankingModel: process.env.RERANKING_MODEL || 'sentence-transformers/paraphrase-minilm-l6-v2',
       rerankingTopK: Number(process.env.RERANKING_TOP_K || 10),
       ...config,
     }

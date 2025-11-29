@@ -316,6 +316,14 @@ export class ToolRegistry {
 
       const result = await Promise.race([executionPromise, timeoutPromise])
 
+      // Type safety fix: ensure result matches ToolExecutionResult interface
+      if (result && typeof result === 'object' && 'success' in result) {
+        return result as ToolExecutionResult
+      }
+
+      // Fallback: wrap result in expected format
+
+
       // Performance monitoring
       const metrics = this.performanceOptimizer.endMonitoring(sessionId, {
         toolCallCount: 1,
@@ -349,7 +357,7 @@ export class ToolRegistry {
       )
 
       this.updateToolMetrics(toolId, true, metrics.processingTime)
-      return result
+      return result as ToolExecutionResult
     } catch (error: any) {
       const metrics = this.performanceOptimizer.endMonitoring(sessionId, {
         toolCallCount: 1,
@@ -683,7 +691,8 @@ export class ToolRegistry {
       }
 
       // Operation needs user approval
-      const approval = await approvalSystem.requestSandboxApproval(
+      // Type assertion needed due to dynamic import type inference limitation
+      const approval = await (approvalSystem as any).requestSandboxApproval(
         toolName,
         needsApproval.type === 'path' ? 'path-access' : needsApproval.type === 'command' ? 'command-execution' : 'resource-limit',
         needsApproval.target,

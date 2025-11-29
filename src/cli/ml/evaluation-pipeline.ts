@@ -35,9 +35,9 @@ class EvaluationPipeline {
   async initialize(supabaseProvider: EnhancedSupabaseProvider): Promise<void> {
     try {
       this.supabaseProvider = supabaseProvider;
-      structuredLogger.info('EvaluationPipeline initialized');
+      structuredLogger.info('EvaluationPipeline', 'initialized');
     } catch (error) {
-      structuredLogger.error('Failed to initialize EvaluationPipeline', { error });
+      structuredLogger.error('EvaluationPipeline', 'Failed to initialize EvaluationPipeline');
       throw error;
     }
   }
@@ -86,15 +86,11 @@ class EvaluationPipeline {
       // Store benchmark result
       await this.storeBenchmarkResult(result);
 
-      structuredLogger.info('Session evaluation completed', {
-        sessionId,
-        accuracy: metrics.toolSelectionAccuracy,
-        successRate: metrics.executionSuccessRate
-      });
+      structuredLogger.info('Session evaluation completed', `Session evaluation completed, sessionId: ${sessionId}, accuracy: ${metrics.toolSelectionAccuracy}, successRate: ${metrics.executionSuccessRate}`);
 
       return result;
     } catch (error) {
-      structuredLogger.warn('Session evaluation failed', { error });
+      structuredLogger.error('EvaluationPipeline', 'Session evaluation failed');
       return this.createEmptyBenchmark(sessionId);
     }
   }
@@ -114,7 +110,7 @@ class EvaluationPipeline {
       );
 
       if (executions.length === 0) {
-        structuredLogger.warn('No executions found for batch evaluation');
+        structuredLogger.warning('EvaluationPipeline', 'No executions found for batch evaluation');
         return this.getDefaultMetrics();
       }
 
@@ -124,14 +120,11 @@ class EvaluationPipeline {
       // Store batch result
       await this.storeBatchMetrics(metrics, lookbackDays);
 
-      structuredLogger.info('Batch evaluation completed', {
-        executionsAnalyzed: executions.length,
-        successRate: metrics.executionSuccessRate
-      });
+      structuredLogger.info('Batch evaluation completed', `Batch evaluation completed, executionsAnalyzed: ${executions.length}, successRate: ${metrics.executionSuccessRate}`);
 
       return metrics;
     } catch (error) {
-      structuredLogger.warn('Batch evaluation failed', { error });
+      structuredLogger.error('Batch evaluation failed', error);
       return this.getDefaultMetrics();
     }
   }
@@ -208,7 +201,7 @@ class EvaluationPipeline {
         trend: Math.max(-1, Math.min(trend, 1)) // Clamp to -1..1
       };
     } catch (error) {
-      structuredLogger.warn('Failed to get historical metrics', { error });
+      structuredLogger.error('Failed to get historical metrics', `Failed to get historical metrics, error: ${error}`);
       return null;
     }
   }
@@ -397,7 +390,7 @@ class EvaluationPipeline {
     try {
       await this.supabaseProvider.recordBenchmarkResult(result);
     } catch (error) {
-      structuredLogger.warn('Failed to store benchmark result', { error });
+      structuredLogger.error('Failed to store benchmark result', `Failed to store benchmark result, error: ${error}`);
     }
   }
 
@@ -412,7 +405,7 @@ class EvaluationPipeline {
     try {
       await this.supabaseProvider.recordBatchMetrics(metrics, lookbackDays);
     } catch (error) {
-      structuredLogger.warn('Failed to store batch metrics', { error });
+      structuredLogger.error('Failed to store batch metrics', `Failed to store batch metrics, error: ${error}`);
     }
   }
 

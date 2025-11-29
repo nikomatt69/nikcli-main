@@ -31,7 +31,8 @@ export class AIChatService extends EventEmitter {
 
   constructor(config?: AIChatServiceConfig) {
     super()
-    this.model = config?.model || process.env.OPENROUTER_MODEL || '@preset/nikcli'
+    // Default to MiniMax M2 for background agents (fast, reliable, low cost)
+    this.model = config?.model || process.env.OPENROUTER_MODEL || 'minimax/minimax-m2'
     const apiKey = config?.apiKey || process.env.OPENROUTER_API_KEY || ''
     this.maxTokens = config?.maxTokens || 8000
     this.temperature = config?.temperature || 0.7
@@ -117,10 +118,58 @@ export class AIChatService extends EventEmitter {
       },
     })
 
-    // Stream the response
-    for await (const chunk of result.textStream) {
-      fullText += chunk
-      onTextDelta?.(chunk, fullText)
+    // Stream the response - handle all chunk types like NikCLI toolchains
+    try {
+      for await (const event of result.fullStream) {
+        const eventType = (event as any).type
+
+        switch (eventType) {
+          case 'text-delta':
+            // Regular text streaming
+            fullText += (event as any).textDelta
+            onTextDelta?.((event as any).textDelta, fullText)
+            break
+
+          case 'thinking':
+          case 'reasoning':
+            // Reasoning chunks - ignore silently
+            break
+
+          case 'tool-call-delta':
+          case 'tool-call-streaming-start':
+          case 'tool-call':
+            // Tool calls - ignore silently
+            break
+
+          case 'finish':
+          case 'step-finish':
+            // Completion events - ignore
+            break
+
+          default:
+            // Unknown event types - handle gracefully
+            if ((event as any).thinking) {
+              // Reasoning chunk
+              break
+            } else if ((event as any).textDelta) {
+              fullText += (event as any).textDelta
+              onTextDelta?.((event as any).textDelta, fullText)
+            }
+            break
+        }
+      }
+    } catch (streamError: any) {
+      // Fallback to textStream if fullStream fails
+      console.warn('[AI Chat] fullStream failed, falling back to textStream:', streamError.message)
+      try {
+        for await (const chunk of result.textStream) {
+          fullText += chunk
+          onTextDelta?.(chunk, fullText)
+        }
+      } catch (error: any) {
+        console.error('[AI Chat] textStream fallback failed:', error.message)
+        throw error
+      }
     }
 
     onComplete?.(fullText)
@@ -260,7 +309,7 @@ ${fileChanges.map((change) => `- **${change.type}**: \`${change.path}\``).join('
 ${messages.find((m) => m.role === 'user')?.content || 'Interactive development session'}
 
 ---
-🤖 Generated with [NikCLI](https://github.com/nikomatt69/nikcli)
+🤖 Generated with [NikCLI](https://github.com/nikomatt69/nikcli-main)
 `
 
     return summary

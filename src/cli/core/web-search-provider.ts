@@ -36,7 +36,7 @@ export class WebSearchProvider {
 
       // Only use native tool for OpenAI provider (not OpenRouter, as it requires custom baseURL)
       if (cfg.provider === 'openai') {
-        const apiKey = configManager.getApiKey()
+        const apiKey = configManager.getApiKey(current)
         if (!apiKey) return null
 
         // Check if the default openai export has the webSearchPreview tool
@@ -274,7 +274,7 @@ export class WebSearchProvider {
 
     if (options.includeContent) {
       for (const r of top) {
-        const content = await this.fetchPageText(r.url, options.maxContentBytes)
+        const content = await this.fetchPageText(r.url, options.maxContentBytes ?? 200000)
         sources.push({ title: r.title, url: r.url, snippet: content ? content.slice(0, 2000) : r.snippet })
       }
     } else {

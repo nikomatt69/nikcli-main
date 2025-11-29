@@ -75,7 +75,7 @@ export class MultiEditTool extends BaseTool {
         throw new Error('No operations specified')
       }
 
-      advancedUI.logInfo(`⚡︎ Executing ${params.operations.length} edit operations`)
+      advancedUI.logInfo(`⚡︎ Executing ${(params.operations || params.edits || []).length} edit operations`)
 
       const result: MultiEditResult = {
         totalOperations: normalizedOperations.length,
@@ -199,7 +199,7 @@ export class MultiEditTool extends BaseTool {
       const oldString = edit.oldString ?? edit.search
       const newString = edit.newString ?? edit.replace
 
-      if (!filePath || oldString === undefined || newString === undefined) {
+      if (!filePath || oldString == null || newString == null) {
         advancedUI.logWarning('⚠️ Skipping invalid edit entry missing file/search/replace')
         continue
       }

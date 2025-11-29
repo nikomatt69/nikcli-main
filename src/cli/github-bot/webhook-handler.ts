@@ -16,6 +16,8 @@ export class GitHubWebhookHandler {
   private commentProcessor: CommentProcessor
   private taskExecutor: TaskExecutor
   private processingJobs: Map<string, ProcessingJob> = new Map()
+  private slackService?: any
+  private cacheService?: any
 
   constructor(config: GitHubBotConfig) {
     this.config = config
@@ -26,6 +28,43 @@ export class GitHubWebhookHandler {
 
     this.commentProcessor = new CommentProcessor()
     this.taskExecutor = new TaskExecutor(this.octokit, config)
+
+    // Initialize Slack if configured
+    if (process.env.SLACK_BOT_TOKEN) {
+      this.initializeSlackService().catch(err => {
+        console.error('⚠️ Failed to initialize Slack service:', err)
+      })
+    }
+
+    // Initialize cache service if available
+    this.initializeCacheService().catch(err => {
+      console.error('⚠️ Failed to initialize cache service:', err)
+    })
+  }
+
+  private async initializeSlackService(): Promise<void> {
+    try {
+      const { EnhancedSlackService } = await import('../integrations/slack/slack-service')
+      this.slackService = new EnhancedSlackService({
+        token: process.env.SLACK_BOT_TOKEN!,
+        signingSecret: process.env.SLACK_SIGNING_SECRET!,
+        botToken: process.env.SLACK_BOT_TOKEN!,
+        webhookUrl: process.env.SLACK_WEBHOOK_URL,
+      })
+      console.log('✅ Slack service initialized')
+    } catch (error) {
+      console.error('❌ Error initializing Slack service:', error)
+    }
+  }
+
+  private async initializeCacheService(): Promise<void> {
+    try {
+      const { cacheService } = await import('../services/cache-service')
+      this.cacheService = cacheService
+      console.log('✅ Cache service initialized')
+    } catch (error) {
+      console.error('❌ Error initializing cache service:', error)
+    }
   }
 
   /**
@@ -141,6 +180,40 @@ export class GitHubWebhookHandler {
 
     console.log('🔌 @nikcli mentioned! Processing request...')
 
+    // Security validation
+    if (!(await this.validateAccess(repository.full_name, comment.user.login))) {
+      console.warn(`❌ Access denied for ${comment.user.login} in ${repository.full_name}`)
+      await this.postSecurityError(repository.full_name, issue.number, comment.id)
+      return
+    }
+
+    // Rate limiting check
+    if (this.cacheService && !(await this.checkRateLimit(comment.user.login))) {
+      console.warn(`❌ Rate limit exceeded for ${comment.user.login}`)
+      await this.postRateLimitError(repository.full_name, issue.number, comment.id)
+      return
+    }
+
+    // Notify Slack about GitHub mention
+    let slackThreadTs: string | undefined
+    if (this.slackService && process.env.SLACK_DEFAULT_CHANNEL) {
+      try {
+        slackThreadTs = await this.slackService.notifyGitHubMention(
+          process.env.SLACK_DEFAULT_CHANNEL,
+          {
+            repository: repository.full_name,
+            issueNumber: issue.number,
+            commentUrl: comment.html_url,
+            author: comment.user.login,
+            command: `${mention.command} ${mention.args.join(' ')}`.trim(),
+          },
+        )
+        console.log(`✅ Notified Slack about GitHub mention (thread: ${slackThreadTs})`)
+      } catch (error) {
+        console.error('⚠️ Failed to notify Slack:', error)
+      }
+    }
+
     // Check if this is a comment on a PR (issue.pull_request exists)
     const isPR = !!issue.pull_request
     let pullRequest = null
@@ -173,6 +246,7 @@ export class GitHubWebhookHandler {
       author: comment.user.login,
       isPR,
       pullRequest: pullRequest as GitHubPullRequest,
+      slackThreadTs, // Link to Slack thread
     } as ProcessingJob
 
     this.processingJobs.set(jobId, job)
@@ -574,5 +648,146 @@ ${result.files.map((f: string) => `- \`${f}\``).join('\n')}
    */
   getAllJobs(): ProcessingJob[] {
     return Array.from(this.processingJobs.values())
+  }
+
+  // ========== SECURITY & RATE LIMITING ==========
+
+  /**
+   * Validate repository and user access
+   */
+  private async validateAccess(repo: string, author: string): Promise<boolean> {
+    const allowedRepos = (process.env.ALLOWED_GITHUB_REPOS || '').split(',').filter(Boolean)
+
+    // No whitelist = allow all
+    if (allowedRepos.length === 0) {
+      return true
+    }
+
+    // Check exact match or wildcard
+    const isAllowed = allowedRepos.some((pattern) => {
+      if (pattern.includes('*')) {
+        const regex = new RegExp(pattern.replace(/\*/g, '.*'))
+        return regex.test(repo)
+      }
+      return pattern === repo
+    })
+
+    if (!isAllowed) {
+      console.warn(`❌ Repository ${repo} not in whitelist`)
+      return false
+    }
+
+    // Check org membership if required
+    if (process.env.GITHUB_REQUIRE_ORG_MEMBERSHIP === 'true') {
+      const [owner] = repo.split('/')
+      return await this.checkOrgMembership(owner, author)
+    }
+
+    return true
+  }
+
+  /**
+   * Check if user is member of organization
+   */
+  private async checkOrgMembership(org: string, username: string): Promise<boolean> {
+    try {
+      await this.octokit.rest.orgs.checkMembershipForUser({
+        org,
+        username,
+      })
+      console.log(`✅ ${username} is member of ${org}`)
+      return true
+    } catch (error) {
+      console.warn(`❌ ${username} is not member of ${org}`)
+      return false
+    }
+  }
+
+  /**
+   * Check rate limit for user
+   */
+  private async checkRateLimit(username: string): Promise<boolean> {
+    if (!this.cacheService) {
+      return true // No cache service = no rate limiting
+    }
+
+    const rateLimitKey = `ratelimit:github:${username}`
+    const limit = parseInt(process.env.GITHUB_RATE_LIMIT_PER_USER || '10', 10)
+    const ttl = 3600 // 1 hour
+
+    try {
+      const count = await this.cacheService.increment(rateLimitKey, ttl)
+
+      if (count > limit) {
+        console.warn(`❌ Rate limit exceeded for ${username}: ${count}/${limit}`)
+        return false
+      }
+
+      console.log(`✅ Rate limit OK for ${username}: ${count}/${limit}`)
+      return true
+    } catch (error) {
+      console.error('⚠️ Rate limit check failed:', error)
+      return true // Fail open
+    }
+  }
+
+  /**
+   * Post security error message
+   */
+  private async postSecurityError(repo: string, issueNumber: number, commentId: number): Promise<void> {
+    try {
+      const [owner, repoName] = repo.split('/')
+      await this.octokit.rest.issues.createComment({
+        owner,
+        repo: repoName,
+        issue_number: issueNumber,
+        body: `❌ **Access Denied**
+
+This repository or organization is not authorized to use @nikcli.
+
+If you believe this is an error, please contact your administrator.`,
+      })
+
+      // Add negative reaction
+      await this.octokit.rest.reactions.createForIssueComment({
+        owner,
+        repo: repoName,
+        comment_id: commentId,
+        content: '-1',
+      })
+    } catch (error) {
+      console.error('Error posting security error:', error)
+    }
+  }
+
+  /**
+   * Post rate limit error message
+   */
+  private async postRateLimitError(repo: string, issueNumber: number, commentId: number): Promise<void> {
+    try {
+      const [owner, repoName] = repo.split('/')
+      const limit = process.env.GITHUB_RATE_LIMIT_PER_USER || '10'
+
+      await this.octokit.rest.issues.createComment({
+        owner,
+        repo: repoName,
+        issue_number: issueNumber,
+        body: `⚠️ **Rate Limit Exceeded**
+
+You have exceeded the rate limit of ${limit} requests per hour.
+
+Please try again later.`,
+      })
+
+      // Add reaction
+      await this.octokit.rest.reactions.createForIssueComment({
+        owner,
+        repo: repoName,
+        comment_id: commentId,
+        content: 'confused',
+      })
+    } catch (error) {
+      console.error('Error posting rate limit error:', error)
+    }
   }
 }

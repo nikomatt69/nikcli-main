@@ -1,0 +1,13 @@
+# Railway Configuration
+# https://docs.railway.app/deploy/deployments
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+startCommand = "node --import tsx src/cli/background-agents/api/index.ts"
+healthcheckPath = "/health"
+healthcheckTimeout = 100
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10

@@ -367,8 +367,21 @@ export class BackgroundAgentsAPIServer {
     // Apply standard limiter to all v1 endpoints (it will skip monitoring endpoints)
     this.app.use('/v1/', standardLimiter)
 
-    // Body parsing
-    this.app.use(express.json({ limit: '10mb' }))
+    // Body parsing with raw body preservation for Slack signature verification
+    this.app.use((req, res, next) => {
+      if (req.path.startsWith('/v1/slack/')) {
+        // For Slack endpoints, preserve raw body for signature verification
+        express.json({
+          limit: '10mb',
+          verify: (req: any, _res, buf, encoding) => {
+            req.rawBody = buf.toString((encoding as BufferEncoding) || 'utf8')
+          }
+        })(req, res, next)
+      } else {
+        // For other endpoints, use standard JSON parsing
+        express.json({ limit: '10mb' })(req, res, next)
+      }
+    })
     this.app.use(express.urlencoded({ extended: true, limit: '10mb' }))
 
     // Request logging (only for non-health-check requests to reduce noise)
@@ -764,7 +777,7 @@ export class BackgroundAgentsAPIServer {
         throw new Error(`OpenRouter API error: ${response.status} ${response.statusText}`)
       }
 
-      const data = await response.json()
+      const data = await response.json() as { data?: any[] }
       const models = Array.isArray(data.data) ? data.data : []
 
       // Filter and format models

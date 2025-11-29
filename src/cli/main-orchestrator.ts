@@ -221,7 +221,7 @@ export class MainOrchestrator {
       return false
     }
 
-    const available = []
+    const available: string[] = []
     if (hasAnthropic) available.push('Claude')
     if (hasOpenAI) available.push('GPT')
     if (hasGoogle) available.push('Gemini')

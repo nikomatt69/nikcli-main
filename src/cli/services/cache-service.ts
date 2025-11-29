@@ -639,10 +639,10 @@ export class CacheService extends EventEmitter {
   ): Promise<void> {
     try {
       const cacheKey = `ml:inference:${key}`
-      await this.set(cacheKey, prediction, { ml: true }, { ttl })
+      await this.set(cacheKey, prediction, 'ml-inference', { ttl })
     } catch (error) {
       // Silent failure - inference still usable without cache
-      structuredLogger.debug('Failed to cache ML inference', { error })
+      (structuredLogger as any).debug('Failed to cache ML inference', { error })
     }
   }
 
@@ -652,7 +652,7 @@ export class CacheService extends EventEmitter {
   async getMLInference(key: string): Promise<Record<string, any> | null> {
     try {
       const cacheKey = `ml:inference:${key}`
-      return await this.get<Record<string, any>>(cacheKey, { ml: true })
+      return await this.get<Record<string, any>>(cacheKey, 'ml-inference')
     } catch (error) {
       // Silent failure - return null for cache miss
       return null
