@@ -103,6 +103,7 @@ export interface NikCLIOptions {
   auto?: boolean
   plan?: boolean
   structuredUI?: boolean
+  showBetaPanel?: boolean
 }
 
 export interface TodoOptions {
@@ -2404,6 +2405,8 @@ export class NikCLI {
       Boolean(options.agent) ||
       process.env.FORCE_STRUCTURED_UI === 'true'
 
+    const showBetaPanel = options.showBetaPanel ?? true
+
     // Save the decision for later use in routing
     this.structuredUIEnabled = shouldUseStructuredUI
 
@@ -2433,6 +2436,10 @@ export class NikCLI {
 
     // Start enhanced chat interface with slash commands
     await this.startEnhancedChat()
+
+    if (showBetaPanel) {
+      await this.showBetaEntryPanel()
+    }
   }
 
   /**
@@ -2537,6 +2544,12 @@ export class NikCLI {
         // Command palette (Ctrl/Cmd + B)
         if ((key?.ctrl || key?.meta) && key?.name?.toLowerCase?.() === 'b') {
           void this.openCommandPaletteModal()
+          return
+        }
+
+        // Interactive login (Ctrl+W)
+        if (key?.ctrl && key?.name?.toLowerCase?.() === 'w') {
+          void this.openInteractiveLoginModal()
           return
         }
 
@@ -2647,6 +2660,35 @@ export class NikCLI {
     this.startAdsTimer()
   }
 
+  private async showBetaEntryPanel(): Promise<void> {
+    const lines: string[] = []
+
+    lines.push(chalk.yellow('Beta: onboarding semplificato, nessun banner iniziale.'))
+    lines.push('')
+    lines.push(chalk.cyan('API key'))
+    lines.push(
+      chalk.white('• Env: ANTHROPIC_API_KEY | OPENAI_API_KEY | OPENROUTER_API_KEY') +
+      '\n' +
+      chalk.white('  GOOGLE_GENERATIVE_AI_API_KEY | AI_GATEWAY_API_KEY')
+    )
+    lines.push(chalk.white('• Oppure /set-key <provider> <key> per salvarle in ~/.nikcli'))
+    lines.push('')
+    lines.push(chalk.magenta('Login'))
+    lines.push(chalk.white('• Premi Ctrl+W per il login interattivo'))
+    lines.push(chalk.white('• /auth signin per autenticarti, /auth signup per creare un account'))
+
+    await this.printPanel(
+      boxen(lines.join('\n'), {
+        title: 'NikCLI Beta',
+        padding: 1,
+        margin: 1,
+        borderStyle: 'round',
+        borderColor: 'red',
+      }),
+      'general'
+    )
+  }
+
   /**
    * Display a compact keyboard cheat-sheet with top commands and shortcuts
    */
@@ -2656,6 +2698,7 @@ export class NikCLI {
       lines.push('Shortcuts:')
       lines.push('  /      Open command palette (Shift+↑↓ to navigate)')
       lines.push('  Ctrl/Cmd+B        Open palette and run selection')
+      lines.push('  Ctrl+W            Apri il login interattivo')
       lines.push('  @      Agent suggestions')
       lines.push('  *      File picker suggestions')
       lines.push('  Esc    Interrupt/return to default mode')
@@ -15429,34 +15472,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
    * Sign in handler
    */
   private async handleAuthSignIn(): Promise<void> {
-    const rl = require('readline').createInterface({
-      input: process.stdin,
-      output: process.stdout,
-    })
-
-    try {
-      const email = await new Promise<string>((resolve) => rl.question('Email: ', resolve))
-
-      const password = await new Promise<string>((resolve) => rl.question('Password: ', resolve))
-
-      if (email && password) {
-        console.log(chalk.blue('⚡︎ Signing in...'))
-        const result = await authProvider.signIn(email, password, { rememberMe: true })
-
-        if (result) {
-          console.log(chalk.green(`✓ Welcome back, ${result.profile.email}!`))
-
-          // Set user for enhanced session manager
-          this.enhancedSessionManager.setCurrentUser(result.session.user.id)
-        } else {
-          console.log(chalk.red('✖ Sign in failed - invalid credentials'))
-        }
-      }
-    } catch (error: any) {
-      console.log(chalk.red(`✖ Sign in error: ${error.message}`))
-    } finally {
-      rl.close()
-    }
+    await this.openInteractiveLoginModal()
   }
 
   /**
@@ -23242,6 +23258,131 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       borderColor: config.color,
     })
     )
+  }
+
+  private async openInteractiveLoginModal(): Promise<void> {
+    if (this.isInquirerActive) return
+    if (this.isSlashMenuActive) {
+      this.closeSlashMenu()
+    }
+
+    const savedAuth = ((configManager.get('auth') as any) || {}) as { email?: string; user?: string }
+    const wasBypassEnabled = inputQueue.isBypassEnabled?.() ?? false
+    let answers: { email: string; password: string; remember: boolean } | null = null
+
+    try {
+      this.isInquirerActive = true
+      this.suspendPrompt()
+      if (!wasBypassEnabled) {
+        inputQueue.enableBypass()
+      }
+
+      answers = await inquirer.prompt([
+        {
+          type: 'input',
+          name: 'email',
+          message: 'Email',
+          default: savedAuth.email || savedAuth.user || '',
+          validate: (value: string) => (value && value.includes('@') ? true : 'Inserisci un indirizzo email valido'),
+        },
+        {
+          type: 'password',
+          name: 'password',
+          message: 'Password',
+          mask: '*',
+          validate: (value: string) => (value && value.length > 3 ? true : 'Password troppo corta'),
+        },
+        {
+          type: 'confirm',
+          name: 'remember',
+          message: 'Ricorda la sessione su questo dispositivo?',
+          default: true,
+        },
+      ])
+    } catch (error: any) {
+      if (error?.isTtyError) {
+        console.log(chalk.red('Il login interattivo richiede un terminale interattivo.'))
+      }
+      answers = null
+    } finally {
+      if (!wasBypassEnabled) {
+        try {
+          inputQueue.disableBypass()
+        } catch {
+          /* ignore */
+        }
+      }
+      this.isInquirerActive = false
+      this.resumePromptAndRender()
+    }
+
+    if (!answers) return
+
+    const email = answers.email?.trim()
+    const password = answers.password
+    const rememberMe = answers.remember
+
+    if (!email || !password) {
+      return
+    }
+
+    try {
+      const result = await authProvider.signIn(email, password, { rememberMe })
+
+      if (result) {
+        if (result.session?.user?.id) {
+          this.enhancedSessionManager.setCurrentUser(result.session.user.id)
+        }
+
+        try {
+          configManager.set('auth', {
+            email,
+            accessToken: result.session?.accessToken as string | undefined,
+            refreshToken: result.session?.refreshToken as string | undefined,
+            lastLogin: new Date().toISOString(),
+          })
+        } catch {
+          /* ignore config persistence errors */
+        }
+
+        const displayName = result.profile?.email || result.profile?.username || email
+        await this.printPanel(
+          boxen(
+            `${chalk.green('✓ Login completato')}\n${chalk.white(displayName)}\n${chalk.gray('Sessione salvata (Ctrl+W per riaprire)')}`,
+            {
+              title: 'Autenticazione',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'green',
+            }
+          ),
+          'general'
+        )
+      } else {
+        await this.printPanel(
+          boxen(chalk.red('Credenziali non valide, riprova.'), {
+            title: 'Autenticazione',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'red',
+          }),
+          'general'
+        )
+      }
+    } catch (error: any) {
+      await this.printPanel(
+        boxen(chalk.red(`Errore di login: ${error.message || error}`), {
+          title: 'Autenticazione',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        }),
+        'general'
+      )
+    }
   }
 
   /**

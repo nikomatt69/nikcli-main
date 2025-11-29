@@ -1903,10 +1903,10 @@ class StreamingModule extends EventEmitter {
 class MainOrchestrator {
   private streamingModule?: StreamingModule
   private initialized = false
-  private skipOnboarding: boolean
+  private showBetaPanel: boolean
 
-  constructor(skipOnboarding: boolean = false) {
-    this.skipOnboarding = skipOnboarding
+  constructor(showBetaPanel: boolean = true) {
+    this.showBetaPanel = showBetaPanel
     this.setupGlobalHandlers()
   }
 
@@ -1948,18 +1948,9 @@ class MainOrchestrator {
 
   async start(): Promise<void> {
     try {
-      // Silence background loggers during onboarding so only curated UI appears
+      // Silence background loggers during startup so only curated UI appears
       Logger.setConsoleOutput(false)
       UtilsLogger.getInstance().setConsoleOutput(false)
-
-      // Run onboarding flow (skip if --skip-onboarding or --no-interactive flag is set)
-      if (!this.skipOnboarding) {
-        const onboardingComplete = await OnboardingModule.runOnboarding()
-        if (!onboardingComplete) {
-          advancedUI.logWarning('\nOnboarding incomplete. Please address the issues above.')
-          process.exit(1)
-        }
-      }
 
       // Initialize all systems
       const initialized = await ServiceModule.initializeSystem()
@@ -1991,7 +1982,7 @@ class MainOrchestrator {
       // Clear quiet startup flag - allow RAG to show completion logs now that chat is open
       delete process.env.NIKCLI_QUIET_STARTUP
 
-      // Start RAG initialization in background NOW (post-onboarding)
+      // Start RAG initialization in background now that startup is done
       unifiedRAGSystem.startBackgroundInitialization()
 
       // Welcome message
@@ -2002,6 +1993,7 @@ class MainOrchestrator {
       await cli.startChat({
         // Enable structured UI mode from the start
         structuredUI: true,
+        showBetaPanel: this.showBetaPanel,
       })
     } catch (error: any) {
       console.error(chalk.red('✖ Failed to start orchestrator:'), error)
@@ -2136,12 +2128,12 @@ async function main() {
   }
 
   // Check for --skip-onboarding or --no-interactive flag
-  const skipOnboarding = argv.includes('--skip-onboarding') || argv.includes('--no-interactive')
+  const skipIntroPanels = argv.includes('--skip-onboarding') || argv.includes('--no-interactive')
 
   // Auto-start menubar companion on macOS (unless explicitly disabled)
   await autoStartMenubar(argv)
 
-  const orchestrator = new MainOrchestrator(skipOnboarding)
+  const orchestrator = new MainOrchestrator(!skipIntroPanels)
   await orchestrator.start()
 }
 
