@@ -109,6 +109,15 @@ export class AIChatService extends EventEmitter {
       messages,
       maxTokens: this.maxTokens,
       temperature: this.temperature,
+      // Disabilita reasoning chunks per evitare errori "Unhandled chunk type: reasoning"
+      experimental_providerMetadata: {
+        openrouter: {
+          reasoning: {
+            exclude: true,
+            enabled: false
+          }
+        }
+      },
       onFinish: ({ text, usage }) => {
         console.log('[AI Chat] Response completed:', {
           length: text.length,
@@ -118,58 +127,11 @@ export class AIChatService extends EventEmitter {
       },
     })
 
-    // Stream the response - handle all chunk types like NikCLI toolchains
-    try {
-      for await (const event of result.fullStream) {
-        const eventType = (event as any).type
-
-        switch (eventType) {
-          case 'text-delta':
-            // Regular text streaming
-            fullText += (event as any).textDelta
-            onTextDelta?.((event as any).textDelta, fullText)
-            break
-
-          case 'thinking':
-          case 'reasoning':
-            // Reasoning chunks - ignore silently
-            break
-
-          case 'tool-call-delta':
-          case 'tool-call-streaming-start':
-          case 'tool-call':
-            // Tool calls - ignore silently
-            break
-
-          case 'finish':
-          case 'step-finish':
-            // Completion events - ignore
-            break
-
-          default:
-            // Unknown event types - handle gracefully
-            if ((event as any).thinking) {
-              // Reasoning chunk
-              break
-            } else if ((event as any).textDelta) {
-              fullText += (event as any).textDelta
-              onTextDelta?.((event as any).textDelta, fullText)
-            }
-            break
-        }
-      }
-    } catch (streamError: any) {
-      // Fallback to textStream if fullStream fails
-      console.warn('[AI Chat] fullStream failed, falling back to textStream:', streamError.message)
-      try {
-        for await (const chunk of result.textStream) {
-          fullText += chunk
-          onTextDelta?.(chunk, fullText)
-        }
-      } catch (error: any) {
-        console.error('[AI Chat] textStream fallback failed:', error.message)
-        throw error
-      }
+    // Stream the response - usa textStream diretto (no tools/reasoning)
+    // Background agents non usano tool calls, quindi textStream è più semplice e affidabile
+    for await (const chunk of result.textStream) {
+      fullText += chunk
+      onTextDelta?.(chunk, fullText)
     }
 
     onComplete?.(fullText)
