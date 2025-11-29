@@ -13384,9 +13384,32 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
   }
 
   /**
+   * Ensure keyboard listeners are clean and re-armed so shortcuts keep working after prompt redraws.
+   */
+  private resetKeyboardListeners(): void {
+    if (!process.stdin.isTTY) return
+
+    try {
+      readline.emitKeypressEvents(process.stdin)
+      if (typeof process.stdin.setRawMode === 'function') {
+        process.stdin.setRawMode(true)
+      }
+      process.stdin.resume()
+    } catch {
+      /* ignore keyboard reset issues */
+    }
+
+    if (this.keypressListener) {
+      process.stdin.removeListener('keypress', this.keypressListener)
+      process.stdin.on('keypress', this.keypressListener)
+    }
+  }
+
+  /**
    * Render prompt area (fixed at bottom)
    */
   private async renderPromptArea(): Promise<void> {
+    this.resetKeyboardListeners()
     if (this.isPrintingPanel) return
 
     const sessionDuration = Math.floor((Date.now() - this.sessionStartTime.getTime()) / 1000 / 60)

@@ -2247,7 +2247,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
 
       // Show only essential info: tokens used and context remaining
       if (truncatedTokens > 0) {
-        console.log(chalk.dim(`\n\n💬 ${truncatedTokens} tokens | ${Math.max(0, 280000 - truncatedTokens)} remaining`))
+
       }
     } catch (error: any) {
       console.error(`Provider error (${this.getCurrentModelInfo().config.provider}):`, error)

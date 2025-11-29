@@ -6,6 +6,7 @@ import cliProgress from 'cli-progress'
 import { createPatch, diffLines } from 'diff'
 import ora, { type Ora } from 'ora'
 import * as readline from 'readline'
+import { fixedPromptManager } from './fixed-prompt-manager'
 import { terminalOutputManager, TerminalOutputManager } from './terminal-output-manager'
 
 export interface StatusIndicator {
@@ -847,7 +848,7 @@ export class AdvancedCliUI {
         color = chalk.yellow
         break
       case 'error':
-        defaultIcon = '❌'
+        defaultIcon = '✖'
         color = chalk.red
         break
     }
@@ -889,17 +890,17 @@ export class AdvancedCliUI {
   private getStatusIcon(status: string): string {
     switch (status) {
       case 'pending':
-        return '⏳'
+        return '⏳︎'
       case 'running':
         return '⚡︎'
       case 'completed':
         return '✓'
       case 'failed':
-        return '❌'
+        return '✖'
       case 'warning':
-        return '⚠️'
+        return '⚠︎'
       default:
-        return '📋'
+        return '○'
     }
   }
 

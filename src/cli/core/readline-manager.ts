@@ -1,5 +1,9 @@
 import * as readline from 'readline'
+import { Buffer } from 'buffer'
+import { Writable } from 'node:stream'
 import { AnsiStripper } from '../utils/ansi-strip'
+import { fixedPromptManager } from '../ui/fixed-prompt-manager'
+import { terminalOutputManager } from '../ui/terminal-output-manager'
 
 /**
  * Singleton readline manager to prevent multiple instances
@@ -39,9 +43,33 @@ export class ReadlineManager {
       this.originalRawMode = (process.stdin as any).isRaw || false
     }
 
-    this.rl = readline.createInterface(options)
+    const mergedOptions: readline.ReadLineOptions = {
+      ...options,
+      output: options.output ?? this.createOutputStream(),
+    }
+
+    this.rl = readline.createInterface(mergedOptions)
     this.isInitialized = true
     return this.rl
+  }
+
+  /**
+   * Output stream that respects fixed prompt scroll region while keeping readline stable.
+   */
+  private createOutputStream(): Writable {
+    return new Writable({
+      write: (chunk, encoding, callback) => {
+        try {
+          const str = chunk instanceof Buffer && Buffer.isEncoding(encoding) ? chunk.toString(encoding) : String(chunk)
+          if (terminalOutputManager.isFixedPromptEnabled()) {
+            fixedPromptManager.printToScrollRegion(str)
+          }
+          callback()
+        } catch (error) {
+          // Ignore errors in write
+        }
+      },
+    })
   }
 
   /**
