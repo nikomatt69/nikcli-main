@@ -53,6 +53,7 @@
     "test:watch": "vitest --watch",
     "test:coherence": "bun tests/verify-coherence.js",
     "test:system": "bun tests/verify-system.js",
+    "test:layout": "bun --bun run src/cli/test-structured-layout.ts",
     "lint": "bunx biome lint src/",
     "format": "bunx biome format --write src/",
     "check": "bunx biome check --write src/",

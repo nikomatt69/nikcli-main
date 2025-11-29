@@ -102,6 +102,7 @@ export interface NikCLIOptions {
   auto?: boolean
   plan?: boolean
   structuredUI?: boolean
+  threeColumnLayout?: boolean // Enable 3-section layout (top bar, center logs, bottom prompt)
 }
 
 export interface TodoOptions {
