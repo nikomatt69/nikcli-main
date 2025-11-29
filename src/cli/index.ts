@@ -26,7 +26,7 @@ import gradient from 'gradient-string'
 
 // Global unhandled promise rejection handlers for system stability
 process.on('unhandledRejection', (reason: any, promise: Promise<any>) => {
-  console.error(chalk.red('⚠️  Unhandled Promise Rejection:'))
+  console.error(chalk.red('⚠︎  Unhandled Promise Rejection:'))
   console.error(chalk.red('Reason:', reason))
   console.error(chalk.red('Promise:', promise))
 
@@ -40,7 +40,7 @@ process.on('unhandledRejection', (reason: any, promise: Promise<any>) => {
 })
 
 process.on('uncaughtException', (error: Error) => {
-  console.error(chalk.red('⚠️  Uncaught Exception:'))
+  console.error(chalk.red('⚠︎  Uncaught Exception:'))
   console.error(chalk.red('Error:', error.message))
   console.error(chalk.gray('Stack:', error.stack))
 
@@ -55,7 +55,7 @@ process.on('warning', (warning: any) => {
     // Ignore deprecation warnings for unhandled promise rejections
     return
   }
-  console.warn(chalk.yellow(`⚠️  Warning: ${warning.message}`))
+  console.warn(chalk.yellow(`⚠︎  Warning: ${warning.message}`))
   if (warning.stack) {
     console.warn(chalk.gray(warning.stack))
   }
@@ -468,7 +468,7 @@ class OnboardingModule {
     }
 
     const setupBox = boxen(
-      chalk.yellow.bold('⚠️  No API keys detected\n\n') +
+      chalk.yellow.bold('⚠︎  No API keys detected\n\n') +
       chalk.white('To unlock the best experience, add at least one API key:\n\n') +
       chalk.green('• ANTHROPIC_API_KEY') +
       chalk.gray(' – Claude models (recommended)\n') +
@@ -587,7 +587,7 @@ class OnboardingModule {
   private static async setupOllama(): Promise<boolean> {
     const header = chalk.blueBright('🔌 Ollama Setup')
     const providerMissingBox = () =>
-      boxen(chalk.yellow('⚠️ No AI provider configured yet. Configure an API key or Ollama to continue later.'), {
+      boxen(chalk.yellow('⚠︎ No AI provider configured yet. Configure an API key or Ollama to continue later.'), {
         padding: 1,
         borderStyle: 'round',
         borderColor: 'yellow',
@@ -707,7 +707,7 @@ class OnboardingModule {
         return true
       }
     } catch (_error) {
-      const errorBox = boxen(chalk.yellow('⚠️ Unable to configure Ollama automatically'), {
+      const errorBox = boxen(chalk.yellow('⚠︎ Unable to configure Ollama automatically'), {
         padding: 1,
         borderStyle: 'round',
         borderColor: 'yellow',
@@ -782,7 +782,7 @@ class OnboardingModule {
         ]
         sections.push(redisLines.join('\n'))
       } catch (_error: any) {
-        sections.push(chalk.yellow('🔴 Redis Cache Service\n⚠️  Configuration issue detected'))
+        sections.push(chalk.yellow('🔴 Redis Cache Service\n⚠︎  Configuration issue detected'))
       }
     }
 
@@ -800,12 +800,12 @@ class OnboardingModule {
         ]
         sections.push(vectorLines.join('\n'))
       } catch (_error: any) {
-        sections.push(chalk.yellow('🔮 Upstash Vector Store\n⚠️  Configuration issue detected'))
+        sections.push(chalk.yellow('🔮 Upstash Vector Store\n⚠︎  Configuration issue detected'))
       }
     } else {
       sections.push(
         chalk.yellow(
-          '🔮 Upstash Vector Store\n⚠️  UPSTASH_VECTOR_REST_URL or TOKEN missing.\n   Use /set-vector-key to configure embeddings support.'
+          '🔮 Upstash Vector Store\n⚠︎  UPSTASH_VECTOR_REST_URL or TOKEN missing.\n   Use /set-vector-key to configure embeddings support.'
         )
       )
     }
@@ -835,12 +835,12 @@ class OnboardingModule {
         } else {
           sections.push(
             chalk.yellow(
-              '🟢 Supabase Integration\n⚠️  SUPABASE_URL or SUPABASE_ANON_KEY missing.\n   Add them to enable cloud persistence.'
+              '🟢 Supabase Integration\n⚠︎  SUPABASE_URL or SUPABASE_ANON_KEY missing.\n   Add them to enable cloud persistence.'
             )
           )
         }
       } catch (_error: any) {
-        sections.push(chalk.yellow('🟢 Supabase Integration\n⚠️  Unable to read Supabase configuration'))
+        sections.push(chalk.yellow('🟢 Supabase Integration\n⚠︎  Unable to read Supabase configuration'))
       }
     }
 
@@ -967,7 +967,7 @@ class OnboardingModule {
     } catch (error: any) {
       OnboardingModule.renderSection([
         header,
-        boxen(chalk.yellow(`⚠️ Authentication setup failed: ${error.message}`), {
+        boxen(chalk.yellow(`⚠︎ Authentication setup failed: ${error.message}`), {
           padding: 1,
           borderStyle: 'round',
           borderColor: 'yellow',
@@ -1238,7 +1238,7 @@ class OnboardingModule {
       let versionContent = chalk.cyan.bold(`Current Version: `) + chalk.white(versionInfo.current)
 
       if (versionInfo.error) {
-        versionContent += '\n' + chalk.yellow(`⚠️  ${versionInfo.error}`)
+        versionContent += '\n' + chalk.yellow(`⚠︎  ${versionInfo.error}`)
       } else if (versionInfo.latest) {
         versionContent += '\n' + chalk.cyan(`Latest Version: `) + chalk.white(versionInfo.latest)
 
@@ -1261,7 +1261,7 @@ class OnboardingModule {
 
       OnboardingModule.renderSection([header, versionBox])
     } catch (_error: any) {
-      const warningBox = boxen(chalk.yellow(`⚠️ Unable to check version`), {
+      const warningBox = boxen(chalk.yellow(`⚠︎ Unable to check version`), {
         padding: 1,
         borderStyle: 'round',
         borderColor: 'yellow',
@@ -1796,7 +1796,7 @@ class StreamingModule extends EventEmitter {
 
   private cycleMode(): void {
     this.context.planMode = !this.context.planMode
-    console.log(this.context.planMode ? chalk.green('\n✓ Plan mode enabled') : chalk.yellow('\n⚠️ Plan mode disabled'))
+    console.log(this.context.planMode ? chalk.green('\n✓ Plan mode enabled') : chalk.yellow('\n⚠︎ Plan mode disabled'))
   }
 
   private stopAllAgents(): void {
@@ -1876,7 +1876,7 @@ class StreamingModule extends EventEmitter {
 
 
     if (this.activeAgents.size > 0) {
-      advancedUI.logWarning(`⏳ Waiting for ${this.activeAgents.size} agents to finish...`)
+      advancedUI.logWarning(`⏳︎ Waiting for ${this.activeAgents.size} agents to finish...`)
     }
 
     this.cleanup()
@@ -2026,7 +2026,7 @@ async function maybeHandleMenubar(argv: string[]): Promise<boolean> {
     if (action === 'stop') {
       const result = await menubarLauncher.stop()
       console.log(
-        result.running ? chalk.yellow('⚠️  Menubar still running') : chalk.green('🛑 Menubar stopped'),
+        result.running ? chalk.yellow('⚠︎  Menubar still running') : chalk.green('🛑 Menubar stopped'),
         result.pid ? chalk.gray(`(pid ${result.pid})`) : ''
       )
       if (result.message) console.log(result.message)
@@ -2046,7 +2046,7 @@ async function maybeHandleMenubar(argv: string[]): Promise<boolean> {
 
     const result = await menubarLauncher.start()
     if (result.running) {
-      console.log(chalk.green('✅ Menubar started'), result.pid ? chalk.gray(`(pid ${result.pid})`) : '')
+      console.log(chalk.green('✓ Menubar started'), result.pid ? chalk.gray(`(pid ${result.pid})`) : '')
       if (result.binary) console.log(chalk.gray(`using: ${result.binary}`))
       if (result.message) console.log(result.message)
     } else {

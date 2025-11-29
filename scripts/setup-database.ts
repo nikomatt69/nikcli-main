@@ -117,7 +117,7 @@ async function setupDatabase() {
       }
     }
 
-    console.log(chalk.green(`\n✅ Migration completed successfully!`))
+    console.log(chalk.green(`\n✓ Migration completed successfully!`))
     console.log(chalk.gray(`   Executed: ${successCount} statements`))
     console.log(chalk.gray(`   Skipped: ${skipCount} statements (already exist)\n`))
 
@@ -130,10 +130,10 @@ async function setupDatabase() {
       .limit(1)
 
     if (verifyError) {
-      console.log(chalk.yellow(`⚠️  Could not verify table (this might be normal if using RLS):`))
+      console.log(chalk.yellow(`⚠︎  Could not verify table (this might be normal if using RLS):`))
       console.log(chalk.gray(`   ${verifyError.message}`))
     } else {
-      console.log(chalk.green('✅ Table `user_profiles` verified and accessible\n'))
+      console.log(chalk.green('✓ Table `user_profiles` verified and accessible\n'))
     }
 
     console.log(chalk.green.bold('🎉 Database setup complete!'))

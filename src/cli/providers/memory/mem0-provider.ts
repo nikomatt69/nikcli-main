@@ -415,12 +415,12 @@ export class Mem0Provider extends EventEmitter {
   private async initializeQdrant(): Promise<void> {
     try {
       // Qdrant client not installed - would require @qdrant/js-client-rest
-      structuredLogger.warning('Memory', '⚠️ Qdrant client not installed')
+      structuredLogger.warning('Memory', '⚠︎ Qdrant client not installed')
       structuredLogger.info('Memory', '📝 Install @qdrant/js-client-rest for Qdrant support')
       structuredLogger.info('Memory', '📝 Falling back to in-memory storage')
       this.config.backend = 'memory'
     } catch (error: any) {
-      structuredLogger.warning('Memory', `⚠️ Qdrant not available: ${error.message}`)
+      structuredLogger.warning('Memory', `⚠︎ Qdrant not available: ${error.message}`)
       structuredLogger.info('Memory', '📝 Falling back to in-memory storage')
       this.config.backend = 'memory'
     }
@@ -450,7 +450,7 @@ export class Mem0Provider extends EventEmitter {
 
       structuredLogger.success('Memory', '✓ ChromaDB vector store connected')
     } catch (error: any) {
-      structuredLogger.warning('Memory', `⚠️ ChromaDB not available: ${error.message}`)
+      structuredLogger.warning('Memory', `⚠︎ ChromaDB not available: ${error.message}`)
       structuredLogger.info('Memory', '📝 Falling back to in-memory storage')
       this.config.backend = 'memory'
     }
@@ -481,7 +481,7 @@ export class Mem0Provider extends EventEmitter {
         const data: any = await response.json()
         return data.data[0].embedding
       } catch (_error) {
-        console.log(chalk.yellow('⚠️ Failed to generate embedding, using keyword search'))
+        console.log(chalk.yellow('⚠︎ Failed to generate embedding, using keyword search'))
         return []
       }
     }
@@ -705,7 +705,7 @@ export class Mem0Provider extends EventEmitter {
 
       }
     } catch (_error) {
-      structuredLogger.warning('Memory', '⚠️ Failed to load memories from cache')
+      structuredLogger.warning('Memory', '⚠︎ Failed to load memories from cache')
     }
   }
 
@@ -774,7 +774,7 @@ export class Mem0Provider extends EventEmitter {
 
       writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8')
     } catch (error: any) {
-      structuredLogger.warning('Memory', `⚠️ Failed to save memories to file: ${error.message}`)
+      structuredLogger.warning('Memory', `⚠︎ Failed to save memories to file: ${error.message}`)
     }
   }
 
@@ -804,7 +804,7 @@ export class Mem0Provider extends EventEmitter {
         )
       }
     } catch (error: any) {
-      structuredLogger.warning('Memory', `⚠️ Failed to load memories from file: ${error.message}`)
+      structuredLogger.warning('Memory', `⚠︎ Failed to load memories from file: ${error.message}`)
     }
   }
 }

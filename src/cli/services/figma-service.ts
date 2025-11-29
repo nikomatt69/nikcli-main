@@ -68,7 +68,7 @@ export class FigmaService extends EventEmitter {
   private initialize(): void {
     try {
       if (!isFigmaProviderConfigured()) {
-        console.log(chalk.yellow('⚠️ Figma not configured - use /set-key-figma to setup'))
+        console.log(chalk.yellow('⚠︎ Figma not configured - use /set-key-figma to setup'))
         return
       }
 

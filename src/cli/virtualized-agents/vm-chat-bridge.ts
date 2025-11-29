@@ -45,7 +45,7 @@ export class VMChatBridge extends EventEmitter implements VMEventEmitter {
    */
   async initialize(): Promise<void> {
     if (this.isInitialized) {
-      advancedUI.logFunctionUpdate('warning', 'VM Chat Bridge already initialized', '⚠️')
+      advancedUI.logFunctionUpdate('warning', 'VM Chat Bridge already initialized', '⚠︎')
       return
     }
 

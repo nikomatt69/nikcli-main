@@ -224,7 +224,7 @@ export class MemoryService extends EventEmitter {
       return await this.addMemory(content, enhancedMetadata)
     } catch (_error) {
       // Fallback to regular memory addition
-      console.log(chalk.yellow('⚠️ Semantic embedding failed, using standard memory'))
+      console.log(chalk.yellow('⚠︎ Semantic embedding failed, using standard memory'))
       return await this.addMemory(content, metadata)
     }
   }
@@ -273,7 +273,7 @@ export class MemoryService extends EventEmitter {
         return await this.searchMemories(query, options)
       }
     } catch (_error) {
-      console.log(chalk.yellow('⚠️ Semantic memory search failed, using traditional search'))
+      console.log(chalk.yellow('⚠︎ Semantic memory search failed, using traditional search'))
       return await this.searchMemories(query, options)
     }
   }

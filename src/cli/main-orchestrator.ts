@@ -73,7 +73,7 @@ export class MainOrchestrator {
       // Stop all active agents
       const activeAgents = agentService.getActiveAgents()
       if (activeAgents.length > 0) {
-        advancedUI.logWarning(`⏳ Waiting for ${activeAgents.length} agents to complete...`)
+        advancedUI.logWarning(`⏳︎ Waiting for ${activeAgents.length} agents to complete...`)
         // In production, implement proper agent shutdown
       }
 
@@ -91,22 +91,22 @@ export class MainOrchestrator {
       try {
         await lspManager.dispose()
       } catch (error: any) {
-        advancedUI.logWarning(`⚠️ LSP Manager disposal failed: ${error.message}`)
+        advancedUI.logWarning(`⚠︎ LSP Manager disposal failed: ${error.message}`)
       }
       try {
         await (lspService as any)?.dispose?.()
       } catch (error: any) {
-        advancedUI.logWarning(`⚠️ LSP Service disposal failed: ${error.message}`)
+        advancedUI.logWarning(`⚠︎ LSP Service disposal failed: ${error.message}`)
       }
       try {
         await (agentService as any)?.dispose?.()
       } catch (error: any) {
-        advancedUI.logWarning(`⚠️ Agent Service disposal failed: ${error.message}`)
+        advancedUI.logWarning(`⚠︎ Agent Service disposal failed: ${error.message}`)
       }
       try {
         await (toolService as any)?.dispose?.()
       } catch (error: any) {
-        advancedUI.logWarning(`⚠️ Tool Service disposal failed: ${error.message}`)
+        advancedUI.logWarning(`⚠︎ Tool Service disposal failed: ${error.message}`)
       }
       try {
         ; (advancedUI as any)?.dispose?.()
@@ -116,12 +116,12 @@ export class MainOrchestrator {
       try {
         await mcpClient.dispose()
       } catch (error: any) {
-        advancedUI.logWarning(`⚠️ MCP Client disposal failed: ${error.message}`)
+        advancedUI.logWarning(`⚠︎ MCP Client disposal failed: ${error.message}`)
       }
       try {
         await (this.vmOrchestrator as any)?.dispose?.()
       } catch (error: any) {
-        advancedUI.logWarning(`⚠️ VM Orchestrator disposal failed: ${error.message}`)
+        advancedUI.logWarning(`⚠︎ VM Orchestrator disposal failed: ${error.message}`)
       }
 
       advancedUI.logSuccess('✓ Orchestrator shut down cleanly')

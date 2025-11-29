@@ -402,7 +402,7 @@ export class BrowserSessionManager extends EventEmitter {
         this.startAutoScreenshot(session)
       }
 
-      advancedUI.logFunctionUpdate('success', `Initialized browser session ${session.sessionId}`, '✅')
+      advancedUI.logFunctionUpdate('success', `Initialized browser session ${session.sessionId}`, '✓')
 
     } catch (error: any) {
       session.status = 'error'
@@ -424,7 +424,7 @@ export class BrowserSessionManager extends EventEmitter {
 
     } catch (error: any) {
       // Non-critical error
-      advancedUI.logFunctionUpdate('warning', `Could not get initial page state: ${error.message}`, '⚠️')
+      advancedUI.logFunctionUpdate('warning', `Could not get initial page state: ${error.message}`, '⚠︎')
     }
   }
 

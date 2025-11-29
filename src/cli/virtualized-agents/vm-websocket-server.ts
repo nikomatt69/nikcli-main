@@ -279,7 +279,7 @@ export class VMWebSocketServer extends EventEmitter implements VMEventEmitter {
 
     // Check if container already connected
     if (this.connections.has(containerId)) {
-      console.log(chalk.yellow(`⚠️ Container ${containerId} already connected, closing old connection`))
+      console.log(chalk.yellow(`⚠︎ Container ${containerId} already connected, closing old connection`))
       await this.closeConnection(containerId, 'duplicate_connection')
     }
 

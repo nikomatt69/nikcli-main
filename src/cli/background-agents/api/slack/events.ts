@@ -35,7 +35,7 @@ export default async function handler(req: Request, res: Response) {
 
     // Handle URL verification challenge (Slack setup)
     if (req.body.type === 'url_verification') {
-      console.log('✅ Slack URL verification successful')
+      console.log('✓ Slack URL verification successful')
       return res.status(200).json({ challenge: req.body.challenge })
     }
 
@@ -131,7 +131,7 @@ async function processAppMention(event: any): Promise<void> {
       thread_ts: event.thread_ts,
     })
 
-    console.log(`✅ @nikcli mention processed successfully`)
+    console.log(`✓ @nikcli mention processed successfully`)
   } catch (error: any) {
     console.error('✖ Error in processAppMention:', error)
     throw error

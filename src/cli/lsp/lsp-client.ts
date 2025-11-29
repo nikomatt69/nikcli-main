@@ -480,7 +480,7 @@ export class LSPClient {
 
       console.log(chalk.green(`🛑 ${this.serverInfo.name} shutdown`))
     } catch (error: any) {
-      console.log(chalk.yellow(`⚠️ Error during shutdown: ${error.message}`))
+      console.log(chalk.yellow(`⚠︎ Error during shutdown: ${error.message}`))
     }
   }
 

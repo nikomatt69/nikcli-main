@@ -80,7 +80,7 @@ export class BrowserChatBridge extends EventEmitter {
         message: 'Browser mode activated successfully',
       }
 
-      advancedUI.logFunctionUpdate('success', 'Browser mode ready!', '✅')
+      advancedUI.logFunctionUpdate('success', 'Browser mode ready!', '✓')
       advancedUI.logFunctionUpdate('info', `View browser: ${container.noVncUrl}`, '🖥️')
 
       this.emit('browser:mode:started', result)
@@ -150,7 +150,7 @@ export class BrowserChatBridge extends EventEmitter {
             }
           }
         } catch (error: any) {
-          advancedUI.logFunctionUpdate('warning', `Action failed: ${error.message}`, '⚠️')
+          advancedUI.logFunctionUpdate('warning', `Action failed: ${error.message}`, '⚠︎')
           response.actions.push({
             action,
             result: { success: false, error: error.message },

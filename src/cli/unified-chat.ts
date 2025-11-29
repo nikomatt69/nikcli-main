@@ -296,7 +296,7 @@ export class UnifiedChatInterface extends EventEmitter {
       chalk.white.bold(`📋 ${plan.title}\n\n`) +
       chalk.gray(`${plan.description}\n\n`) +
       chalk.blue(`🕒 Estimated Duration: ${plan.estimatedDuration} minutes\n`) +
-      chalk.yellow(`⚠️  Risk Level: ${plan.riskLevel.toUpperCase()}\n\n`) +
+      chalk.yellow(`⚠︎  Risk Level: ${plan.riskLevel.toUpperCase()}\n\n`) +
       chalk.white.bold('📝 Execution Steps:\n') +
       plan.steps
         .map(

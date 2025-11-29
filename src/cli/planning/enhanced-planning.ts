@@ -1222,7 +1222,7 @@ Generate a comprehensive plan that is practical and executable.`,
       case 'skipped':
         return '⏭️'
       default:
-        return '⏳'
+        return '⏳︎'
     }
   }
 
@@ -1237,7 +1237,7 @@ Generate a comprehensive plan that is practical and executable.`,
       case 'skipped':
         return '⏭️'
       default:
-        return '⏳'
+        return '⏳︎'
     }
   }
 

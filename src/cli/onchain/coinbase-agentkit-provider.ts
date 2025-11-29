@@ -32,7 +32,7 @@ try {
   // Optional providers (may not be present in all versions)
   try {
     defillamaActionProvider = (agentkit as any).defillamaActionProvider
-  } catch {}
+  } catch { }
 } catch {
   // AgentKit not installed
 }
@@ -181,7 +181,7 @@ export class CoinbaseAgentKitProvider {
           updatedAt: new Date().toISOString(),
         })
       } catch (error) {
-        console.warn('⚠️ Could not save wallet data:', error)
+        console.warn('⚠︎ Could not save wallet data:', error)
       }
     }
 
@@ -284,7 +284,7 @@ export class CoinbaseAgentKitProvider {
         const exportedWallet = await this.walletProvider.exportWallet()
         address = exportedWallet.address
       } catch (error) {
-        console.warn('⚠️ Could not get wallet address:', error)
+        console.warn('⚠︎ Could not get wallet address:', error)
       }
     }
 
@@ -292,7 +292,7 @@ export class CoinbaseAgentKitProvider {
       try {
         networkId = this.walletProvider.getNetwork().networkId
       } catch (error) {
-        console.warn('⚠️ Could not get network ID:', error)
+        console.warn('⚠︎ Could not get network ID:', error)
       }
     }
 

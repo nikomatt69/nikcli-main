@@ -832,7 +832,7 @@ export class PlanExecutor {
     planMarkdown += `- Risk Level: **${plan.riskAssessment.overallRisk}**\n`
 
     if (plan.riskAssessment.destructiveOperations > 0) {
-      planMarkdown += `- ⚠️ **Warning:** ${plan.riskAssessment.destructiveOperations} potentially destructive operations\n`
+      planMarkdown += `- ⚠︎ **Warning:** ${plan.riskAssessment.destructiveOperations} potentially destructive operations\n`
     }
 
     planMarkdown += `\n### Execution Steps\n\n`
@@ -884,7 +884,7 @@ export class PlanExecutor {
     const duration = result.endTime ? result.endTime.getTime() - result.startTime.getTime() : 0
 
     // Format as markdown summary
-    const statusIcon = result.status === 'completed' ? '✓' : result.status === 'partial' ? '⚠️' : '✖'
+    const statusIcon = result.status === 'completed' ? '✓' : result.status === 'partial' ? '⚠︎' : '✖'
 
     let summaryMarkdown = `\n## Execution Summary\n\n`
     summaryMarkdown += `${statusIcon} **Status:** ${result.status.toUpperCase()}\n\n`

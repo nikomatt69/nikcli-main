@@ -151,12 +151,12 @@ class ChromaDBVectorStore extends VectorStore {
         } catch (_embeddingError) {
           // Collection exists but has no embedding function, recreate it
           console.log(
-            chalk.yellow(`⚠️ Collection ${this.config.collectionName} lacks embedding function, recreating...`)
+            chalk.yellow(`⚠︎ Collection ${this.config.collectionName} lacks embedding function, recreating...`)
           )
           try {
             await this.client.deleteCollection({ name: this.config.collectionName })
           } catch (_deleteError) {
-            console.log(chalk.yellow(`⚠️ Failed to delete collection, will attempt recreation anyway`))
+            console.log(chalk.yellow(`⚠︎ Failed to delete collection, will attempt recreation anyway`))
           }
           throw new Error('Recreate collection')
         }
@@ -442,7 +442,7 @@ class UpstashVectorStore extends VectorStore {
           console.log(chalk.green(`✓ Upstash Vector connected (dimension: ${response.data?.dimension || 'unknown'})`))
         } catch (error: any) {
           // Try without /info endpoint
-          console.log(chalk.yellow(`⚠️ Vector info check failed: ${error.message}`))
+          console.log(chalk.yellow(`⚠︎ Vector info check failed: ${error.message}`))
           console.log(chalk.gray('   Proceeding anyway (endpoint may not support /info)'))
         }
         console.log(chalk.green('✓ Upstash Vector ready'))
@@ -463,7 +463,7 @@ class UpstashVectorStore extends VectorStore {
       }
 
       console.log(
-        chalk.yellow('⚠️ Upstash not configured. Set UPSTASH_VECTOR_REST_URL/TOKEN or UPSTASH_REDIS_REST_URL/TOKEN')
+        chalk.yellow('⚠︎ Upstash not configured. Set UPSTASH_VECTOR_REST_URL/TOKEN or UPSTASH_REDIS_REST_URL/TOKEN')
       )
       return false
     } catch (error) {
@@ -537,7 +537,7 @@ class UpstashVectorStore extends VectorStore {
             if (result && result.vector) {
               doc.embedding = result.vector
             } else {
-              console.warn(chalk.yellow(`⚠️ No embedding generated for document ${doc.id}`))
+              console.warn(chalk.yellow(`⚠︎ No embedding generated for document ${doc.id}`))
               continue // Skip this document
             }
           } catch (error) {
@@ -826,7 +826,7 @@ class LocalVectorStore extends VectorStore {
             if (result && result.vector) {
               doc.embedding = result.vector
             } else {
-              console.warn(chalk.yellow(`⚠️ No embedding generated for document ${doc.id}, skipping`))
+              console.warn(chalk.yellow(`⚠︎ No embedding generated for document ${doc.id}, skipping`))
               continue // Skip this document
             }
           } catch (error) {
@@ -938,7 +938,7 @@ class LocalVectorStore extends VectorStore {
         }
       }
     } catch (error) {
-      console.warn(chalk.yellow(`⚠️ Failed to load documents: ${error}`))
+      console.warn(chalk.yellow(`⚠︎ Failed to load documents: ${error}`))
     }
   }
 
@@ -953,7 +953,7 @@ class LocalVectorStore extends VectorStore {
       const data = Object.fromEntries(this.documents)
       await writeFile(this.documentsPath, JSON.stringify(data, null, 2))
     } catch (error) {
-      console.warn(chalk.yellow(`⚠️ Failed to save documents: ${error}`))
+      console.warn(chalk.yellow(`⚠︎ Failed to save documents: ${error}`))
     }
   }
 
@@ -965,7 +965,7 @@ class LocalVectorStore extends VectorStore {
         this.index = new Map(Object.entries(index))
       }
     } catch (error) {
-      console.warn(chalk.yellow(`⚠️ Failed to load index: ${error}`))
+      console.warn(chalk.yellow(`⚠︎ Failed to load index: ${error}`))
     }
   }
 
@@ -980,7 +980,7 @@ class LocalVectorStore extends VectorStore {
       const data = Object.fromEntries(this.index)
       await writeFile(this.indexPath, JSON.stringify(data, null, 2))
     } catch (error) {
-      console.warn(chalk.yellow(`⚠️ Failed to save index: ${error}`))
+      console.warn(chalk.yellow(`⚠︎ Failed to save index: ${error}`))
     }
   }
 }
@@ -1056,7 +1056,7 @@ export class VectorStoreManager {
 
     // Fallback to local store if no other store connected
     if (!this.activeStore && this.fallbackStore) {
-      console.log(chalk.yellow('⚠️ No vector stores available, using local fallback'))
+      console.log(chalk.yellow('⚠︎ No vector stores available, using local fallback'))
       if (await this.fallbackStore.connect()) {
         this.activeStore = this.fallbackStore
       } else {
@@ -1105,7 +1105,7 @@ export class VectorStoreManager {
       const results = await Promise.allSettled(this.stores.map((store) => store.addDocuments(documents)))
       const success = results.some((r) => r.status === 'fulfilled' && r.value)
       if (!success) {
-        console.log(chalk.yellow('⚠️ Broadcast writes failed on all stores'))
+        console.log(chalk.yellow('⚠︎ Broadcast writes failed on all stores'))
       }
       return success
     }
@@ -1182,7 +1182,7 @@ export class VectorStoreManager {
 
       if (!isHealthy) {
         console.log(
-          chalk.yellow(`⚠️ Vector store ${this.activeStore.getStats().provider} unhealthy, attempting fallback`)
+          chalk.yellow(`⚠︎ Vector store ${this.activeStore.getStats().provider} unhealthy, attempting fallback`)
         )
 
         // Try to find a healthy alternative
@@ -1198,7 +1198,7 @@ export class VectorStoreManager {
         if (this.activeStore !== this.fallbackStore && this.fallbackStore) {
           if (await this.fallbackStore.healthCheck()) {
             this.activeStore = this.fallbackStore
-            console.log(chalk.yellow('⚠️ Using local fallback store'))
+            console.log(chalk.yellow('⚠︎ Using local fallback store'))
           }
         }
       }

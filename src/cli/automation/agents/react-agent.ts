@@ -366,7 +366,7 @@ Provide complete, working code that can be used immediately.`
           result.testsGenerated = true
         }
       } catch (error: any) {
-        advancedUI.logWarning(`⚠️ Could not create ${filename}: ${error.message}`)
+        advancedUI.logWarning(`⚠︎ Could not create ${filename}: ${error.message}`)
       }
     }
 

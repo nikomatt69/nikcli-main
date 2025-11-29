@@ -88,7 +88,7 @@ function parseRedisConfig():
   const upstashToken = process.env.UPSTASH_REDIS_REST_TOKEN
 
   if (upstashUrl && upstashToken) {
-    console.log('✅ Background agents: Using Upstash Redis REST API')
+    console.log('✓ Background agents: Using Upstash Redis REST API')
     console.log(`   Upstash URL: ${upstashUrl.substring(0, 30)}...`)
     return {
       host: '', // Not used for Upstash REST
@@ -102,7 +102,7 @@ function parseRedisConfig():
 
   // If Upstash is not configured, warn and return undefined (use local queue)
   if (!upstashUrl || !upstashToken) {
-    console.warn('⚠️  Background agents: Upstash Redis not configured')
+    console.warn('⚠︎  Background agents: Upstash Redis not configured')
     console.warn('   Set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN to use Upstash')
     console.warn('   Falling back to local queue (no Redis)')
     return undefined
@@ -113,7 +113,7 @@ function parseRedisConfig():
   const redisUrl = process.env.REDIS_URL
 
   if (redisUrl) {
-    console.warn('⚠️  Background agents: REDIS_URL detected, but Upstash is preferred')
+    console.warn('⚠︎  Background agents: REDIS_URL detected, but Upstash is preferred')
     try {
       const url = new URL(redisUrl)
       console.log('   Using standard Redis as fallback')
@@ -174,7 +174,7 @@ function parseGitHubConfig():
   }
 
   if (!appId || !privateKey || !installationId || !webhookSecret) {
-    console.warn('⚠️  GitHub integration not configured (missing env vars)')
+    console.warn('⚠︎  GitHub integration not configured (missing env vars)')
     return undefined
   }
 
@@ -214,7 +214,7 @@ function buildServerConfig(): APIServerConfig {
   console.log(`   PORT env var: ${process.env.PORT || 'NOT SET (using default 8080)'}`)
 
   if (!process.env.PORT) {
-    console.warn('⚠️  WARNING: PORT environment variable not set! Railway may not route traffic correctly.')
+    console.warn('⚠︎  WARNING: PORT environment variable not set! Railway may not route traffic correctly.')
     console.warn('   Railway should set PORT automatically. If you see this, check Railway deployment settings.')
   }
 
@@ -255,7 +255,7 @@ async function startServer() {
   const missingVars = requiredEnvVars.filter((envVar) => !process.env[envVar])
 
   if (missingVars.length > 0) {
-    console.warn(`⚠️  Missing recommended environment variables: ${missingVars.join(', ')}`)
+    console.warn(`⚠︎  Missing recommended environment variables: ${missingVars.join(', ')}`)
   }
 
   // Check AI provider API keys
@@ -269,7 +269,7 @@ async function startServer() {
     process.exit(1)
   }
 
-  console.log(`✅ Configured AI providers: ${configuredProviders.length} found`)
+  console.log(`✓ Configured AI providers: ${configuredProviders.length} found`)
 
   // Build config
   const config = buildServerConfig()
@@ -308,7 +308,7 @@ async function startServer() {
   try {
     await server.start()
 
-    console.log('✅ Server started successfully!')
+    console.log('✓ Server started successfully!')
     console.log()
     console.log(`📊 Health check: http://localhost:${config.port}/health`)
     console.log(`📋 API Base URL: http://localhost:${config.port}/v1`)
@@ -317,11 +317,11 @@ async function startServer() {
 
     // Graceful shutdown handlers
     const shutdown = async (signal: string) => {
-      console.log(`\n⚠️  Received ${signal}, shutting down gracefully...`)
+      console.log(`\n⚠︎  Received ${signal}, shutting down gracefully...`)
 
       try {
         await server.stop()
-        console.log('✅ Server shut down successfully')
+        console.log('✓ Server shut down successfully')
         process.exit(0)
       } catch (error) {
         console.error('✖ Error during shutdown:', error)

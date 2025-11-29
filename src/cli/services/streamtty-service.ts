@@ -525,7 +525,7 @@ export class StreamttyService {
   }
 
   private static readonly EMOJI_REPLACEMENTS = new Map([
-    ['✅', '✓'], ['✖', '✗'], ['⚠️', '⚡'], ['⚠', '⚡'], ['⏺', '●'],
+    ['✓', '✓'], ['✖', '✗'], ['⚠︎', '⚡'], ['⚠', '⚡'], ['⏺', '●'],
     ['⎿', '└─'], ['🚀', '»'], ['💡', '○'], ['🔍', '◎'], ['📝', '∙'],
     ['🎯', '◉'], ['🔧', '⚙'], ['📊', '▤'], ['🌐', '◈']
   ])
@@ -561,13 +561,13 @@ export class StreamttyService {
     // Ratings: stars → asterisks
     out = out.replace(/⭐/g, '*')
     // Status/indicators → width-1 symbols
-    out = out.replace(/✅|✔️|✔|✓/g, '✓')
+    out = out.replace(/✓|✔️|✔|✓/g, '✓')
       .replace(/✖|✖️|✖|✕|✗/g, '×')
-      .replace(/⚠️|⚠/g, '!')
+      .replace(/⚠︎|⚠/g, '!')
       .replace(/🔴|🟠|🟡|🟢|🔵|🟣|⚫️|⚫/g, '●')
       .replace(/⚪️|⚪/g, '○')
       // Hourglass/timers → single-width ellipsis to avoid table drift
-      .replace(/⏳|⌛|⏱️|⏱|⏲️|⏲|⏰|⌚/g, '…')
+      .replace(/⏳︎|⌛|⏱️|⏱|⏲️|⏲|⏰|⌚/g, '…')
     // Fallback: map any remaining emoji codepoints to a middle dot in table cells
     out = out.replace(StreamttyService.EMOJI_REGEX, '·')
     return out
@@ -1257,7 +1257,7 @@ export class StreamttyService {
         return `\n🚀 ${chalk.bold('Starting')}...\n\n`
 
       case 'complete':
-        return `\n✅ ${chalk.bold('Complete')}\n\n`
+        return `\n✓ ${chalk.bold('Complete')}\n\n`
 
       default:
         return ''
@@ -1269,9 +1269,9 @@ export class StreamttyService {
    */
   private getStatusIcon(status?: string): string {
     const iconMap: Record<string, string> = {
-      'pending': '⏳',
+      'pending': '⏳︎',
       'running': '🔄',
-      'completed': '✅',
+      'completed': '✓',
       'failed': '✖',
       'info': 'ℹ️',
     }

@@ -233,7 +233,7 @@ export class VMStatusIndicator extends EventEmitter {
       const issues = this.checkAgentSecurity(status)
       if (issues.length > 0) {
         securityIssues++
-        lines.push(chalk.red(`⚠️ ${agentId}: ${issues.join(', ')}`))
+        lines.push(chalk.red(`⚠︎ ${agentId}: ${issues.join(', ')}`))
       } else {
         lines.push(chalk.green(`✓ ${agentId}: Secure`))
       }

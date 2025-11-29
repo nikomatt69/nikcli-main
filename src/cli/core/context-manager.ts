@@ -169,7 +169,7 @@ export class ContextManager {
     }
 
     if (removedCount > 0) {
-      console.log(chalk.yellow(`⚠️ Trimmed ${removedCount} oldest message metrics to cap at ${this.MAX_METRICS_SIZE}`))
+      console.log(chalk.yellow(`⚠︎ Trimmed ${removedCount} oldest message metrics to cap at ${this.MAX_METRICS_SIZE}`))
     }
   }
   /**
@@ -395,7 +395,7 @@ export class ContextManager {
       }
     }
 
-    console.log(chalk.yellow(`⚠️ Context optimization needed: ${totalTokens} tokens > ${this.activeMaxTokens} limit`))
+    console.log(chalk.yellow(`⚠︎ Context optimization needed: ${totalTokens} tokens > ${this.activeMaxTokens} limit`))
 
     // Use enhanced compression but synchronously
     const optimized = this.compressContextIntelligent(messages)
@@ -453,7 +453,7 @@ export class ContextManager {
         smartContext,
       }
     } catch (_error) {
-      console.log(chalk.yellow('⚠️ RAG integration failed, continuing without'))
+      console.log(chalk.yellow('⚠︎ RAG integration failed, continuing without'))
       return { enhancedMessages: messages }
     }
   }
@@ -527,7 +527,7 @@ export class ContextManager {
         optimized = grouped
       }
     } catch (error: any) {
-      console.warn(chalk.yellow(`⚠️ Semantic compression failed: ${error.message}`))
+      console.warn(chalk.yellow(`⚠︎ Semantic compression failed: ${error.message}`))
       steps.push('Semantic compression skipped (timeout or error)')
     }
 
@@ -651,7 +651,7 @@ export class ContextManager {
   private groupSimilarMessages(messages: CoreMessage[], depth = 0): CoreMessage[] {
     // Prevent infinite recursion
     if (depth > this.MAX_RECURSION_DEPTH) {
-      console.warn(chalk.yellow(`⚠️ Max recursion depth reached in groupSimilarMessages`))
+      console.warn(chalk.yellow(`⚠︎ Max recursion depth reached in groupSimilarMessages`))
       return messages
     }
 
@@ -667,7 +667,7 @@ export class ContextManager {
 
       // Detect cycles
       if (visited.has(currentHash)) {
-        console.warn(chalk.yellow(`⚠️ Circular reference detected in message grouping`))
+        console.warn(chalk.yellow(`⚠︎ Circular reference detected in message grouping`))
         continue
       }
       visited.add(currentHash)
@@ -684,7 +684,7 @@ export class ContextManager {
 
         // Skip if we've seen this message before (circular reference)
         if (visited.has(candidateHash)) {
-          console.warn(chalk.yellow(`⚠️ Circular reference detected, skipping message`))
+          console.warn(chalk.yellow(`⚠︎ Circular reference detected, skipping message`))
           continue
         }
 
@@ -819,7 +819,7 @@ export class ContextManager {
 
       return summary
     } catch (_error) {
-      console.log(chalk.yellow('⚠️ Workspace analysis failed, using minimal summary'))
+      console.log(chalk.yellow('⚠︎ Workspace analysis failed, using minimal summary'))
       return {
         totalFiles: 0,
         totalDirs: 0,

@@ -58,7 +58,7 @@ export class PRReviewExecutor {
         }
       }
 
-      console.log(`⚠️  Found ${issues.length} issues to fix`)
+      console.log(`⚠︎  Found ${issues.length} issues to fix`)
 
       // 4. Apply fixes
       const fixedFiles = await this.applyFixes(workingDir, issues, changedFiles)
@@ -618,9 +618,9 @@ export class PRReviewExecutor {
     analysis += `- ESLint issues: ${eslintIssues}\n\n`
 
     if (typeCheckResult.passed) {
-      analysis += `✅ Final type check: **PASSED**\n`
+      analysis += `✓ Final type check: **PASSED**\n`
     } else {
-      analysis += `⚠️ Final type check: **${typeCheckResult.errors.length} remaining errors**\n`
+      analysis += `⚠︎ Final type check: **${typeCheckResult.errors.length} remaining errors**\n`
     }
 
     return analysis

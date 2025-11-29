@@ -532,7 +532,7 @@ export class ValidationMiddleware extends BaseMiddleware {
 
   private logValidationWarnings(type: string, warnings: ValidationError[], request: MiddlewareRequest): void {
     if (this.validationConfig.logValidationErrors) {
-      console.log(chalk.yellow(`⚠️ ${type} validation warnings for ${request.operation}:`))
+      console.log(chalk.yellow(`⚠︎ ${type} validation warnings for ${request.operation}:`))
       warnings.forEach((warning) => {
         console.log(chalk.yellow(`  • ${warning.field}: ${warning.message}`))
       })

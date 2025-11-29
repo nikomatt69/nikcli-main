@@ -126,7 +126,7 @@ export class DocsContextManager {
 
       console.log(chalk.gray(`⚡︎ Restored ${this.loadedDocs.size} documents to context`))
     } catch (error) {
-      console.error(chalk.yellow(`⚠️ Could not load docs context: ${error}`))
+      console.error(chalk.yellow(`⚠︎ Could not load docs context: ${error}`))
     }
   }
 
@@ -304,7 +304,7 @@ export class DocsContextManager {
     }
 
     if (notFound.length > 0) {
-      console.log(chalk.yellow(`⚠️ Not found: ${notFound.join(', ')}`))
+      console.log(chalk.yellow(`⚠︎ Not found: ${notFound.join(', ')}`))
     }
 
     this.analytics.totalLoads += loadedDocs.length
@@ -345,7 +345,7 @@ export class DocsContextManager {
       await this.saveContext()
       console.log(chalk.green(`✓ Removed ${removedCount} documents from context`))
     } else {
-      console.log(chalk.yellow('⚠️ No matching documents found to remove'))
+      console.log(chalk.yellow('⚠︎ No matching documents found to remove'))
     }
   }
 
@@ -641,7 +641,7 @@ export class DocsContextManager {
     const stats = this.getContextStats()
 
     if (stats.utilizationPercent > 90) {
-      console.log(chalk.yellow('⚠️ Context approaching size limit. Optimizing...'))
+      console.log(chalk.yellow('⚠︎ Context approaching size limit. Optimizing...'))
 
       // Rimuovi i documenti più vecchi o meno utilizzati
       const docs = this.getLoadedDocs()

@@ -164,7 +164,7 @@ export class PolymarketRTDS extends EventEmitter {
    */
   subscribe(topic: string, handler?: (data: any) => void): void {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-      console.warn('⚠️ WebSocket not connected, queuing subscription')
+      console.warn('⚠︎ WebSocket not connected, queuing subscription')
       this.subscriptions.add(topic)
       return
     }
@@ -198,7 +198,7 @@ export class PolymarketRTDS extends EventEmitter {
     this.subscriptions.delete(topic)
 
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-      console.warn('⚠️ Not connected, topic removed from subscriptions')
+      console.warn('⚠︎ Not connected, topic removed from subscriptions')
       return
     }
 
@@ -321,7 +321,7 @@ export class PolymarketRTDS extends EventEmitter {
       this.maxReconnectDelay
     )
 
-    console.log(`⏳ Reconnecting in ${Math.round(delay)}ms (attempt ${this.reconnectAttempts})...`)
+    console.log(`⏳︎ Reconnecting in ${Math.round(delay)}ms (attempt ${this.reconnectAttempts})...`)
 
     this.reconnectTimeout = setTimeout(() => {
       this.connect()

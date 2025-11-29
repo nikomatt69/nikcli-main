@@ -95,7 +95,7 @@ export function initializeSecureTools(workingDir?: string): void {
   console.log(chalk.green('✓ User confirmation for write operations'))
   console.log(chalk.green('✓ Command allow-listing active'))
   console.log(chalk.green('✓ Execution tracking enabled'))
-  console.log(chalk.yellow('⚠️  Legacy ToolsManager deprecated'))
+  console.log(chalk.yellow('⚠︎  Legacy ToolsManager deprecated'))
   console.log(chalk.blue('💡 Use secureTools.* methods for all operations'))
 
   if (workingDir) {
@@ -121,6 +121,6 @@ export function showSecurityGuidelines(): void {
 
 // Show deprecation warning if legacy tools are imported
 if (process.env.NODE_ENV !== 'test') {
-  console.log(chalk.yellow('\n⚠️  Tools Module Loaded'))
+  console.log(chalk.yellow('\n⚠︎  Tools Module Loaded'))
   console.log(chalk.gray('Legacy ToolsManager is deprecated. Use secureTools instead.'))
 }

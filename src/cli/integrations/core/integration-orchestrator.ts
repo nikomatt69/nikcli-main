@@ -630,7 +630,7 @@ export class IntegrationOrchestrator {
   // Public API Methods
   async registerWorkflow(workflow: WorkflowDefinition): Promise<void> {
     this.workflows.set(workflow.id, workflow);
-    console.log(`✅ Registered workflow: ${workflow.name}`);
+    console.log(`✓ Registered workflow: ${workflow.name}`);
   }
 
   async enableWorkflow(workflowId: string): Promise<void> {

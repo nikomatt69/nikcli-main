@@ -138,7 +138,7 @@ class ProjectDetector {
       try {
         execSync(`${runner.command} --version`, { stdio: 'ignore', timeout: 5000 })
         return { ...runner, available: true }
-      } catch {}
+      } catch { }
     }
 
     return { type: 'npm', command: 'npm', available: false }
@@ -438,11 +438,11 @@ class DiagnosticParser {
           file: relative(process.cwd(), file),
           range: startCol
             ? {
-                startLine: parseInt(startLine, 10),
-                startCol: parseInt(startCol, 10),
-                endLine: parseInt(startLine, 10),
-                endCol: parseInt(startCol, 10),
-              }
+              startLine: parseInt(startLine, 10),
+              startCol: parseInt(startCol, 10),
+              endLine: parseInt(startLine, 10),
+              endCol: parseInt(startCol, 10),
+            }
             : undefined,
           message: message.trim(),
           source: 'build',
@@ -563,7 +563,7 @@ export class IDEDiagnosticServer extends EventEmitter {
       const maxFd = parseInt(limits, 10)
 
       if (maxFd < 1024) {
-        console.warn(chalk.yellow(`⚠️ Low file descriptor limit: ${maxFd}. Consider increasing with 'ulimit -n 4096'`))
+        console.warn(chalk.yellow(`⚠︎ Low file descriptor limit: ${maxFd}. Consider increasing with 'ulimit -n 4096'`))
       }
     } catch {
       // Ignore if ulimit check fails

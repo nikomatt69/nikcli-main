@@ -419,7 +419,7 @@ export class BackendAgent extends CognitiveAgentBase {
       if (overallSuccess) {
         advancedUI.logSuccess('✓ All backend validations passed')
       } else {
-        advancedUI.logWarning('⚠️ Some backend validations found issues')
+        advancedUI.logWarning('⚠︎ Some backend validations found issues')
       }
 
       return { validation, overallSuccess }

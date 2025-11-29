@@ -203,7 +203,7 @@ export class AutonomousClaudeInterface {
 
         // Warn if approaching limit
         if (metrics.estimatedTokens > metrics.tokenLimit * 0.85) {
-          console.log(chalk.yellow('\n⚠️  Token usage high - consider using /clear or auto-optimization will apply'))
+          console.log(chalk.yellow('\n⚠︎  Token usage high - consider using /clear or auto-optimization will apply'))
         }
 
         // Auto-optimize if way over limit (shouldn't happen but safety net)
@@ -302,7 +302,7 @@ export class AutonomousClaudeInterface {
     if (!hasAnthropicKey && !hasOpenAIKey && !hasGoogleKey && !hasVercelKey) {
       this.cliInstance.printPanel(
         boxen(
-          `${chalk.red('⚠️  No API Keys Found')}\n\n` +
+          `${chalk.red('⚠︎  No API Keys Found')}\n\n` +
           `Please set at least one API key:\n\n` +
           `${chalk.blue('• ANTHROPIC_API_KEY')} - for Claude models\n` +
           `${chalk.blue('• OPENAI_API_KEY')} - for GPT models\n` +
@@ -567,9 +567,9 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
         `${chalk.green('Token Limit:')} ${metrics.tokenLimit.toLocaleString()}\n` +
         `${chalk.green('Usage:')} ${((metrics.estimatedTokens / metrics.tokenLimit) * 100).toFixed(1)}%\n\n` +
         `${chalk.cyan('Status:')} ${metrics.estimatedTokens > metrics.tokenLimit
-          ? chalk.red('⚠️  Over Limit - Auto-compression active')
+          ? chalk.red('⚠︎  Over Limit - Auto-compression active')
           : metrics.estimatedTokens > metrics.tokenLimit * 0.8
-            ? chalk.yellow('⚠️  High Usage - Monitor closely')
+            ? chalk.yellow('⚠︎  High Usage - Monitor closely')
             : chalk.green('✓ Within Limits')
         }\n\n` +
         `${chalk.dim('Compression Ratio:')} ${(metrics.compressionRatio * 100).toFixed(1)}%`,
@@ -1084,7 +1084,7 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
   private toggleAutonomousMode(mode?: string): void {
     if (mode === 'off') {
       this.session.autonomous = false
-      console.log(chalk.yellow('⚠️ Autonomous mode disabled - will ask for confirmation'))
+      console.log(chalk.yellow('⚠︎ Autonomous mode disabled - will ask for confirmation'))
     } else {
       this.session.autonomous = true
       console.log(chalk.green('✓ Autonomous mode enabled - full independence'))
@@ -1442,7 +1442,7 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
       console.log(chalk.cyan('   • Enhanced approval system with detailed breakdown'))
       console.log(chalk.dim('   (shift+tab to cycle modes)'))
     } else {
-      console.log(chalk.yellow('\n⚠️  Plan Mode Disabled'))
+      console.log(chalk.yellow('\n⚠︎  Plan Mode Disabled'))
       console.log(chalk.gray('   • Returning to standard mode'))
     }
 
@@ -1462,7 +1462,7 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
     if (this.session.autoAcceptEdits) {
       console.log(chalk.green('\n✓ auto-accept edits on ') + chalk.dim('(shift+tab to cycle)'))
     } else {
-      console.log(chalk.yellow('\n⚠️ auto-accept edits off'))
+      console.log(chalk.yellow('\n⚠︎ auto-accept edits off'))
     }
 
     this.updatePromptIndicators()

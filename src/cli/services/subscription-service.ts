@@ -62,7 +62,7 @@ export class SubscriptionService {
       // Fallback to direct Supabase query
       return await this.getSubscriptionStatusDirect()
     } catch (error: any) {
-      console.log(chalk.yellow(`⚠️ API unavailable, using direct Supabase query`))
+      console.log(chalk.yellow(`⚠︎ API unavailable, using direct Supabase query`))
       return await this.getSubscriptionStatusDirect()
     }
   }
@@ -139,7 +139,7 @@ export class SubscriptionService {
         }
       }
     } catch (error: any) {
-      console.log(chalk.yellow(`⚠️ Failed to provision API key: ${error.message}`))
+      console.log(chalk.yellow(`⚠︎ Failed to provision API key: ${error.message}`))
     }
 
     // Fallback: try to fetch from direct Supabase query

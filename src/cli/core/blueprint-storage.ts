@@ -185,7 +185,7 @@ export class BlueprintStorage {
 
           this.blueprintsCache.set(coerced.id, coerced)
         } catch (error: any) {
-          console.error(chalk.yellow(`⚠️ Skipping invalid blueprint file ${file}: ${error.message}`))
+          console.error(chalk.yellow(`⚠︎ Skipping invalid blueprint file ${file}: ${error.message}`))
         }
       }
 
@@ -388,7 +388,7 @@ export class BlueprintStorage {
       await fs.writeFile(backupPath, content)
     } catch (error: any) {
       // Backup fallimento non è critico, log solamente
-      console.log(chalk.yellow(`⚠️ Backup failed for ${blueprintId}: ${error.message}`))
+      console.log(chalk.yellow(`⚠︎ Backup failed for ${blueprintId}: ${error.message}`))
     }
   }
 
@@ -459,7 +459,7 @@ export class BlueprintStorage {
       }
     } catch (error: any) {
       // Cleanup backups non è critico
-      console.log(chalk.yellow(`⚠️ Backup cleanup failed: ${error.message}`))
+      console.log(chalk.yellow(`⚠︎ Backup cleanup failed: ${error.message}`))
     }
   }
 }

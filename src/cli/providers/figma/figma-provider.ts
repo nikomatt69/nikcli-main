@@ -210,7 +210,7 @@ export class FigmaProvider {
       },
       async (error) => {
         if (error.response?.status === 429) {
-          console.log(chalk.yellow('⚠️ Rate limit hit, waiting...'))
+          console.log(chalk.yellow('⚠︎ Rate limit hit, waiting...'))
           await this.sleep(this.config.rateLimitDelay!)
           return this.apiClient.request(error.config)
         }
@@ -439,7 +439,7 @@ export function createFigmaProvider(): FigmaProvider | null {
   const apiToken = process.env.FIGMA_API_TOKEN
 
   if (!apiToken) {
-    console.log(chalk.yellow('⚠️ FIGMA_API_TOKEN not configured'))
+    console.log(chalk.yellow('⚠︎ FIGMA_API_TOKEN not configured'))
     return null
   }
 

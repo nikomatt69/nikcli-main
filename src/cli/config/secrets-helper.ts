@@ -56,7 +56,7 @@ export async function executeWithQuotaCheck<T>(
   // Check quota before operation
   const quotaCheck = SecretsManager.checkQuota(provider)
   if (!quotaCheck.allowed) {
-    throw new Error(`⚠️  Quota limit exceeded: ${quotaCheck.reason}`)
+    throw new Error(`⚠︎  Quota limit exceeded: ${quotaCheck.reason}`)
   }
 
   try {
@@ -223,7 +223,7 @@ export function formatQuotaInfo(provider: string): string {
       ? `${summary.monthlyUsage} calls`
       : `${summary.monthlyUsage}/${summary.monthlyLimit} calls (${summary.percentMonthly}%)`
 
-  const warning = summary.warning ? ' ⚠️ ' : ''
+  const warning = summary.warning ? ' ⚠︎ ' : ''
 
   return `${provider}: Daily: ${dailyStr}, Monthly: ${monthlyStr}${warning}`
 }

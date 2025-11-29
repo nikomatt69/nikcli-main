@@ -131,7 +131,7 @@ export class OpenRouterRerankingProvider {
                 // Check if it's a retryable error
                 if (this.isRetryableError(error) && attempt < (this.config.maxRetries || 3)) {
                     const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000) // Exponential backoff
-                    advancedUI.logWarning(`⚠️ Reranking request failed (attempt ${attempt}/${this.config.maxRetries}), retrying in ${delay}ms...`)
+                    advancedUI.logWarning(`⚠︎ Reranking request failed (attempt ${attempt}/${this.config.maxRetries}), retrying in ${delay}ms...`)
                     await new Promise((resolve) => setTimeout(resolve, delay))
                     continue
                 }

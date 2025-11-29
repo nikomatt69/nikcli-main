@@ -300,7 +300,7 @@ export class ApprovalSystem extends EventEmitter {
       const config = configManager.getConfig()
       return config.sessionSettings.approvalTimeoutMs
     } catch (_error) {
-      console.warn(chalk.yellow('⚠️ Failed to read approval timeout from config, using default 30s'))
+      console.warn(chalk.yellow('⚠︎ Failed to read approval timeout from config, using default 30s'))
       return 30000 // Default fallback
     }
   }
@@ -1074,7 +1074,7 @@ export class ApprovalSystem extends EventEmitter {
         `${chalk.gray('Risk Level:')} ${riskColor(request.riskLevel.toUpperCase())}\n` +
         `${chalk.gray('Total Steps:')} ${chalk.cyan(planDetails.totalSteps)}\n` +
         `${chalk.gray('Estimated Duration:')} ${chalk.cyan(`${Math.round(planDetails.estimatedDuration)} minutes`)}\n\n` +
-        `${chalk.yellow.bold('⚠️  This will execute all steps automatically!\n')}` +
+        `${chalk.yellow.bold('⚠︎  This will execute all steps automatically!\n')}` +
         `${chalk.gray('The plan will switch to auto mode and run without further prompts.')}`,
         {
           padding: 1,
@@ -1115,7 +1115,7 @@ export class ApprovalSystem extends EventEmitter {
 
     // Risk analysis
     if (options?.showRiskAnalysis !== false) {
-      console.log(chalk.blue.bold('\n⚠️  Risk Analysis:'))
+      console.log(chalk.blue.bold('\n⚠︎  Risk Analysis:'))
       this.displayPlanRiskAnalysis(planDetails)
     }
 
@@ -1245,7 +1245,7 @@ export class ApprovalSystem extends EventEmitter {
       questions.push({
         type: 'list',
         name: 'confirmHighRisk',
-        message: chalk.red.bold('⚠️  This is a high-risk operation. Are you absolutely sure?'),
+        message: chalk.red.bold('⚠︎  This is a high-risk operation. Are you absolutely sure?'),
         choices: [
           { name: 'Yes', value: true },
           { name: 'No', value: false },
@@ -1408,7 +1408,7 @@ export class ApprovalSystem extends EventEmitter {
       case 'critical':
         return '🚨'
       case 'high':
-        return '⚠️'
+        return '⚠︎'
       case 'medium':
         return '⚡'
       case 'low':
@@ -1627,7 +1627,7 @@ export class ApprovalSystem extends EventEmitter {
 
     // Enhanced risk assessment display
     if (request.riskAssessment) {
-      console.log(chalk.red.bold('\n⚠️  ENTERPRISE RISK ASSESSMENT'))
+      console.log(chalk.red.bold('\n⚠︎  ENTERPRISE RISK ASSESSMENT'))
       console.log(chalk.gray('─'.repeat(50)))
 
       const riskColor =
@@ -1823,7 +1823,7 @@ export class ApprovalSystem extends EventEmitter {
         choices: [
           { name: '✓ Approve Request', value: 'approve' },
           { name: '✖ Reject Request', value: 'reject' },
-          { name: '⚠️  Approve with Conditions', value: 'conditional' },
+          { name: '⚠︎  Approve with Conditions', value: 'conditional' },
           { name: '📋 Request More Information', value: 'info' },
           { name: '⬆️  Escalate to Manager', value: 'escalate' },
         ],
@@ -1891,7 +1891,7 @@ export class ApprovalSystem extends EventEmitter {
     if (approved) {
       console.log(chalk.green.bold('✓ Enterprise Operation Approved'))
       if (answers.conditions && answers.conditions.length > 0) {
-        console.log(chalk.yellow('⚠️  Conditional approval with enterprise requirements'))
+        console.log(chalk.yellow('⚠︎  Conditional approval with enterprise requirements'))
       }
     } else {
       console.log(chalk.red.bold('✖ Enterprise Operation Rejected'))
@@ -2193,11 +2193,11 @@ class WorkflowEngine {
     try {
       // Build descriptive message
       let operationText = ''
-      let riskEmoji = '⚠️'
+      let riskEmoji = '⚠︎'
       const riskLevel = details?.riskLevel || 'high'
 
       if (riskLevel === 'critical') riskEmoji = '🚨'
-      if (riskLevel === 'medium') riskEmoji = '⚠️'
+      if (riskLevel === 'medium') riskEmoji = '⚠︎'
       if (riskLevel === 'low') riskEmoji = '✓'
 
       switch (operation) {

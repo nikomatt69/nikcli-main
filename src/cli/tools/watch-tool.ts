@@ -112,9 +112,9 @@ export class WatchTool extends BaseTool {
         depth: params.depth,
         awaitWriteFinish: params.awaitWriteFinish
           ? {
-              stabilityThreshold: debounceDelay,
-              pollInterval: 100,
-            }
+            stabilityThreshold: debounceDelay,
+            pollInterval: 100,
+          }
           : false,
       }
 
@@ -152,7 +152,7 @@ export class WatchTool extends BaseTool {
 
         // Stop if max events reached
         if (this.events.length >= maxEvents) {
-          advancedUI.logWarning(`⚠️  Max events (${maxEvents}) reached, stopping watcher`)
+          advancedUI.logWarning(`⚠︎  Max events (${maxEvents}) reached, stopping watcher`)
           await this.stopWatcher()
         }
       }

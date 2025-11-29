@@ -106,13 +106,13 @@ export class OutputFormatter {
   }
 
   static formatStatusLine(text: string): string {
-    if (text.match(/^(✓|✅|\[OK\]|\[DONE\])/)) {
+    if (text.match(/^(✓|✓|\[OK\]|\[DONE\])/)) {
       return chalk.green(text)
     }
     if (text.match(/^(✖|x|\[ERR\]|\[FAIL\])/)) {
       return chalk.red(text)
     }
-    if (text.match(/^(⚠️|!|\[WARN\])/)) {
+    if (text.match(/^(⚠︎|!|\[WARN\])/)) {
       return chalk.yellow(text)
     }
     return text

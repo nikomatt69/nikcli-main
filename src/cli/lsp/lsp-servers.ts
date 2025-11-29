@@ -223,7 +223,7 @@ export const LSP_SERVERS: Record<string, LSPServerInfo> = {
     async spawn(_workspaceRoot: string): Promise<LSPServerHandle | undefined> {
       try {
         // This is a simplified version - full Java LSP setup is complex
-        console.log(chalk.yellow('⚠️ Java LSP requires manual Eclipse JDT Language Server setup'))
+        console.log(chalk.yellow('⚠︎ Java LSP requires manual Eclipse JDT Language Server setup'))
         return undefined
       } catch (error) {
         console.log(chalk.red(`✖ Failed to start Java LSP: ${error}`))

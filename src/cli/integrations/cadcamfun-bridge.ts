@@ -74,14 +74,14 @@ export class CADCamFunBridge {
           await fs.access(p)
           found = p
           break
-        } catch {}
+        } catch { }
       }
 
       if (!found) {
         this.isSystemAvailable = false
         console.log(
           chalk.yellow(
-            `⚠️ CADCamFun system entry not found. Set NIKCLI_CAD_SYSTEM_PATH or provide a valid systemPath. Tried: ${candidates.join(
+            `⚠︎ CADCamFun system entry not found. Set NIKCLI_CAD_SYSTEM_PATH or provide a valid systemPath. Tried: ${candidates.join(
               ', '
             )}`
           )
@@ -95,7 +95,7 @@ export class CADCamFunBridge {
 
       return true
     } catch (error) {
-      console.log(chalk.yellow('⚠️ CADCamFun system not available'))
+      console.log(chalk.yellow('⚠︎ CADCamFun system not available'))
       console.log(chalk.gray(`   Path: ${this.config.systemPath}`))
       if ((error as any)?.message) console.log(chalk.gray(`   Reason: ${(error as any).message}`))
       this.isSystemAvailable = false
@@ -177,7 +177,7 @@ export class CADCamFunBridge {
       const { stdout, stderr } = await execAsync(`node ${scriptPath}`)
 
       if (stderr) {
-        console.log(chalk.yellow(`⚠️ Script warnings: ${stderr}`))
+        console.log(chalk.yellow(`⚠︎ Script warnings: ${stderr}`))
       }
 
       // Parse the result

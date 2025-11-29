@@ -119,7 +119,7 @@ export class ValidatedAIProvider {
                 }
               }
             } catch (validationError: any) {
-              advancedUI.logWarning(`⚠️ Validation error, proceeding without: ${validationError.message}`)
+              advancedUI.logWarning(`⚠︎ Validation error, proceeding without: ${validationError.message}`)
             } finally {
               // Ripristina configurazione
               if (skipFormatting) {
@@ -213,7 +213,7 @@ export class ValidatedAIProvider {
         const validation = validateReasoningResponse(typeof response === 'string' ? response : '')
 
         if (!validation.isValid) {
-          advancedUI.logWarning(`⚠️ Agent reasoning validation failed: ${validation.suggestions.join(', ')}`)
+          advancedUI.logWarning(`⚠︎ Agent reasoning validation failed: ${validation.suggestions.join(', ')}`)
         }
       }
 
@@ -309,7 +309,7 @@ export class ValidatedAIProvider {
 
       // Stop se un file critico fallisce
       if (!result.success && fileOptions.path.includes('.ts')) {
-        advancedUI.logWarning(`⚠️ Stopping batch write due to TypeScript file failure`)
+        advancedUI.logWarning(`⚠︎ Stopping batch write due to TypeScript file failure`)
         break
       }
     }

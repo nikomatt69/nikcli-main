@@ -123,7 +123,7 @@ export class SSHSessionBridge {
         startTime: new Date(),
       }
     } catch (error) {
-      console.log(chalk.yellow(`⚠️ Failed to parse SSH info: ${error}`))
+      console.log(chalk.yellow(`⚠︎ Failed to parse SSH info: ${error}`))
       return null
     }
   }
@@ -146,7 +146,7 @@ export class SSHSessionBridge {
         const saved = JSON.parse(readFileSync(this.configPath, 'utf-8'))
         return { ...defaultConfig, ...saved }
       } catch {
-        console.log(chalk.yellow('⚠️ Invalid SSH bridge config, using defaults'))
+        console.log(chalk.yellow('⚠︎ Invalid SSH bridge config, using defaults'))
       }
     }
 
@@ -160,7 +160,7 @@ export class SSHSessionBridge {
     try {
       writeFileSync(this.configPath, JSON.stringify(this.config, null, 2))
     } catch (error: any) {
-      console.log(chalk.yellow(`⚠️ Failed to save SSH bridge config: ${error.message}`))
+      console.log(chalk.yellow(`⚠︎ Failed to save SSH bridge config: ${error.message}`))
     }
   }
 
@@ -172,7 +172,7 @@ export class SSHSessionBridge {
     try {
       await mkdir(stateDir, { recursive: true })
     } catch (error: any) {
-      console.log(chalk.yellow(`⚠️ Failed to create state directory: ${error.message}`))
+      console.log(chalk.yellow(`⚠︎ Failed to create state directory: ${error.message}`))
     }
   }
 
@@ -213,14 +213,14 @@ export class SSHSessionBridge {
             console.log(chalk.blue(`⚡︎ Resuming tmux session: ${this.currentState.tmuxSessionName}`))
             // Don't auto-attach, let user decide
           } else {
-            console.log(chalk.yellow(`⚠️ Previous tmux session '${this.currentState.tmuxSessionName}' not found`))
+            console.log(chalk.yellow(`⚠︎ Previous tmux session '${this.currentState.tmuxSessionName}' not found`))
           }
         }
 
         return
       }
     } catch (error: any) {
-      console.log(chalk.yellow(`⚠️ Failed to restore session state: ${error.message}`))
+      console.log(chalk.yellow(`⚠︎ Failed to restore session state: ${error.message}`))
     }
 
     // Create new session state
@@ -275,7 +275,7 @@ export class SSHSessionBridge {
     try {
       await writeFileSync(statePath, JSON.stringify(this.currentState, null, 2))
     } catch (error: any) {
-      console.log(chalk.yellow(`⚠️ Failed to save session state: ${error.message}`))
+      console.log(chalk.yellow(`⚠︎ Failed to save session state: ${error.message}`))
     }
   }
 
@@ -367,7 +367,7 @@ export class SSHSessionBridge {
 
       console.log(chalk.gray(`✓ Session backup created: ${backupFileName}`))
     } catch (error: any) {
-      console.log(chalk.yellow(`⚠️ Backup failed: ${error.message}`))
+      console.log(chalk.yellow(`⚠︎ Backup failed: ${error.message}`))
     }
   }
 
@@ -402,7 +402,7 @@ export class SSHSessionBridge {
         console.log(chalk.gray(`🗑️  Cleaned up ${toDelete.length} old backup(s)`))
       }
     } catch (error: any) {
-      console.log(chalk.yellow(`⚠️ Backup cleanup failed: ${error.message}`))
+      console.log(chalk.yellow(`⚠︎ Backup cleanup failed: ${error.message}`))
     }
   }
 

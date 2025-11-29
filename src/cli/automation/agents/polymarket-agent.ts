@@ -125,7 +125,7 @@ export class PolymarketAgent extends BaseAgent implements AgentInstance {
       await this.preloadMarkets()
 
       this.status = 'available'
-      console.log(`✅ ${this.specialization} ready`)
+      console.log(`✓ ${this.specialization} ready`)
     } catch (error: any) {
       this.status = 'error'
       console.error('✖ Agent initialization failed:', error.message)
@@ -144,7 +144,7 @@ export class PolymarketAgent extends BaseAgent implements AgentInstance {
         console.log(`✓ Loaded ${markets.length} markets`)
       }
     } catch (error) {
-      console.warn('⚠️ Failed to preload markets:', error)
+      console.warn('⚠︎ Failed to preload markets:', error)
     }
   }
 
@@ -278,7 +278,7 @@ export class PolymarketAgent extends BaseAgent implements AgentInstance {
     orderIntent.riskAssessment = riskAssessment
 
     if (riskAssessment.riskLevel === 'high') {
-      console.warn('⚠️ High risk order - requiring confirmation')
+      console.warn('⚠︎ High risk order - requiring confirmation')
       // In production, would wait for user confirmation
     }
 

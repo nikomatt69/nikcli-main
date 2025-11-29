@@ -510,7 +510,7 @@ export class ToolService {
 
     const versionValidation = await ContentValidators.noLatestVersions(args.content, args.filePath)
     if (versionValidation.warnings && versionValidation.warnings.length > 0) {
-      advancedUI.logFunctionUpdate('warning', `⚠️  ${versionValidation.warnings.join(', ')}`)
+      advancedUI.logFunctionUpdate('warning', `⚠︎  ${versionValidation.warnings.join(', ')}`)
     }
 
     // Ensure directory exists

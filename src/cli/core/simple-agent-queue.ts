@@ -88,7 +88,7 @@ export class SimpleAgentQueue {
   private async waitForFileLock(filePath: string): Promise<void> {
     const existingOp = this.fileOperations.get(filePath)
     if (existingOp) {
-      advancedUI.logInfo(`⏳ Waiting for file lock: ${filePath} (locked by ${existingOp.agentId})`)
+      advancedUI.logInfo(`⏳︎ Waiting for file lock: ${filePath} (locked by ${existingOp.agentId})`)
 
       try {
         await Promise.race([
@@ -96,7 +96,7 @@ export class SimpleAgentQueue {
           new Promise((_, reject) => setTimeout(() => reject(new Error('Lock timeout')), 15000)),
         ])
       } catch (error: any) {
-        advancedUI.logWarning(`⚠️ Lock wait failed: ${error.message}`)
+        advancedUI.logWarning(`⚠︎ Lock wait failed: ${error.message}`)
         // Forza rimozione del lock stale
         this.fileOperations.delete(filePath)
       }

@@ -533,7 +533,7 @@ const ConfigSchema = z.object({
         }),
     })
     .default({
-      enabled: true, // ✅ Enabled by default in schema
+      enabled: true, // ✓ Enabled by default in schema
       host: 'localhost',
       port: 6379,
       database: 0,
@@ -557,14 +557,14 @@ const ConfigSchema = z.object({
           database: z.boolean().default(true),
           storage: z.boolean().default(false),
           auth: z.boolean().default(true),
-          realtime: z.boolean().default(true), // ✅ Enabled by default
+          realtime: z.boolean().default(true), // ✓ Enabled by default
           vector: z.boolean().default(false),
         })
         .default({
           database: true,
           storage: false,
           auth: true,
-          realtime: true, // ✅ Enabled by default
+          realtime: true, // ✓ Enabled by default
           vector: false,
         }),
       tables: z
@@ -620,13 +620,13 @@ const ConfigSchema = z.object({
         }),
     })
     .default({
-      enabled: true, // ✅ Enabled by default in schema
+      enabled: true, // ✓ Enabled by default in schema
       features: {
         database: true,
         storage: true,
         auth: true,
-        realtime: true, // ✅ Enabled by default
-        vector: true, // ✅ Enabled by default
+        realtime: true, // ✓ Enabled by default
+        vector: true, // ✓ Enabled by default
       },
       tables: {
         sessions: 'chat_sessions',
@@ -1753,7 +1753,7 @@ export class SimpleConfigManager {
       expirationDays: 30,
     },
     redis: {
-      enabled: true, // ✅ Enabled by default - Upstash Redis cache
+      enabled: true, // ✓ Enabled by default - Upstash Redis cache
       host: 'localhost',
       port: 6379,
       database: 0,
@@ -1766,13 +1766,13 @@ export class SimpleConfigManager {
       strategies: { tokens: true, sessions: true, agents: true, documentation: true }, // All strategies enabled
     },
     supabase: {
-      enabled: true, // ✅ Enabled by default - Supabase database integration
+      enabled: true, // ✓ Enabled by default - Supabase database integration
       features: {
-        database: true, // ✅ Database operations enabled
-        storage: true, // ✅ File storage enabled
-        auth: true, // ✅ Authentication enabled
-        realtime: true, // ✅ Real-time subscriptions enabled
-        vector: true, // ✅ Vector search (pgvector) enabled
+        database: true, // ✓ Database operations enabled
+        storage: true, // ✓ File storage enabled
+        auth: true, // ✓ Authentication enabled
+        realtime: true, // ✓ Real-time subscriptions enabled
+        vector: true, // ✓ Vector search (pgvector) enabled
       },
       tables: {
         sessions: 'chat_sessions',

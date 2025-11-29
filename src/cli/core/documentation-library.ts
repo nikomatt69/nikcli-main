@@ -74,7 +74,7 @@ export class DocumentationLibrary {
           }
         } catch (crawlError: any) {
           console.log(
-            chalk.yellow(`⚠️ Subpage crawl failed or partially completed: ${crawlError.message || crawlError}`)
+            chalk.yellow(`⚠︎ Subpage crawl failed or partially completed: ${crawlError.message || crawlError}`)
           )
         }
       }

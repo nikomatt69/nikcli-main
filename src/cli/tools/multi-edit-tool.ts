@@ -152,7 +152,7 @@ export class MultiEditTool extends BaseTool {
       if (result.successfulOperations === result.totalOperations) {
         advancedUI.logSuccess(`✓ All ${result.totalOperations} operations completed successfully`)
       } else {
-        advancedUI.logWarning(`⚠️ ${result.successfulOperations}/${result.totalOperations} operations successful`)
+        advancedUI.logWarning(`⚠︎ ${result.successfulOperations}/${result.totalOperations} operations successful`)
       }
 
       return {
@@ -200,7 +200,7 @@ export class MultiEditTool extends BaseTool {
       const newString = edit.newString ?? edit.replace
 
       if (!filePath || oldString == null || newString == null) {
-        advancedUI.logWarning('⚠️ Skipping invalid edit entry missing file/search/replace')
+        advancedUI.logWarning('⚠︎ Skipping invalid edit entry missing file/search/replace')
         continue
       }
 

@@ -354,7 +354,7 @@ export class PerformanceMiddleware extends BaseMiddleware {
   private reportSlowOperation(operation: string, metrics: PerformanceMetrics): void {
     const benchmark = this.benchmarks.get(operation)
 
-    console.log(chalk.yellow.bold('\\n⚠️  Slow Operation Detected'))
+    console.log(chalk.yellow.bold('\\n⚠︎  Slow Operation Detected'))
     console.log(chalk.gray('─'.repeat(50)))
     console.log(`${chalk.blue('Operation:')} ${operation}`)
     console.log(`${chalk.blue('Execution Time:')} ${chalk.yellow(`${metrics.executionTime}ms`)}`)
@@ -418,7 +418,7 @@ export class PerformanceMiddleware extends BaseMiddleware {
       case 'optimization_suggestion':
         return '💡'
       default:
-        return '⚠️'
+        return '⚠︎'
     }
   }
 

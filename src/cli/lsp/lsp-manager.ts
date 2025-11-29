@@ -77,7 +77,7 @@ export class LSPManager {
 
           const serverHandle = await serverInfo.spawn(workspaceRoot)
           if (!serverHandle) {
-            console.log(chalk.yellow(`⚠️ Could not start ${serverInfo.name}`))
+            console.log(chalk.yellow(`⚠︎ Could not start ${serverInfo.name}`))
             continue
           }
 
@@ -147,7 +147,7 @@ export class LSPManager {
         // Update workspace root to the LSP client's root
         context.workspaceRoot = client.getWorkspaceRoot()
       } catch (error: any) {
-        console.log(chalk.yellow(`⚠️ Error analyzing with ${client.getServerInfo().name}: ${error.message}`))
+        console.log(chalk.yellow(`⚠︎ Error analyzing with ${client.getServerInfo().name}: ${error.message}`))
       }
     }
 
@@ -400,7 +400,7 @@ export class LSPManager {
           await client.shutdown()
           console.log(chalk.gray(`🧹 Cleaned up idle LSP client: ${client.getServerInfo().name}`))
         } catch (error: any) {
-          console.log(chalk.yellow(`⚠️ Error cleaning up client: ${error.message}`))
+          console.log(chalk.yellow(`⚠︎ Error cleaning up client: ${error.message}`))
         }
 
         this.clients.delete(clientKey)

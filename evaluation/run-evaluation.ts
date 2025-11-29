@@ -89,7 +89,7 @@ async function runEvaluation() {
         });
     } else {
       console.log(
-        '✅ All areas are performing well! Consider minor optimizations.',
+        '✓ All areas are performing well! Consider minor optimizations.',
       );
     }
 

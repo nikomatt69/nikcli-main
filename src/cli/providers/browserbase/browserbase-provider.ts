@@ -318,7 +318,7 @@ export class BrowserbaseProvider extends EventEmitter {
 
       this.emit('session_closed', sessionId)
     } catch (error: any) {
-      console.log(chalk.yellow(`⚠️ Failed to close session ${sessionId}: ${error.message}`))
+      console.log(chalk.yellow(`⚠︎ Failed to close session ${sessionId}: ${error.message}`))
     }
   }
 
@@ -622,7 +622,7 @@ export class BrowserbaseProvider extends EventEmitter {
 
       await redisProvider.set(cacheKey, result, this.config.cacheTtl, { type: 'browserbase_result' })
     } catch (_error) {
-      console.log(chalk.yellow('⚠️ Failed to cache result'))
+      console.log(chalk.yellow('⚠︎ Failed to cache result'))
     }
   }
 

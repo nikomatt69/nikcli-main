@@ -123,7 +123,7 @@ export class CommandSandboxExecutor {
 
           // Stream final status
           const status =
-            code === 0 ? '✅ Success' : code ? `✖ Failed (code: ${code})` : `⚠️  Terminated (signal: ${sig})`
+            code === 0 ? '✓ Success' : code ? `✖ Failed (code: ${code})` : `⚠︎  Terminated (signal: ${sig})`
           advancedUI.addLiveUpdate({
             type: code === 0 ? 'success' : 'error',
             content: `${status}`,

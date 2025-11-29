@@ -190,7 +190,7 @@ export class WorkSessionManager extends EventEmitter {
     this.operationsSinceLastSave++
     if (this.operationsSinceLastSave >= this.autoSaveThreshold) {
       this.saveCurrentSession().catch((error: any) => {
-        console.log(chalk.yellow(`⚠️ Auto-save failed: ${error.message}`))
+        console.log(chalk.yellow(`⚠︎ Auto-save failed: ${error.message}`))
       })
     }
   }
@@ -286,14 +286,14 @@ export class WorkSessionManager extends EventEmitter {
       const sessionData = JSON.stringify(session, null, 2)
 
       if (sessionData.length > this.compressionThreshold) {
-        console.log(chalk.yellow(`⚠️ Large session (${Math.round(sessionData.length / 1024)}KB)`))
+        console.log(chalk.yellow(`⚠︎ Large session (${Math.round(sessionData.length / 1024)}KB)`))
       }
 
       if (existsSync(sessionPath)) {
         try {
           await fs.copyFile(sessionPath, backupPath)
         } catch (error) {
-          console.log(chalk.gray('⚠️ Could not create backup'))
+          console.log(chalk.gray('⚠︎ Could not create backup'))
         }
       }
 
@@ -389,7 +389,7 @@ export class WorkSessionManager extends EventEmitter {
               tags: Array.isArray(session.metadata.tags) ? session.metadata.tags : [],
             })
           } catch {
-            console.log(chalk.yellow(`⚠️ Failed to read session file: ${file}`))
+            console.log(chalk.yellow(`⚠︎ Failed to read session file: ${file}`))
           }
         }
       }

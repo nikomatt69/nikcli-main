@@ -575,7 +575,7 @@ export class SecureVirtualizedAgent extends EventEmitter implements Agent {
     this.requestCount++
 
     if (this.tokenUsed > this.tokenBudget) {
-      advancedUI.logError(`⚠️ Token budget exceeded: ${this.tokenUsed}/${this.tokenBudget}`)
+      advancedUI.logError(`⚠︎ Token budget exceeded: ${this.tokenUsed}/${this.tokenBudget}`)
       throw new Error('Token budget exceeded')
     }
 

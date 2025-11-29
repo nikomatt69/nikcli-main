@@ -110,7 +110,7 @@ export class PolymarketWebSocketManager extends EventEmitter {
         this.ws = new WebSocket(this.wsUrl)
 
         this.ws.onopen = () => {
-          console.log('✅ WebSocket connected')
+          console.log('✓ WebSocket connected')
           this.connectionStartTime = Date.now()
           this.reconnectAttempts = 0
           this.reconnectDelay = 1000
@@ -130,7 +130,7 @@ export class PolymarketWebSocketManager extends EventEmitter {
         }
 
         this.ws.onclose = () => {
-          console.log('⚠️ WebSocket closed')
+          console.log('⚠︎ WebSocket closed')
           this.emit('disconnected')
           this.stopPingInterval()
 
@@ -194,7 +194,7 @@ export class PolymarketWebSocketManager extends EventEmitter {
         this.messageHandlers.set(assetId, handler)
       }
 
-      console.log(`✅ Subscribed to market: ${assetId}`)
+      console.log(`✓ Subscribed to market: ${assetId}`)
       this.emit('subscribed', assetId)
     } catch (error) {
       console.error(`✖ Failed to subscribe to ${assetId}:`, error)
@@ -216,7 +216,7 @@ export class PolymarketWebSocketManager extends EventEmitter {
 
     // If more subscriptions remain, reconnect with new set
     if (this.subscriptions.size > 0) {
-      console.log(`⚠️ Closing and reconnecting (Polymarket doesn't support unsubscribe)`)
+      console.log(`⚠︎ Closing and reconnecting (Polymarket doesn't support unsubscribe)`)
       this.disconnect()
       this.isManuallyClosing = false
 

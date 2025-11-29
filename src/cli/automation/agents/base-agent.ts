@@ -189,7 +189,7 @@ export abstract class BaseAgent implements AgentInstance {
 
       // Wait for current tasks to complete
       while (this.currentTasks > 0) {
-        advancedUI.logInfo(`⏳ Waiting for ${this.currentTasks} tasks to complete...`)
+        advancedUI.logInfo(`⏳︎ Waiting for ${this.currentTasks} tasks to complete...`)
         await new Promise((resolve) => setTimeout(resolve, 1000))
       }
 

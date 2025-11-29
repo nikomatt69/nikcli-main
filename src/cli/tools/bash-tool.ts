@@ -187,9 +187,9 @@ export class BashTool extends BaseTool {
       })
 
       if (result.exitCode === 0) {
-        advancedUI.logSuccess(`✅ Command completed successfully (${result.executionTime}ms)`)
+        advancedUI.logSuccess(`✓ Command completed successfully (${result.executionTime}ms)`)
       } else {
-        advancedUI.logWarning(`⚠️ Command exited with code ${result.exitCode}`)
+        advancedUI.logWarning(`⚠︎ Command exited with code ${result.exitCode}`)
       }
 
       return {
@@ -235,7 +235,7 @@ export class BashTool extends BaseTool {
       if (!allowDangerous) {
         throw new Error(`Dangerous command not allowed: ${commandWithoutPath}. Use allowDangerous=true to override.`)
       }
-      advancedUI.logWarning(`⚠️ Executing dangerous command: ${commandWithoutPath}`)
+      advancedUI.logWarning(`⚠︎ Executing dangerous command: ${commandWithoutPath}`)
     }
 
     // Verifica pattern pericolosi
@@ -244,7 +244,7 @@ export class BashTool extends BaseTool {
         if (!allowDangerous) {
           throw new Error(`Dangerous pattern detected in command: ${pattern}. Use allowDangerous=true to override.`)
         }
-        advancedUI.logWarning(`⚠️ Dangerous pattern detected: ${pattern}`)
+        advancedUI.logWarning(`⚠︎ Dangerous pattern detected: ${pattern}`)
       }
     }
 

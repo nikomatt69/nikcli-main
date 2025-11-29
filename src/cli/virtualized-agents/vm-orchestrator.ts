@@ -181,7 +181,7 @@ export class VMOrchestrator extends EventEmitter {
 
         // Wait after package installation
         if (i === 0) {
-          advancedUI.logInfo('⏳ Waiting for packages to install...')
+          advancedUI.logInfo('⏳︎ Waiting for packages to install...')
           await new Promise((resolve) => setTimeout(resolve, 2000)) // Wait 2 seconds
           advancedUI.logSuccess('✓ Packages installed')
         }
@@ -503,7 +503,7 @@ export class VMOrchestrator extends EventEmitter {
       }
 
       if (!hasChanges) {
-        advancedUI.logWarning('⚠️ No changes detected, skipping PR creation')
+        advancedUI.logWarning('⚠︎ No changes detected, skipping PR creation')
         return 'No changes to create PR for'
       }
 
@@ -545,7 +545,7 @@ export class VMOrchestrator extends EventEmitter {
       // Get GitHub token from environment with enhanced validation
       const githubToken = process.env.GITHUB_TOKEN || process.env.GH_TOKEN
       if (!githubToken || !fetchFn) {
-        advancedUI.logWarning('⚠️ Missing GitHub token; generating manual PR URL')
+        advancedUI.logWarning('⚠︎ Missing GitHub token; generating manual PR URL')
         const manualUrl = this.generateManualPRUrl(owner, repoName, branchName, prConfig)
         advancedUI.logInfo(`📋 Manual PR URL: ${manualUrl}`)
         return manualUrl

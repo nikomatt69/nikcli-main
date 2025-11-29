@@ -128,7 +128,7 @@ export class EditTool extends BaseTool {
         await this.writeFileWithValidation(filePath, newContent, params)
         advancedUI.logSuccess(`✓ File edited successfully: ${editResult.replacementsMade} replacements made`)
       } else {
-        advancedUI.logWarning('⚠️ No replacements made - pattern not found')
+        advancedUI.logWarning('⚠︎ No replacements made - pattern not found')
       }
 
       return {
@@ -382,7 +382,7 @@ export class EditTool extends BaseTool {
     // Per file esistenti, ricostruisci applicando le modifiche
     const lines = originalContent.split('\n')
     const changeMap = new Map<number, string>()
-    
+
     for (const change of changes) {
       changeMap.set(change.lineNumber - 1, change.after) // lineNumber è 1-based, array è 0-based
     }

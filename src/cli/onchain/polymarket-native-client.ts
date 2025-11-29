@@ -307,7 +307,7 @@ export class PolymarketNativeClient extends EventEmitter {
       )
 
       this.isInitialized = true
-      console.log(`✅ Client initialized (${this.authenticator.getAddress()})`)
+      console.log(`✓ Client initialized (${this.authenticator.getAddress()})`)
     } catch (error) {
       throw new PolymarketError(
         'Client initialization failed',
@@ -348,7 +348,7 @@ export class PolymarketNativeClient extends EventEmitter {
 
       return await response.json()
     } catch (error) {
-      console.warn('⚠️ L2 credential derivation failed:', error)
+      console.warn('⚠︎ L2 credential derivation failed:', error)
       return null
     }
   }
@@ -420,11 +420,11 @@ export class PolymarketNativeClient extends EventEmitter {
       throw error instanceof PolymarketError
         ? error
         : new PolymarketError(
-            'Order book fetch error',
-            'ORDERBOOK_ERROR',
-            undefined,
-            error
-          )
+          'Order book fetch error',
+          'ORDERBOOK_ERROR',
+          undefined,
+          error
+        )
     }
   }
 

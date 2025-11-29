@@ -135,12 +135,12 @@ export class VisionProvider extends EventEmitter {
           }
 
           if (currentProvider !== provider) {
-            console.log(chalk.yellow(`⚠️ Used fallback provider: ${currentProvider.toUpperCase()}`))
+            console.log(chalk.yellow(`⚠︎ Used fallback provider: ${currentProvider.toUpperCase()}`))
           }
           break
         } catch (error: any) {
           lastError = error
-          console.log(chalk.yellow(`⚠️ ${currentProvider.toUpperCase()} failed: ${error.message}`))
+          console.log(chalk.yellow(`⚠︎ ${currentProvider.toUpperCase()} failed: ${error.message}`))
           if (currentProvider === providersToTry[providersToTry.length - 1]) {
             throw lastError || error
           }
@@ -421,7 +421,7 @@ Provide thorough, useful insights for understanding the image content and contex
         }
       } catch (error: any) {
         lastError = error instanceof Error ? error : new Error(String(error))
-        console.log(chalk.yellow(`⚠️ OpenRouter model ${selectedModel} failed: ${lastError.message}`))
+        console.log(chalk.yellow(`⚠︎ OpenRouter model ${selectedModel} failed: ${lastError.message}`))
         continue
       }
     }
@@ -678,7 +678,7 @@ Deliver detailed, structured insights for complete image understanding.`
       const cached = await redisProvider.get<VisionAnalysisResult>(cacheKey)
       return cached ? cached.value : null
     } catch (_error) {
-      console.log(chalk.yellow('⚠️ Cache read failed, proceeding with analysis'))
+      console.log(chalk.yellow('⚠︎ Cache read failed, proceeding with analysis'))
       return null
     }
   }
@@ -692,7 +692,7 @@ Deliver detailed, structured insights for complete image understanding.`
 
       await redisProvider.set(cacheKey, result, this.config.cache_ttl, { type: 'vision_analysis' })
     } catch (_error) {
-      console.log(chalk.yellow('⚠️ Failed to cache result'))
+      console.log(chalk.yellow('⚠︎ Failed to cache result'))
     }
   }
 

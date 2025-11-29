@@ -237,7 +237,7 @@ export class SecureCommandTool {
 
     commands.forEach((cmd, index) => {
       const analysis = analyses[index].analysis
-      const icon = analysis.safe ? '✓' : analysis.dangerous ? '🚫' : '⚠️'
+      const icon = analysis.safe ? '✓' : analysis.dangerous ? '🚫' : '⚠︎'
       const color = analysis.safe ? chalk.green : analysis.dangerous ? chalk.red : chalk.yellow
       console.log(color(`${icon} ${index + 1}. ${cmd}`))
 
@@ -259,7 +259,7 @@ export class SecureCommandTool {
 
     // Show warnings for risky commands
     if (riskyCommands.length > 0) {
-      console.log(chalk.yellow(`\n⚠️  ${riskyCommands.length} command(s) have security risks`))
+      console.log(chalk.yellow(`\n⚠︎  ${riskyCommands.length} command(s) have security risks`))
     }
 
     // Request one-time approval for the entire batch
@@ -336,7 +336,7 @@ export class SecureCommandTool {
     }
 
     if (session.status === 'executing') {
-      console.log(chalk.yellow(`⚠️  Batch session already executing: ${sessionId}`))
+      console.log(chalk.yellow(`⚠︎  Batch session already executing: ${sessionId}`))
       return
     }
 
@@ -390,7 +390,7 @@ export class SecureCommandTool {
       }
     })
 
-    console.log(chalk.blue('⏳ Batch execution started in background...'))
+    console.log(chalk.blue('⏳︎ Batch execution started in background...'))
   }
 
   /**
@@ -448,7 +448,7 @@ export class SecureCommandTool {
 
     // Show security analysis if there are risks
     if (analysis.risks.length > 0) {
-      console.log(chalk.yellow('\n⚠️  Security Analysis:'))
+      console.log(chalk.yellow('\n⚠︎  Security Analysis:'))
       analysis.risks.forEach((risk) => {
         console.log(chalk.yellow(`  • ${risk}`))
       })
@@ -463,7 +463,7 @@ export class SecureCommandTool {
 
     // Request user confirmation for non-safe commands
     if (!analysis.safe && !options.skipConfirmation) {
-      console.log(chalk.yellow(`\n⚠️  Command requires confirmation: ${command}`))
+      console.log(chalk.yellow(`\n⚠︎  Command requires confirmation: ${command}`))
 
       try {
         ; (global as any).__nikCLI?.suspendPrompt?.()
@@ -534,7 +534,7 @@ export class SecureCommandTool {
       }
 
       if (stderr) {
-        console.log(chalk.yellow('⚠️  Warnings:'))
+        console.log(chalk.yellow('⚠︎  Warnings:'))
         console.log(stderr)
       }
 

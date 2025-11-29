@@ -57,7 +57,7 @@ export class TaskExecutor {
     // Initialize Slack service if configured
     if (process.env.SLACK_BOT_TOKEN) {
       this.initializeSlackService().catch(err => {
-        console.error('⚠️ Failed to initialize Slack service in TaskExecutor:', err)
+        console.error('⚠︎ Failed to initialize Slack service in TaskExecutor:', err)
       })
     }
 
@@ -73,7 +73,7 @@ export class TaskExecutor {
         botToken: process.env.SLACK_BOT_TOKEN!,
         webhookUrl: process.env.SLACK_WEBHOOK_URL,
       })
-      console.log('✅ Slack service initialized in TaskExecutor')
+      console.log('✓ Slack service initialized in TaskExecutor')
     } catch (error) {
       console.error('✖ Error initializing Slack service:', error)
     }
@@ -89,13 +89,13 @@ export class TaskExecutor {
         typeof backgroundAgentService !== 'undefined' && typeof backgroundAgentService.createJob === 'function'
 
       if (!isAvailable) {
-        console.warn('⚠️  Background agent service not available - will fall back to local execution')
+        console.warn('⚠︎  Background agent service not available - will fall back to local execution')
       }
 
       return isAvailable
     } catch (error) {
       console.error('✖ Error detecting background agent service:', error)
-      console.warn('⚠️  Falling back to local execution mode')
+      console.warn('⚠︎  Falling back to local execution mode')
       return false
     }
   }
@@ -250,7 +250,7 @@ export class TaskExecutor {
    * Monitor background job until completion
    */
   private async monitorBackgroundJob(jobId: string): Promise<any> {
-    console.log(`⏳ Monitoring background job ${jobId}`)
+    console.log(`⏳︎ Monitoring background job ${jobId}`)
 
     return new Promise((resolve, reject) => {
       let checkInterval: NodeJS.Timeout | null = null
@@ -871,13 +871,13 @@ ${result.analysis ? `## Analysis\n${result.analysis}\n` : ''}
       await this.slackService.webClient.chat.postMessage({
         channel: process.env.SLACK_DEFAULT_CHANNEL,
         thread_ts: job.slackThreadTs,
-        text: `✅ Task completed successfully`,
+        text: `✓ Task completed successfully`,
         blocks: [
           {
             type: 'section',
             text: {
               type: 'mrkdwn',
-              text: `*✅ Task Completed*\n\`@nikcli ${commandText}\``,
+              text: `*✓ Task Completed*\n\`@nikcli ${commandText}\``,
             },
           },
           {
@@ -945,9 +945,9 @@ ${result.analysis ? `## Analysis\n${result.analysis}\n` : ''}
         ) as any,
       })
 
-      console.log(`✅ Notified Slack of task completion`)
+      console.log(`✓ Notified Slack of task completion`)
     } catch (error) {
-      console.error('⚠️ Failed to notify Slack of completion:', error)
+      console.error('⚠︎ Failed to notify Slack of completion:', error)
     }
   }
 
@@ -1007,9 +1007,9 @@ ${result.analysis ? `## Analysis\n${result.analysis}\n` : ''}
         ],
       })
 
-      console.log(`✅ Notified Slack of task failure`)
+      console.log(`✓ Notified Slack of task failure`)
     } catch (slackError) {
-      console.error('⚠️ Failed to notify Slack of failure:', slackError)
+      console.error('⚠︎ Failed to notify Slack of failure:', slackError)
     }
   }
 }

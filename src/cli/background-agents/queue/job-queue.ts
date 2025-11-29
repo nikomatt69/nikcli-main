@@ -222,7 +222,7 @@ export class JobQueue extends EventEmitter {
 
         // Test connection
         await this.upstashRedis.ping()
-        console.log('✅ Background agents: Upstash Redis connected successfully')
+        console.log('✓ Background agents: Upstash Redis connected successfully')
         this.config.type = 'redis' // Ensure queue type is set to redis
         this.emit('connected')
       } catch (error: any) {
@@ -232,11 +232,11 @@ export class JobQueue extends EventEmitter {
         // Don't fallback to local Redis - use local queue instead
         this.upstashRedis = undefined
         this.config.type = 'local'
-        console.warn('⚠️  Background agents: Falling back to local queue (no Redis)')
+        console.warn('⚠︎  Background agents: Falling back to local queue (no Redis)')
       }
     } else if (this.config.redis.host && this.config.redis.port) {
       // Standard Redis connection (fallback, not recommended for background agents)
-      console.warn('⚠️  Background agents: Using standard Redis (Upstash is preferred)')
+      console.warn('⚠︎  Background agents: Using standard Redis (Upstash is preferred)')
 
       this.redis = new IORedis({
         host: this.config.redis.host,
@@ -257,7 +257,7 @@ export class JobQueue extends EventEmitter {
       })
 
       this.redis.on('connect', () => {
-        console.log('✅ Background agents: Standard Redis connected successfully')
+        console.log('✓ Background agents: Standard Redis connected successfully')
         this.emit('connected')
       })
 
@@ -271,10 +271,10 @@ export class JobQueue extends EventEmitter {
         } catch { }
         this.redis = undefined
         this.config.type = 'local'
-        console.warn('⚠️  Background agents: Falling back to local queue')
+        console.warn('⚠︎  Background agents: Falling back to local queue')
       })
     } else {
-      console.warn('⚠️  Background agents: No valid Redis configuration found, using local queue')
+      console.warn('⚠︎  Background agents: No valid Redis configuration found, using local queue')
       this.config.type = 'local'
     }
 

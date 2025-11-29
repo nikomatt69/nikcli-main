@@ -124,7 +124,7 @@ Consider parallel execution where possible.`,
       if (task.dependencies) {
         const unmetDeps = task.dependencies.filter((dep: string) => !completedTasks.has(dep))
         if (unmetDeps.length > 0) {
-          console.log(chalk.yellow(`⏳ Waiting for dependencies: ${unmetDeps.join(', ')}`))
+          console.log(chalk.yellow(`⏳︎ Waiting for dependencies: ${unmetDeps.join(', ')}`))
           continue
         }
       }
@@ -312,7 +312,7 @@ Consider parallel execution where possible.`,
 
       console.log(chalk.blue(`🎯 AgentRouter integrated with ${availableAgents.length} agents`))
     } catch (_error) {
-      console.log(chalk.yellow('⚠️ AgentRouter integration failed, using fallback mode'))
+      console.log(chalk.yellow('⚠︎ AgentRouter integration failed, using fallback mode'))
     }
   }
 

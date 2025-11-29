@@ -371,7 +371,7 @@ Estimate realistic durations and assess risk levels accurately.`
     console.log(chalk.gray(`Tool calls: ${plan.toolCalls.length}`))
 
     if (plan.requiresApproval && !options.skipApproval) {
-      console.log(chalk.yellow.bold('\n⚠️ This plan requires your approval to proceed.'))
+      console.log(chalk.yellow.bold('\n⚠︎ This plan requires your approval to proceed.'))
       plan.toolCalls.forEach((toolCall, index) => {
         console.log(`  ${index + 1}. ${toolCall.name}: ${toolCall.reasoning || ''}`)
         console.log(`     Arguments: ${JSON.stringify(toolCall.arguments)}`)

@@ -151,7 +151,7 @@ export class DiffManager {
       }
     }
 
-    console.log(chalk.green(`✅ Applied ${applied} file changes`))
+    console.log(chalk.green(`✓ Applied ${applied} file changes`))
     return applied
   }
 
@@ -186,7 +186,7 @@ export class DiffManager {
       // Write new content
       fs.writeFileSync(filePath, diff.newContent, 'utf8')
 
-      console.log(chalk.green(`✅ Applied changes to ${filePath}`))
+      console.log(chalk.green(`✓ Applied changes to ${filePath}`))
       return true
     } catch (error: any) {
       console.log(chalk.red(`✖ Failed to apply changes to ${filePath}: ${error.message}`))

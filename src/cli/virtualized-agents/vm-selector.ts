@@ -126,7 +126,7 @@ export class VMSelector {
     const vms = await this.getAvailableVMs({ ...options, sortBy: 'activity' })
 
     if (vms.length === 0) {
-      console.log(chalk.yellow('⚠️ No VM containers available'))
+      console.log(chalk.yellow('⚠︎ No VM containers available'))
       console.log(chalk.gray('Use /vm-create <repo-url|os> to create one'))
       return null
     }
@@ -699,7 +699,7 @@ export class VMSelector {
             workingDir: sections[2]?.trim(),
           })
         } else {
-          console.log(chalk.yellow('⚠️ VM partially responsive'))
+          console.log(chalk.yellow('⚠︎ VM partially responsive'))
           healthResults.push({ vm: vm.name, status: 'partial', health: 'warning' })
         }
       } catch (error: any) {
@@ -717,7 +717,7 @@ export class VMSelector {
     const critical = healthResults.filter((r) => r.health === 'critical').length
 
     console.log(chalk.green(`✓ Healthy: ${healthy}`))
-    console.log(chalk.yellow(`⚠️ Warnings: ${warnings}`))
+    console.log(chalk.yellow(`⚠︎ Warnings: ${warnings}`))
     console.log(chalk.red(`✖ Critical: ${critical}`))
 
     if (critical > 0) {
@@ -831,7 +831,7 @@ export class VMSelector {
         }
 
         if (result.stderr) {
-          console.log(chalk.yellow('⚠️ Stderr:'))
+          console.log(chalk.yellow('⚠︎ Stderr:'))
           console.log(result.stderr)
         }
 

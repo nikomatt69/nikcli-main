@@ -105,7 +105,7 @@ export const memorySearchTool: CoreTool = tool({
             useSemanticOnly: false,
           })
         } catch (error) {
-          console.log(chalk.yellow('⚠️ Semantic search failed, using traditional search'))
+          console.log(chalk.yellow('⚠︎ Semantic search failed, using traditional search'))
           searchResults = await memoryService.searchMemories(query, searchOptions)
         }
       }

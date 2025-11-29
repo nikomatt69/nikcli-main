@@ -527,7 +527,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
       if (this.activeAgents.size >= 3) {
         this.queueMessage({
           type: 'system',
-          content: `⏳ Agent ${agentName} queued (${this.activeAgents.size}/3 active)`,
+          content: `⏳︎ Agent ${agentName} queued (${this.activeAgents.size}/3 active)`,
         })
       }
 
@@ -681,7 +681,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
 
         // If no streaming content, show placeholder
         if (!hasContent) {
-          advancedUI.logWarning('info', `⚠️ No streaming content received, showing placeholder`)
+          advancedUI.logWarning('info', `⚠︎ No streaming content received, showing placeholder`)
           this.queueMessage({
             type: 'vm',
             content: `🔌 VM Agent processed the request but no streaming response was generated.`,
@@ -874,7 +874,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
       message.status === 'completed'
         ? ''
         : message.status === 'processing'
-          ? ' ⏳'
+          ? ' ⏳︎'
           : message.status === 'absorbed'
             ? ' 📤'
             : ''
@@ -1124,7 +1124,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
         this.cleanupVMAgent()
       }
 
-      console.log(chalk.yellow('\\n⚠️ manual mode'))
+      console.log(chalk.yellow('\\n⚠︎ manual mode'))
     }
   }
 
@@ -1229,7 +1229,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
         this.inputQueueEnabled = false
         this.queueMessage({
           type: 'system',
-          content: '⚠️ Input queue disabled',
+          content: '⚠︎ Input queue disabled',
         })
         break
       case 'process':
@@ -1426,7 +1426,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
 
 
     if (this.activeAgents.size > 0) {
-      console.log(chalk.yellow(`⏳ Waiting for ${this.activeAgents.size} agents to finish...`))
+      console.log(chalk.yellow(`⏳︎ Waiting for ${this.activeAgents.size} agents to finish...`))
       // In production, you'd wait for agents to complete
     }
 

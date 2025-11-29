@@ -200,7 +200,7 @@ export class LoggingMiddleware extends BaseMiddleware {
     // Log slow operations
     if (duration > 5000 && this.shouldLogToConsole('warn')) {
       console.log(
-        `${chalk.yellow(`⚠️ [${request.id.slice(0, 8)}] SLOW OPERATION: `)}${request.operation} took ${duration}ms`
+        `${chalk.yellow(`⚠︎ [${request.id.slice(0, 8)}] SLOW OPERATION: `)}${request.operation} took ${duration}ms`
       )
     }
   }

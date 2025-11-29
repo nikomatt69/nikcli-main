@@ -437,7 +437,7 @@ export class AdvancedCliUI {
       `${chalk.bold('Execution Summary')}\\n\\n` +
       `${chalk.green('✓ Completed:')} ${completed}\\n` +
       `${chalk.red('✖ Failed:')} ${failed}\\n` +
-      `${chalk.yellow('⚠️ Warnings:')} ${warnings}\\n` +
+      `${chalk.yellow('⚠︎ Warnings:')} ${warnings}\\n` +
       `${chalk.blue('📊 Total:')} ${indicators.length}\\n\\n` +
       `${chalk.gray('Overall Status:')} ${this.getOverallStatusText()}`,
       {
@@ -736,7 +736,7 @@ export class AdvancedCliUI {
       case 'error':
         return '✖'
       case 'warning':
-        return '⚠️'
+        return '⚠︎'
       case 'info':
         return 'ℹ'
       case 'cognitive':
@@ -890,7 +890,7 @@ export class AdvancedCliUI {
   private getStatusIcon(status: string): string {
     switch (status) {
       case 'pending':
-        return '⏳︎'
+        return '⏳︎︎'
       case 'running':
         return '⚡︎'
       case 'completed':
@@ -1077,7 +1077,7 @@ export class AdvancedCliUI {
               ? '✖'
               : t.status === 'skipped'
                 ? '⏭️'
-                : '⏳'
+                : '⏳︎'
 
       // Priority indicators
       const priorityIcon =
@@ -1212,7 +1212,7 @@ export class AdvancedCliUI {
     }
 
     const statusIcon = (s: string) =>
-      s === 'completed' ? '✓' : s === 'in_progress' ? '⚡︎' : s === 'failed' ? '✖' : '⏳'
+      s === 'completed' ? '✓' : s === 'in_progress' ? '⚡︎' : s === 'failed' ? '✖' : '⏳︎'
 
     const fmt = (s: string) => {
       if (s === 'completed') return this.theme.success.strikethrough
@@ -1247,7 +1247,7 @@ export class AdvancedCliUI {
     lines.push(chalk.bold('Progress'))
     lines.push(pctBar)
     lines.push(
-      `${chalk.green(`✓ ${completed}`)}   ${chalk.blue(`⚡︎ ${inProgress}`)}   ${chalk.cyan(`⏳ ${pending}`)}   ${chalk.red(`🛑 ${failed}`)}   ${chalk.gray(`• Total ${total}`)}`
+      `${chalk.green(`✓ ${completed}`)}   ${chalk.blue(`⚡︎ ${inProgress}`)}   ${chalk.cyan(`⏳︎ ${pending}`)}   ${chalk.red(`🛑 ${failed}`)}   ${chalk.gray(`• Total ${total}`)}`
     )
     lines.push(chalk.gray('─'.repeat(60)))
 

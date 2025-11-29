@@ -317,7 +317,7 @@ export class GoatTool extends BaseTool {
       try {
         GoatProvider.validateEnvironment()
       } catch (envError: any) {
-        console.log(chalk.yellow(`⚠️ ${envError.message}`))
+        console.log(chalk.yellow(`⚠︎ ${envError.message}`))
         console.log(chalk.gray('Required environment variables:'))
         console.log(chalk.gray('- GOAT_EVM_PRIVATE_KEY (0x prefix + 64-char hex)'))
         console.log(chalk.gray('- POLYGON_RPC_URL (optional, defaults to public RPC)'))
@@ -361,7 +361,7 @@ export class GoatTool extends BaseTool {
       const chains = this.goatProvider.getSupportedChains()
       const plugins = this.goatProvider.getEnabledPlugins()
 
-      console.log(chalk.green('✅ GOAT SDK initialized successfully'))
+      console.log(chalk.green('✓ GOAT SDK initialized successfully'))
       console.log(chalk.cyan(`📍 Wallet: ${walletInfo.address}`))
       console.log(chalk.cyan(`⛓️ Chains: ${chains.map(c => c.name).join(', ')}`))
       console.log(chalk.cyan(`🔌 Plugins: ${plugins.join(', ')}`))

@@ -601,7 +601,7 @@ export class FeatureFlagManager extends EventEmitter {
     }
 
     if (issues.length > 0 && this.config.enableLogging) {
-      advancedUI.logWarning(`⚠️  Feature flag validation issues found:`)
+      advancedUI.logWarning(`⚠︎  Feature flag validation issues found:`)
       for (const issue of issues) {
         structuredLogger.warning(`  - ${issue}`, 'Feature flag validation issues')
       }

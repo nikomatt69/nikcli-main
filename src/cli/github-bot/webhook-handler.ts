@@ -32,13 +32,13 @@ export class GitHubWebhookHandler {
     // Initialize Slack if configured
     if (process.env.SLACK_BOT_TOKEN) {
       this.initializeSlackService().catch(err => {
-        console.error('⚠️ Failed to initialize Slack service:', err)
+        console.error('⚠︎ Failed to initialize Slack service:', err)
       })
     }
 
     // Initialize cache service if available
     this.initializeCacheService().catch(err => {
-      console.error('⚠️ Failed to initialize cache service:', err)
+      console.error('⚠︎ Failed to initialize cache service:', err)
     })
   }
 
@@ -51,7 +51,7 @@ export class GitHubWebhookHandler {
         botToken: process.env.SLACK_BOT_TOKEN!,
         webhookUrl: process.env.SLACK_WEBHOOK_URL,
       })
-      console.log('✅ Slack service initialized')
+      console.log('✓ Slack service initialized')
     } catch (error) {
       console.error('✖ Error initializing Slack service:', error)
     }
@@ -61,7 +61,7 @@ export class GitHubWebhookHandler {
     try {
       const { cacheService } = await import('../services/cache-service')
       this.cacheService = cacheService
-      console.log('✅ Cache service initialized')
+      console.log('✓ Cache service initialized')
     } catch (error) {
       console.error('✖ Error initializing cache service:', error)
     }
@@ -208,9 +208,9 @@ export class GitHubWebhookHandler {
             command: `${mention.command} ${mention.args.join(' ')}`.trim(),
           },
         )
-        console.log(`✅ Notified Slack about GitHub mention (thread: ${slackThreadTs})`)
+        console.log(`✓ Notified Slack about GitHub mention (thread: ${slackThreadTs})`)
       } catch (error) {
-        console.error('⚠️ Failed to notify Slack:', error)
+        console.error('⚠︎ Failed to notify Slack:', error)
       }
     }
 
@@ -462,7 +462,7 @@ export class GitHubWebhookHandler {
     const statusEmoji = {
       started: '⚡',
       running: '🔌',
-      completed: '✅',
+      completed: '✓',
       failed: '✖',
     }
 
@@ -695,7 +695,7 @@ ${result.files.map((f: string) => `- \`${f}\``).join('\n')}
         org,
         username,
       })
-      console.log(`✅ ${username} is member of ${org}`)
+      console.log(`✓ ${username} is member of ${org}`)
       return true
     } catch (error) {
       console.warn(`✖ ${username} is not member of ${org}`)
@@ -723,10 +723,10 @@ ${result.files.map((f: string) => `- \`${f}\``).join('\n')}
         return false
       }
 
-      console.log(`✅ Rate limit OK for ${username}: ${count}/${limit}`)
+      console.log(`✓ Rate limit OK for ${username}: ${count}/${limit}`)
       return true
     } catch (error) {
-      console.error('⚠️ Rate limit check failed:', error)
+      console.error('⚠︎ Rate limit check failed:', error)
       return true // Fail open
     }
   }
@@ -772,7 +772,7 @@ If you believe this is an error, please contact your administrator.`,
         owner,
         repo: repoName,
         issue_number: issueNumber,
-        body: `⚠️ **Rate Limit Exceeded**
+        body: `⚠︎ **Rate Limit Exceeded**
 
 You have exceeded the rate limit of ${limit} requests per hour.
 

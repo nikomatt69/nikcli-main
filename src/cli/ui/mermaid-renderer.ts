@@ -77,7 +77,7 @@ export class MermaidRenderer {
       return result
     } catch (error) {
       // Fallback on error
-      console.error(chalk.yellow('⚠️ Mermaid rendering failed, using fallback:'), error)
+      console.error(chalk.yellow('⚠︎ Mermaid rendering failed, using fallback:'), error)
       return MermaidRenderer.renderFallback(mermaidCode, options)
     }
   }

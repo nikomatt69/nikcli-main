@@ -182,7 +182,7 @@ export class IDEDiagnosticIntegration {
 
       let summary = 'No issues found'
       if (errors > 0 || warnings > 0) {
-        const parts = []
+        const parts: string[] = []
         if (errors > 0) parts.push(`${errors} error${errors !== 1 ? 's' : ''}`)
         if (warnings > 0) parts.push(`${warnings} warning${warnings !== 1 ? 's' : ''}`)
         summary = parts.join(', ')
@@ -226,7 +226,7 @@ export class IDEDiagnosticIntegration {
       }
 
       // Generate summary
-      const parts = []
+      const parts: string[] = []
       if (context.errors > 0) parts.push(`${context.errors} errors`)
       if (context.warnings > 0) parts.push(`${context.warnings} warnings`)
       if (context.buildStatus === 'failed') parts.push('build failing')
@@ -297,7 +297,7 @@ export class IDEDiagnosticIntegration {
    */
   subscribeToDiagnosticEvents(_callback: (event: any) => void): () => void {
     if (!this.isActive) {
-      return () => {}
+      return () => { }
     }
 
     try {
@@ -325,7 +325,7 @@ export class IDEDiagnosticIntegration {
       }
     } catch (error) {
       console.warn(chalk.yellow('Warning: Could not subscribe to diagnostic events:', error))
-      return () => {}
+      return () => { }
     }
   }
 
@@ -399,7 +399,7 @@ export class IDEDiagnosticIntegration {
 
   private setupWorkflowIntegration(): void {
     // The integration is now available for use by workflow systems
-    console.log(chalk.blue('🔧 IDE Diagnostic Integration initialized'))
+
   }
 
   private getEmptyContext(): WorkflowDiagnosticContext {

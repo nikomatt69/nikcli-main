@@ -162,7 +162,7 @@ export class EnhancedTokenCacheManager {
         return cachedEntry
       }
     } catch (error: any) {
-      console.log(chalk.yellow(`⚠️ Cache lookup failed: ${error.message}`))
+      console.log(chalk.yellow(`⚠︎ Cache lookup failed: ${error.message}`))
     }
 
     // Check memory cache for similar entries
@@ -300,7 +300,7 @@ export class EnhancedTokenCacheManager {
       // Fallback to preview if full response not available
       return entry.responsePreview || null
     } catch (error: any) {
-      console.log(chalk.yellow(`⚠️ Cache retrieval failed: ${error.message}`))
+      console.log(chalk.yellow(`⚠︎ Cache retrieval failed: ${error.message}`))
       return null
     }
   }

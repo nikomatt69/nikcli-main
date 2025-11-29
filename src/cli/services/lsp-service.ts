@@ -215,7 +215,7 @@ export class LSPService {
           server.process.kill()
           console.log(chalk.green(`✓ Stopped ${server.name}`))
         } catch (error: any) {
-          console.log(chalk.yellow(`⚠️ Failed to stop ${server.name}: ${error.message}`))
+          console.log(chalk.yellow(`⚠︎ Failed to stop ${server.name}: ${error.message}`))
         } finally {
           server.process = undefined
           server.status = 'stopped'

@@ -833,7 +833,7 @@ export class ToolRouter extends EventEmitter {
   // Log tool recommendations for debugging
   logRecommendations(message: string, recommendations: ToolRecommendation[]): void {
     if (!process.env.NIKCLI_CLEAN_CHAT && !process.env.NIKCLI_MINIMAL_STREAM) {
-      console.log(chalk.blue(`Processing message: "${message.substring(0, 50)}..."\n`))
+
     }
 
     if (recommendations.length === 0) {
@@ -906,13 +906,13 @@ export class ToolRouter extends EventEmitter {
               enhancedCandidates: mlEnhancedTools.length
             })
           } else {
-            (structuredLogger as any).debug('ML Tool Routing', '⚠️ ML Confidence Below Threshold', {
+            (structuredLogger as any).debug('ML Tool Routing', '⚠︎ ML Confidence Below Threshold', {
               mlConfidence: mlPrediction.confidence,
               threshold: 0.75
             })
           }
         } catch (error: any) {
-          (structuredLogger as any).warn('ML Tool Routing', `⚠️ ML prediction failed: ${error.message}`)
+          (structuredLogger as any).warn('ML Tool Routing', `⚠︎ ML prediction failed: ${error.message}`)
           // Silent ML failure - use rule-based routing
         }
       }
@@ -1403,7 +1403,7 @@ export class ToolRouter extends EventEmitter {
       const passes = tool.rawScore >= threshold
 
       if (!passes) {
-        console.log(chalk.yellow(`⚠️ Security filter blocked: ${tool.tool} (${tool.securityLevel})`))
+        console.log(chalk.yellow(`⚠︎ Security filter blocked: ${tool.tool} (${tool.securityLevel})`))
       }
 
       return passes
@@ -1501,7 +1501,7 @@ export class ToolRouter extends EventEmitter {
 
         validated.push(validatedTool)
       } catch (_error) {
-        console.log(chalk.yellow(`⚠️ Tool validation failed: ${tool.tool}`))
+        console.log(chalk.yellow(`⚠︎ Tool validation failed: ${tool.tool}`))
       }
     }
 
@@ -1666,7 +1666,7 @@ export class ToolRouter extends EventEmitter {
       if (validation.isValid) {
         validatedTools.push(resolved)
       } else {
-        console.log(chalk.yellow(`⚠️ Tool ${resolved} validation failed:`, validation.errors))
+        console.log(chalk.yellow(`⚠︎ Tool ${resolved} validation failed:`, validation.errors))
       }
     }
 

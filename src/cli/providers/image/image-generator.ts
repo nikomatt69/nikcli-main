@@ -119,7 +119,7 @@ export class ImageGenerator extends EventEmitter {
     try {
       const modelForLog = effectiveInitialModel.toUpperCase()
       if (initialModel !== model) {
-        console.log(chalk.yellow(`⚠️ Remapping model ${model} to ${effectiveInitialModel} for provider ${resolvedProvider}`))
+        console.log(chalk.yellow(`⚠︎ Remapping model ${model} to ${effectiveInitialModel} for provider ${resolvedProvider}`))
       }
       console.log(chalk.blue(`🎨 Generating image with ${modelForLog}...`))
       console.log(chalk.gray(`Prompt: "${options.prompt}"`))
@@ -163,7 +163,7 @@ export class ImageGenerator extends EventEmitter {
               } else if (this.providerHasApiKey('openai')) {
                 console.log(
                   chalk.yellow(
-                    '⚠️ OpenRouter key missing, falling back to GPT-Image-1 with OpenAI key for image generation'
+                    '⚠︎ OpenRouter key missing, falling back to GPT-Image-1 with OpenAI key for image generation'
                   )
                 )
                 result = await this.generateWithGPTImage1(options)
@@ -177,7 +177,7 @@ export class ImageGenerator extends EventEmitter {
               } else if (this.providerHasApiKey('openai')) {
                 console.log(
                   chalk.yellow(
-                    '⚠️ OpenRouter key missing, falling back to GPT-Image-1 with OpenAI key for image generation'
+                    '⚠︎ OpenRouter key missing, falling back to GPT-Image-1 with OpenAI key for image generation'
                   )
                 )
                 result = await this.generateWithGPTImage1(options)
@@ -191,7 +191,7 @@ export class ImageGenerator extends EventEmitter {
               } else {
                 console.log(
                   chalk.yellow(
-                    '⚠️ OpenRouter key missing, falling back to GPT-Image-1 with OpenAI key for image generation'
+                    '⚠︎ OpenRouter key missing, falling back to GPT-Image-1 with OpenAI key for image generation'
                   )
                 )
                 result = await this.generateWithGPTImage1(options)
@@ -203,7 +203,7 @@ export class ImageGenerator extends EventEmitter {
               } else {
                 console.log(
                   chalk.yellow(
-                    '⚠️ OpenRouter key missing, falling back to GPT-Image-1 with OpenAI key for image generation'
+                    '⚠︎ OpenRouter key missing, falling back to GPT-Image-1 with OpenAI key for image generation'
                   )
                 )
                 result = await this.generateWithGPTImage1(options)
@@ -218,7 +218,7 @@ export class ImageGenerator extends EventEmitter {
           }
 
           if (currentProvider !== (options.provider || this.config.default_provider)) {
-            console.log(chalk.yellow(`⚠️ Used fallback provider: ${currentProvider.toUpperCase()}`))
+            console.log(chalk.yellow(`⚠︎ Used fallback provider: ${currentProvider.toUpperCase()}`))
           }
           usedProvider = currentProvider
           break
@@ -227,7 +227,7 @@ export class ImageGenerator extends EventEmitter {
           // If OpenRouter fails with known unsupported/credit errors, try OpenAI direct if available
           if (currentProvider === 'openrouter' && this.providerHasApiKey('openai')) {
             if (message.includes('status 405') || message.includes('status 402')) {
-              console.log(chalk.yellow('⚠️ OpenRouter failed; falling back to OpenAI gpt-image-1'))
+              console.log(chalk.yellow('⚠︎ OpenRouter failed; falling back to OpenAI gpt-image-1'))
               try {
                 result = await this.generateWithGPTImage1(options)
                 usedProvider = 'openai'
@@ -238,7 +238,7 @@ export class ImageGenerator extends EventEmitter {
             }
           }
           lastError = error
-          console.log(chalk.yellow(`⚠️ ${currentProvider.toUpperCase()} failed: ${message}`))
+          console.log(chalk.yellow(`⚠︎ ${currentProvider.toUpperCase()} failed: ${message}`))
           if (currentProvider === providersToTry[providersToTry.length - 1]) {
             throw lastError || error
           }
@@ -779,7 +779,7 @@ export class ImageGenerator extends EventEmitter {
       console.log(chalk.gray(` Image saved to: ${outputPath}`))
       return outputPath
     } catch (error: any) {
-      console.log(chalk.yellow(`⚠️ Failed to save image locally: ${error.message}`))
+      console.log(chalk.yellow(`⚠︎ Failed to save image locally: ${error.message}`))
       throw error
     }
   }
@@ -878,7 +878,7 @@ export class ImageGenerator extends EventEmitter {
       const cached = await redisProvider.get<ImageGenerationResult>(cacheKey)
       return cached ? cached.value : null
     } catch (_error) {
-      console.log(chalk.yellow('⚠️ Cache read failed, proceeding with generation'))
+      console.log(chalk.yellow('⚠︎ Cache read failed, proceeding with generation'))
       return null
     }
   }
@@ -898,7 +898,7 @@ export class ImageGenerator extends EventEmitter {
 
       await redisProvider.set(cacheKey, cacheableResult, this.config.cache_ttl, { type: 'image_generation' })
     } catch (_error) {
-      console.log(chalk.yellow('⚠️ Failed to cache result'))
+      console.log(chalk.yellow('⚠︎ Failed to cache result'))
     }
   }
 
@@ -1000,7 +1000,7 @@ export class ImageGenerator extends EventEmitter {
       if (requestedModel && !this.isOpenRouterSupportedModel(requestedModel)) {
         console.log(
           chalk.yellow(
-            `⚠️ Model ${requestedModel} is not supported on OpenRouter image endpoint; using openai/gpt-5-image instead`
+            `⚠︎ Model ${requestedModel} is not supported on OpenRouter image endpoint; using openai/gpt-5-image instead`
           )
         )
         return 'openai/gpt-5-image'

@@ -97,13 +97,13 @@ class EnvironmentValidator {
     }
 
     if (this.warnings.length > 0) {
-      console.warn('⚠️  Environment warnings:')
+      console.warn('⚠︎  Environment warnings:')
       for (const warning of this.warnings) {
         console.warn(`  - ${warning}`)
       }
     }
 
-    console.log('✅ Environment validation passed')
+    console.log('✓ Environment validation passed')
     return config
   }
 

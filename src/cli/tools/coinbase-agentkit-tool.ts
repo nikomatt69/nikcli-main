@@ -156,7 +156,7 @@ export class CoinbaseAgentKitTool extends BaseTool {
       try {
         CoinbaseAgentKitProvider.validateEnvironment()
       } catch (envError: any) {
-        console.log(chalk.yellow(`⚠️ ${envError.message}`))
+        console.log(chalk.yellow(`⚠︎ ${envError.message}`))
         console.log(chalk.gray('Required environment variables:'))
         console.log(chalk.gray('- CDP_API_KEY_ID'))
         console.log(chalk.gray('- CDP_API_KEY_SECRET'))

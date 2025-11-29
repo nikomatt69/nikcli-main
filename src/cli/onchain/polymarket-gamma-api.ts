@@ -117,7 +117,7 @@ export class PolymarketGammaAPI extends EventEmitter {
       // Verify API connectivity
       const isHealthy = await this.healthCheck()
       if (!isHealthy) {
-        console.warn('⚠️ Gamma API health check failed, continuing anyway')
+        console.warn('⚠︎ Gamma API health check failed, continuing anyway')
       }
 
       this.isInitialized = true

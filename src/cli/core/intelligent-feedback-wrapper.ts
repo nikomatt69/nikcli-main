@@ -499,7 +499,7 @@ export class IntelligentFeedbackWrapper {
       if (executionTime > avgTime * 2) {
         console.log(
           chalk.yellow(
-            `⚠️ ${toolName} performance degradation detected (${executionTime}ms vs ${avgTime.toFixed(0)}ms avg)`
+            `⚠︎ ${toolName} performance degradation detected (${executionTime}ms vs ${avgTime.toFixed(0)}ms avg)`
           )
         )
       }

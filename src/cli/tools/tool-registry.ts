@@ -240,7 +240,7 @@ export class ToolRegistry {
     advancedUI.logInfo('Available Tools')
     Array.from(this.toolMetadata.entries()).forEach(([name, metadata]) => {
       const riskIcon = metadata.riskLevel === 'high' ? '🔴' : metadata.riskLevel === 'medium' ? '🟡' : '🟢'
-      const reversibleIcon = metadata.reversible ? '↩️' : '⚠️'
+      const reversibleIcon = metadata.reversible ? '↩️' : '⚠︎'
 
       console.log(`  ${riskIcon} ${reversibleIcon} ${CliUI.bold(name)}`)
       console.log(`    ${CliUI.dim(metadata.description)}`)

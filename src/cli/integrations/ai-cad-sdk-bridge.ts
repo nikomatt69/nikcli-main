@@ -77,7 +77,7 @@ export class AICadSdkBridge {
       }
     }
 
-    console.log(chalk.yellow('⚠️ ai-cad-sdk not available (set NIKCLI_AI_CAD_SDK_PATH or install package)'))
+    console.log(chalk.yellow('⚠︎ ai-cad-sdk not available (set NIKCLI_AI_CAD_SDK_PATH or install package)'))
     this.available = false
     return false
   }

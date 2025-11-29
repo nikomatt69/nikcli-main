@@ -33,9 +33,9 @@ export class StreamttyAdapter {
   private sanitizeMonospaceEmojis(text: string): string {
     let out = text.replace(/[\u200D\uFE0F]/g, '')
     const repl: Array<[RegExp, string]> = [
-      [/✅|✔️|✔|✓/g, '✓'],
+      [/✓|✔️|✔|✓/g, '✓'],
       [/✖|✖️|✖|✕/g, '×'],
-      [/⚠️|⚠/g, '!'],
+      [/⚠︎|⚠/g, '!'],
       [/🔴|🟥|⛔️|⛔/g, '●'],
       [/🟠|🟧/g, '●'],
       [/🟡|🟨/g, '●'],
@@ -46,7 +46,7 @@ export class StreamttyAdapter {
       [/⚫️|⚫/g, '●'],
       [/⚪️|⚪/g, '○'],
       // Hourglass and timer emojis → single-width ellipsis
-      [/⏳|⌛|⏱️|⏱|⏲️|⏲|⏰|⌚/g, '…'],
+      [/⏳︎|⌛|⏱️|⏱|⏲️|⏲|⏰|⌚/g, '…'],
     ]
     for (const [re, r] of repl) out = out.replace(re, r)
     // Fallback for any remaining emoji ranges (include 2300–23FF for hourglass/timers)
@@ -400,9 +400,9 @@ async function processTablesWithRoundedCorners(content: string): Promise<string>
     const sanitize = (text: string): string => {
       let out = text.replace(/[\u200D\uFE0F]/g, '')
       const repl: Array<[RegExp, string]> = [
-        [/✅|✔️|✔|✓/g, '✓'],
+        [/✓|✔️|✔|✓/g, '✓'],
         [/✖|✖️|✖|✕/g, '×'],
-        [/⚠️|⚠/g, '!'],
+        [/⚠︎|⚠/g, '!'],
         [/🔴|🟥|⛔️|⛔/g, '●'],
         [/🟠|🟧/g, '●'],
         [/🟡|🟨/g, '●'],

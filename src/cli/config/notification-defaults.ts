@@ -327,7 +327,7 @@ ${data.planTitle ? `**Plan:** ${data.planTitle}\n` : ''}
               inline: false,
             },
             {
-              name: '⚠️ Error',
+              name: '⚠︎ Error',
               value: truncate(data.error, 1024),
               inline: false,
             },
@@ -442,7 +442,7 @@ ${data.agents && data.agents.length ? `**Agents:** ${data.agents.join(', ')}\n` 
             },
             {
               type: 'mrkdwn',
-              text: `*Completed:*\n✅ ${data.completedTasks}`,
+              text: `*Completed:*\n✓ ${data.completedTasks}`,
             },
             {
               type: 'mrkdwn',
@@ -481,7 +481,7 @@ ${data.agents && data.agents.length ? `**Agents:** ${data.agents.join(', ')}\n` 
               inline: false,
             },
             {
-              name: '✅ Completed',
+              name: '✓ Completed',
               value: `${data.completedTasks}/${data.totalTasks}`,
               inline: true,
             },
@@ -513,7 +513,7 @@ ${data.agents && data.agents.length ? `**Agents:** ${data.agents.join(', ')}\n` 
 
 **Plan:** ${data.planTitle}
 **Total Tasks:** ${data.totalTasks}
-**Completed:** ✅ ${data.completedTasks}
+**Completed:** ✓ ${data.completedTasks}
 **Failed:** ✖ ${data.failedTasks}
 **Total Duration:** ${formatDuration(data.totalDuration)}
 

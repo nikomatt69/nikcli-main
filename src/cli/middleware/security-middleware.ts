@@ -295,7 +295,7 @@ export class SecurityMiddleware extends BaseMiddleware {
     request: MiddlewareRequest,
     securityCheck: { riskLevel: string; reason: string }
   ): Promise<boolean> {
-    console.log(chalk.yellow.bold('\\n⚠️  Security Approval Required'))
+    console.log(chalk.yellow.bold('\\n⚠︎  Security Approval Required'))
     console.log(chalk.gray('─'.repeat(50)))
     console.log(`${chalk.blue('Operation:')} ${request.operation}`)
     console.log(`${chalk.blue('Risk Level:')} ${this.formatRiskLevel(securityCheck.riskLevel)}`)

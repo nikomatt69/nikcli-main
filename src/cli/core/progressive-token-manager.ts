@@ -107,7 +107,7 @@ export class ProgressiveTokenManager {
       return content
     }
 
-    console.warn(chalk.yellow(`⚠️  EMERGENCY TRUNCATION: ${estimatedTokens} tokens > ${maxTokens} limit`))
+    console.warn(chalk.yellow(`⚠︎  EMERGENCY TRUNCATION: ${estimatedTokens} tokens > ${maxTokens} limit`))
 
     // Aggressive truncation - keep first 30% and last 10%
     const lines = content.split('\n')
@@ -294,7 +294,7 @@ export class ProgressiveTokenManager {
           console.log(chalk.yellow(`⚡︎ Attempting recovery for chunk ${chunk.id}...`))
           // Implement recovery logic here
         } else {
-          console.log(chalk.red(`⚠️ Skipping failed chunk ${chunk.id}`))
+          console.log(chalk.red(`⚠︎ Skipping failed chunk ${chunk.id}`))
         }
       }
 

@@ -327,7 +327,7 @@ export class AgentService extends EventEmitter {
     try {
       // Se il bypass è abilitato, non eseguire agenti
       if (inputQueue.isBypassEnabled()) {
-        console.log(chalk.yellow('⚠️ Agent execution blocked during approval process'))
+        console.log(chalk.yellow('⚠︎ Agent execution blocked during approval process'))
         throw new Error('Agent execution blocked during approval process')
       }
 
@@ -347,14 +347,14 @@ export class AgentService extends EventEmitter {
         const fallbackType = this.suggestAgentTypeForTask(task)
         const fallback = this.agents.get(fallbackType)
         if (fallback) {
-          console.log(chalk.yellow(`⚠️ Agent '${resolvedAgentType}' not found. Falling back to '${fallbackType}'.`))
+          console.log(chalk.yellow(`⚠︎ Agent '${resolvedAgentType}' not found. Falling back to '${fallbackType}'.`))
           resolvedAgentType = fallbackType
           agent = fallback
         } else {
           // As a last resort, pick the first available agent
           const anyAgent = this.getAvailableAgents()[0]
           if (anyAgent) {
-            console.log(chalk.yellow(`⚠️ Agent '${resolvedAgentType}' not found. Using '${anyAgent.name}'.`))
+            console.log(chalk.yellow(`⚠︎ Agent '${resolvedAgentType}' not found. Using '${anyAgent.name}'.`))
             resolvedAgentType = anyAgent.name
             agent = this.agents.get(anyAgent.name)!
           } else {
@@ -384,7 +384,7 @@ export class AgentService extends EventEmitter {
         })
       } else {
         this.taskQueue.push(agentTask)
-        console.log(chalk.yellow(`⏳ Task queued (${this.taskQueue.length} in queue)`))
+        console.log(chalk.yellow(`⏳︎ Task queued (${this.taskQueue.length} in queue)`))
       }
 
       // Return taskId immediately; callers can poll getTaskStatus or listen to events
@@ -453,7 +453,7 @@ export class AgentService extends EventEmitter {
               throw new Error('Cancelled by user')
             }
             if (!update || typeof update !== 'object') {
-              console.warn(chalk.yellow('⚠️ Invalid update received from agent'))
+              console.warn(chalk.yellow('⚠︎ Invalid update received from agent'))
               continue
             }
 
@@ -554,13 +554,13 @@ export class AgentService extends EventEmitter {
   cancelTask(taskId: string): boolean {
     try {
       if (!taskId) {
-        console.warn(chalk.yellow('⚠️ Cannot cancel task: missing taskId'))
+        console.warn(chalk.yellow('⚠︎ Cannot cancel task: missing taskId'))
         return false
       }
 
       const task = this.activeTasks.get(taskId)
       if (!task) {
-        console.warn(chalk.yellow(`⚠️ Task ${taskId} not found`))
+        console.warn(chalk.yellow(`⚠︎ Task ${taskId} not found`))
         return false
       }
 
@@ -593,7 +593,7 @@ export class AgentService extends EventEmitter {
       }
 
       // Fallback: task not cancellable state
-      console.warn(chalk.yellow(`⚠️ Cannot cancel task ${taskId} in state ${task.status}`))
+      console.warn(chalk.yellow(`⚠︎ Cannot cancel task ${taskId} in state ${task.status}`))
       return false
     } catch (error: any) {
       console.error(chalk.red(`✖ Error cancelling task: ${error.message}`))
@@ -1526,7 +1526,7 @@ export class AgentService extends EventEmitter {
           yield { type: 'progress', progress: stepProgress }
         } catch (stepError: any) {
           errors.push({ step: step.title, error: stepError.message })
-          console.log(chalk.yellow(`⚠️ Step failed: ${step.title} - ${stepError.message}`))
+          console.log(chalk.yellow(`⚠︎ Step failed: ${step.title} - ${stepError.message}`))
         }
       }
 
@@ -1694,7 +1694,7 @@ export class AgentService extends EventEmitter {
       // Generate markdown file in root directory
       await this.generateResultsMarkdown(agentTask, resultData)
     } catch (error: any) {
-      console.log(chalk.yellow(`⚠️ Failed to format factory agent results: ${error.message}`))
+      console.log(chalk.yellow(`⚠︎ Failed to format factory agent results: ${error.message}`))
     }
   }
 

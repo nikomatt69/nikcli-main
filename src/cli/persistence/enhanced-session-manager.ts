@@ -152,7 +152,7 @@ export class EnhancedSessionManager extends EventEmitter {
       try {
         execSync('which tmux', { stdio: 'ignore' })
       } catch {
-        console.log(chalk.yellow('⚠️ tmux not available - session persistence limited'))
+        console.log(chalk.yellow('⚠︎ tmux not available - session persistence limited'))
         return null
       }
 
@@ -162,7 +162,7 @@ export class EnhancedSessionManager extends EventEmitter {
 
       return tmuxSessionId
     } catch (error: any) {
-      console.log(chalk.yellow(`⚠️ Failed to create tmux session: ${error.message}`))
+      console.log(chalk.yellow(`⚠︎ Failed to create tmux session: ${error.message}`))
       return null
     }
   }
@@ -227,7 +227,7 @@ export class EnhancedSessionManager extends EventEmitter {
           break
       }
     } catch (error: any) {
-      console.log(chalk.yellow(`⚠️ Failed to handle remote session change: ${error.message}`))
+      console.log(chalk.yellow(`⚠︎ Failed to handle remote session change: ${error.message}`))
     }
   }
 
@@ -294,7 +294,7 @@ export class EnhancedSessionManager extends EventEmitter {
             return this.convertSupabaseToLocal(supabaseSession)
           }
         } catch (error: any) {
-          console.log(chalk.yellow(`⚠️ Cloud session load failed, trying local: ${error.message}`))
+          console.log(chalk.yellow(`⚠︎ Cloud session load failed, trying local: ${error.message}`))
         }
       }
 
@@ -370,7 +370,7 @@ export class EnhancedSessionManager extends EventEmitter {
             await this.saveSessionLocally(session)
           }
         } catch (error: any) {
-          console.log(chalk.yellow(`⚠️ Cloud sync failed: ${error.message}`))
+          console.log(chalk.yellow(`⚠︎ Cloud sync failed: ${error.message}`))
           session.syncStatus = 'conflict'
           result = {
             success: false,
@@ -450,13 +450,13 @@ export class EnhancedSessionManager extends EventEmitter {
                 sessions.set(session.id, session)
               }
             } catch (_error) {
-              console.log(chalk.yellow(`⚠️ Failed to parse session file ${file}`))
+              console.log(chalk.yellow(`⚠︎ Failed to parse session file ${file}`))
             }
           }
         }
       } catch (e: any) {
         if (e.code !== 'ENOENT') {
-          console.log(chalk.yellow(`⚠️ Failed to read local sessions: ${e.message}`))
+          console.log(chalk.yellow(`⚠︎ Failed to read local sessions: ${e.message}`))
         }
       }
 
@@ -489,7 +489,7 @@ export class EnhancedSessionManager extends EventEmitter {
             }
           }
         } catch (error: any) {
-          console.log(chalk.yellow(`⚠️ Failed to fetch cloud sessions: ${error.message}`))
+          console.log(chalk.yellow(`⚠︎ Failed to fetch cloud sessions: ${error.message}`))
         }
       }
 
@@ -548,7 +548,7 @@ export class EnhancedSessionManager extends EventEmitter {
         try {
           await this.supabase.deleteSession(id)
         } catch (error: any) {
-          console.log(chalk.yellow(`⚠️ Cloud deletion failed: ${error.message}`))
+          console.log(chalk.yellow(`⚠︎ Cloud deletion failed: ${error.message}`))
           success = false
         }
       }
@@ -558,7 +558,7 @@ export class EnhancedSessionManager extends EventEmitter {
         await fs.unlink(this.getSessionPath(id))
       } catch (e: any) {
         if (e.code !== 'ENOENT') {
-          console.log(chalk.yellow(`⚠️ Local deletion failed: ${e.message}`))
+          console.log(chalk.yellow(`⚠︎ Local deletion failed: ${e.message}`))
           success = false
         }
       }

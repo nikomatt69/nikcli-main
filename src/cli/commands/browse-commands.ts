@@ -30,7 +30,7 @@ export function createBrowseCommands(): Command {
         advancedUI.stopSpinner(spinnerId, true, 'Session created')
 
         console.log(boxen(
-          chalk.green('✅ Browsing Session Created') + '\n\n' +
+          chalk.green('✓ Browsing Session Created') + '\n\n' +
           chalk.white(`Session ID: ${chalk.cyan(sessionId)}\n`) +
           chalk.gray('Use this session ID for all browse commands'),
           {
@@ -256,7 +256,7 @@ export function createBrowseCommands(): Command {
         advancedUI.stopSpinner(spinnerId, true, 'Session closed')
 
         console.log(boxen(
-          chalk.green(`✅ Session Closed`) + '\n\n' +
+          chalk.green(`✓ Session Closed`) + '\n\n' +
           chalk.white(`Session ${chalk.cyan(sessionId)} has been closed`),
           {
             padding: 1,

@@ -159,7 +159,7 @@ async function requestBatchApproval(action: string, filePath: string, content?: 
  * Generate batch approval message
  */
 function getBatchMessage(action: string, fileCount: number, operations: any[]): string {
-  const actionText = action === 'overwrite' ? '⚠️ Overwrite' : action === 'create' ? '📝 Create' : '⚡︎ Replace in'
+  const actionText = action === 'overwrite' ? '⚠︎ Overwrite' : action === 'create' ? '📝 Create' : '⚡︎ Replace in'
   const filesText = fileCount === 1 ? 'file' : 'files'
 
   let message = `${actionText} ${fileCount} ${filesText}?`
@@ -433,7 +433,7 @@ export class ReplaceInFileTool {
       }
 
       if (totalReplacements === 0) {
-        advancedUI.logFunctionUpdate('warning', `⚠️  No replacements made in: ${filePath}`)
+        advancedUI.logFunctionUpdate('warning', `⚠︎  No replacements made in: ${filePath}`)
         return { replacements: 0 }
       }
 

@@ -11,7 +11,7 @@ export abstract class BaseAlertChannel {
   constructor(
     public readonly name: string,
     protected readonly minSeverity: AlertSeverity
-  ) {}
+  ) { }
 
   shouldSend(alert: Alert): boolean {
     return SEVERITY_PRIORITY[alert.severity] >= SEVERITY_PRIORITY[this.minSeverity];
@@ -39,9 +39,9 @@ export abstract class BaseAlertChannel {
   protected getSeverityEmoji(severity: AlertSeverity): string {
     switch (severity) {
       case 'low':
-        return '✅';
+        return '✓';
       case 'medium':
-        return '⚠️';
+        return '⚠︎';
       case 'high':
         return '🔴';
       case 'critical':

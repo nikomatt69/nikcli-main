@@ -363,7 +363,7 @@ export class DashboardUI {
 
  ┌─ TOOLS ANALYTICS ─────────────────────────────────────────────────────────┐
  │                                                                           │
- │ ✅ Success Rate: ${metrics.tools.successRate}%                                               │
+ │ ✓ Success Rate: ${metrics.tools.successRate}%                                               │
  │                                                                           │
  │ 🔧 Most Used Tools:                                                       │
 ${metrics.tools.mostUsed.map(tool => ` │  • ${tool.name.padEnd(25)} ${ASCIIChart.createProgressBar(tool.count, Math.max(...metrics.tools.mostUsed.map(t => t.count)), 20, 'blocks')} ${tool.count}`).join('\n')}

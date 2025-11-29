@@ -102,7 +102,7 @@ export class PolymarketBuilderSigningService extends EventEmitter {
     }
 
     if (!this.credentials.apiKey.startsWith('builder_')) {
-      console.warn('⚠️ Builder API key should start with "builder_"')
+      console.warn('⚠︎ Builder API key should start with "builder_"')
     }
   }
 
@@ -185,7 +185,7 @@ export class PolymarketBuilderSigningService extends EventEmitter {
           request.signedOrder.size * request.signedOrder.price
       }
 
-      console.log(`✅ Order signed and submitted: ${result.orderId}`)
+      console.log(`✓ Order signed and submitted: ${result.orderId}`)
       this.emit('orderSigned', result)
 
       return {
@@ -303,7 +303,7 @@ export class PolymarketBuilderSigningService extends EventEmitter {
     if (!metrics.revenueShareEligible) {
       recommendations.push('Focus on maintaining 95%+ success rate for revenue sharing eligibility')
     } else {
-      recommendations.push('✅ Eligible for revenue sharing program')
+      recommendations.push('✓ Eligible for revenue sharing program')
     }
 
     return {
@@ -349,7 +349,7 @@ export class PolymarketBuilderSigningService extends EventEmitter {
 📊 Orders: ${metrics.totalOrdersSuccess}/${metrics.totalOrdersSubmitted} successful (${successRate.toFixed(1)}%)
 💰 Volume: ${metrics.totalVolume.toFixed(2)} USDC
 ⛽ Gas Fees Spared: ~${metrics.totalGasFeesSpared.toFixed(4)} MATIC
-🏆 Revenue Share: ${metrics.revenueShareEligible ? '✅ Eligible' : '⏳ Not Yet'}
+🏆 Revenue Share: ${metrics.revenueShareEligible ? '✓ Eligible' : '⏳︎ Not Yet'}
 📈 Attributed Orders: ${metrics.attributedOrders}
     `.trim()
   }

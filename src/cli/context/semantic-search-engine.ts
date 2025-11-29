@@ -521,7 +521,7 @@ export class SemanticSearchEngine {
       // Apply query confidence as a multiplier
       return similarity * queryAnalysis.confidence
     } catch (error) {
-      console.warn(chalk.yellow(`⚠️ Semantic scoring failed: ${error}, falling back to keyword matching`))
+      console.warn(chalk.yellow(`⚠︎ Semantic scoring failed: ${error}, falling back to keyword matching`))
       return this.calculateKeywordScore(content, queryAnalysis.keywords)
     }
   }

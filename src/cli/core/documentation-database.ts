@@ -29,12 +29,12 @@ export class DocumentationDatabase {
       if (this.useSupabase) {
         console.log(chalk.green('✓ Documentation database connected (Supabase)'))
       } else {
-        console.log(chalk.yellow('⚠️ Documentation database using local storage only'))
+        console.log(chalk.yellow('⚠︎ Documentation database using local storage only'))
       }
     } catch (error) {
       this.useSupabase = false
       this.initialized = true
-      console.log(chalk.yellow('⚠️ Documentation database using local storage only'))
+      console.log(chalk.yellow('⚠︎ Documentation database using local storage only'))
     }
   }
 
@@ -303,7 +303,7 @@ export class DocumentationDatabase {
       const { error } = await client.from(this.documentTableName).delete().eq('id', id)
 
       if (error) {
-        console.log(chalk.yellow(`⚠️ Delete failed: ${error.message}`))
+        console.log(chalk.yellow(`⚠︎ Delete failed: ${error.message}`))
         return false
       }
 

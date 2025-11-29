@@ -98,7 +98,7 @@ export class AgentTodoManager {
 
         console.log(chalk.green(`✓ TaskMaster AI generated ${plannedTodos.length} todos for agent ${agentId}`))
       } catch (error: any) {
-        console.log(chalk.yellow(`⚠️ TaskMaster planning failed for agent ${agentId}: ${error.message}`))
+        console.log(chalk.yellow(`⚠︎ TaskMaster planning failed for agent ${agentId}: ${error.message}`))
         console.log(chalk.cyan(`⚡︎ Falling back to rule-based planning...`))
 
         // Fallback to rule-based planning
@@ -645,7 +645,7 @@ export class AgentTodoManager {
    */
   async syncWithTaskMaster(agentId: string): Promise<void> {
     if (!this.useTaskMaster || !this.taskMasterAdapter.isTaskMasterAvailable()) {
-      console.log(chalk.yellow('⚠️ TaskMaster not available for sync'))
+      console.log(chalk.yellow('⚠︎ TaskMaster not available for sync'))
       return
     }
 
@@ -664,7 +664,7 @@ export class AgentTodoManager {
       console.log(chalk.green(`✓ Synced ${unified.length} todos with TaskMaster for agent ${agentId}`))
 
       if (conflicts.length > 0) {
-        console.log(chalk.yellow(`⚠️ ${conflicts.length} conflicts detected:`))
+        console.log(chalk.yellow(`⚠︎ ${conflicts.length} conflicts detected:`))
         conflicts.forEach((conflict) => console.log(chalk.gray(`   - ${conflict}`)))
       }
     } catch (error: any) {

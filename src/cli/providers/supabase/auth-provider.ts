@@ -582,7 +582,7 @@ export class AuthProvider extends EventEmitter {
       try {
         await this.refreshSession()
       } catch (error: any) {
-        console.log(chalk.yellow(`⚠️ Session refresh failed: ${error.message}`))
+        console.log(chalk.yellow(`⚠︎ Session refresh failed: ${error.message}`))
         this.emit('session_expired')
       }
     }, refreshTime)

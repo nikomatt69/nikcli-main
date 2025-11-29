@@ -180,7 +180,7 @@ Generate a structured plan with commands to execute.`,
       console.log(chalk.gray(`Reasoning: ${planResult.reasoning || 'No reasoning provided'}`))
 
       if (planResult.warnings && planResult.warnings.length > 0) {
-        console.log(chalk.yellow.bold('\n⚠️  Warnings:'))
+        console.log(chalk.yellow.bold('\n⚠︎  Warnings:'))
         planResult.warnings.forEach((warning: string) => {
           console.log(chalk.yellow(`• ${warning}`))
         })
@@ -190,7 +190,7 @@ Generate a structured plan with commands to execute.`,
         ; (planResult.commands || []).forEach((cmd: any, index: number) => {
           console.log(`${index + 1}. ${chalk.cyan(cmd.command)}`)
           console.log(`   ${chalk.gray(cmd.description)}`)
-          if (cmd.sudo) console.log(`   ${chalk.red('⚠️ Requires sudo')}`)
+          if (cmd.sudo) console.log(`   ${chalk.red('⚠︎ Requires sudo')}`)
         })
 
       // Ask for confirmation
@@ -277,7 +277,7 @@ Generate a structured plan with commands to execute.`,
       results.push({ package: pkg, success })
 
       if (!success) {
-        console.log(chalk.yellow(`⚠️ Failed to install ${pkg}, continuing with others...`))
+        console.log(chalk.yellow(`⚠︎ Failed to install ${pkg}, continuing with others...`))
       }
     }
 
@@ -314,7 +314,7 @@ Generate a structured plan with commands to execute.`,
 
       return { processes }
     } else if (action === 'kill' && pid) {
-      console.log(chalk.yellow(`⚠️ Attempting to kill process ${pid}...`))
+      console.log(chalk.yellow(`⚠︎ Attempting to kill process ${pid}...`))
 
       const success = await toolsManager.killProcess(pid)
 

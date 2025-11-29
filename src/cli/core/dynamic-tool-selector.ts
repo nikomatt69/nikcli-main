@@ -333,7 +333,7 @@ export class DynamicToolSelector {
     }
 
     if (stats.successRates.length > 0) {
-      console.log(chalk.green('\n✅ Success Rates:'))
+      console.log(chalk.green('\n✓ Success Rates:'))
       stats.successRates.slice(0, 5).forEach((item, index) => {
         console.log(
           chalk.gray(`  ${index + 1}. ${item.tool}: ${(item.rate * 100).toFixed(0)}% (${item.total} executions)`)

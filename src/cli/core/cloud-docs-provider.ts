@@ -107,7 +107,7 @@ export class CloudDocsProvider {
   private async initializeSupabase(): Promise<void> {
     try {
       if (!this.config.apiUrl || !this.config.apiKey) {
-        structuredLogger.warning('Docs Cloud', '⚠️ Supabase credentials not configured. Cloud docs disabled.')
+        structuredLogger.warning('Docs Cloud', '⚠︎ Supabase credentials not configured. Cloud docs disabled.')
         structuredLogger.info('Docs Cloud', 'Set SUPABASE_URL and SUPABASE_ANON_KEY environment variables')
         return
       }

@@ -217,7 +217,7 @@ export class TaskMasterAdapter extends EventEmitter {
 
       return executionPlan
     } catch (error: any) {
-      console.log(chalk.yellow(`⚠️ Enhanced planning failed: ${error.message}`))
+      console.log(chalk.yellow(`⚠︎ Enhanced planning failed: ${error.message}`))
       throw error
     }
   }
@@ -260,7 +260,7 @@ export class TaskMasterAdapter extends EventEmitter {
       const taskMasterResult = await this.taskMasterService.executePlan(planId)
       return this.toExecutionResult(taskMasterResult)
     } catch (error: any) {
-      console.log(chalk.yellow(`⚠️ Enhanced execution failed: ${error.message}`))
+      console.log(chalk.yellow(`⚠︎ Enhanced execution failed: ${error.message}`))
       throw error
     }
   }

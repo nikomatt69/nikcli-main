@@ -607,7 +607,7 @@ export class AuditMiddleware extends BaseMiddleware {
       case 'unusual_pattern':
         return '🔍'
       default:
-        return '⚠️'
+        return '⚠︎'
     }
   }
 

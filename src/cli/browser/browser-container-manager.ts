@@ -133,7 +133,7 @@ export class BrowserContainerManager extends ContainerManager {
         container.status = 'ready'
         container.lastActivity = new Date()
 
-        advancedUI.logFunctionUpdate('success', 'Kasmweb browser environment ready', '✅')
+        advancedUI.logFunctionUpdate('success', 'Kasmweb browser environment ready', '✓')
 
       } else {
         // For other images, use manual initialization
@@ -174,7 +174,7 @@ export class BrowserContainerManager extends ContainerManager {
     container.status = 'ready'
     container.lastActivity = new Date()
 
-    advancedUI.logFunctionUpdate('success', 'Custom browser environment initialized', '✅')
+    advancedUI.logFunctionUpdate('success', 'Custom browser environment initialized', '✓')
   }
 
   /**
@@ -200,7 +200,7 @@ export class BrowserContainerManager extends ContainerManager {
         })
 
         if (response.ok) {
-          advancedUI.logFunctionUpdate('success', 'Browser services verified', '✅')
+          advancedUI.logFunctionUpdate('success', 'Browser services verified', '✓')
           return
         } else {
           throw new Error(`Service returned status ${response.status}`)
@@ -208,10 +208,10 @@ export class BrowserContainerManager extends ContainerManager {
 
       } catch (error: any) {
         if (attempt === maxRetries) {
-          advancedUI.logFunctionUpdate('warning', `Service verification failed after ${maxRetries} attempts: ${error.message}`, '⚠️')
+          advancedUI.logFunctionUpdate('warning', `Service verification failed after ${maxRetries} attempts: ${error.message}`, '⚠︎')
           // Don't throw - services might still work even if verification fails
         } else {
-          advancedUI.logFunctionUpdate('info', `Retry ${attempt} failed, waiting...`, '⏳')
+          advancedUI.logFunctionUpdate('info', `Retry ${attempt} failed, waiting...`, '⏳︎')
           await this.delay(2000)
         }
       }
@@ -291,7 +291,7 @@ export class BrowserContainerManager extends ContainerManager {
         last_activity: container.lastActivity,
       }
     } catch (error: any) {
-      advancedUI.logFunctionUpdate('warning', `Failed to get stats for ${containerId}: ${error.message}`, '⚠️')
+      advancedUI.logFunctionUpdate('warning', `Failed to get stats for ${containerId}: ${error.message}`, '⚠︎')
       return null
     }
   }
@@ -337,7 +337,7 @@ export class BrowserContainerManager extends ContainerManager {
           await this.stopBrowserContainer(container.id)
           cleanedCount++
         } catch (error: any) {
-          advancedUI.logFunctionUpdate('warning', `Failed to cleanup inactive container ${container.name}: ${error.message}`, '⚠️')
+          advancedUI.logFunctionUpdate('warning', `Failed to cleanup inactive container ${container.name}: ${error.message}`, '⚠︎')
         }
       }
     }
@@ -368,7 +368,7 @@ export class BrowserContainerManager extends ContainerManager {
 
       // Check Docker version
       const version = execSync('docker --version', { encoding: 'utf8', timeout: 3000 })
-      advancedUI.logFunctionUpdate('info', `Docker validated: ${version.trim()}`, '✅')
+      advancedUI.logFunctionUpdate('info', `Docker validated: ${version.trim()}`, '✓')
 
       // Check available disk space (minimum 2GB for browser images)
       execSync('docker system df', { timeout: 3000, stdio: 'ignore' })
@@ -398,7 +398,7 @@ export class BrowserContainerManager extends ContainerManager {
         // Check if image exists locally first
         try {
           execSync(`docker inspect ${image}`, { timeout: 3000, stdio: 'ignore' })
-          advancedUI.logFunctionUpdate('success', `Image available locally: ${image}`, '✅')
+          advancedUI.logFunctionUpdate('success', `Image available locally: ${image}`, '✓')
           return image
         } catch {
           // Image not available locally, try to pull
@@ -413,17 +413,17 @@ export class BrowserContainerManager extends ContainerManager {
 
             // Verify the pull was successful
             execSync(`docker inspect ${image}`, { timeout: 3000, stdio: 'ignore' })
-            advancedUI.logFunctionUpdate('success', `Image pulled successfully: ${image}`, '✅')
+            advancedUI.logFunctionUpdate('success', `Image pulled successfully: ${image}`, '✓')
             return image
 
           } catch (pullError: any) {
-            advancedUI.logFunctionUpdate('warning', `Failed to pull ${image}: ${pullError.message}`, '⚠️')
+            advancedUI.logFunctionUpdate('warning', `Failed to pull ${image}: ${pullError.message}`, '⚠︎')
             continue
           }
         }
 
       } catch (error: any) {
-        advancedUI.logFunctionUpdate('warning', `Image ${image} failed: ${error.message}`, '⚠️')
+        advancedUI.logFunctionUpdate('warning', `Image ${image} failed: ${error.message}`, '⚠︎')
         continue
       }
     }

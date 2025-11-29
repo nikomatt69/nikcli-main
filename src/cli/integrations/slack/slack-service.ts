@@ -221,7 +221,7 @@ export class EnhancedSlackService {
     },
   ): Promise<void> {
     const emojis = {
-      success: '✅',
+      success: '✓',
       failure: '✖',
       in_progress: '🔄',
     };
@@ -294,7 +294,7 @@ export class EnhancedSlackService {
     };
 
     const severityEmojis = {
-      low: '⚠️',
+      low: '⚠︎',
       medium: '🔶',
       high: '🔴',
       critical: '🚨',
@@ -458,7 +458,7 @@ export class EnhancedSlackService {
       await this.triggerWorkflow(workflowName, { triggeredBy: user });
       await this.sendResponse(
         channel,
-        `✅ Workflow '${workflowName}' triggered successfully!`,
+        `✓ Workflow '${workflowName}' triggered successfully!`,
       );
     } catch (error) {
       await this.sendErrorResponse(
@@ -604,7 +604,7 @@ export class EnhancedSlackService {
   }
 
   private async sendLoading(channel: string, message: string): Promise<void> {
-    await this.sendResponse(channel, `⏳ ${message}`);
+    await this.sendResponse(channel, `⏳︎ ${message}`);
   }
 
   // ========== @nikcli MENTION HANDLING ==========
@@ -914,7 +914,7 @@ export class EnhancedSlackService {
         ],
       });
 
-      console.log(`✅ GitHub mention notified to Slack channel ${channel}`);
+      console.log(`✓ GitHub mention notified to Slack channel ${channel}`);
       return result.ts!;
     } catch (error: any) {
       console.error('✖ Error notifying GitHub mention:', error);

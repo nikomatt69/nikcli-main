@@ -152,7 +152,7 @@ export class ContainerManager extends EventEmitter {
       // Force kill if graceful stop fails
       try {
         await execAsync(`docker kill ${containerId}`)
-        advancedUI.logWarning(`⚠️ Container force killed: ${containerId.slice(0, 12)}`)
+        advancedUI.logWarning(`⚠︎ Container force killed: ${containerId.slice(0, 12)}`)
       } catch (killError: any) {
         advancedUI.logError(`✖ Failed to kill container: ${killError.message}`)
       }
@@ -199,7 +199,7 @@ export class ContainerManager extends EventEmitter {
       }
 
       if (stderr && !this.isWarningOnly(stderr)) {
-        advancedUI.logError(`⚠️ Command stderr: ${stderr}`)
+        advancedUI.logError(`⚠︎ Command stderr: ${stderr}`)
       }
 
       return stdout
@@ -220,7 +220,7 @@ export class ContainerManager extends EventEmitter {
       const { stdout, stderr } = await execAsync(`docker logs --tail ${lines} ${containerId}`)
 
       if (stderr) {
-        advancedUI.logError(`⚠️ Docker logs stderr: ${stderr}`)
+        advancedUI.logError(`⚠︎ Docker logs stderr: ${stderr}`)
       }
 
       return stdout || stderr || 'No logs available'

@@ -19,7 +19,7 @@ export class ToolsMigration {
    * Show migration warning for unsafe operations
    */
   private showMigrationWarning(operation: string, secureAlternative: string): void {
-    const warning = `⚠️  DEPRECATED: ${operation} - Use ${secureAlternative} instead`
+    const warning = `⚠︎  DEPRECATED: ${operation} - Use ${secureAlternative} instead`
 
     if (!this.migrationWarnings.includes(warning)) {
       advancedUI.logFunctionUpdate('info', chalk.yellow(warning))
@@ -211,9 +211,9 @@ export class ToolsMigration {
     if (this.migrationWarnings.length === 0) {
       advancedUI.logFunctionUpdate('info', chalk.green('✓ No deprecated operations used'))
     } else {
-      advancedUI.logFunctionUpdate('info', chalk.yellow(`⚠️  ${this.migrationWarnings.length} deprecated operations detected:`))
+      advancedUI.logFunctionUpdate('info', chalk.yellow(`⚠︎  ${this.migrationWarnings.length} deprecated operations detected:`))
       this.migrationWarnings.forEach((warning) => {
-        advancedUI.logFunctionUpdate('info', chalk.gray(`  • ${warning.replace('⚠️  DEPRECATED: ', '')}`))
+        advancedUI.logFunctionUpdate('info', chalk.gray(`  • ${warning.replace('⚠︎  DEPRECATED: ', '')}`))
       })
     }
 
@@ -238,7 +238,7 @@ export class ToolsMigration {
  */
 export function createSecureToolsManager(workingDir?: string): ToolsMigration {
   advancedUI.logFunctionUpdate('info', chalk.blue('🔒 Creating secure tools manager...'))
-  advancedUI.logFunctionUpdate('info', chalk.yellow('⚠️  Legacy ToolsManager operations will show deprecation warnings'))
+  advancedUI.logFunctionUpdate('info', chalk.yellow('⚠︎  Legacy ToolsManager operations will show deprecation warnings'))
 
   return new ToolsMigration(workingDir)
 }

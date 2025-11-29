@@ -275,7 +275,7 @@ export class NotificationService {
     } catch (error: any) {
       advancedUI.logFunctionUpdate('error', `Discord notification failed: ${error.message}`, '✖')
       if (error.response) {
-        advancedUI.logFunctionUpdate('error', `Discord API error: ${JSON.stringify(error.response.data)}`, '⚠️')
+        advancedUI.logFunctionUpdate('error', `Discord API error: ${JSON.stringify(error.response.data)}`, '⚠︎')
       }
       throw error
     }

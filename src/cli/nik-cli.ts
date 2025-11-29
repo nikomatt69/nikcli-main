@@ -652,7 +652,7 @@ export class NikCLI {
 
       this.logCognitive('✓ Cognitive orchestration system initialized')
     } catch (error: any) {
-      this.logCognitive(`⚠️ Cognitive orchestration initialization warning: ${error.message}`)
+      this.logCognitive(`⚠︎ Cognitive orchestration initialization warning: ${error.message}`)
       this.cognitiveMode = false // Fallback to standard mode
     }
   }
@@ -952,7 +952,7 @@ export class NikCLI {
     const { context, cognition, result } = event
 
     if (result.cognitiveScore && result.cognitiveScore < 0.5) {
-      this.logCognitive(`⚠️ Low cognitive score for ${context.filePath}: ${(result.cognitiveScore * 100).toFixed(1)}%`)
+      this.logCognitive(`⚠︎ Low cognitive score for ${context.filePath}: ${(result.cognitiveScore * 100).toFixed(1)}%`)
     }
 
     if (result.orchestrationCompatibility && result.orchestrationCompatibility > 0.9) {
@@ -1700,7 +1700,7 @@ export class NikCLI {
 
       advancedUI.logFunctionUpdate('info', chalk.dim('⚡︎ File watching enabled'))
     } catch (_error: any) {
-      advancedUI.logFunctionUpdate('warning', chalk.gray('⚠️ File watching not available (chokidar not installed)'))
+      advancedUI.logFunctionUpdate('warning', chalk.gray('⚠︎ File watching not available (chokidar not installed)'))
     }
   }
 
@@ -2180,7 +2180,7 @@ export class NikCLI {
       case 'error':
         return '✖'
       case 'warning':
-        return '⚠️'
+        return '⚠︎'
       case 'info':
         return 'ℹ'
       case 'step':
@@ -2278,7 +2278,7 @@ export class NikCLI {
   private getStatusIcon(status: string): string {
     switch (status) {
       case 'pending':
-        return '⏳'
+        return '⏳︎'
       case 'running':
         return '⚡︎'
       case 'completed':
@@ -2286,7 +2286,7 @@ export class NikCLI {
       case 'failed':
         return '✖'
       case 'warning':
-        return '⚠️'
+        return '⚠︎'
       default:
         return '📋'
     }
@@ -2662,31 +2662,41 @@ export class NikCLI {
 
   private async showBetaEntryPanel(): Promise<void> {
     const lines: string[] = []
-
-    lines.push(chalk.yellow('Beta: onboarding semplificato, nessun banner iniziale.'))
-    lines.push('')
+    const warningBox = boxen(
+      chalk.red.bold('🚨  BETA VERSION WARNING\n\n') +
+      chalk.cyan('For detailed security information, visit:\n') +
+      chalk.blue.underline('https://github.com/nikomatt69/nikcli-main/blob/main/SECURITY.md\n\n') +
+      chalk.white('By continuing, you acknowledge these risks.'),
+      {
+        padding: 1,
+        borderStyle: 'round',
+        borderColor: 'red',
+        backgroundColor: '#2a0000',
+        title: 'Security Notice',
+      }
+    )
+    lines.push(warningBox)
     lines.push(chalk.cyan('API key'))
     lines.push(
       chalk.white('• Env: ANTHROPIC_API_KEY | OPENAI_API_KEY | OPENROUTER_API_KEY') +
       '\n' +
       chalk.white('  GOOGLE_GENERATIVE_AI_API_KEY | AI_GATEWAY_API_KEY')
     )
-    lines.push(chalk.white('• Oppure /set-key <provider> <key> per salvarle in ~/.nikcli'))
+    lines.push(chalk.white('• /set-key-<provider> <key> saved in  ~/.nikcli'))
     lines.push('')
     lines.push(chalk.magenta('Login'))
-    lines.push(chalk.white('• Premi Ctrl+W per il login interattivo'))
-    lines.push(chalk.white('• /auth signin per autenticarti, /auth signup per creare un account'))
-
-    await this.printPanel(
-      boxen(lines.join('\n'), {
-        title: 'NikCLI Beta',
-        padding: 1,
-        margin: 1,
-        borderStyle: 'round',
-        borderColor: 'red',
-      }),
-      'general'
-    )
+    lines.push(chalk.white('• Press Ctrl+W for Login')),
+      await this.printPanel(
+        boxen(lines.join('\n'), {
+          title: 'NikCLI Beta',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+          backgroundColor: '#2a0000',
+        }),
+        'general'
+      )
   }
 
   /**
@@ -3806,7 +3816,7 @@ export class NikCLI {
 
     if (availableAgents.length > 0) {
       availableAgents.forEach((agent) => {
-        const statusIcon = agent.status === 'ready' ? '✓' : agent.status === 'busy' ? '⏳' : '✖'
+        const statusIcon = agent.status === 'ready' ? '✓' : agent.status === 'busy' ? '⏳︎' : '✖'
         content.push(`${statusIcon} @${agent.specialization} - ${agent.description}`)
 
         // Show some capabilities
@@ -3921,7 +3931,7 @@ export class NikCLI {
       if (tokenUsagePercent >= 80 && tokenUsagePercent < 100) {
         advancedUI.logFunctionUpdate(
           'warning',
-          chalk.yellow(`⚠️ Token usage at ${tokenUsagePercent.toFixed(0)}% (${tokenQuota.used}/${tokenQuota.limit})`)
+          chalk.yellow(`⚠︎ Token usage at ${tokenUsagePercent.toFixed(0)}% (${tokenQuota.used}/${tokenQuota.limit})`)
         )
       }
 
@@ -4000,7 +4010,7 @@ export class NikCLI {
       // Check for available VMs
       const containers = this.slashHandler.getActiveVMContainers?.() || []
       if (containers.length === 0) {
-        advancedUI.logFunctionUpdate('info', chalk.yellow('⚠️ No active VM containers'))
+        advancedUI.logFunctionUpdate('info', chalk.yellow('⚠︎ No active VM containers'))
         advancedUI.logFunctionUpdate('info', chalk.gray('Use /vm-create <repo-url|os> to create one'))
         advancedUI.logFunctionUpdate('info', chalk.gray('Use /default to exit VM mode'))
         return
@@ -4226,14 +4236,14 @@ export class NikCLI {
         } catch (saveError: any) {
           this.addLiveUpdate({
             type: 'warning',
-            content: `⚠️ Could not save todo.md: ${saveError.message}`,
+            content: `⚠︎ Could not save todo.md: ${saveError.message}`,
             source: 'planning',
           })
         }
       } catch (error: any) {
         this.addLiveUpdate({
           type: 'warning',
-          content: `⚠️ TaskMaster planning failed: ${error.message}`,
+          content: `⚠︎ TaskMaster planning failed: ${error.message}`,
           source: 'planning',
         })
         this.addLiveUpdate({ type: 'info', content: '⚡︎ Falling back to enhanced planning...', source: 'planning' })
@@ -5048,7 +5058,7 @@ EOF`
 
         this.addLiveUpdate({
           type: 'status',
-          content: `✅ Todo completed: ${todo.title}`,
+          content: `✓ Todo completed: ${todo.title}`,
           source: 'parallel-plan',
         })
 
@@ -5236,7 +5246,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       // Fallback to simple concatenation if LLM fails
       this.addLiveUpdate({
         type: 'warning',
-        content: `⚠️ Aggregator LLM failed, using fallback merge: ${error.message}`,
+        content: `⚠︎ Aggregator LLM failed, using fallback merge: ${error.message}`,
         source: 'aggregator',
       })
       return preMerged
@@ -5684,7 +5694,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
 
           // Ensure stream completed before proceeding
           if (!streamCompleted) {
-            console.log(chalk.yellow(`⚠️ Stream may not have completed properly`))
+            console.log(chalk.yellow(`⚠︎ Stream may not have completed properly`))
           }
 
           // Add a small delay to ensure all output is flushed
@@ -6126,7 +6136,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       `${chalk.bold('Execution Summary')}\n\n` +
       `${chalk.green('✓ Completed:')} ${completed}\n` +
       `${chalk.red('✖ Failed:')} ${failed}\n` +
-      `${chalk.yellow('⚠️ Warnings:')} ${warnings}\n` +
+      `${chalk.yellow('⚠︎ Warnings:')} ${warnings}\n` +
       `${chalk.blue('📊 Total:')} ${indicators.length}\n\n` +
       `${chalk.gray('Overall Status:')} ${this.getOverallStatusText()}`,
       {
@@ -6247,7 +6257,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
               console.log(chalk.green(`✓ Tool execution completed in VM`))
               return // Tool executed in VM, return to continue chat flow
             } catch (error: any) {
-              console.log(chalk.yellow(`⚠️ VM execution failed, falling back to local: ${error.message}`))
+              console.log(chalk.yellow(`⚠︎ VM execution failed, falling back to local: ${error.message}`))
 
               // Log error but don't throw - allow fallback to AI chat
               console.log(chalk.dim(`   Original tool: ${topRecommendation.tool}`))
@@ -6278,7 +6288,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
             console.log(chalk.green(`✓ Command executed successfully in VM`))
             return // Command executed in VM, return to continue chat flow
           } catch (error: any) {
-            console.log(chalk.yellow(`⚠️ VM execution failed, falling back to AI chat: ${error.message}`))
+            console.log(chalk.yellow(`⚠︎ VM execution failed, falling back to AI chat: ${error.message}`))
 
             // Log detailed error for debugging
             console.log(chalk.dim(`   Command: ${input}`))
@@ -6301,7 +6311,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
 
         if (estimatedTokens > 100000) {
           // More aggressive - compact at 100k instead of 150k
-          console.log(chalk.yellow(`⚠️ Token usage: ${estimatedTokens.toLocaleString()}, auto-compacting...`))
+          console.log(chalk.yellow(`⚠︎ Token usage: ${estimatedTokens.toLocaleString()}, auto-compacting...`))
           await this.compactSession()
 
           // Rebuild messages after compaction
@@ -6513,7 +6523,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
         const approved = await this.requestPlanApproval(plan.id, plan)
         if (approved) {
           if (this.executionInProgress) {
-            console.log(chalk.yellow('⚠️  Execution already in progress, please wait...'))
+            console.log(chalk.yellow('⚠︎  Execution already in progress, please wait...'))
             return
           }
 
@@ -6602,7 +6612,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       }
 
       plans.forEach((plan, index) => {
-        const status = '⏳' // Plans don't have status property, using default
+        const status = '⏳︎' // Plans don't have status property, using default
         console.log(`${index + 1}. ${status} ${plan.title}`)
         console.log(`   ${chalk.dim(plan.description)}`)
       })
@@ -6774,7 +6784,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     try {
       const { inputQueue } = await import('./core/input-queue')
       if (inputQueue.isBypassEnabled()) {
-        console.log(chalk.yellow('⚠️ Forcing cleanup of stuck approval bypass'))
+        console.log(chalk.yellow('⚠︎ Forcing cleanup of stuck approval bypass'))
         inputQueue.forceCleanup()
       }
     } catch (cleanupError) {
@@ -7198,7 +7208,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
 
             if (!success) {
               this.addLiveUpdate({ type: 'warning', content: `Failed to install ${pkg}`, source: 'install' })
-              console.log(chalk.yellow(`⚠️ Failed to install ${pkg}`))
+              console.log(chalk.yellow(`⚠︎ Failed to install ${pkg}`))
             } else {
               this.addLiveUpdate({ type: 'log', content: `Installed ${pkg}`, source: 'install' })
             }
@@ -7250,7 +7260,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
 
             if (content.split('\n').length > maxHeight) {
               const truncatedLines = content.split('\n').slice(0, maxHeight - 2)
-              content = `${truncatedLines.join('\n')}\n\n⚠️  Content truncated`
+              content = `${truncatedLines.join('\n')}\n\n⚠︎  Content truncated`
             }
 
             this.printPanel(
@@ -8251,7 +8261,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
               let borderColor: 'green' | 'red' | 'yellow' | 'cyan' = 'green'
 
               if (!session) {
-                lines.push(chalk.yellow('⚠️ No active session'))
+                lines.push(chalk.yellow('⚠︎ No active session'))
                 lines.push('')
                 lines.push(`${chalk.blue('📁')} Root: ${this.workingDirectory}`)
                 lines.push(`🎯 Selected Paths: ${ctx.selectedPaths.length}`)
@@ -8299,7 +8309,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
 
                 // Tips
                 if (percentage >= 80) {
-                  lines.push(chalk.yellow('⚠️  High usage! Use /clear to reset'))
+                  lines.push(chalk.yellow('⚠︎  High usage! Use /clear to reset'))
                 } else {
                   lines.push(chalk.gray('💡 Use /context <path> to load from RAG'))
                 }
@@ -8888,7 +8898,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     for (const agentId of context.agents) {
       const logs = context.logs.get(agentId) || []
       const lastLog = logs[logs.length - 1] || 'No activity'
-      const status = lastLog.includes('ERROR') ? '✖' : lastLog.includes('completed') ? '✅' : '🔄'
+      const status = lastLog.includes('ERROR') ? '✖' : lastLog.includes('completed') ? '✓' : '🔄'
       statusLines.push(`  ${status} ${agentId}: ${logs.length} log entries`)
     }
 
@@ -9261,7 +9271,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
                 '🎨 Figma Integration Configuration',
                 '─'.repeat(50),
                 'Figma API Token: ✓ Configured',
-                'Vercel v0 Integration: ⚠️  Optional - for AI code generation',
+                'Vercel v0 Integration: ⚠︎  Optional - for AI code generation',
                 'Desktop App Automation: ✓ Available (macOS)',
                 '─'.repeat(50),
                 '',
@@ -9322,7 +9332,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
           }
 
           this.printPanel(boxen(
-            `🎨 Fetching Figma file info\n\n📋 File ID: ${fileId}\n📍 Source: ${args[0].includes('http') ? 'URL' : 'Direct ID'}\n\n⚠️  This feature requires Figma API implementation`,
+            `🎨 Fetching Figma file info\n\n📋 File ID: ${fileId}\n📍 Source: ${args[0].includes('http') ? 'URL' : 'Direct ID'}\n\n⚠︎  This feature requires Figma API implementation`,
             {
               title: 'Figma Info',
               padding: 1,
@@ -9368,7 +9378,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
 
           const format = args[1] || 'svg'
           this.printPanel(boxen(
-            `🎨 Exporting Figma file\n\n📋 File ID: ${exportFileId}\n📐 Format: ${format}\n📍 Source: ${args[0].includes('http') ? 'URL' : 'Direct ID'}\n\n⚠️  This feature requires Figma API implementation`,
+            `🎨 Exporting Figma file\n\n📋 File ID: ${exportFileId}\n📐 Format: ${format}\n📍 Source: ${args[0].includes('http') ? 'URL' : 'Direct ID'}\n\n⚠︎  This feature requires Figma API implementation`,
             {
               title: 'Figma Export',
               padding: 1,
@@ -9421,7 +9431,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
           }
           this.printPanel(
             boxen(
-              `🎨 Creating Figma design from: ${args[0]}\n\n⚠️  This feature requires Figma API + Desktop automation`,
+              `🎨 Creating Figma design from: ${args[0]}\n\n⚠︎  This feature requires Figma API + Desktop automation`,
               {
                 title: 'Figma Create',
                 padding: 1,
@@ -9718,7 +9728,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
         return
       }
 
-      console.log(chalk.green(`\n✅ Found ${results.length} results:`))
+      console.log(chalk.green(`\n✓ Found ${results.length} results:`))
       console.log(chalk.gray('─'.repeat(60)))
 
       results.forEach((result, index) => {
@@ -9885,7 +9895,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
 
       if (content.split('\n').length > maxHeight) {
         const truncatedLines = content.split('\n').slice(0, maxHeight - 2)
-        content = `${truncatedLines.join('\n')}\n\n⚠️  Content truncated - use /docs list <category> to filter`
+        content = `${truncatedLines.join('\n')}\n\n⚠︎  Content truncated - use /docs list <category> to filter`
       }
 
       this.printPanel(
@@ -9994,7 +10004,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
 
         if (content.split('\n').length > maxHeight) {
           const truncatedLines = content.split('\n').slice(0, maxHeight - 2)
-          content = `${truncatedLines.join('\n')}\n\n⚠️  Content truncated`
+          content = `${truncatedLines.join('\n')}\n\n⚠︎  Content truncated`
         }
 
         this.printPanel(
@@ -10105,7 +10115,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
           return
         }
 
-        console.log(chalk.yellow(`⚠️ This will remove all ${stats.loadedCount} loaded documents from AI context`))
+        console.log(chalk.yellow(`⚠︎ This will remove all ${stats.loadedCount} loaded documents from AI context`))
         console.log(chalk.gray('Use /doc-unload <names> to remove specific documents'))
         console.log(chalk.gray('Use /doc-unload --all to confirm removal of all documents'))
         return
@@ -10165,7 +10175,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
         return
       }
 
-      console.log(chalk.green(`\n✅ Found ${suggestions.length} relevant documents:`))
+      console.log(chalk.green(`\n✓ Found ${suggestions.length} relevant documents:`))
       console.log(chalk.gray('─'.repeat(50)))
 
       suggestions.forEach((title, index) => {
@@ -10209,7 +10219,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     try {
       await this.initializeMLSystem()
     } catch (error: any) {
-      structuredLogger.warning('ML System', `⚠️ ML initialization failed: ${error.message}`)
+      structuredLogger.warning('ML System', `⚠︎ ML initialization failed: ${error.message}`)
     }
 
     // Event bridge is idempotent
@@ -10301,7 +10311,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       advancedUI.logSuccess('🤖 ML Toolchain Initialization Complete', `${totalTime}ms`)
     } catch (error: any) {
       const totalTime = Date.now() - mlStartTime
-      advancedUI.logError(`⚠️ ML initialization error after ${totalTime}ms: ${error.message}`)
+      advancedUI.logError(`⚠︎ ML initialization error after ${totalTime}ms: ${error.message}`)
       // Non-blocking - system continues without ML
     }
   }
@@ -10354,7 +10364,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
         structuredLogger.info('Docs Cloud', 'ℹ️ Cloud documentation disabled')
       }
     } catch (error: any) {
-      structuredLogger.warning('Docs Cloud', `⚠️ Cloud docs initialization failed: ${error.message}`)
+      structuredLogger.warning('Docs Cloud', `⚠︎ Cloud docs initialization failed: ${error.message}`)
     }
   }
 
@@ -10366,7 +10376,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       if (modelProvider.validateApiKey()) {
         console.log(chalk.green(`✓ Switched to model: ${modelName}`))
       } else {
-        console.log(chalk.yellow(`⚠️  Switched to model: ${modelName} (API key needed)`))
+        console.log(chalk.yellow(`⚠︎  Switched to model: ${modelName} (API key needed)`))
       }
 
       this.addLiveUpdate({
@@ -10879,7 +10889,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
           redisStats =
             `${chalk.red('🚀 Redis Cache:')}\n` +
             `  Status: ${cacheStats.redis.connected ? chalk.green('✓ Connected') : chalk.red('✖ Disconnected')}\n` +
-            `  Enabled: ${cacheStats.redis.enabled ? chalk.green('✓ Yes') : chalk.yellow('⚠️ No')}\n` +
+            `  Enabled: ${cacheStats.redis.enabled ? chalk.green('✓ Yes') : chalk.yellow('⚠︎ No')}\n` +
             `  Total Hits: ${chalk.green(cacheStats.totalHits.toLocaleString())}\n` +
             `  Hit Rate: ${chalk.blue(cacheStats.hitRate.toFixed(1))}%\n` +
             `  Fallback: ${cacheStats.fallback.enabled ? chalk.cyan('SmartCache') : chalk.gray('None')}\n\n`
@@ -10974,7 +10984,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
           if (optimization.shouldTrim || optimization.recommendation !== 'continue') {
             this.printPanel(boxen(
               `${chalk.yellow('⚡ Optimization Recommendations:', 'general')}\n\n` +
-              `Status: ${optimization.recommendation === 'continue' ? chalk.green('✓ Good') : chalk.yellow('⚠️  Attention needed')}\n` +
+              `Status: ${optimization.recommendation === 'continue' ? chalk.green('✓ Good') : chalk.yellow('⚠︎  Attention needed')}\n` +
               `Action: ${chalk.white(optimization.recommendation.replace('_', ' ').toUpperCase())}\n` +
               `Reason: ${chalk.gray(optimization.reason)}`,
               {
@@ -11176,13 +11186,13 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
 
         // Recommendations
         if (preciseTokens > 150000) {
-          console.log(chalk.red('\n⚠️ CRITICAL: Very high token usage!'))
+          console.log(chalk.red('\n⚠︎ CRITICAL: Very high token usage!'))
           console.log(chalk.yellow('Recommendations:'))
           console.log('  • Use /compact to compress session immediately')
           console.log('  • Start a new session with /new')
           console.log('  • Consider switching to a cheaper model for simple tasks')
         } else if (preciseTokens > 100000) {
-          console.log(chalk.yellow('\n⚠️ WARNING: High token usage'))
+          console.log(chalk.yellow('\n⚠︎ WARNING: High token usage'))
           console.log('Recommendations:')
           console.log('  • Consider using /compact soon')
           console.log('  • Auto-compaction will trigger at 100k tokens')
@@ -11285,14 +11295,14 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
           const failed = plan.todos.filter((t) => t.status === 'failed').length
           lines.push(`${index + 1}. ${plan.title}`)
           lines.push(`   Status: ${plan.status} | Todos: ${plan.todos.length}`)
-          lines.push(`   ✓ ${completed} | ⚡︎ ${inProgress} | ⏳ ${pending} | ✖ ${failed}`)
+          lines.push(`   ✓ ${completed} | ⚡︎ ${inProgress} | ⏳︎ ${pending} | ✖ ${failed}`)
         })
         const maxHeight = this.getAvailablePanelHeight()
         let content = lines.join('\n')
 
         if (content.split('\n').length > maxHeight) {
           const truncatedLines = content.split('\n').slice(0, maxHeight - 2)
-          content = `${truncatedLines.join('\n')}\n\n⚠️  Content truncated`
+          content = `${truncatedLines.join('\n')}\n\n⚠︎  Content truncated`
         }
 
         this.printPanel(
@@ -11731,7 +11741,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       }
 
       if (!configPath) {
-        console.log(chalk.yellow('⚠️ Claude Desktop config not found'))
+        console.log(chalk.yellow('⚠︎ Claude Desktop config not found'))
         console.log(chalk.gray('Checked paths:'))
         possiblePaths.forEach((p) => console.log(chalk.gray(`  • ${p}`)))
         return
@@ -11739,7 +11749,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
 
       const claudeConfig = JSON.parse(fs.readFileSync(configPath, 'utf-8'))
       if (!claudeConfig.mcpServers) {
-        console.log(chalk.yellow('⚠️ No MCP servers found in Claude Desktop config'))
+        console.log(chalk.yellow('⚠︎ No MCP servers found in Claude Desktop config'))
         return
       }
 
@@ -12446,7 +12456,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     this.logCognitive('🚀 AdvancedAIProvider: Intelligent commands ready')
     this.logCognitive(`🎯 Orchestration Level: ${this.orchestrationLevel}/10`)
 
-    this.logCognitive('\n✅ All cognitive components initialized and coordinating\n')
+    this.logCognitive('\n✓ All cognitive components initialized and coordinating\n')
   }
 
   /**
@@ -12488,7 +12498,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
           await new Promise((resolve) => child.on('close', resolve))
           console.log(chalk.green('✓ Git repository initialized'))
         } catch {
-          console.log(chalk.yellow('⚠️ Could not initialize git (skipping)'))
+          console.log(chalk.yellow('⚠︎ Could not initialize git (skipping)'))
         }
       }
 
@@ -13805,7 +13815,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     if (result.success !== undefined && result.agent && (result.todosCompleted !== undefined || result.results)) {
       // Simple completion status like plan mode
       if (result.todosCompleted && result.totalTodos) {
-        return `✅ Completed ${result.todosCompleted}/${result.totalTodos} tasks successfully`
+        return `✓ Completed ${result.todosCompleted}/${result.totalTodos} tasks successfully`
       }
       return 'Task completed successfully'
     }
@@ -13931,7 +13941,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       // Final completion message
       this.addLiveUpdate({
         type: 'status',
-        content: `**${agentName} Completed:**\n\n✅ Completed ${result.todosCompleted}/${result.totalTodos} tasks successfully`,
+        content: `**${agentName} Completed:**\n\n✓ Completed ${result.todosCompleted}/${result.totalTodos} tasks successfully`,
         source: agentName,
       })
     } else {
@@ -14482,7 +14492,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     const newTotal = currentUsage + estimatedTokens
 
     if (newTotal > this.toolchainTokenLimit) {
-      console.log(chalk.yellow(`⚠️ Toolchain token limit reached for ${toolName}`))
+      console.log(chalk.yellow(`⚠︎ Toolchain token limit reached for ${toolName}`))
       console.log(
         chalk.dim(`   Current: ${currentUsage}, Adding: ${estimatedTokens}, Limit: ${this.toolchainTokenLimit}`)
       )
@@ -14634,7 +14644,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       })
 
       contextTokenManager.on('warning_threshold_reached', ({ percentage, context }) => {
-        console.log(chalk.yellow(`⚠️  Token usage at ${percentage.toFixed(1)}% of context limit`))
+        console.log(chalk.yellow(`⚠︎  Token usage at ${percentage.toFixed(1)}% of context limit`))
       })
 
       contextTokenManager.on('critical_threshold_reached', ({ percentage, context }) => {
@@ -15271,7 +15281,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           )
         } else if (code !== null) {
           this.printPanel(
-            boxen(chalk.yellow(`⚠️ SSH session exited with code ${code}`), {
+            boxen(chalk.yellow(`⚠︎ SSH session exited with code ${code}`), {
               title: 'SSH Connection',
               padding: 1,
               margin: 1,
@@ -15497,7 +15507,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         console.log(`   Local Only: ${syncStatus.localOnly}`)
         console.log(`   Cloud Only: ${syncStatus.cloudOnly}`)
       } catch (error: any) {
-        console.log(chalk.yellow(`⚠️ Session sync status unavailable: ${error.message}`))
+        console.log(chalk.yellow(`⚠︎ Session sync status unavailable: ${error.message}`))
       }
     }
 
@@ -15554,7 +15564,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       this.printPanel(historyBox, 'general')
     } catch (error: any) {
       if (error.message.includes('not a git repository')) {
-        console.log(chalk.yellow('⚠️  This directory is not a git repository'))
+        console.log(chalk.yellow('⚠︎  This directory is not a git repository'))
       } else {
         console.log(chalk.red(`✖ Failed to get commit history: ${error.message}`))
       }
@@ -16455,7 +16465,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
                 metadata: {},
               })
             } catch (error) {
-              console.log(chalk.gray(`⚠️ Skipped invalid message`))
+              console.log(chalk.gray(`⚠︎ Skipped invalid message`))
             }
           })
         }
@@ -16496,7 +16506,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
                 metadata: {},
               })
             } catch (error) {
-              console.log(chalk.gray(`⚠️ Skipped invalid message`))
+              console.log(chalk.gray(`⚠︎ Skipped invalid message`))
             }
           })
         }
@@ -16566,7 +16576,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       } else {
         this.printPanel(
           boxen(`Session not found: ${sessionId}`, {
-            title: '⚠️ Not Found',
+            title: '⚠︎ Not Found',
             padding: 1,
             margin: 1,
             borderStyle: 'round',
@@ -16651,7 +16661,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       if (!currentSession) {
         this.printPanel(
           boxen('No active work session.\n\nUse /save-session to create a session before using undo.', {
-            title: '⚠️ No Active Session',
+            title: '⚠︎ No Active Session',
             padding: 1,
             margin: 1,
             borderStyle: 'round',
@@ -16666,7 +16676,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       if (isNaN(count) || count < 1) {
         this.printPanel(
           boxen('Invalid count. Usage: /undo [count]\n\nExample: /undo 3', {
-            title: '⚠️ Invalid Input',
+            title: '⚠︎ Invalid Input',
             padding: 1,
             margin: 1,
             borderStyle: 'round',
@@ -16733,7 +16743,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       if (!currentSession) {
         this.printPanel(
           boxen('No active work session.\n\nUse /save-session to create a session before using redo.', {
-            title: '⚠️ No Active Session',
+            title: '⚠︎ No Active Session',
             padding: 1,
             margin: 1,
             borderStyle: 'round',
@@ -16748,7 +16758,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       if (isNaN(count) || count < 1) {
         this.printPanel(
           boxen('Invalid count. Usage: /redo [count]\n\nExample: /redo 2', {
-            title: '⚠️ Invalid Input',
+            title: '⚠︎ Invalid Input',
             padding: 1,
             margin: 1,
             borderStyle: 'round',
@@ -16815,7 +16825,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       if (!currentSession) {
         this.printPanel(
           boxen('No active work session.\n\nUse /save-session to create a session.', {
-            title: '⚠️ No Active Session',
+            title: '⚠︎ No Active Session',
             padding: 1,
             margin: 1,
             borderStyle: 'round',
@@ -17213,7 +17223,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         }
         case 'status': {
           const isActive = toolService.isDevModeActive()
-          const content = `Status: ${isActive ? 'Active' : 'Inactive'}${isActive ? '\n⚠️ Security restrictions are reduced' : ''}`
+          const content = `Status: ${isActive ? 'Active' : 'Inactive'}${isActive ? '\n⚠︎ Security restrictions are reduced' : ''}`
           this.printPanel(
             boxen(content, {
               title: '� Developer Mode: Status',
@@ -17231,7 +17241,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
             '/dev-mode status           - Check developer mode status',
             '/dev-mode help             - Show this help',
             '',
-            '⚠️ Developer mode reduces security restrictions',
+            '⚠︎ Developer mode reduces security restrictions',
           ]
           this.printPanel(boxen(lines.join('\n'), {
             title: '� Developer Mode: Help',
@@ -17357,7 +17367,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
    */
   private async syncSessions(_direction?: string): Promise<void> {
     if (!this.isEnhancedMode) {
-      console.log(chalk.yellow('⚠️ Enhanced services not enabled'))
+      console.log(chalk.yellow('⚠︎ Enhanced services not enabled'))
       return
     }
 
@@ -17383,7 +17393,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       const { redisProvider } = await import('./providers/redis/redis-provider')
 
       if (redisProvider.isHealthy()) {
-        console.log(chalk.yellow('⚠️ Redis is already connected'))
+        console.log(chalk.yellow('⚠︎ Redis is already connected'))
         return
       }
 
@@ -17560,7 +17570,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
             await redisProvider.flushAll()
             console.log(chalk.green('✓ Redis cache cleared'))
           } else {
-            console.log(chalk.yellow('⚠️ Redis not connected, nothing to clear'))
+            console.log(chalk.yellow('⚠︎ Redis not connected, nothing to clear'))
           }
           break
         }
@@ -17594,7 +17604,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         }
 
         default:
-          console.log(chalk.yellow(`⚠️ Unknown cache type: ${cacheType}`))
+          console.log(chalk.yellow(`⚠︎ Unknown cache type: ${cacheType}`))
           console.log(chalk.dim('   Available types: redis, smart, token, session'))
           return
       }
@@ -17610,7 +17620,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       const { redisProvider } = await import('./providers/redis/redis-provider')
 
       if (!redisProvider.isHealthy()) {
-        console.log(chalk.yellow('⚠️ Redis is already disconnected'))
+        console.log(chalk.yellow('⚠︎ Redis is already disconnected'))
         return
       }
 
@@ -17632,7 +17642,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       // Check configuration
       const config = simpleConfigManager.getSupabaseConfig()
       if (!config.enabled) {
-        console.log(chalk.yellow('⚠️ Supabase is disabled in configuration'))
+        console.log(chalk.yellow('⚠︎ Supabase is disabled in configuration'))
         console.log(chalk.dim('Enable in config to use Supabase features'))
         return
       }
@@ -17696,11 +17706,11 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       console.log(`   Enabled: ${config.enabled ? chalk.green('✓') : chalk.red('✖')}`)
       console.log(`   URL: ${config.url ? chalk.green('✓ Configured') : chalk.red('✖ Missing')}`)
       console.log(`   Anon Key: ${config.anonKey ? chalk.green('✓ Configured') : chalk.red('✖ Missing')}`)
-      console.log(`   Service Key: ${config.serviceRoleKey ? chalk.green('✓ Configured') : chalk.yellow('⚠️ Optional')}`)
+      console.log(`   Service Key: ${config.serviceRoleKey ? chalk.green('✓ Configured') : chalk.yellow('⚠︎ Optional')}`)
       console.log()
 
       if (!config.enabled) {
-        console.log(chalk.yellow('⚠️ Supabase is disabled'))
+        console.log(chalk.yellow('⚠︎ Supabase is disabled'))
         return
       }
 
@@ -17794,7 +17804,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       ]
 
       integrationFeatures.forEach((feature) => {
-        const status = feature.available ? chalk.green('✓ Available') : chalk.yellow('⚠️ Planned')
+        const status = feature.available ? chalk.green('✓ Available') : chalk.yellow('⚠︎ Planned')
         console.log(`   ${status} ${chalk.bold(feature.name)}`)
         console.log(`     ${chalk.dim(feature.description)}`)
       })
@@ -17812,7 +17822,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           console.log()
         }
       } catch (_error) {
-        console.log(chalk.yellow('⚠️ Unable to fetch usage statistics'))
+        console.log(chalk.yellow('⚠︎ Unable to fetch usage statistics'))
         console.log()
       }
 
@@ -17821,7 +17831,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       console.log(`   Project URL: ${config.url ? chalk.green('✓ Configured') : chalk.red('✖ Required')}`)
       console.log(`   Anonymous Key: ${config.anonKey ? chalk.green('✓ Configured') : chalk.red('✖ Required')}`)
       console.log(
-        `   Service Role Key: ${config.serviceRoleKey ? chalk.green('✓ Configured') : chalk.yellow('⚠️ Optional')}`
+        `   Service Role Key: ${config.serviceRoleKey ? chalk.green('✓ Configured') : chalk.yellow('⚠︎ Optional')}`
       )
 
       if (!config.url || !config.anonKey) {
@@ -18737,14 +18747,14 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       const { authProvider } = await import('./providers/supabase/auth-provider')
 
       if (!authProvider.getConfig().enabled) {
-        console.log(chalk.yellow('⚠️ Authentication is not enabled'))
+        console.log(chalk.yellow('⚠︎ Authentication is not enabled'))
         console.log(chalk.dim('Enable Supabase authentication in configuration'))
         return
       }
 
       if (authProvider.isAuthenticated()) {
         const profile = authProvider.getCurrentProfile()
-        console.log(chalk.yellow(`⚠️ Already signed in as ${profile?.email || profile?.username}`))
+        console.log(chalk.yellow(`⚠︎ Already signed in as ${profile?.email || profile?.username}`))
         console.log(chalk.dim('Sign out first to create a new account'))
         return
       }
@@ -18831,7 +18841,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       if (!authProvider.isAuthenticated()) {
         const panel = boxen(
           [
-            chalk.yellow('⚠️ Not signed in'),
+            chalk.yellow('⚠︎ Not signed in'),
             '',
             chalk.dim('Use /signin or /auth signin to authenticate and load your profile.'),
           ].join('\n'),
@@ -18901,7 +18911,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         }`
       )
       lines.push(
-        `  Email Verified: ${(user as any).email_confirmed_at ? chalk.green('✓ Yes') : chalk.yellow('⚠️ Pending')
+        `  Email Verified: ${(user as any).email_confirmed_at ? chalk.green('✓ Yes') : chalk.yellow('⚠︎ Pending')
         }`
       )
 
@@ -18954,7 +18964,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       const { authProvider } = await import('./providers/supabase/auth-provider')
 
       if (!authProvider.isAuthenticated()) {
-        console.log(chalk.yellow('⚠️ Not signed in'))
+        console.log(chalk.yellow('⚠︎ Not signed in'))
         console.log(chalk.dim('Sign in with: /auth signin'))
         return
       }
@@ -19032,7 +19042,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       if (!apiQuota.allowed) warnings.push('API rate limit reached')
 
       if (warnings.length > 0) {
-        console.log(chalk.bold.red('⚠️ Quota Warnings'))
+        console.log(chalk.bold.red('⚠︎ Quota Warnings'))
         warnings.forEach((warning) => {
           console.log(chalk.red(`   • ${warning}`))
         })
@@ -19147,7 +19157,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         // Just execute them directly
         await agentTodoManager.executeTodos(agentId)
 
-        console.log(chalk.green('\n✅ Background execution completed!'))
+        console.log(chalk.green('\n✓ Background execution completed!'))
         console.log(chalk.gray('All background tasks have been completed successfully.'))
       } catch (error: any) {
         console.log(chalk.red(`\n✖ Background execution failed: ${error.message}`))
@@ -20539,7 +20549,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         const selectedPaths = ctx.selectedPaths.slice(0, 30)
 
         if (selectedPaths.length === 0) {
-          console.log(chalk.yellow('\n⚠️  No paths in RAG to remove\n'))
+          console.log(chalk.yellow('\n⚠︎  No paths in RAG to remove\n'))
           await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
           break
         }
@@ -20583,7 +20593,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     const session = contextTokenManager.getCurrentSession()
 
     if (!session) {
-      console.log(chalk.yellow('\n⚠️  No active conversation session\n'))
+      console.log(chalk.yellow('\n⚠︎  No active conversation session\n'))
       await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
       return
     }
@@ -20953,7 +20963,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     const indexedFiles = Array.from(ctx.files.values()).slice(0, 50)
 
     if (indexedFiles.length === 0) {
-      console.log(chalk.yellow('\n⚠️  No files indexed\n'))
+      console.log(chalk.yellow('\n⚠︎  No files indexed\n'))
       await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
       return
     }
@@ -21055,7 +21065,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     const selectedPaths = ctx.selectedPaths.slice(0, 20)
 
     if (selectedPaths.length === 0) {
-      console.log(chalk.yellow('\n⚠️  No paths to remove\n'))
+      console.log(chalk.yellow('\n⚠︎  No paths to remove\n'))
       await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
       return
     }
@@ -21464,7 +21474,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         )
 
         if (filtered.length === 0) {
-          console.log(chalk.yellow('\n⚠️  No embedding models found matching your search'))
+          console.log(chalk.yellow('\n⚠︎  No embedding models found matching your search'))
           return
         }
 
@@ -21506,7 +21516,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
             boxen(
               `✓ Selected embedding model: ${chalk.bold(selectedModel)}\nApplied immediately (no restart needed)`,
               {
-                title: '✅ Embedding Model Selected',
+                title: '✓ Embedding Model Selected',
                 padding: 1,
                 margin: 1,
                 borderStyle: 'round',
@@ -22165,9 +22175,9 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       try {
         const { cacheService } = await import('./services/cache-service')
         await cacheService.reconnectRedis()
-        console.log(chalk.green('\n✅ Redis connection tested successfully'))
+        console.log(chalk.green('\n✓ Redis connection tested successfully'))
       } catch (error: any) {
-        console.log(chalk.yellow(`\n⚠️ Redis connection test failed: ${error.message}`))
+        console.log(chalk.yellow(`\n⚠︎ Redis connection test failed: ${error.message}`))
         console.log(chalk.gray('Cache will fall back to local memory storage'))
       }
     } catch (error: any) {
@@ -22316,7 +22326,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
 
           this.printPanel(
             boxen('Redis cache disabled. The system will fall back to local SmartCache for caching.', {
-              title: '⚠️ Redis Disabled',
+              title: '⚠︎ Redis Disabled',
               padding: 1,
               margin: 1,
               borderStyle: 'round',
@@ -22422,7 +22432,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       // Check if Browserbase is configured
       const providers = configManager.getBrowserbaseCredentials()
       if (!providers || providers.apiKey === undefined || providers.projectId === undefined) {
-        console.log(chalk.yellow('⚠️ Browserbase not configured. Use /set-key-bb to configure API credentials.'))
+        console.log(chalk.yellow('⚠︎ Browserbase not configured. Use /set-key-bb to configure API credentials.'))
         return
       }
 
@@ -22487,7 +22497,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       // Check if Browserbase is configured
       const providers = configManager.getBrowserbaseCredentials()
       if (!providers || providers.apiKey === undefined || providers.projectId === undefined) {
-        console.log(chalk.yellow('⚠️ Browserbase not configured. Use /set-key-bb to configure API credentials.'))
+        console.log(chalk.yellow('⚠︎ Browserbase not configured. Use /set-key-bb to configure API credentials.'))
         return
       }
 
@@ -22655,7 +22665,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
             ? '⚡︎'
             : todo.status === 'failed'
               ? '✖'
-              : '⏳'
+              : '⏳︎'
 
       const priorityIcon = todo.priority === 'high' ? '🔴' : todo.priority === 'medium' ? '🟡' : '🟢'
 
@@ -22715,7 +22725,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       tasks.forEach((task: any, index: number) => {
         const status =
           task.status === 'pending'
-            ? '⏳'
+            ? '⏳︎'
             : task.status === 'completed'
               ? '✓'
               : task.status === 'in_progress'
@@ -22732,7 +22742,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       await fs.writeFile(todoPath, content, 'utf-8')
       console.log(chalk.green(`✓ Todo file saved: ${todoPath}`))
     } catch (error: any) {
-      console.log(chalk.yellow(`⚠️ Failed to save todo.md: ${error.message}`))
+      console.log(chalk.yellow(`⚠︎ Failed to save todo.md: ${error.message}`))
     }
   }
 
@@ -23201,7 +23211,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         color: 'blue' as const,
       },
       completed: {
-        icon: '✅',
+        icon: '✓',
         title: 'Background Job Completed',
         color: 'green' as const,
       },

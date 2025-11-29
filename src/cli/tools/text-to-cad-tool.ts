@@ -341,14 +341,14 @@ export class TextToCADTool extends BaseTool {
         this.activeBridge = 'ai-cad-sdk'
         return
       }
-    } catch {}
+    } catch { }
     try {
       const cadOk = await this.cadBridge.initialize()
       if (cadOk && this.cadBridge.isAvailable()) {
         this.activeBridge = 'cadcamfun'
         return
       }
-    } catch {}
+    } catch { }
     this.activeBridge = null
   }
 
@@ -374,7 +374,7 @@ export class TextToCADTool extends BaseTool {
       console.log(chalk.green('✓ Description enhanced with engineering specifications'))
       return enhancedDescription
     } catch (_error) {
-      console.log(chalk.yellow('⚠️ AI enhancement failed, using original description'))
+      console.log(chalk.yellow('⚠︎ AI enhancement failed, using original description'))
       return null
     }
   }

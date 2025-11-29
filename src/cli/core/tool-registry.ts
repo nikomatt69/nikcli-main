@@ -268,7 +268,7 @@ export class ToolRegistry {
         toolInstance.isInitialized = true
 
       } catch (error: any) {
-        advancedUI.logWarning(`⚠️  Tool initialization failed: ${toolInstance.metadata.name} - ${error.message}`)
+        advancedUI.logWarning(`⚠︎  Tool initialization failed: ${toolInstance.metadata.name} - ${error.message}`)
       }
     }
 
@@ -568,7 +568,7 @@ export class ToolRegistry {
 
 
     } catch (error: any) {
-      advancedUI.logWarning(`⚠️  Some built-in tools failed to load: ${error.message}`)
+      advancedUI.logWarning(`⚠︎  Some built-in tools failed to load: ${error.message}`)
     }
   }
 
@@ -933,7 +933,7 @@ export class ToolRegistry {
 
       if (insights.diagnostics.errors > 0) {
         advancedUI.logWarning(
-          `⚠️  LSP found ${insights.diagnostics.errors} errors before ${toolInstance.metadata.name} execution`
+          `⚠︎  LSP found ${insights.diagnostics.errors} errors before ${toolInstance.metadata.name} execution`
         )
       }
 
@@ -999,7 +999,7 @@ export class ToolRegistry {
         }
         advancedUI.logSuccess(`✓ Cleaned up tool: ${name}`)
       } catch (error: any) {
-        advancedUI.logError(`⚠️ Failed to cleanup tool ${name}: ${error.message}`)
+        advancedUI.logError(`⚠︎ Failed to cleanup tool ${name}: ${error.message}`)
       }
     }
     this.tools.clear()
@@ -1016,7 +1016,7 @@ export class ToolRegistry {
         }
         advancedUI.logSuccess(`✓ Closed session: ${id}`)
       } catch (error: any) {
-        advancedUI.logError(`⚠️ Failed to close session ${id}: ${error.message}`)
+        advancedUI.logError(`⚠︎ Failed to close session ${id}: ${error.message}`)
       }
     }
     this.sessions.clear()
@@ -1043,7 +1043,7 @@ export class ToolRegistry {
         return
       }
     } catch (error: any) {
-      advancedUI.logError(`⚠️ Error cleaning up subsystems: ${error.message}`)
+      advancedUI.logError(`⚠︎ Error cleaning up subsystems: ${error.message}`)
     }
 
     this.isInitialized = false

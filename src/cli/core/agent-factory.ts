@@ -434,7 +434,7 @@ export class DynamicAgent extends BaseAgent {
       AgentTaskResultSchema.parse(taskResult)
       return taskResult
     } catch (error) {
-      console.warn(chalk.yellow(`⚠️ Task result validation warning:`, error))
+      console.warn(chalk.yellow(`⚠︎ Task result validation warning:`, error))
       // Return original result if validation fails
       return result
     }
@@ -708,7 +708,7 @@ export class AgentFactory extends EventEmitter {
     setInterval(
       () => {
         this.autoCleanupInactiveAgents().catch((error) => {
-          console.log(chalk.yellow(`⚠️ Auto-cleanup failed: ${error.message}`))
+          console.log(chalk.yellow(`⚠︎ Auto-cleanup failed: ${error.message}`))
         })
       },
       5 * 60 * 1000
@@ -925,7 +925,7 @@ Context Scope: ${requirements.contextScope || 'project'}`,
       try {
         aiBlueprint = JSON.parse(jsonText)
       } catch (_parseError) {
-        console.log(chalk.yellow('⚠️ Failed to parse AI response, using fallback blueprint'))
+        console.log(chalk.yellow('⚠︎ Failed to parse AI response, using fallback blueprint'))
         // Create fallback blueprint when AI response is not valid JSON
         aiBlueprint = this.createFallbackBlueprint(requirements.specialization)
       }
@@ -1059,7 +1059,7 @@ Context Scope: ${requirements.contextScope || 'project'}`,
         this.blueprints.set(minimalBlueprint.id, minimalBlueprint)
         await blueprintStorage.saveBlueprint(minimalBlueprint)
 
-        console.log(chalk.yellow(`⚠️ Created minimal blueprint as last resort: ${minimalBlueprint.name}`))
+        console.log(chalk.yellow(`⚠︎ Created minimal blueprint as last resort: ${minimalBlueprint.name}`))
         return minimalBlueprint
       }
     }
@@ -1234,7 +1234,7 @@ Execute tasks step-by-step and verify results before proceeding.`
       const isHealthy = await this.checkAgentHealth(existing)
 
       if (isHealthy) {
-        console.log(chalk.yellow(`⚠️ Agent ${blueprint.name} already launched; returning existing instance`))
+        console.log(chalk.yellow(`⚠︎ Agent ${blueprint.name} already launched; returning existing instance`))
 
         // If a task is provided, execute it on the existing agent
         if (task) {
@@ -1439,7 +1439,7 @@ Execute tasks step-by-step and verify results before proceeding.`
       return healthResult === true
     } catch (error: any) {
       // Any error in health check means the agent is unhealthy
-      console.log(chalk.yellow(`⚠️ Health check failed for agent ${agent?.id}: ${error.message}`))
+      console.log(chalk.yellow(`⚠︎ Health check failed for agent ${agent?.id}: ${error.message}`))
       return false
     }
   }
@@ -1463,7 +1463,7 @@ Execute tasks step-by-step and verify results before proceeding.`
       }
     } catch (cleanupError: any) {
       // Log cleanup errors but don't throw - we still want to remove the agent from tracking
-      console.log(chalk.yellow(`⚠️ Agent cleanup warning: ${cleanupError.message}`))
+      console.log(chalk.yellow(`⚠︎ Agent cleanup warning: ${cleanupError.message}`))
     }
   }
 
@@ -1481,7 +1481,7 @@ Execute tasks step-by-step and verify results before proceeding.`
       this.instances.clear()
       console.log(chalk.green('✓ All agents cleaned up successfully'))
     } catch (_error) {
-      console.log(chalk.yellow('⚠️  Some agents may not have cleaned up properly'))
+      console.log(chalk.yellow('⚠︎  Some agents may not have cleaned up properly'))
     }
   }
 
@@ -1583,10 +1583,10 @@ Execute tasks step-by-step and verify results before proceeding.`
         console.log(`    Efficiency: ${Math.round(stats.efficiency)}%`)
       })
     } else if (blueprints.length > 0) {
-      console.log(chalk.yellow('\n⚠️ No active agents'))
+      console.log(chalk.yellow('\n⚠︎ No active agents'))
       console.log(chalk.gray('Use /launch-agent <name|id> to launch an agent'))
     } else {
-      console.log(chalk.yellow('\n⚠️ No blueprints available'))
+      console.log(chalk.yellow('\n⚠︎ No blueprints available'))
       console.log(chalk.gray('Create one with: /create-agent <specialization>'))
     }
 

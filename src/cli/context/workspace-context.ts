@@ -197,7 +197,7 @@ export class WorkspaceContextManager {
 
 
     } catch (_error) {
-      advancedUI.logWarning(chalk.yellow('⚠️ RAG integration failed, using basic workspace analysis'))
+      advancedUI.logWarning(chalk.yellow('⚠︎ RAG integration failed, using basic workspace analysis'))
       this.context.ragAvailable = false
       this.ragInitialized = true
     }
@@ -216,7 +216,7 @@ export class WorkspaceContextManager {
       this.isInitialized = true
 
     } catch (error) {
-      advancedUI.logWarning(chalk.yellow('⚠️ Failed to initialize integrated components:', error))
+      advancedUI.logWarning(chalk.yellow('⚠︎ Failed to initialize integrated components:', error))
       this.isInitialized = false
     }
   }
@@ -262,7 +262,7 @@ export class WorkspaceContextManager {
           }
         }
       } catch (_error) {
-        console.log(chalk.yellow('⚠️ RAG search failed, using local semantic search'))
+        console.log(chalk.yellow('⚠︎ RAG search failed, using local semantic search'))
       }
     }
 
@@ -913,7 +913,7 @@ Selected Paths: ${this.context.selectedPaths.join(', ')}`
     const truncateSize = shouldTruncate ? Math.floor(maxContextSize / files.length) : 4000
 
     if (shouldTruncate) {
-      context += `\n⚠️ Large workspace detected - content truncated to ${truncateSize} chars per file\n`
+      context += `\n⚠︎ Large workspace detected - content truncated to ${truncateSize} chars per file\n`
     }
 
     files.forEach((file) => {

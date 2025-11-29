@@ -133,7 +133,7 @@ export class TaskMasterService extends EventEmitter {
       advancedUI.logFunctionUpdate('info', chalk.gray(`   Provider: ${this.config.aiProvider}`))
       advancedUI.logFunctionUpdate('info', chalk.gray(`   Model: ${this.config.model}`))
     } catch (error: any) {
-      advancedUI.logFunctionUpdate('warning', chalk.yellow('⚠️ TaskMaster initialization failed, using fallback mode'))
+      advancedUI.logFunctionUpdate('warning', chalk.yellow('⚠︎ TaskMaster initialization failed, using fallback mode'))
       advancedUI.logFunctionUpdate('info', chalk.gray(`   Provider: ${this.config.aiProvider}`))
       advancedUI.logFunctionUpdate('info', chalk.gray(`   Error: ${error.message}`))
 
@@ -199,13 +199,13 @@ export class TaskMasterService extends EventEmitter {
         return plan
       }
     } catch (error: any) {
-      advancedUI.logFunctionUpdate('warning', chalk.yellow(`⚠️ TaskMaster plan generation failed: ${error.message}`))
+      advancedUI.logFunctionUpdate('warning', chalk.yellow(`⚠︎ TaskMaster plan generation failed: ${error.message}`))
     }
 
     // Fallback to rule-based planning
     const fallbackPlan = this.createFallbackPlan(planId, userRequest, planningContext)
     this.activePlans.set(planId, fallbackPlan)
-    advancedUI.logFunctionUpdate('warning', chalk.yellow(`⚠️ Using fallback plan ${planId}`))
+    advancedUI.logFunctionUpdate('warning', chalk.yellow(`⚠︎ Using fallback plan ${planId}`))
     return fallbackPlan
   }
 
@@ -236,7 +236,7 @@ export class TaskMasterService extends EventEmitter {
         return this.convertExecutionResult(result)
       }
     } catch (error: any) {
-      advancedUI.logFunctionUpdate('warning', chalk.yellow(`⚠️ TaskMaster execution failed: ${error.message}`))
+      advancedUI.logFunctionUpdate('warning', chalk.yellow(`⚠︎ TaskMaster execution failed: ${error.message}`))
     }
 
     // Fallback execution
@@ -255,7 +255,7 @@ export class TaskMasterService extends EventEmitter {
         return await this.taskMaster.getPlanStatus(planId)
       }
     } catch (error: any) {
-      advancedUI.logFunctionUpdate('info', chalk.yellow(`⚠️ TaskMaster status check failed: ${error.message}`))
+      advancedUI.logFunctionUpdate('info', chalk.yellow(`⚠︎ TaskMaster status check failed: ${error.message}`))
     }
 
     // Fallback status
@@ -288,7 +288,7 @@ export class TaskMasterService extends EventEmitter {
         await this.taskMaster.updatePlan(planId, updates)
       }
     } catch (error: any) {
-      console.log(chalk.yellow(`⚠️ TaskMaster plan update failed: ${error.message}`))
+      console.log(chalk.yellow(`⚠︎ TaskMaster plan update failed: ${error.message}`))
     }
 
     // Update local plan
@@ -382,7 +382,7 @@ export class TaskMasterService extends EventEmitter {
     } catch (error: any) {
       advancedUI.logFunctionUpdate(
         'info',
-        chalk.yellow(`⚠️ AI generation failed, using enhanced fallback: ${error.message}`)
+        chalk.yellow(`⚠︎ AI generation failed, using enhanced fallback: ${error.message}`)
       )
     }
 
@@ -614,14 +614,14 @@ Generate tasks NOW (JSON only):`
                     }
                   }
                 } catch {
-                  advancedUI.logFunctionUpdate('info', chalk.yellow(`⚠️ Failed to extract JSON from AI response`))
+                  advancedUI.logFunctionUpdate('info', chalk.yellow(`⚠︎ Failed to extract JSON from AI response`))
                 }
               }
             }
           }
         }
       } catch (error: any) {
-        advancedUI.logFunctionUpdate('info', chalk.yellow(`⚠️ Advanced AI provider failed: ${error.message}`))
+        advancedUI.logFunctionUpdate('info', chalk.yellow(`⚠︎ Advanced AI provider failed: ${error.message}`))
       }
 
       if (!success) {
@@ -692,7 +692,7 @@ Generate tasks NOW (JSON only):`
       if (todos.length < 3) {
         advancedUI.logFunctionUpdate(
           'info',
-          chalk.yellow(`⚠️ AI generated only ${todos.length} tasks, adding fallback tasks`)
+          chalk.yellow(`⚠︎ AI generated only ${todos.length} tasks, adding fallback tasks`)
         )
 
         // Aggiungi task generici basati sulla richiesta
@@ -708,7 +708,7 @@ Generate tasks NOW (JSON only):`
       )
       return todos
     } catch (error: any) {
-      advancedUI.logFunctionUpdate('warning', chalk.yellow(`⚠️ AI task generation failed: ${error.message}`))
+      advancedUI.logFunctionUpdate('warning', chalk.yellow(`⚠︎ AI task generation failed: ${error.message}`))
       advancedUI.logFunctionUpdate('info', chalk.gray('⚡︎ Falling back to comprehensive analysis tasks...'))
 
       // Professional fallback tasks
@@ -1273,7 +1273,7 @@ Generate tasks NOW (JSON only):`
       try {
         await this.taskMaster.dispose()
       } catch (error: any) {
-        console.log(chalk.yellow(`⚠️ TaskMaster disposal error: ${error.message}`))
+        console.log(chalk.yellow(`⚠︎ TaskMaster disposal error: ${error.message}`))
       }
     }
 

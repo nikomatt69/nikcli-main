@@ -15,14 +15,14 @@ try {
   const goatAdapter = require('@goat-sdk/adapter-vercel-ai')
   getOnChainTools = goatAdapter.getOnChainTools
 } catch (e) {
-  console.warn('⚠️ GOAT adapter import failed:', e)
+  console.warn('⚠︎ GOAT adapter import failed:', e)
 }
 
 try {
   const viemWallet = require('@goat-sdk/wallet-viem')
   viemWalletProvider = viemWallet.viem
 } catch (e) {
-  console.warn('⚠️ Viem wallet import failed:', e)
+  console.warn('⚠︎ Viem wallet import failed:', e)
 }
 
 try {
@@ -31,7 +31,7 @@ try {
   // Store the createOrDeriveAPIKey function for later use
   polymarketPlugin.createOrDeriveAPIKey = polymarketModule.createOrDeriveAPIKey
 } catch (e) {
-  console.warn('⚠️ Polymarket plugin import failed:', e)
+  console.warn('⚠︎ Polymarket plugin import failed:', e)
 }
 
 try {
@@ -45,7 +45,7 @@ try {
     MODE: erc20Module.MODE
   }
 } catch (e) {
-  console.warn('⚠️ ERC20 plugin import failed:', e)
+  console.warn('⚠︎ ERC20 plugin import failed:', e)
 }
 
 import * as fs from 'node:fs'
@@ -231,18 +231,18 @@ export class GoatProvider {
           if (polymarketPlugin) {
             this.enabledPlugins.push('polymarket')
           } else {
-            console.warn('⚠️ Polymarket plugin not available')
+            console.warn('⚠︎ Polymarket plugin not available')
           }
           break
         case 'erc20':
           if (erc20Plugin) {
             this.enabledPlugins.push('erc20')
           } else {
-            console.warn('⚠️ ERC20 plugin not available')
+            console.warn('⚠︎ ERC20 plugin not available')
           }
           break
         default:
-          console.warn(`⚠️ Unknown plugin: ${pluginName}`)
+          console.warn(`⚠︎ Unknown plugin: ${pluginName}`)
       }
     }
 
@@ -277,7 +277,7 @@ export class GoatProvider {
               pluginInstances.push(polymarketPlugin({ credentials }))
               console.log('✓ Polymarket plugin configured')
             } catch (error: any) {
-              console.warn('⚠️ Failed to create Polymarket credentials:', error.message)
+              console.warn('⚠︎ Failed to create Polymarket credentials:', error.message)
               console.log('ℹ️ Polymarket plugin skipped - credentials required')
             }
           }
@@ -299,17 +299,17 @@ export class GoatProvider {
               }))
               console.log(`✓ ERC20 plugin configured with ${tokens.length} tokens for chain ${primaryChain.name} (${primaryChainId})`)
             } else {
-              console.warn('⚠️ No ERC20 tokens available for configuration')
+              console.warn('⚠︎ No ERC20 tokens available for configuration')
             }
           } else {
-            console.warn('⚠️ ERC20 plugin not properly initialized')
+            console.warn('⚠︎ ERC20 plugin not properly initialized')
           }
           break
       }
     }
 
     if (pluginInstances.length === 0) {
-      console.warn('⚠️ No plugins were successfully initialized')
+      console.warn('⚠︎ No plugins were successfully initialized')
     }
 
     // Generate tools using GOAT adapter
@@ -388,7 +388,7 @@ For any blockchain transaction, provide a clear summary including:
       fs.writeFileSync(this.walletDataFile, JSON.stringify(walletData, null, 2))
       console.log(`✓ GOAT wallet data saved to ${this.walletDataFile}`)
     } catch (error) {
-      console.warn('⚠️ Could not save wallet data:', error)
+      console.warn('⚠︎ Could not save wallet data:', error)
     }
   }
 
@@ -449,7 +449,7 @@ For any blockchain transaction, provide a clear summary including:
         builderCredentials: builderCreds
       })
     } catch (error: any) {
-      console.warn('⚠️ Failed to load native Polymarket client:', error.message)
+      console.warn('⚠︎ Failed to load native Polymarket client:', error.message)
       return null
     }
   }
@@ -465,7 +465,7 @@ For any blockchain transaction, provide a clear summary including:
         'wss://ws-subscriptions-clob.polymarket.com/ws/'
       )
     } catch (error: any) {
-      console.warn('⚠️ Failed to load WebSocket manager:', error.message)
+      console.warn('⚠︎ Failed to load WebSocket manager:', error.message)
       return null
     }
   }
@@ -488,7 +488,7 @@ For any blockchain transaction, provide a clear summary including:
         passphrase: process.env.POLYMARKET_BUILDER_PASSPHRASE || ''
       })
     } catch (error: any) {
-      console.warn('⚠️ Failed to load builder signing service:', error.message)
+      console.warn('⚠︎ Failed to load builder signing service:', error.message)
       return null
     }
   }
@@ -527,7 +527,7 @@ For any blockchain transaction, provide a clear summary including:
         builderCredentials: builderCreds,
       })
     } catch (error: any) {
-      console.warn('⚠️ Failed to load relayer client:', error.message)
+      console.warn('⚠︎ Failed to load relayer client:', error.message)
       return null
     }
   }
@@ -541,7 +541,7 @@ For any blockchain transaction, provide a clear summary including:
 
       return new PolymarketGammaAPI(process.env.GAMMA_API_URL || 'https://gamma-api.polymarket.com')
     } catch (error: any) {
-      console.warn('⚠️ Failed to load Gamma Markets API:', error.message)
+      console.warn('⚠︎ Failed to load Gamma Markets API:', error.message)
       return null
     }
   }
@@ -561,7 +561,7 @@ For any blockchain transaction, provide a clear summary including:
         passphrase: process.env.POLYMARKET_BUILDER_PASSPHRASE,
       })
     } catch (error: any) {
-      console.warn('⚠️ Failed to load RTDS client:', error.message)
+      console.warn('⚠︎ Failed to load RTDS client:', error.message)
       return null
     }
   }
@@ -580,7 +580,7 @@ For any blockchain transaction, provide a clear summary including:
         oracleAddress: process.env.CTF_ORACLE || '0x1d78bccb7fa0db0d0fc8c03b3ceae2f7a0d4de8d',
       })
     } catch (error: any) {
-      console.warn('⚠️ Failed to load CTF client:', error.message)
+      console.warn('⚠︎ Failed to load CTF client:', error.message)
       return null
     }
   }

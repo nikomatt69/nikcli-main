@@ -345,7 +345,7 @@ export const docsGapReportTool: CoreTool = tool({
         impact === 'critical'
           ? '🚨 CRITICAL'
           : impact === 'high'
-            ? '⚠️ HIGH'
+            ? '⚠︎ HIGH'
             : impact === 'medium'
               ? '📝 MEDIUM'
               : '💡 LOW'

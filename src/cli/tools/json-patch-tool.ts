@@ -109,7 +109,7 @@ export class JsonPatchTool extends BaseTool {
       const after = JSON.stringify(applied)
 
       if (before === after) {
-        advancedUI.logWarning('⚠️ No changes produced by provided operations')
+        advancedUI.logWarning('⚠︎ No changes produced by provided operations')
         return {
           success: true,
           data: { changes: 0, backupPath: undefined },
@@ -176,7 +176,7 @@ export class JsonPatchTool extends BaseTool {
 
       if (!params.previewOnly) {
         fs.writeFileSync(absolute, newContent, 'utf8')
-        advancedUI.logSuccess('✅ JSON patch applied')
+        advancedUI.logSuccess('✓ JSON patch applied')
       } else {
         advancedUI.logInfo('📋 Preview only, no changes written')
       }

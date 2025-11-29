@@ -109,7 +109,7 @@ export class CloudIntegration {
     const s = status || this.cloudStatus
 
     if (!s) {
-      console.log(chalk.gray('⚠️  Cloud status unknown'))
+      console.log(chalk.gray('⚠︎  Cloud status unknown'))
       return
     }
 
@@ -121,7 +121,7 @@ export class CloudIntegration {
     if (s.services.backgroundAgents.available) {
       const latency = s.services.backgroundAgents.latency
       console.log(
-        `✅ Background Agents API: ${chalk.green('Connected')} ${latency ? chalk.gray(`(${latency}ms)`) : ''}`
+        `✓ Background Agents API: ${chalk.green('Connected')} ${latency ? chalk.gray(`(${latency}ms)`) : ''}`
       )
     } else {
       console.log(`✖ Background Agents API: ${chalk.red('Unavailable')} ${chalk.gray('(using local mode)')}`)
@@ -129,7 +129,7 @@ export class CloudIntegration {
 
     // GitHub Integration
     if (s.services.github.available) {
-      console.log(`✅ GitHub Webhooks: ${chalk.green('Connected')}`)
+      console.log(`✓ GitHub Webhooks: ${chalk.green('Connected')}`)
     } else {
       console.log(`✖ GitHub Webhooks: ${chalk.red('Unavailable')}`)
     }
@@ -187,7 +187,7 @@ export class CloudIntegration {
    * Force local mode (disable cloud services)
    */
   forceLocalMode(): void {
-    console.log(chalk.yellow('⚠️  Forcing local mode'))
+    console.log(chalk.yellow('⚠︎  Forcing local mode'))
     this.cloudStatus = {
       connected: false,
       services: {
@@ -218,7 +218,7 @@ export class CloudIntegration {
       // Background Agents API
       console.log(chalk.bold('Background Agents API:'))
       if (status.services.backgroundAgents.available) {
-        console.log(`  ${chalk.green('✅ Connected')}`)
+        console.log(`  ${chalk.green('✓ Connected')}`)
         console.log(`  ${chalk.gray(`Latency: ${status.services.backgroundAgents.latency}ms`)}`)
         console.log(`  ${chalk.gray(`URL: ${status.services.backgroundAgents.url}`)}`)
 
@@ -228,7 +228,7 @@ export class CloudIntegration {
           console.log(`  ${chalk.gray(`Active jobs: ${stats.jobs.running}`)}`)
           console.log(`  ${chalk.gray(`Queue: ${stats.queue.pending} pending`)}`)
         } catch {
-          console.log(`  ${chalk.yellow('⚠️  Stats unavailable')}`)
+          console.log(`  ${chalk.yellow('⚠︎  Stats unavailable')}`)
         }
       } else {
         console.log(`  ${chalk.red('✖ Not available')}`)
@@ -239,7 +239,7 @@ export class CloudIntegration {
       // GitHub Webhooks
       console.log(chalk.bold('GitHub Webhooks:'))
       if (status.services.github.available) {
-        console.log(`  ${chalk.green('✅ Connected')}`)
+        console.log(`  ${chalk.green('✓ Connected')}`)
         console.log(`  ${chalk.gray(`URL: ${status.services.github.url}`)}`)
       } else {
         console.log(`  ${chalk.red('✖ Not available')}`)
@@ -249,9 +249,9 @@ export class CloudIntegration {
 
       // Overall status
       if (status.mode === 'cloud') {
-        console.log(chalk.green('✅ All cloud services operational'))
+        console.log(chalk.green('✓ All cloud services operational'))
       } else if (status.mode === 'hybrid') {
-        console.log(chalk.yellow('⚠️  Some cloud services unavailable'))
+        console.log(chalk.yellow('⚠︎  Some cloud services unavailable'))
       } else {
         console.log(chalk.gray('ℹ️  Running in local mode'))
       }

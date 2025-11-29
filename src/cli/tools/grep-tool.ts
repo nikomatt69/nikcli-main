@@ -99,7 +99,7 @@ export class GrepTool extends BaseTool {
       // Se non trova file, potrebbe essere dovuto a IGNORE_PATTERNS troppo aggressivi
       // Mostra warning ma continua comunque
       if (filesToSearch.length === 0) {
-        advancedUI.logInfo(`⚠️  No files found matching criteria - this might be due to aggressive ignore patterns`)
+        advancedUI.logInfo(`⚠︎  No files found matching criteria - this might be due to aggressive ignore patterns`)
         CliUI.logDebug(`Search path: ${searchPath}, pattern: ${params.pattern}`)
       } else {
         CliUI.logDebug(`Found ${filesToSearch.length} files to search`)

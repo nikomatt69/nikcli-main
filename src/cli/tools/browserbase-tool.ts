@@ -337,7 +337,7 @@ export class BrowserbaseTool extends BaseTool {
         try {
           await browserbaseProvider.closeSession(sessionId)
         } catch (cleanupError) {
-          console.log(chalk.yellow(`⚠️ Failed to cleanup session: ${cleanupError}`))
+          console.log(chalk.yellow(`⚠︎ Failed to cleanup session: ${cleanupError}`))
         }
       }
     }

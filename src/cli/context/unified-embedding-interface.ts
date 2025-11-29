@@ -194,7 +194,7 @@ export class UnifiedEmbeddingInterface {
             if (vector.length !== actualDimensions && this.shouldWarnDimensions(actualDimensions, vector.length)) {
               console.warn(
                 chalk.yellow(
-                  `⚠️ Embedding dimensions mismatch: expected ${actualDimensions}, got ${vector.length} from ${currentProvider}. Using actual dimensions.`
+                  `⚠︎ Embedding dimensions mismatch: expected ${actualDimensions}, got ${vector.length} from ${currentProvider}. Using actual dimensions.`
                 )
               )
               this.lastDimensionWarning = { expected: actualDimensions, actual: vector.length }
@@ -206,7 +206,7 @@ export class UnifiedEmbeddingInterface {
           } else {
             console.warn(
               chalk.yellow(
-                `⚠️ No embedding vector generated for query index ${i}`
+                `⚠︎ No embedding vector generated for query index ${i}`
               )
             )
           }
@@ -294,7 +294,7 @@ export class UnifiedEmbeddingInterface {
    */
   validateEmbedding(embedding: number[], source: string): boolean {
     if (!Array.isArray(embedding)) {
-      console.warn(chalk.yellow(`⚠️ Invalid embedding format from ${source}: not an array`))
+      console.warn(chalk.yellow(`⚠︎ Invalid embedding format from ${source}: not an array`))
       return false
     }
 
@@ -303,13 +303,13 @@ export class UnifiedEmbeddingInterface {
 
     if (embedding.length !== actualDimensions) {
       console.warn(
-        chalk.yellow(`⚠️ Dimension mismatch from ${source}: expected ${actualDimensions}, got ${embedding.length}`)
+        chalk.yellow(`⚠︎ Dimension mismatch from ${source}: expected ${actualDimensions}, got ${embedding.length}`)
       )
       return false
     }
 
     if (embedding.some((val) => typeof val !== 'number' || !Number.isFinite(val))) {
-      console.warn(chalk.yellow(`⚠️ Invalid embedding values from ${source}: contains non-finite numbers`))
+      console.warn(chalk.yellow(`⚠︎ Invalid embedding values from ${source}: contains non-finite numbers`))
       return false
     }
 
@@ -530,7 +530,7 @@ export class UnifiedEmbeddingInterface {
       await this.loadPersistentCache()
       console.log(chalk.gray(`✓ Persistent embedding cache initialized`))
     } catch (error) {
-      console.warn(chalk.yellow(`⚠️ Failed to initialize persistent cache: ${error}`))
+      console.warn(chalk.yellow(`⚠︎ Failed to initialize persistent cache: ${error}`))
     }
   }
 
@@ -556,7 +556,7 @@ export class UnifiedEmbeddingInterface {
         console.log(chalk.gray(`📦 Loaded ${this.embeddingCache.size} embeddings from persistent cache`))
       }
     } catch (error) {
-      console.warn(chalk.yellow(`⚠️ Failed to load persistent cache: ${error}`))
+      console.warn(chalk.yellow(`⚠︎ Failed to load persistent cache: ${error}`))
     }
   }
 
@@ -573,7 +573,7 @@ export class UnifiedEmbeddingInterface {
       await writeFile(cacheFile, JSON.stringify(data, null, 2))
       console.log(chalk.gray(`💾 Saved ${this.embeddingCache.size} embeddings to persistent cache`))
     } catch (error) {
-      console.warn(chalk.yellow(`⚠️ Failed to save persistent cache: ${error}`))
+      console.warn(chalk.yellow(`⚠︎ Failed to save persistent cache: ${error}`))
     }
   }
 
@@ -588,7 +588,7 @@ export class UnifiedEmbeddingInterface {
         )
       }
     } catch (error) {
-      console.warn(chalk.yellow(`⚠️ Failed to clear persistent cache: ${error}`))
+      console.warn(chalk.yellow(`⚠︎ Failed to clear persistent cache: ${error}`))
     }
   }
 }

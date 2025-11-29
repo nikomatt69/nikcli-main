@@ -208,7 +208,7 @@ slackRouter.post('/events', async (req: Request, res: Response): Promise<void> =
 
     // Handle URL verification challenge (Slack setup)
     if (req.body.type === 'url_verification') {
-      console.log('✅ Slack URL verification successful')
+      console.log('✓ Slack URL verification successful')
       res.status(200).json({ challenge: req.body.challenge })
       return
     }
@@ -315,7 +315,7 @@ export async function sendSlackNotification(params: {
  */
 export async function notifyJobCompleted(jobId: string, repo: string, duration: number) {
   await sendSlackNotification({
-    title: '✅ Job Completed Successfully',
+    title: '✓ Job Completed Successfully',
     message: `Background job completed for repository \`${repo}\``,
     color: 'good',
     fields: [
@@ -417,7 +417,7 @@ async function processAppMention(event: any): Promise<void> {
       thread_ts: event.thread_ts,
     })
 
-    console.log(`✅ @nikcli mention processed successfully`)
+    console.log(`✓ @nikcli mention processed successfully`)
   } catch (error: any) {
     console.error('✖ Error in processAppMention:', error)
     throw error

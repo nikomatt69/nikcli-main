@@ -468,7 +468,7 @@ export class UnifiedRerankingInterface {
             await this.loadPersistentCache()
             console.log(chalk.gray(`✓ Persistent reranking cache initialized`))
         } catch (error) {
-            console.warn(chalk.yellow(`⚠️ Failed to initialize persistent cache: ${error}`))
+            console.warn(chalk.yellow(`⚠︎ Failed to initialize persistent cache: ${error}`))
         }
     }
 
@@ -494,7 +494,7 @@ export class UnifiedRerankingInterface {
                 console.log(chalk.gray(`📦 Loaded ${this.rerankingCache.size} rerankings from persistent cache`))
             }
         } catch (error) {
-            console.warn(chalk.yellow(`⚠️ Failed to load persistent cache: ${error}`))
+            console.warn(chalk.yellow(`⚠︎ Failed to load persistent cache: ${error}`))
         }
     }
 
@@ -511,7 +511,7 @@ export class UnifiedRerankingInterface {
             await writeFile(cacheFile, JSON.stringify(data, null, 2))
             console.log(chalk.gray(`💾 Saved ${this.rerankingCache.size} rerankings to persistent cache`))
         } catch (error) {
-            console.warn(chalk.yellow(`⚠️ Failed to save persistent cache: ${error}`))
+            console.warn(chalk.yellow(`⚠︎ Failed to save persistent cache: ${error}`))
         }
     }
 
@@ -526,7 +526,7 @@ export class UnifiedRerankingInterface {
                 )
             }
         } catch (error) {
-            console.warn(chalk.yellow(`⚠️ Failed to clear persistent cache: ${error}`))
+            console.warn(chalk.yellow(`⚠︎ Failed to clear persistent cache: ${error}`))
         }
     }
 }

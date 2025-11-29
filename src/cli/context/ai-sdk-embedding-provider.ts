@@ -271,7 +271,7 @@ export class AiSdkEmbeddingProvider {
 
     for (const candidate of candidates) {
       if (!this.hasApiKey(candidate.config.provider)) {
-        advancedUI.logWarning(`⚠️ No API key for ${candidate.config.provider}, skipping ${candidate.name}`)
+        advancedUI.logWarning(`⚠︎ No API key for ${candidate.config.provider}, skipping ${candidate.name}`)
         continue
       }
 
@@ -310,7 +310,7 @@ export class AiSdkEmbeddingProvider {
         return finalResults
       } catch (error: any) {
         lastError = error instanceof Error ? error : new Error(String(error))
-        advancedUI.logWarning(`⚠️ Embedding failed with ${candidate.name}: ${lastError.message}`)
+        advancedUI.logWarning(`⚠︎ Embedding failed with ${candidate.name}: ${lastError.message}`)
       }
     }
 
@@ -361,7 +361,7 @@ export class AiSdkEmbeddingProvider {
           const batchResult = await this.generateBatch(batch, config)
           return { index: i + batchIndex, result: batchResult }
         } catch (error) {
-          advancedUI.logWarning(`⚠️ Batch ${i + batchIndex} failed: ${(error as Error).message}`)
+          advancedUI.logWarning(`⚠︎ Batch ${i + batchIndex} failed: ${(error as Error).message}`)
           throw error
         }
       })
@@ -587,7 +587,7 @@ export class AiSdkEmbeddingProvider {
     } catch (error: any) {
       // Enhanced error handling
       if (error.message?.includes('rate limit')) {
-        advancedUI.logWarning(`⚠️ Rate limit reached for ${config.provider}, waiting...`)
+        advancedUI.logWarning(`⚠︎ Rate limit reached for ${config.provider}, waiting...`)
         await new Promise((resolve) => setTimeout(resolve, 2000))
         // Retry once
         return this.generateBatch(texts, config)

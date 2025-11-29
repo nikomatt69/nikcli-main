@@ -185,7 +185,7 @@ export class PromptRegistry {
 
       // Validate required variables
       if (promptTemplate.metadata.requiresContext && Object.keys(context).length === 0) {
-        advancedUI.logWarning(`⚠️  Prompt ${promptId} requires context but none provided`)
+        advancedUI.logWarning(`⚠︎  Prompt ${promptId} requires context but none provided`)
       }
 
       return compiledPrompt
@@ -479,7 +479,7 @@ Error Context:
       try {
         await this.validatePrompt(prompt)
       } catch (error: any) {
-        advancedUI.logWarning(`⚠️  Prompt validation failed for ${promptId}: ${error.message}`)
+        advancedUI.logWarning(`⚠︎  Prompt validation failed for ${promptId}: ${error.message}`)
       }
     }
   }

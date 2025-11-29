@@ -2102,7 +2102,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
               if (toolCallCount > maxToolCallsForAnalysis * 0.8) {
                 yield {
                   type: 'thinking',
-                  content: `⚠️ Approaching tool call limit (${toolCallCount}/${maxToolCallsForAnalysis}) - will summarize soon`,
+                  content: `⚠︎ Approaching tool call limit (${toolCallCount}/${maxToolCallsForAnalysis}) - will summarize soon`,
                 }
               }
 
@@ -2626,7 +2626,7 @@ Stay within project directory.`,
 
     // Rate limit errors
     if (lowerError.includes('rate limit') || lowerError.includes('quota')) {
-      return '⏳ Rate limit reached. Please wait a moment and try again.'
+      return '⏳︎ Rate limit reached. Please wait a moment and try again.'
     }
 
     // Model not found
@@ -2636,7 +2636,7 @@ Stay within project directory.`,
 
     // Generic server errors
     if (lowerError.includes('500') || lowerError.includes('server error')) {
-      return '⚠️ Server temporarily unavailable. Please try again in a few moments.'
+      return '⚠︎ Server temporarily unavailable. Please try again in a few moments.'
     }
 
     // Default fallback with suggestion
@@ -3721,7 +3721,7 @@ Focus on the current execution phase and use the orchestration strategy for opti
 
     // Adapt based on risk level
     if (cognition.riskLevel === 'high') {
-      adaptedResponse = `⚠️ HIGH RISK - ${adaptedResponse}`
+      adaptedResponse = `⚠︎ HIGH RISK - ${adaptedResponse}`
     }
 
     return adaptedResponse

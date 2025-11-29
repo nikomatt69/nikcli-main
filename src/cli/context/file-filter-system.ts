@@ -389,7 +389,7 @@ export class FileFilterSystem {
 
         for (const item of items) {
           if (filesToIndex.length >= this.config.maxTotalFiles) {
-            advancedUI.logFunctionUpdate('warning', `⚠️ Reached maximum file limit (${this.config.maxTotalFiles})`)
+            advancedUI.logFunctionUpdate('warning', `⚠︎ Reached maximum file limit (${this.config.maxTotalFiles})`)
             return
           }
 
@@ -405,7 +405,7 @@ export class FileFilterSystem {
           }
         }
       } catch (error) {
-        advancedUI.logFunctionUpdate('warning', `⚠️ Cannot read directory ${dirPath}: ${error}`)
+        advancedUI.logFunctionUpdate('warning', `⚠︎ Cannot read directory ${dirPath}: ${error}`)
         advancedUI.logFunctionCall('file-filter-system')
       }
     }
@@ -620,7 +620,7 @@ export class FileFilterSystem {
         advancedUI.logFunctionUpdate('info', `📋 Loaded ${this.gitignoreRules.length} .gitignore rules`)
       }
     } catch (error) {
-      advancedUI.logFunctionUpdate('warning', `⚠️ Failed to read .gitignore: ${error}`)
+      advancedUI.logFunctionUpdate('warning', `⚠︎ Failed to read .gitignore: ${error}`)
       advancedUI.logFunctionCall('file-filter-system')
     }
   }

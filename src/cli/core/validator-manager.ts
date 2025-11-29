@@ -1330,7 +1330,7 @@ export class ValidatorManager extends EventEmitter {
     }
 
     if (warnings.length > 0) {
-      advancedUI.logWarning(`${prefix}⚠️  ${fileName} - ${warnings.length} warning(s):`)
+      advancedUI.logWarning(`${prefix}⚠︎  ${fileName} - ${warnings.length} warning(s):`)
       warnings.forEach((warning, index) => {
         console.log(chalk.yellow(`   ${index + 1}. ${warning}`))
       })

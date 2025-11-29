@@ -243,7 +243,7 @@ export class AdvancedTools {
               console.log(chalk.green(`✓ ${provider.provider}: ${provider.model}`))
             })
           } else {
-            console.log(chalk.yellow('⚠️  No embedding providers are currently available'))
+            console.log(chalk.yellow('⚠︎  No embedding providers are currently available'))
           }
 
           if (unavailable.length > 0 && showDetails) {

@@ -328,7 +328,7 @@ export class ReadFileTool extends BaseTool {
     try {
       // Check if vision provider is available
       if (typeof (global as any).visionProvider === 'undefined') {
-        console.log(chalk.yellow('⚠️ Vision provider not available for image analysis'))
+        console.log(chalk.yellow('⚠︎ Vision provider not available for image analysis'))
         return { error: 'Vision provider not available' }
       }
 
@@ -358,7 +358,7 @@ export class ReadFileTool extends BaseTool {
         metadata: analysis.metadata || {},
       }
     } catch (error: any) {
-      console.log(chalk.yellow(`⚠️ Image analysis failed: ${error.message}`))
+      console.log(chalk.yellow(`⚠︎ Image analysis failed: ${error.message}`))
       return { error: error.message }
     }
   }

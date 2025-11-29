@@ -243,7 +243,7 @@ export class InputQueue {
   interrupt(): boolean {
     if (this.isProcessing && this.processingPromise) {
       // Non possiamo realmente interrompere una Promise, ma possiamo segnalare
-      advancedUI.logWarning(`⚠️ Interrupting current queue processing`)
+      advancedUI.logWarning(`⚠︎ Interrupting current queue processing`)
       this.isProcessing = false
       return true
     }

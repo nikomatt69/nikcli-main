@@ -51,7 +51,7 @@ export class TmuxIntegration {
       console.log(chalk.gray(`✓ tmux available: ${version}`))
       return true
     } catch {
-      console.log(chalk.yellow('⚠️ tmux not found - session persistence limited'))
+      console.log(chalk.yellow('⚠︎ tmux not found - session persistence limited'))
       return false
     }
   }
@@ -78,7 +78,7 @@ export class TmuxIntegration {
         const saved = JSON.parse(readFileSync(this.configPath, 'utf-8'))
         return { ...defaultConfig, ...saved }
       } catch {
-        console.log(chalk.yellow('⚠️ Invalid tmux config, using defaults'))
+        console.log(chalk.yellow('⚠︎ Invalid tmux config, using defaults'))
       }
     }
 
@@ -92,7 +92,7 @@ export class TmuxIntegration {
     try {
       writeFileSync(this.configPath, JSON.stringify(this.config, null, 2))
     } catch (error: any) {
-      console.log(chalk.yellow(`⚠️ Failed to save tmux config: ${error.message}`))
+      console.log(chalk.yellow(`⚠︎ Failed to save tmux config: ${error.message}`))
     }
   }
 
@@ -125,7 +125,7 @@ export class TmuxIntegration {
         }
       }
     } catch (error: any) {
-      console.log(chalk.yellow(`⚠️ Failed to setup tmux config: ${error.message}`))
+      console.log(chalk.yellow(`⚠︎ Failed to setup tmux config: ${error.message}`))
     }
   }
 
@@ -190,7 +190,7 @@ set -g renumber-windows on
    */
   async createSession(options?: { name?: string; workingDir?: string; command?: string }): Promise<string | null> {
     if (!this.tmuxAvailable) {
-      console.log(chalk.yellow('⚠️ tmux not available'))
+      console.log(chalk.yellow('⚠︎ tmux not available'))
       return null
     }
 
@@ -200,7 +200,7 @@ set -g renumber-windows on
     try {
       // Check if session already exists
       if (this.sessionExists(sessionName)) {
-        console.log(chalk.yellow(`⚠️ Session '${sessionName}' already exists`))
+        console.log(chalk.yellow(`⚠︎ Session '${sessionName}' already exists`))
         return sessionName
       }
 
@@ -264,7 +264,7 @@ set -g renumber-windows on
       console.log(chalk.blue('📱 Detached from tmux session'))
       return true
     } catch (error: any) {
-      console.log(chalk.yellow(`⚠️ Failed to detach: ${error.message}`))
+      console.log(chalk.yellow(`⚠︎ Failed to detach: ${error.message}`))
       return false
     }
   }

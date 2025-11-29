@@ -136,7 +136,7 @@ export class EnhancedSupabaseProvider extends EventEmitter {
         this.emit('error', error)
       } catch (_emitError) {
         // Silent failure if no error listeners
-        console.log(chalk.yellow('⚠️ No error listeners registered for Supabase provider'))
+        console.log(chalk.yellow('⚠︎ No error listeners registered for Supabase provider'))
       }
 
       // Don't throw the error to prevent unhandled rejections
@@ -776,10 +776,10 @@ export class EnhancedSupabaseProvider extends EventEmitter {
       })
 
       if (error) {
-        console.log(chalk.yellow(`⚠️ Failed to record toolchain execution: ${error.message}`))
+        console.log(chalk.yellow(`⚠︎ Failed to record toolchain execution: ${error.message}`))
       }
     } catch (error: any) {
-      console.log(chalk.yellow(`⚠️ Toolchain execution recording failed: ${error.message}`))
+      console.log(chalk.yellow(`⚠︎ Toolchain execution recording failed: ${error.message}`))
     }
   }
 
@@ -799,13 +799,13 @@ export class EnhancedSupabaseProvider extends EventEmitter {
         .order('created_at', { ascending: true })
 
       if (error) {
-        console.log(chalk.yellow(`⚠️ Failed to get session executions: ${error.message}`))
+        console.log(chalk.yellow(`⚠︎ Failed to get session executions: ${error.message}`))
         return []
       }
 
       return data || []
     } catch (error: any) {
-      console.log(chalk.yellow(`⚠️ Session executions query failed: ${error.message}`))
+      console.log(chalk.yellow(`⚠︎ Session executions query failed: ${error.message}`))
       return []
     }
   }
@@ -826,13 +826,13 @@ export class EnhancedSupabaseProvider extends EventEmitter {
         .order('created_at', { ascending: false })
 
       if (error) {
-        console.log(chalk.yellow(`⚠️ Failed to get toolchain executions: ${error.message}`))
+        console.log(chalk.yellow(`⚠︎ Failed to get toolchain executions: ${error.message}`))
         return []
       }
 
       return data || []
     } catch (error: any) {
-      console.log(chalk.yellow(`⚠️ Toolchain executions query failed: ${error.message}`))
+      console.log(chalk.yellow(`⚠︎ Toolchain executions query failed: ${error.message}`))
       return []
     }
   }
@@ -857,13 +857,13 @@ export class EnhancedSupabaseProvider extends EventEmitter {
 
       if (error) {
         if (error.code === 'PGRST116') return null
-        console.log(chalk.yellow(`⚠️ Failed to get latest model: ${error.message}`))
+        console.log(chalk.yellow(`⚠︎ Failed to get latest model: ${error.message}`))
         return null
       }
 
       return data
     } catch (error: any) {
-      console.log(chalk.yellow(`⚠️ Latest model query failed: ${error.message}`))
+      console.log(chalk.yellow(`⚠︎ Latest model query failed: ${error.message}`))
       return null
     }
   }
@@ -889,10 +889,10 @@ export class EnhancedSupabaseProvider extends EventEmitter {
       })
 
       if (error) {
-        console.log(chalk.yellow(`⚠️ Failed to cache inference: ${error.message}`))
+        console.log(chalk.yellow(`⚠︎ Failed to cache inference: ${error.message}`))
       }
     } catch (error: any) {
-      console.log(chalk.yellow(`⚠️ Inference caching failed: ${error.message}`))
+      console.log(chalk.yellow(`⚠︎ Inference caching failed: ${error.message}`))
     }
   }
 
@@ -996,10 +996,10 @@ export class EnhancedSupabaseProvider extends EventEmitter {
       })
 
       if (error) {
-        console.log(chalk.yellow(`⚠️ Failed to record benchmark: ${error.message}`))
+        console.log(chalk.yellow(`⚠︎ Failed to record benchmark: ${error.message}`))
       }
     } catch (error: any) {
-      console.log(chalk.yellow(`⚠️ Benchmark recording failed: ${error.message}`))
+      console.log(chalk.yellow(`⚠︎ Benchmark recording failed: ${error.message}`))
     }
   }
 
@@ -1022,10 +1022,10 @@ export class EnhancedSupabaseProvider extends EventEmitter {
       })
 
       if (error) {
-        console.log(chalk.yellow(`⚠️ Failed to record batch metrics: ${error.message}`))
+        console.log(chalk.yellow(`⚠︎ Failed to record batch metrics: ${error.message}`))
       }
     } catch (error: any) {
-      console.log(chalk.yellow(`⚠️ Batch metrics recording failed: ${error.message}`))
+      console.log(chalk.yellow(`⚠︎ Batch metrics recording failed: ${error.message}`))
     }
   }
 }

@@ -10,6 +10,7 @@ import { LocalFileBackgroundAgentAdapter, localFileAdapter, type LocalFileAdapte
 import { EnvironmentParser } from './core/environment-parser'
 import { PlaybookParser } from './core/playbook-parser'
 import type { BackgroundJob, CreateBackgroundJobRequest, JobStatus } from './types'
+import { advancedUI } from '../ui/advanced-cli-ui'
 
 export interface BackgroundJobStats {
   total: number
@@ -51,24 +52,24 @@ export class BackgroundAgentService extends EventEmitter {
     try {
       // Check if we should use Vercel KV
       if (VercelKVBackgroundAgentAdapter.isVercelEnvironment()) {
-        console.log('🔧 Vercel environment detected - using Vercel KV for persistence')
+        advancedUI.logInfo('Vercel environment detected - using Vercel KV for persistence')
         this.kvAdapter = vercelKVAdapter
 
         // Test KV connectivity
         const isAvailable = await this.kvAdapter.isAvailable()
         if (isAvailable) {
           this.useVercelKV = true
-          console.log('✓ Vercel KV connected successfully')
+          advancedUI.logSuccess('Vercel KV connected successfully')
 
           // Load existing jobs from KV
           await this.loadJobsFromKV()
         } else {
-          console.warn('⚠️ Vercel KV not available - falling back to local file storage')
+          advancedUI.logWarning('Vercel KV not available - falling back to local file storage')
           // Fall back to local file storage
           await this.initializeLocalFileStorage()
         }
       } else {
-        console.log('🔧 Local environment - using local file storage')
+        advancedUI.logInfo('Local environment - using local file storage')
         await this.initializeLocalFileStorage()
       }
 
@@ -101,7 +102,7 @@ export class BackgroundAgentService extends EventEmitter {
         // Load existing jobs from local file
         await this.loadJobsFromLocalFile()
       } else {
-        console.warn('⚠️ Local file storage not available - using in-memory storage only')
+        console.warn('⚠︎ Local file storage not available - using in-memory storage only')
       }
     } catch (error) {
       console.error('Error initializing local file storage:', error)
@@ -410,7 +411,7 @@ export class BackgroundAgentService extends EventEmitter {
         const packageName = packageMatch ? packageMatch[1] : 'unknown'
 
         job.error = `Module resolution error: ${packageName} has malformed package.json. This may be a dependency issue.`
-        this.logJob(job, 'warn', `⚠️ Module resolution warning: ${error.message}`)
+        this.logJob(job, 'warn', `⚠︎ Module resolution warning: ${error.message}`)
         this.logJob(job, 'info', `💡 Attempting to continue execution despite dependency issue...`)
 
         // Try to continue execution by clearing module cache if possible
@@ -574,7 +575,7 @@ export class BackgroundAgentService extends EventEmitter {
         timeout: 30000, // 30 second timeout
       })
 
-      this.logJob(job, 'info', '✅ Successfully cloned from GitHub')
+      this.logJob(job, 'info', '✓ Successfully cloned from GitHub')
 
     } catch (cloneError: any) {
       this.logJob(job, 'warn', `GitHub clone failed: ${cloneError.message}`)
@@ -644,14 +645,14 @@ export class BackgroundAgentService extends EventEmitter {
           cwd: repoDir,
           stdio: 'pipe',
         })
-        this.logJob(job, 'info', '✅ ESM packages fixed')
+        this.logJob(job, 'info', '✓ ESM packages fixed')
       } catch {
         // Script doesn't exist, run inline fix
         await this.fixESMPackagesInline(job, repoDir)
       }
     } catch (error: any) {
       // Non-critical error, log and continue
-      this.logJob(job, 'warn', `⚠️ Failed to fix ESM packages: ${error.message}`)
+      this.logJob(job, 'warn', `⚠︎ Failed to fix ESM packages: ${error.message}`)
     }
   }
 
@@ -708,7 +709,7 @@ export class BackgroundAgentService extends EventEmitter {
     }
 
     if (fixedCount > 0) {
-      this.logJob(job, 'info', `✅ Fixed ${fixedCount} ESM package(s)`)
+      this.logJob(job, 'info', `✓ Fixed ${fixedCount} ESM package(s)`)
     }
   }
 
@@ -735,7 +736,7 @@ export class BackgroundAgentService extends EventEmitter {
       execSync('git add .', { cwd: repoDir })
       execSync('git commit -m "Initial commit from local copy"', { cwd: repoDir })
 
-      this.logJob(job, 'info', '✅ Successfully created repository from local copy')
+      this.logJob(job, 'info', '✓ Successfully created repository from local copy')
 
     } catch (error: any) {
       this.logJob(job, 'error', `Failed to copy local repository: ${error.message}`)
@@ -783,7 +784,7 @@ export class BackgroundAgentService extends EventEmitter {
       execSync('git add .', { cwd: repoDir })
       execSync('git commit -m "Initial minimal repository for background agent"', { cwd: repoDir })
 
-      this.logJob(job, 'info', '✅ Created minimal repository structure')
+      this.logJob(job, 'info', '✓ Created minimal repository structure')
 
     } catch (error: any) {
       this.logJob(job, 'error', `Failed to create minimal repository: ${error.message}`)
@@ -1037,7 +1038,7 @@ export class BackgroundAgentService extends EventEmitter {
         streamttyService = streamttyModule.streamttyService
       } catch (importError: any) {
         // Fallback to direct imports with error handling
-        this.logJob(job, 'warn', `⚠️ Safe import failed, using fallback: ${importError.message}`)
+        this.logJob(job, 'warn', `⚠︎ Safe import failed, using fallback: ${importError.message}`)
 
         try {
           const aiProviderModule = await import('../ai/advanced-ai-provider')
@@ -1137,7 +1138,7 @@ export class BackgroundAgentService extends EventEmitter {
         } catch (streamInitError: any) {
           const isModuleError = streamInitError?.message?.includes('exports') && streamInitError?.message?.includes('package.json')
           if (isModuleError) {
-            this.logJob(job, 'warn', `⚠️ Module resolution warning during stream init (non-critical): ${streamInitError.message}`)
+            this.logJob(job, 'warn', `⚠︎ Module resolution warning during stream init (non-critical): ${streamInitError.message}`)
             this.logJob(job, 'info', '💡 Retrying stream initialization...')
             // Retry once
             streamGenerator = advancedAIProvider.streamChatWithFullAutonomy(messages)
@@ -1198,7 +1199,7 @@ export class BackgroundAgentService extends EventEmitter {
               activeToolCallId = undefined
 
               // Log to job
-              this.logJob(job, 'info', `✅ Tool result received`)
+              this.logJob(job, 'info', `✓ Tool result received`)
               break
             }
 
@@ -1237,7 +1238,7 @@ export class BackgroundAgentService extends EventEmitter {
                 ev.error?.includes('package.json')
 
               if (isModuleResolutionErrorInStream) {
-                this.logJob(job, 'warn', `⚠️ Module resolution warning (non-critical): ${ev.error}`)
+                this.logJob(job, 'warn', `⚠︎ Module resolution warning (non-critical): ${ev.error}`)
                 this.logJob(job, 'info', '💡 Continuing execution despite module resolution warning...')
                 // Don't throw - continue execution
                 break
@@ -1274,7 +1275,7 @@ export class BackgroundAgentService extends EventEmitter {
           await usageTracker.trackJobCompletion(job.userId)
         }
 
-        this.logJob(job, 'info', `✅ Task completed successfully with ${toolCallCount} tool calls, ${aiCallCount} AI calls, ${job.metrics.tokenUsage} tokens ($${job.metrics.estimatedCost?.toFixed(4)})`)
+        this.logJob(job, 'info', `✓ Task completed successfully with ${toolCallCount} tool calls, ${aiCallCount} AI calls, ${job.metrics.tokenUsage} tokens ($${job.metrics.estimatedCost?.toFixed(4)})`)
 
       } catch (error: any) {
         // Check if this is a module resolution error that we can ignore
@@ -1283,7 +1284,7 @@ export class BackgroundAgentService extends EventEmitter {
           error.message?.includes('package.json')
 
         if (isModuleResolutionError) {
-          this.logJob(job, 'warn', `⚠️ Module resolution warning (non-critical): ${error.message}`)
+          this.logJob(job, 'warn', `⚠︎ Module resolution warning (non-critical): ${error.message}`)
           this.logJob(job, 'info', '💡 Continuing execution despite module resolution warning...')
           // Continue - don't throw
         } else {
@@ -1318,7 +1319,7 @@ export class BackgroundAgentService extends EventEmitter {
       try {
         // Execute using the same autonomous approach as plan mode
         await this.executeAutonomousTask(job, workingDir, todo)
-        this.logJob(job, 'info', `✅ Completed task ${index + 1}: ${todo.title}`)
+        this.logJob(job, 'info', `✓ Completed task ${index + 1}: ${todo.title}`)
 
       } catch (error: any) {
         this.logJob(job, 'error', `✖ Failed task ${index + 1}: ${todo.title} - ${error.message}`)
@@ -1397,7 +1398,7 @@ try {
   // Execute task based on type
   ${this.generateTaskExecutionCode(todo)}
 
-  console.log('✅ Task completed successfully in container');
+  console.log('✓ Task completed successfully in container');
 
 } catch (error) {
   console.error('✖ Task failed in container:', error.message);
@@ -1725,9 +1726,9 @@ Generated by NikCLI Background Agent with AI Analysis
           content: reportContent
         })
 
-        this.logJob(job, 'info', '✅ AI bug analysis completed: AI_BUG_ANALYSIS.md')
+        this.logJob(job, 'info', '✓ AI bug analysis completed: AI_BUG_ANALYSIS.md')
       } else {
-        this.logJob(job, 'warn', '⚠️ AI analysis failed, creating basic report')
+        this.logJob(job, 'warn', '⚠︎ AI analysis failed, creating basic report')
       }
 
     } catch (error: any) {
@@ -1842,9 +1843,9 @@ Generated by NikCLI Background Agent with AI Analysis
           content: reportContent
         })
 
-        this.logJob(job, 'info', '✅ AI project analysis completed: AI_PROJECT_ANALYSIS.md')
+        this.logJob(job, 'info', '✓ AI project analysis completed: AI_PROJECT_ANALYSIS.md')
       } else {
-        this.logJob(job, 'warn', '⚠️ AI analysis failed')
+        this.logJob(job, 'warn', '⚠︎ AI analysis failed')
       }
 
     } catch (error: any) {

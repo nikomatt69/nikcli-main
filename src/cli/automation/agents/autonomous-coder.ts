@@ -175,7 +175,7 @@ Follow the project's existing patterns and conventions.`,
       console.log(chalk.blue('🔨 Building project...'))
       const buildResult = await toolsManager.build()
       if (!buildResult.success) {
-        console.log(chalk.yellow('⚠️ Build has errors, attempting to fix...'))
+        console.log(chalk.yellow('⚠︎ Build has errors, attempting to fix...'))
         await this.debugErrors()
       }
 
@@ -183,7 +183,7 @@ Follow the project's existing patterns and conventions.`,
       console.log(chalk.blue('🧪 Running tests...'))
       const testResult = await toolsManager.runTests()
       if (!testResult.success) {
-        console.log(chalk.yellow('⚠️ Some tests failed, this is normal for new features'))
+        console.log(chalk.yellow('⚠︎ Some tests failed, this is normal for new features'))
       }
 
       console.log(chalk.green('✓ Feature created successfully!'))
@@ -232,7 +232,7 @@ Follow the project's existing patterns and conventions.`,
           await this.applyFix(fix)
         }
       } catch (_err) {
-        console.log(chalk.yellow(`⚠️ Could not fix error: ${error.message}`))
+        console.log(chalk.yellow(`⚠︎ Could not fix error: ${error.message}`))
       }
     }
 
@@ -351,7 +351,7 @@ Return empty array [] if no new dependencies needed.`,
           console.log(chalk.green(`✓ Optimized: ${file}`))
         }
       } catch (_error) {
-        console.log(chalk.yellow(`⚠️ Could not optimize ${file}`))
+        console.log(chalk.yellow(`⚠︎ Could not optimize ${file}`))
       }
     }
 

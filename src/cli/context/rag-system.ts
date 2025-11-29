@@ -866,7 +866,7 @@ export class UnifiedRAGSystem {
               } else {
                 advancedUI.logFunctionUpdate(
                   'warning',
-                  chalk.yellow(`⚠️ No valid embedding for document ${embeddingBatch[j].id}`)
+                  chalk.yellow(`⚠︎ No valid embedding for document ${embeddingBatch[j].id}`)
                 )
               }
             }
@@ -1465,7 +1465,7 @@ export class UnifiedRAGSystem {
       } catch (error) {
         // Fallback to heuristic reranking
         this.searchMetrics.rerankingFallbacks++
-        advancedUI.logWarning(`⚠️ Reranking failed, using heuristic fallback: ${(error as Error).message}`)
+        advancedUI.logWarning(`⚠︎ Reranking failed, using heuristic fallback: ${(error as Error).message}`)
         return this.applyHeuristicReranking(uniqueResults, query, queryWords)
       }
     } else {
@@ -2261,7 +2261,7 @@ export class UnifiedRAGSystem {
     if (score >= 90) return '🚀'
     if (score >= 80) return '⚡'
     if (score >= 70) return '✓'
-    if (score >= 60) return '⚠️'
+    if (score >= 60) return '⚠︎'
     return '🐌'
   }
 

@@ -81,7 +81,7 @@ export class CompletionDisplay {
 
     // Approval indicator
     if (comp.requiresApproval) {
-      parts.push(chalk.yellow('⚠️'))
+      parts.push(chalk.yellow('⚠︎'))
     }
 
     return parts.join(' ')

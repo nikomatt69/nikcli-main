@@ -212,7 +212,7 @@ export class PolymarketRelayerClient extends EventEmitter {
   ): Promise<TransactionStatus> {
     this.validateInitialized()
 
-    console.log(`⏳ Waiting for ${confirmations} confirmation(s)...`)
+    console.log(`⏳︎ Waiting for ${confirmations} confirmation(s)...`)
 
     const startTime = Date.now()
     const pollInterval = 2000 // 2 seconds

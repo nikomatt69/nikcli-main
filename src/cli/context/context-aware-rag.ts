@@ -97,7 +97,7 @@ export class ContextAwareRAGSystem {
           lastUpdated: new Date(data.lastUpdated || Date.now()),
         }
       } catch (_error) {
-        console.log(chalk.yellow('⚠️ Could not load existing memory, creating new'))
+        console.log(chalk.yellow('⚠︎ Could not load existing memory, creating new'))
         this.memory = this.createFreshMemory()
       }
     } else {
@@ -222,7 +222,7 @@ export class ContextAwareRAGSystem {
       try {
         await this.analyzeFile(filePath)
       } catch (_error) {
-        console.log(chalk.yellow(`⚠️ Could not analyze ${filePath}`))
+        console.log(chalk.yellow(`⚠︎ Could not analyze ${filePath}`))
       }
     }
 

@@ -882,7 +882,7 @@ export default FigmaComponent`
     }
 
     // Request user approval for export operation with timeout
-    console.log(chalk.yellow('⏳ Requesting approval for Figma export operation...'))
+    console.log(chalk.yellow('⏳︎ Requesting approval for Figma export operation...'))
 
     const approvalPromise = approvalSystem.requestApproval({
       id: `figma-export-${Date.now()}`,
@@ -913,7 +913,7 @@ export default FigmaComponent`
       response = (await Promise.race([approvalPromise, timeoutPromise])) as any
     } catch (error: any) {
       if (error.message.includes('timed out')) {
-        console.log(chalk.yellow('⚠️ Approval request timed out, proceeding with export...'))
+        console.log(chalk.yellow('⚠︎ Approval request timed out, proceeding with export...'))
         response = { approved: true } // Auto-approve for CLI usage
       } else {
         throw error

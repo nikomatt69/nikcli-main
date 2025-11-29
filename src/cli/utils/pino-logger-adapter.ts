@@ -366,7 +366,7 @@ export class PinoLoggerAdapter {
         break
       case 'warn':
         colorFunc = chalk.yellow
-        icon = '⚠️'
+        icon = '⚠︎'
         break
       case 'info':
         colorFunc = chalk.cyan

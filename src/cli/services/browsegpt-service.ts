@@ -292,7 +292,7 @@ When responding:
       advancedUI.logFunctionUpdate('info', `Closed session ${sessionId}`, '🔒')
 
     } catch (error: any) {
-      advancedUI.logFunctionUpdate('warning', `Error closing session: ${error.message}`, '⚠️')
+      advancedUI.logFunctionUpdate('warning', `Error closing session: ${error.message}`, '⚠︎')
     }
   }
 
@@ -439,7 +439,7 @@ When responding:
       return response.text
 
     } catch (error: any) {
-      advancedUI.logFunctionUpdate('warning', `AI summarization failed: ${error.message}`, '⚠️')
+      advancedUI.logFunctionUpdate('warning', `AI summarization failed: ${error.message}`, '⚠︎')
       return ''
     }
   }

@@ -466,7 +466,7 @@ export class OrchestratorService extends EventEmitter {
 
       // Add success summary
       if (result.todosCompleted && result.totalTodos) {
-        parts.push(`✅ Completed ${result.todosCompleted}/${result.totalTodos} tasks`)
+        parts.push(`✓ Completed ${result.todosCompleted}/${result.totalTodos} tasks`)
       }
 
       if (result.todosFailed && result.todosFailed > 0) {
@@ -686,7 +686,7 @@ export class OrchestratorService extends EventEmitter {
     if (!hasAnthropicKey && !hasOpenAIKey && !hasOpenRouterKey && !hasGoogleKey && !hasVercelKey) {
       this.cliInstance.printPanel(
         boxen(
-          `${chalk.red('⚠️  No API Keys Found')}\\n\\n` +
+          `${chalk.red('⚠︎  No API Keys Found')}\\n\\n` +
           `Please set at least one API key:\\n\\n` +
           `${chalk.blue('• ANTHROPIC_API_KEY')} - for Claude models\\n` +
           `${chalk.blue('• OPENAI_API_KEY')} - for GPT models\\n` +
@@ -839,7 +839,7 @@ export class OrchestratorService extends EventEmitter {
         } catch { }
       }, 0)
     } else {
-      console.log(chalk.yellow('\n⚠️  Plan Mode Disabled'))
+      console.log(chalk.yellow('\n⚠︎  Plan Mode Disabled'))
       console.log(chalk.gray('   • Returning to standard mode'))
       try {
         delete (process.env as any).NIKCLI_COMPACT
@@ -873,7 +873,7 @@ export class OrchestratorService extends EventEmitter {
     if (this.context.autoAcceptEdits) {
       console.log(chalk.green('\\n✓ auto-accept edits on ') + chalk.dim('(ctrl+a to toggle)'))
     } else {
-      console.log(chalk.yellow('\\n⚠️ auto-accept edits off'))
+      console.log(chalk.yellow('\\n⚠︎ auto-accept edits off'))
     }
     this.updateModuleContext()
   }

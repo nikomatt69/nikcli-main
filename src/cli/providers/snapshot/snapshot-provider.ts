@@ -79,7 +79,7 @@ export class SnapshotProvider extends EventEmitter {
       const config = (allConfig as Record<string, any>).snapshot || {}
       this.config = { ...this.config, ...config }
     } catch (error: any) {
-      structuredLogger.warning('Snapshots', `⚠️ Using default snapshot config: ${error.message}`)
+      structuredLogger.warning('Snapshots', `⚠︎ Using default snapshot config: ${error.message}`)
     }
   }
 
@@ -410,7 +410,7 @@ export class SnapshotProvider extends EventEmitter {
             })
           } catch (error) {
             // Skip files that can't be read
-            console.log(chalk.yellow(`⚠️ Skipped ${relativePath}: ${error}`))
+            console.log(chalk.yellow(`⚠︎ Skipped ${relativePath}: ${error}`))
           }
         }
       }
@@ -527,7 +527,7 @@ export class SnapshotProvider extends EventEmitter {
             const snapshot: SnapshotEntry = JSON.parse(content)
             this.snapshots.set(snapshot.id, snapshot)
           } catch (_error) {
-            structuredLogger.warning('Snapshots', `⚠️ Skipped invalid snapshot file: ${file}`)
+            structuredLogger.warning('Snapshots', `⚠︎ Skipped invalid snapshot file: ${file}`)
           }
         }
       }

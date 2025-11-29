@@ -233,7 +233,7 @@ export class Logger {
         break
       case 'warn':
         colorFunc = chalk.yellow
-        icon = '⚠️'
+        icon = '⚠︎'
         break
       case 'info':
         colorFunc = chalk.cyan
@@ -496,7 +496,7 @@ function initializeLogger(): Logger {
       const { PinoLoggerAdapter } = require('./pino-logger-adapter')
       return PinoLoggerAdapter.getInstance()
     } catch (error) {
-      console.warn('⚠️  Failed to load Pino logger, falling back to custom logger:', error)
+      console.warn('⚠︎  Failed to load Pino logger, falling back to custom logger:', error)
       return Logger.getInstance()
     }
   }

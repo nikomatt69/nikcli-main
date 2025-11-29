@@ -148,7 +148,7 @@ export class TokenManager extends EventEmitter {
       return payload
     } catch (error: any) {
       if (error.name === 'TokenExpiredError') {
-        advancedUI.logWarning(`⚠️ Token expired: ${error.message}`)
+        advancedUI.logWarning(`⚠︎ Token expired: ${error.message}`)
       } else if (error.name === 'JsonWebTokenError') {
         advancedUI.logError(`✖ Invalid token: ${error.message}`)
       } else {
@@ -316,7 +316,7 @@ export class TokenManager extends EventEmitter {
    */
   private generateSecretKey(): string {
     const secret = crypto.randomBytes(64).toString('hex')
-    advancedUI.logWarning('⚠️ Using generated JWT secret. Set NIKCLI_JWT_SECRET environment variable for production')
+    advancedUI.logWarning('⚠︎ Using generated JWT secret. Set NIKCLI_JWT_SECRET environment variable for production')
     return secret
   }
 

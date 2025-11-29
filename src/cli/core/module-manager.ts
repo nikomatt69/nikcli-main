@@ -538,7 +538,7 @@ export class ModuleManager {
     if (context.planMode) {
       console.log(chalk.green('\\n✓ plan mode on ') + chalk.dim('(shift+tab to cycle)'))
     } else {
-      console.log(chalk.yellow('\\n⚠️ plan mode off'))
+      console.log(chalk.yellow('\\n⚠︎ plan mode off'))
     }
   }
 
@@ -549,14 +549,14 @@ export class ModuleManager {
     if (context.autoAcceptEdits) {
       console.log(chalk.green('\\n✓ auto-accept edits on ') + chalk.dim('(shift+tab to cycle)'))
     } else {
-      console.log(chalk.yellow('\\n⚠️ auto-accept edits off'))
+      console.log(chalk.yellow('\\n⚠︎ auto-accept edits off'))
     }
   }
 
   private async handleAutonomous(args: string[], context: ModuleContext): Promise<void> {
     if (args[0] === 'off') {
       context.autonomous = false
-      console.log(chalk.yellow('⚠️ Autonomous mode disabled - will ask for confirmation'))
+      console.log(chalk.yellow('⚠︎ Autonomous mode disabled - will ask for confirmation'))
     } else {
       context.autonomous = true
       console.log(chalk.green('✓ Autonomous mode enabled - full independence'))
@@ -607,7 +607,7 @@ export class ModuleManager {
 
     const success = middlewareManager.disableMiddleware(middlewareName)
     if (success) {
-      console.log(chalk.yellow(`⚠️ Disabled middleware: ${middlewareName}`))
+      console.log(chalk.yellow(`⚠︎ Disabled middleware: ${middlewareName}`))
     } else {
       console.log(chalk.red(`✖ Middleware not found: ${middlewareName}`))
     }
@@ -668,7 +668,7 @@ export class ModuleManager {
               ? '⚡︎'
               : event.type === 'skip'
                 ? '⏭️'
-                : '⚠️'
+                : '⚠︎'
 
       const duration = event.duration ? ` (${event.duration}ms)` : ''
       const time = event.timestamp.toLocaleTimeString()

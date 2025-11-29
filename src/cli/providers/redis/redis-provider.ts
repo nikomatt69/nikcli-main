@@ -101,7 +101,7 @@ export class RedisProvider extends EventEmitter {
 
         // Setup event listeners for ioredis
         this.ioredisClient.on('error', (err) => {
-          console.log(chalk.yellow(`⚠️ Redis connection error: ${err.message}`))
+          console.log(chalk.yellow(`⚠︎ Redis connection error: ${err.message}`))
         })
       }
       // Fallback to Upstash configuration
@@ -213,7 +213,7 @@ export class RedisProvider extends EventEmitter {
           this.lastHealthCheck = health
           this.emit('health_check', health)
         } catch (error) {
-          console.log(chalk.yellow(`⚠️ Health check failed: ${(error as Error).message}`))
+          console.log(chalk.yellow(`⚠︎ Health check failed: ${(error as Error).message}`))
         }
       }
     }, intervalMs)
@@ -339,7 +339,7 @@ export class RedisProvider extends EventEmitter {
         entry = JSON.parse(serializedValue)
       } catch (parseError) {
         // Corrupted data detected - auto-clean and return null
-        console.log(chalk.yellow(`⚠️ Corrupted cache data for key ${key}, auto-cleaning...`))
+        console.log(chalk.yellow(`⚠︎ Corrupted cache data for key ${key}, auto-cleaning...`))
         await this.del(key).catch(() => { }) // Silent cleanup failure
         return null
       }
@@ -635,7 +635,7 @@ export class RedisProvider extends EventEmitter {
 
       return true
     } catch (error) {
-      console.log(chalk.yellow(`⚠️ Vector cache failed for ${provider}:${model}: ${(error as Error).message}`))
+      console.log(chalk.yellow(`⚠︎ Vector cache failed for ${provider}:${model}: ${(error as Error).message}`))
       return false
     }
   }
@@ -678,7 +678,7 @@ export class RedisProvider extends EventEmitter {
       const crypto = require('node:crypto')
       const textHash = crypto.createHash('sha256').update(text).digest('hex')
       if (vectorEntry.textHash !== textHash) {
-        console.log(chalk.yellow('⚠️ Vector cache hash mismatch, invalidating entry'))
+        console.log(chalk.yellow('⚠︎ Vector cache hash mismatch, invalidating entry'))
         await this.del(cacheKey)
         return null
       }
@@ -692,7 +692,7 @@ export class RedisProvider extends EventEmitter {
 
       return vectorEntry
     } catch (error) {
-      console.log(chalk.yellow(`⚠️ Vector cache retrieval failed: ${(error as Error).message}`))
+      console.log(chalk.yellow(`⚠︎ Vector cache retrieval failed: ${(error as Error).message}`))
       return null
     }
   }
@@ -760,7 +760,7 @@ export class RedisProvider extends EventEmitter {
         // Additional stats could be implemented with more Redis operations
       }
     } catch (error) {
-      console.log(chalk.yellow(`⚠️ Vector cache stats failed: ${(error as Error).message}`))
+      console.log(chalk.yellow(`⚠︎ Vector cache stats failed: ${(error as Error).message}`))
       return { totalKeys: 0 }
     }
   }

@@ -62,7 +62,7 @@ export class APIKeyManager {
         this.userConfig = config.apiKeys || {}
       }
     } catch (error) {
-      console.warn(chalk.yellow('⚠️  Could not load user config, using defaults'))
+      console.warn(chalk.yellow('⚠︎  Could not load user config, using defaults'))
     }
   }
 
@@ -94,7 +94,7 @@ export class APIKeyManager {
 
       this.userConfig[provider] = apiKey
 
-      console.log(chalk.green(`✅ Saved ${provider} API key to config`))
+      console.log(chalk.green(`✓ Saved ${provider} API key to config`))
     } catch (error) {
       console.error(chalk.red(`✖ Failed to save API key: ${error instanceof Error ? error.message : 'Unknown error'}`))
     }
@@ -229,7 +229,7 @@ export class APIKeyManager {
 
     for (const provider of providers) {
       const source = this.getAPIKeySource(provider)
-      const icon = source !== 'none' ? '✅' : '✖'
+      const icon = source !== 'none' ? '✓' : '✖'
       const sourceLabel = {
         env: chalk.blue('(local env)'),
         config: chalk.cyan('(config file)'),
@@ -280,7 +280,7 @@ export class APIKeyManager {
   async removeAPIKey(provider: AIProvider): Promise<void> {
     try {
       if (!fs.existsSync(this.userConfigPath)) {
-        console.log(chalk.yellow(`⚠️  No config file found`))
+        console.log(chalk.yellow(`⚠︎  No config file found`))
         return
       }
 
@@ -293,9 +293,9 @@ export class APIKeyManager {
 
         fs.writeFileSync(this.userConfigPath, JSON.stringify(config, null, 2))
 
-        console.log(chalk.green(`✅ Removed ${provider} API key from config`))
+        console.log(chalk.green(`✓ Removed ${provider} API key from config`))
       } else {
-        console.log(chalk.yellow(`⚠️  ${provider} API key not found in config`))
+        console.log(chalk.yellow(`⚠︎  ${provider} API key not found in config`))
       }
     } catch (error) {
       console.error(

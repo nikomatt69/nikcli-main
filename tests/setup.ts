@@ -19,8 +19,8 @@ beforeAll(async () => {
   // Create temporary test workspace
   testWorkspace = await fs.mkdtemp(path.join(os.tmpdir(), 'cli-test-'))
 
-  // Set environment variables for testing
-  ;(process.env as any).NODE_ENV = 'test'
+    // Set environment variables for testing
+    ; (process.env as any).NODE_ENV = 'test'
   process.env.CLI_DISABLE_ANALYTICS = 'true'
   process.env.CLI_DISABLE_TELEMETRY = 'true'
 
@@ -34,7 +34,7 @@ afterAll(async () => {
       await fs.rm(testWorkspace, { recursive: true, force: true })
       console.log(`🧹 Test workspace cleaned up: ${testWorkspace}`)
     } catch (error) {
-      console.warn(`⚠️ Failed to cleanup test workspace: ${error}`)
+      console.warn(`⚠︎ Failed to cleanup test workspace: ${error}`)
     }
   }
 
