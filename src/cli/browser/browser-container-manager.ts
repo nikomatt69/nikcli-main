@@ -113,7 +113,7 @@ export class BrowserContainerManager extends ContainerManager {
       return browserContainer
 
     } catch (error: any) {
-      advancedUI.logFunctionUpdate('error', `Failed to create browser container: ${error.message}`, '❌')
+      advancedUI.logFunctionUpdate('error', `Failed to create browser container: ${error.message}`, '✖')
       throw new Error(`Browser container creation failed: ${error.message}`)
     }
   }
@@ -145,7 +145,7 @@ export class BrowserContainerManager extends ContainerManager {
 
     } catch (error: any) {
       container.status = 'error'
-      advancedUI.logFunctionUpdate('error', `Browser initialization failed: ${error.message}`, '❌')
+      advancedUI.logFunctionUpdate('error', `Browser initialization failed: ${error.message}`, '✖')
       throw error
     }
   }
@@ -249,7 +249,7 @@ export class BrowserContainerManager extends ContainerManager {
       this.emit('browser:stopped', { containerId, name: container.name })
 
     } catch (error: any) {
-      advancedUI.logFunctionUpdate('error', `Failed to stop browser container: ${error.message}`, '❌')
+      advancedUI.logFunctionUpdate('error', `Failed to stop browser container: ${error.message}`, '✖')
       throw error
     }
   }
@@ -310,7 +310,7 @@ export class BrowserContainerManager extends ContainerManager {
         await this.stopBrowserContainer(container.id)
         cleanedCount++
       } catch (error: any) {
-        advancedUI.logFunctionUpdate('error', `Failed to cleanup ${container.name}: ${error.message}`, '❌')
+        advancedUI.logFunctionUpdate('error', `Failed to cleanup ${container.name}: ${error.message}`, '✖')
       }
     }
 

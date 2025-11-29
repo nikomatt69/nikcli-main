@@ -162,7 +162,7 @@ export class VMKeyboardControls extends EventEmitter {
         this.handlePanelInput(str, key)
       }
     } catch (error: any) {
-      advancedUI.logError(`❌ Keyboard handler error: ${error.message}`)
+      advancedUI.logError(`✖ Keyboard handler error: ${error.message}`)
     }
   }
 

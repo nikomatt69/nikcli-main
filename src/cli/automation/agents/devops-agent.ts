@@ -141,7 +141,7 @@ export class DevOpsAgent extends CognitiveAgentBase {
       }
     } catch (error: any) {
       const executionTime = Date.now() - startTime
-      CliUI.logError(`❌ DevOps task failed: ${error.message}`)
+      CliUI.logError(`✖ DevOps task failed: ${error.message}`)
       this.updateCognitiveMemory(cognition, { error: error.message }, false)
 
       return {
@@ -173,7 +173,7 @@ export class DevOpsAgent extends CognitiveAgentBase {
       CliUI.logDebug(`🚀 Enhanced DevOps cognition - Complexity: ${devopsCognition.estimatedComplexity}/10`)
       return devopsCognition
     } catch (error: any) {
-      CliUI.logError(`❌ Failed to enhance DevOps cognition: ${error.message}`)
+      CliUI.logError(`✖ Failed to enhance DevOps cognition: ${error.message}`)
       return cognition
     }
   }
@@ -291,7 +291,7 @@ Create production-ready infrastructure with security-first approach, cost optimi
       advancedUI.logSuccess(`✓ Implementation complete - ${implementation.resourcesCreated.length} resources`)
       return implementation
     } catch (error: any) {
-      CliUI.logError(`❌ Implementation failed: ${error.message}`)
+      CliUI.logError(`✖ Implementation failed: ${error.message}`)
       throw error
     }
   }

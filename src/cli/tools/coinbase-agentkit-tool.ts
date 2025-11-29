@@ -132,14 +132,14 @@ export class CoinbaseAgentKitTool extends BaseTool {
             configManager.getApiKey('cdp_wallet_secret')
           if (walletFromConfig) process.env.CDP_WALLET_SECRET = walletFromConfig
         }
-      } catch {}
+      } catch { }
 
       // Check if dependencies are installed
       const isInstalled = await CoinbaseAgentKitProvider.isInstalled()
       if (!isInstalled) {
         const error =
           'Coinbase AgentKit not installed. Run: npm install @coinbase/agentkit @coinbase/agentkit-vercel-ai-sdk'
-        console.log(chalk.red(`❌ ${error}`))
+        console.log(chalk.red(`✖ ${error}`))
         return {
           success: false,
           data: null,
@@ -184,7 +184,7 @@ export class CoinbaseAgentKitTool extends BaseTool {
           const saved = configManager.getApiKey('coinbase_wallet_address')
           if (saved) walletAddress = saved
         }
-      } catch {}
+      } catch { }
       await this.agentKitProvider.initialize({ walletAddress })
 
       // Create official agent configuration (like Coinbase CLI)
@@ -228,7 +228,7 @@ export class CoinbaseAgentKitTool extends BaseTool {
         },
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ AgentKit initialization failed: ${error.message}`))
+      console.log(chalk.red(`✖ AgentKit initialization failed: ${error.message}`))
 
       return {
         success: false,
@@ -310,7 +310,7 @@ export class CoinbaseAgentKitTool extends BaseTool {
             .filter(Boolean)
             .map((s: string) => String(s))
         }
-      } catch {}
+      } catch { }
 
       return {
         success: true,
@@ -328,7 +328,7 @@ export class CoinbaseAgentKitTool extends BaseTool {
         },
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Chat processing failed: ${error.message}`))
+      console.log(chalk.red(`✖ Chat processing failed: ${error.message}`))
 
       return {
         success: false,

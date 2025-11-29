@@ -108,7 +108,7 @@ export class TokenManager extends EventEmitter {
 
       return token
     } catch (error: any) {
-      advancedUI.logError(`❌ Failed to generate session token: ${error.message}`)
+      advancedUI.logError(`✖ Failed to generate session token: ${error.message}`)
       throw error
     }
   }
@@ -150,9 +150,9 @@ export class TokenManager extends EventEmitter {
       if (error.name === 'TokenExpiredError') {
         advancedUI.logWarning(`⚠️ Token expired: ${error.message}`)
       } else if (error.name === 'JsonWebTokenError') {
-        advancedUI.logError(`❌ Invalid token: ${error.message}`)
+        advancedUI.logError(`✖ Invalid token: ${error.message}`)
       } else {
-        advancedUI.logError(`❌ Token verification failed: ${error.message}`)
+        advancedUI.logError(`✖ Token verification failed: ${error.message}`)
       }
       throw error
     }
@@ -196,7 +196,7 @@ export class TokenManager extends EventEmitter {
       advancedUI.logInfo(`🚫 Token revoked for agent ${agentId}`)
       this.emit('token:revoked', { agentId, tokenId })
     } catch (error: any) {
-      advancedUI.logError(`❌ Failed to revoke token: ${error.message}`)
+      advancedUI.logError(`✖ Failed to revoke token: ${error.message}`)
       throw error
     }
   }
@@ -227,7 +227,7 @@ export class TokenManager extends EventEmitter {
 
       return newToken
     } catch (error: any) {
-      advancedUI.logError(`❌ Failed to refresh token: ${error.message}`)
+      advancedUI.logError(`✖ Failed to refresh token: ${error.message}`)
       throw error
     }
   }

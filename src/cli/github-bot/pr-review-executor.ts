@@ -87,7 +87,7 @@ export class PRReviewExecutor {
         },
       }
     } catch (error) {
-      console.error('❌ PR review and fix failed:', error)
+      console.error('✖ PR review and fix failed:', error)
       throw error
     }
   }

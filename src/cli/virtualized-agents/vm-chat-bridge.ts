@@ -62,7 +62,7 @@ export class VMChatBridge extends EventEmitter implements VMEventEmitter {
 
       this.emit('bridge_initialized')
     } catch (error: any) {
-      advancedUI.logFunctionUpdate('error', `Failed to initialize VM Chat Bridge: ${error.message}`, '❌')
+      advancedUI.logFunctionUpdate('error', `Failed to initialize VM Chat Bridge: ${error.message}`, '✖')
       throw error
     }
   }
@@ -84,7 +84,7 @@ export class VMChatBridge extends EventEmitter implements VMEventEmitter {
       advancedUI.logFunctionUpdate('success', `Registered VM agent ${agent.id} with bridge`, '🔌')
       this.updateStats()
     } catch (error: any) {
-      advancedUI.logFunctionUpdate('error', `Failed to register VM agent ${agent.id}: ${error.message}`, '❌')
+      advancedUI.logFunctionUpdate('error', `Failed to register VM agent ${agent.id}: ${error.message}`, '✖')
       throw error
     }
   }
@@ -107,7 +107,7 @@ export class VMChatBridge extends EventEmitter implements VMEventEmitter {
       advancedUI.logFunctionUpdate('warning', `Unregistered VM agent ${agentId} from bridge`, '🔌')
       this.updateStats()
     } catch (error: any) {
-      advancedUI.logFunctionUpdate('error', `Failed to unregister VM agent ${agentId}: ${error.message}`, '❌')
+      advancedUI.logFunctionUpdate('error', `Failed to unregister VM agent ${agentId}: ${error.message}`, '✖')
     }
   }
 
@@ -171,7 +171,7 @@ export class VMChatBridge extends EventEmitter implements VMEventEmitter {
       const responseTime = Date.now() - startTime
       this.bridgeStats.failedRequests++
 
-      advancedUI.logFunctionUpdate('error', `Failed to send message to agent ${agentId}: ${error.message}`, '❌')
+      advancedUI.logFunctionUpdate('error', `Failed to send message to agent ${agentId}: ${error.message}`, '✖')
 
       return {
         success: false,
@@ -260,7 +260,7 @@ export class VMChatBridge extends EventEmitter implements VMEventEmitter {
       const responseTime = Date.now() - startTime
       this.bridgeStats.failedRequests++
 
-      advancedUI.logFunctionUpdate('error', `Failed to stream message to agent ${agentId}: ${error.message}`, '❌')
+      advancedUI.logFunctionUpdate('error', `Failed to stream message to agent ${agentId}: ${error.message}`, '✖')
 
       yield {
         type: 'error',
@@ -349,7 +349,7 @@ export class VMChatBridge extends EventEmitter implements VMEventEmitter {
       this.isInitialized = false
       advancedUI.logFunctionUpdate('success', 'VM Chat Bridge shutdown complete', '✓')
     } catch (error: any) {
-      advancedUI.logFunctionUpdate('error', `Error during bridge shutdown: ${error.message}`, '❌')
+      advancedUI.logFunctionUpdate('error', `Error during bridge shutdown: ${error.message}`, '✖')
     }
   }
 
@@ -364,7 +364,7 @@ export class VMChatBridge extends EventEmitter implements VMEventEmitter {
         await vmSessionManager.clearMessageQueue(sessionId)
       }
     } catch (error: any) {
-      advancedUI.logFunctionUpdate('error', `Queue flush failed: ${error.message}`, '❌')
+      advancedUI.logFunctionUpdate('error', `Queue flush failed: ${error.message}`, '✖')
     }
   }
 
@@ -389,7 +389,7 @@ export class VMChatBridge extends EventEmitter implements VMEventEmitter {
 
       return response
     } catch (error: any) {
-      advancedUI.logFunctionUpdate('error', `Error processing message with agent ${agent.id}: ${error.message}`, '❌')
+      advancedUI.logFunctionUpdate('error', `Error processing message with agent ${agent.id}: ${error.message}`, '✖')
       throw error
     }
   }
@@ -431,7 +431,7 @@ export class VMChatBridge extends EventEmitter implements VMEventEmitter {
         this.emit('agent_error', message)
       }
     } catch (error: any) {
-      advancedUI.logFunctionUpdate('error', `Error handling incoming message: ${error.message}`, '❌')
+      advancedUI.logFunctionUpdate('error', `Error handling incoming message: ${error.message}`, '✖')
     }
   }
 

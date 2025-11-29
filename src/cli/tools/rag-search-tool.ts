@@ -243,7 +243,7 @@ export class RAGSearchTool extends BaseTool {
     summary += `**Sources:** ${sourcesUsed.join(', ') || 'none'}\n\n`
 
     if (results.length === 0) {
-      summary += `❌ No results found for "${query}"\n\n`
+      summary += `✖ No results found for "${query}"\n\n`
       summary += `**Suggestions:**\n`
       summary += `- Try different keywords or a more general query\n`
       summary += `- Check if the codebase has been indexed\n`

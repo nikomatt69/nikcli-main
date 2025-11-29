@@ -136,7 +136,7 @@ export class VMOrchestrator extends EventEmitter {
 
       return containerId
     } catch (error: any) {
-      advancedUI.logError(`❌ Failed to create secure container: ${error.message}`)
+      advancedUI.logError(`✖ Failed to create secure container: ${error.message}`)
       throw error
     }
   }
@@ -273,7 +273,7 @@ export class VMOrchestrator extends EventEmitter {
 
       advancedUI.logSuccess(`✓ Repository setup completed in container ${containerId}`)
     } catch (error: any) {
-      advancedUI.logError(`❌ Failed to setup repository: ${error.message}`)
+      advancedUI.logError(`✖ Failed to setup repository: ${error.message}`)
       throw error
     }
   }
@@ -299,7 +299,7 @@ export class VMOrchestrator extends EventEmitter {
 
       advancedUI.logSuccess(`✓ Development environment ready`)
     } catch (error: any) {
-      advancedUI.logError(`❌ Failed to setup development environment: ${error.message}`)
+      advancedUI.logError(`✖ Failed to setup development environment: ${error.message}`)
       throw error
     }
   }
@@ -330,7 +330,7 @@ export class VMOrchestrator extends EventEmitter {
 
       advancedUI.logSuccess(`✓ Shell environment ready`)
     } catch (error: any) {
-      advancedUI.logError(`❌ Failed to setup shell environment: ${error.message}`)
+      advancedUI.logError(`✖ Failed to setup shell environment: ${error.message}`)
       throw error
     }
   }
@@ -364,7 +364,7 @@ export class VMOrchestrator extends EventEmitter {
 
       return result
     } catch (error: any) {
-      advancedUI.logError(`❌ Command failed in ${containerId.slice(0, 8)}: ${command}`)
+      advancedUI.logError(`✖ Command failed in ${containerId.slice(0, 8)}: ${command}`)
 
       // Emit command error event
       this.emit('command:error', {
@@ -438,7 +438,7 @@ export class VMOrchestrator extends EventEmitter {
         timestamp: new Date(),
       })
     } catch (error: any) {
-      advancedUI.logError(`❌ Streaming command failed in ${containerId.slice(0, 8)}: ${command}`)
+      advancedUI.logError(`✖ Streaming command failed in ${containerId.slice(0, 8)}: ${command}`)
 
       // Yield error
       yield {
@@ -480,17 +480,17 @@ export class VMOrchestrator extends EventEmitter {
 
         // Only proceed if there are changes
         'if ! git diff --staged --quiet; then ' +
-          // Configure git user if not set
-          'git config user.email || git config user.email "nikcli-agent@localhost"; ' +
-          'git config user.name || git config user.name "NikCLI Agent"; ' +
-          // Commit changes
-          `git commit -m "${prConfig.title || 'Automated changes from NikCLI'}"; ` +
-          // Create new branch
-          `git checkout -b ${branchName}; ` +
-          // Set up remote if not exists
-          'git remote get-url origin >/dev/null 2>&1 || git remote add origin ' + (this.activeContainers.get(containerId)?.repositoryUrl || '') + '; ' +
-          // Push branch
-          `git push -u origin ${branchName}; ` +
+        // Configure git user if not set
+        'git config user.email || git config user.email "nikcli-agent@localhost"; ' +
+        'git config user.name || git config user.name "NikCLI Agent"; ' +
+        // Commit changes
+        `git commit -m "${prConfig.title || 'Automated changes from NikCLI'}"; ` +
+        // Create new branch
+        `git checkout -b ${branchName}; ` +
+        // Set up remote if not exists
+        'git remote get-url origin >/dev/null 2>&1 || git remote add origin ' + (this.activeContainers.get(containerId)?.repositoryUrl || '') + '; ' +
+        // Push branch
+        `git push -u origin ${branchName}; ` +
         'else echo "No changes to create PR for"; fi',
       ]
 
@@ -517,7 +517,7 @@ export class VMOrchestrator extends EventEmitter {
       advancedUI.logSuccess(`✓ Pull request created: ${prUrl}`)
       return prUrl
     } catch (error: any) {
-      advancedUI.logError(`❌ Failed to create pull request: ${error.message}`)
+      advancedUI.logError(`✖ Failed to create pull request: ${error.message}`)
       throw error
     }
   }
@@ -632,7 +632,7 @@ export class VMOrchestrator extends EventEmitter {
       const pullRequest = (await response.json()) as { html_url: string }
       return pullRequest.html_url
     } catch (error: any) {
-      advancedUI.logError(`❌ Failed to create GitHub PR: ${error.message}`)
+      advancedUI.logError(`✖ Failed to create GitHub PR: ${error.message}`)
 
       // Enhanced fallback with repository validation
       const repoMatch = prConfig.repositoryUrl?.match(/github\.com[/:]([^/:]+)\/([^/]+)(?:\.git)?/)
@@ -664,7 +664,7 @@ export class VMOrchestrator extends EventEmitter {
 
       this.emit('container:stopped', { containerId })
     } catch (error: any) {
-      advancedUI.logError(`❌ Failed to stop container: ${error.message}`)
+      advancedUI.logError(`✖ Failed to stop container: ${error.message}`)
       throw error
     }
   }
@@ -684,7 +684,7 @@ export class VMOrchestrator extends EventEmitter {
 
       this.emit('container:removed', { containerId })
     } catch (error: any) {
-      advancedUI.logError(`❌ Failed to remove container: ${error.message}`)
+      advancedUI.logError(`✖ Failed to remove container: ${error.message}`)
       throw error
     }
   }
@@ -707,7 +707,7 @@ export class VMOrchestrator extends EventEmitter {
       this.containerMetrics.set(containerId, metrics)
       return metrics
     } catch (error: any) {
-      advancedUI.logError(`❌ Failed to get container metrics: ${error.message}`)
+      advancedUI.logError(`✖ Failed to get container metrics: ${error.message}`)
       return {
         memoryUsage: 0,
         cpuUsage: 0,
@@ -768,7 +768,7 @@ export class VMOrchestrator extends EventEmitter {
           const session = await vmSessionManager.createSession(containerId, agentId)
           advancedUI.logSuccess(`📝 Created VM session ${session.sessionId} for container ${containerId.slice(0, 12)}`)
         } catch (error: any) {
-          advancedUI.logError(`❌ Failed to create session for container ${containerId}: ${error.message}`)
+          advancedUI.logError(`✖ Failed to create session for container ${containerId}: ${error.message}`)
         }
       })
 
@@ -783,7 +783,7 @@ export class VMOrchestrator extends EventEmitter {
       this.bridgeInitialized = true
       advancedUI.logSuccess('✓ VM communication bridge initialized')
     } catch (error: any) {
-      advancedUI.logError(`❌ Failed to initialize VM communication bridge: ${error.message}`)
+      advancedUI.logError(`✖ Failed to initialize VM communication bridge: ${error.message}`)
     }
   }
 
@@ -795,7 +795,7 @@ export class VMOrchestrator extends EventEmitter {
       await vmChatBridge.registerVMAgent(agent)
       advancedUI.logSuccess(`🔌 Registered VM agent ${agent.id} with communication bridge`)
     } catch (error: any) {
-      advancedUI.logError(`❌ Failed to register VM agent with bridge: ${error.message}`)
+      advancedUI.logError(`✖ Failed to register VM agent with bridge: ${error.message}`)
       throw error
     }
   }
@@ -807,7 +807,7 @@ export class VMOrchestrator extends EventEmitter {
     try {
       return await vmChatBridge.sendMessageToAgent(agentId, message)
     } catch (error: any) {
-      advancedUI.logError(`❌ Failed to send message to agent ${agentId}: ${error.message}`)
+      advancedUI.logError(`✖ Failed to send message to agent ${agentId}: ${error.message}`)
       throw error
     }
   }
@@ -821,7 +821,7 @@ export class VMOrchestrator extends EventEmitter {
         yield chunk
       }
     } catch (error: any) {
-      advancedUI.logError(`❌ Failed to stream message to agent ${agentId}: ${error.message}`)
+      advancedUI.logError(`✖ Failed to stream message to agent ${agentId}: ${error.message}`)
       throw error
     }
   }
@@ -863,7 +863,7 @@ export class VMOrchestrator extends EventEmitter {
 
       advancedUI.logSuccess(`✓ VM agent ${config.agentId} created and registered`)
     } catch (error: any) {
-      advancedUI.logError(`❌ Failed to create VM agent: ${error.message}`)
+      advancedUI.logError(`✖ Failed to create VM agent: ${error.message}`)
       throw error
     }
   }

@@ -96,7 +96,7 @@ export class SubscriptionService {
         canceledAt: data.subscription_canceled_at ? new Date(data.subscription_canceled_at) : undefined,
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to get subscription status: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to get subscription status: ${error.message}`))
       return null
     }
   }
@@ -191,7 +191,7 @@ export class SubscriptionService {
 
       return true
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to update subscription: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to update subscription: ${error.message}`))
       return false
     }
   }

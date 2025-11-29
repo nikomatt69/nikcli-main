@@ -315,7 +315,7 @@ export class EnhancedSessionManager extends EventEmitter {
         throw e
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to load session ${id}: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to load session ${id}: ${error.message}`))
       return null
     }
   }
@@ -404,7 +404,7 @@ export class EnhancedSessionManager extends EventEmitter {
 
       return result
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to save session ${session.id}: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to save session ${session.id}: ${error.message}`))
       return {
         success: false,
         action: 'skipped',
@@ -527,7 +527,7 @@ export class EnhancedSessionManager extends EventEmitter {
       // Apply pagination
       return sessionList.slice(offset, offset + limit)
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to list sessions: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to list sessions: ${error.message}`))
       return []
     }
   }
@@ -567,7 +567,7 @@ export class EnhancedSessionManager extends EventEmitter {
 
       return success
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to delete session ${id}: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to delete session ${id}: ${error.message}`))
       return false
     }
   }
@@ -611,7 +611,7 @@ export class EnhancedSessionManager extends EventEmitter {
 
       return { synced, conflicts, errors }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Sync failed: ${error.message}`))
+      console.log(chalk.red(`✖ Sync failed: ${error.message}`))
       throw error
     }
   }

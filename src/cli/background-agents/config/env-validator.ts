@@ -89,7 +89,7 @@ class EnvironmentValidator {
 
     // Report errors and warnings
     if (this.errors.length > 0) {
-      console.error('❌ Environment validation failed:')
+      console.error('✖ Environment validation failed:')
       for (const error of this.errors) {
         console.error(`  - ${error}`)
       }

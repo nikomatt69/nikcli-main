@@ -99,7 +99,7 @@ export class WorkflowOrchestrator {
 
       return result
     } catch (error: any) {
-      CliUI.logError(`❌ Failed to execute workflow with agent: ${error.message}`)
+      CliUI.logError(`✖ Failed to execute workflow with agent: ${error.message}`)
       throw error
     }
   }
@@ -215,7 +215,7 @@ export class WorkflowOrchestrator {
           }
         }
       } catch (error: any) {
-        CliUI.logError(`❌ Step ${step.id} failed: ${error.message}`)
+        CliUI.logError(`✖ Step ${step.id} failed: ${error.message}`)
         errors.push({ step: step.id, error: error.message })
 
         // Handle retry logic

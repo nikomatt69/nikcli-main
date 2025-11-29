@@ -108,7 +108,7 @@ export class SnapshotProvider extends EventEmitter {
 
       this.emit('initialized')
     } catch (error: any) {
-      structuredLogger.error('Snapshots', `❌ Snapshot provider initialization failed: ${error.message}`)
+      structuredLogger.error('Snapshots', `✖ Snapshot provider initialization failed: ${error.message}`)
       throw error
     }
   }
@@ -228,7 +228,7 @@ export class SnapshotProvider extends EventEmitter {
 
       return snapshotId
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to create snapshot: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to create snapshot: ${error.message}`))
       throw error
     }
   }
@@ -287,7 +287,7 @@ export class SnapshotProvider extends EventEmitter {
         await fs.writeFile(fullPath, file.content)
         restoredCount++
       } catch (error: any) {
-        console.log(chalk.red(`❌ Failed to restore ${file.path}: ${error.message}`))
+        console.log(chalk.red(`✖ Failed to restore ${file.path}: ${error.message}`))
       }
     }
 
@@ -355,7 +355,7 @@ export class SnapshotProvider extends EventEmitter {
 
       return true
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to delete snapshot: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to delete snapshot: ${error.message}`))
       return false
     }
   }

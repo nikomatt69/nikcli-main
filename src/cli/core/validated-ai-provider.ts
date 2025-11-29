@@ -154,7 +154,7 @@ export class ValidatedAIProvider {
 
           return result
         } catch (error: any) {
-          advancedUI.logError(`❌ Failed to write validated file ${path}: ${error.message}`)
+          advancedUI.logError(`✖ Failed to write validated file ${path}: ${error.message}`)
 
           return {
             success: false,
@@ -219,7 +219,7 @@ export class ValidatedAIProvider {
 
       return typeof response === 'string' ? response : ''
     } catch (error: any) {
-      advancedUI.logError(`❌ Failed to generate reasoning response: ${error.message}`)
+      advancedUI.logError(`✖ Failed to generate reasoning response: ${error.message}`)
       throw error
     }
   }

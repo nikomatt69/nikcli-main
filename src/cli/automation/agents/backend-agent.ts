@@ -154,7 +154,7 @@ export class BackendAgent extends CognitiveAgentBase {
       }
     } catch (error: any) {
       const executionTime = Date.now() - startTime
-      CliUI.logError(`❌ Backend task failed: ${error.message}`)
+      CliUI.logError(`✖ Backend task failed: ${error.message}`)
       this.updateCognitiveMemory(cognition, { error: error.message }, false)
 
       return {
@@ -195,7 +195,7 @@ export class BackendAgent extends CognitiveAgentBase {
 
       return backendCognition
     } catch (error: any) {
-      CliUI.logError(`❌ Failed to enhance Backend cognition: ${error.message}`)
+      CliUI.logError(`✖ Failed to enhance Backend cognition: ${error.message}`)
       return cognition
     }
   }
@@ -398,7 +398,7 @@ export class BackendAgent extends CognitiveAgentBase {
       advancedUI.logSuccess(`✓ Backend implementation complete - ${taskType}`)
       return { taskType, result, success: true }
     } catch (error: any) {
-      CliUI.logError(`❌ Backend implementation failed: ${error.message}`)
+      CliUI.logError(`✖ Backend implementation failed: ${error.message}`)
       throw error
     }
   }
@@ -424,7 +424,7 @@ export class BackendAgent extends CognitiveAgentBase {
 
       return { validation, overallSuccess }
     } catch (error: any) {
-      CliUI.logError(`❌ Backend validation failed: ${error.message}`)
+      CliUI.logError(`✖ Backend validation failed: ${error.message}`)
       return { error: error.message, overallSuccess: false }
     }
   }

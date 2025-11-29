@@ -124,7 +124,7 @@ export class PolymarketWebSocketManager extends EventEmitter {
         }
 
         this.ws.onerror = (event) => {
-          console.error('❌ WebSocket error:', event)
+          console.error('✖ WebSocket error:', event)
           this.emit('error', event)
           reject(event)
         }
@@ -140,7 +140,7 @@ export class PolymarketWebSocketManager extends EventEmitter {
           }
         }
       } catch (error) {
-        console.error('❌ WebSocket connection failed:', error)
+        console.error('✖ WebSocket connection failed:', error)
         reject(error)
       }
     })
@@ -197,7 +197,7 @@ export class PolymarketWebSocketManager extends EventEmitter {
       console.log(`✅ Subscribed to market: ${assetId}`)
       this.emit('subscribed', assetId)
     } catch (error) {
-      console.error(`❌ Failed to subscribe to ${assetId}:`, error)
+      console.error(`✖ Failed to subscribe to ${assetId}:`, error)
       throw error
     }
   }
@@ -268,7 +268,7 @@ export class PolymarketWebSocketManager extends EventEmitter {
       const eventType = update.event_type
       this.emit(eventType, update)
     } catch (error) {
-      console.error('❌ Failed to parse WebSocket message:', error)
+      console.error('✖ Failed to parse WebSocket message:', error)
     }
   }
 
@@ -277,7 +277,7 @@ export class PolymarketWebSocketManager extends EventEmitter {
    */
   private scheduleReconnect(): void {
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.error('❌ Max reconnection attempts reached')
+      console.error('✖ Max reconnection attempts reached')
       this.emit('maxReconnectAttemptsReached')
       return
     }
@@ -303,7 +303,7 @@ export class PolymarketWebSocketManager extends EventEmitter {
           })
         })
         .catch((error) => {
-          console.error('❌ Reconnection failed:', error)
+          console.error('✖ Reconnection failed:', error)
           this.scheduleReconnect()
         })
     }, delay)

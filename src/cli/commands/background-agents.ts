@@ -447,7 +447,7 @@ export class BackgroundAgentsCommand {
 
     // Error
     if (job.error) {
-      console.log(chalk.bold('\n❌ Error'))
+      console.log(chalk.bold('\n✖ Error'))
       console.log(chalk.red(job.error))
     }
 

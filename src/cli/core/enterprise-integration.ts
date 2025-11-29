@@ -50,7 +50,7 @@ export class EnterpriseIntegration {
       // Log system stats
       this.logSystemStats()
     } catch (error: any) {
-      advancedUI.logError(`❌ Enterprise Integration failed: ${error.message}`)
+      advancedUI.logError(`✖ Enterprise Integration failed: ${error.message}`)
       throw error
     }
   }

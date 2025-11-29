@@ -128,7 +128,7 @@ export class EnhancedSupabaseProvider extends EventEmitter {
         this.setupRealtime()
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Supabase connection failed: ${error.message}`))
+      console.log(chalk.red(`✖ Supabase connection failed: ${error.message}`))
       this.isConnected = false
 
       // Handle the error without throwing to prevent unhandled promise rejection
@@ -212,7 +212,7 @@ export class EnhancedSupabaseProvider extends EventEmitter {
 
       return data
     } catch (error: any) {
-      console.log(chalk.red(`❌ Session upsert failed: ${error.message}`))
+      console.log(chalk.red(`✖ Session upsert failed: ${error.message}`))
       throw error
     }
   }
@@ -239,7 +239,7 @@ export class EnhancedSupabaseProvider extends EventEmitter {
 
       return data
     } catch (error: any) {
-      console.log(chalk.red(`❌ Session get failed: ${error.message}`))
+      console.log(chalk.red(`✖ Session get failed: ${error.message}`))
       throw error
     }
   }
@@ -288,7 +288,7 @@ export class EnhancedSupabaseProvider extends EventEmitter {
 
       return data || []
     } catch (error: any) {
-      console.log(chalk.red(`❌ Sessions list failed: ${error.message}`))
+      console.log(chalk.red(`✖ Sessions list failed: ${error.message}`))
       throw error
     }
   }
@@ -308,7 +308,7 @@ export class EnhancedSupabaseProvider extends EventEmitter {
 
       return true
     } catch (error: any) {
-      console.log(chalk.red(`❌ Session delete failed: ${error.message}`))
+      console.log(chalk.red(`✖ Session delete failed: ${error.message}`))
       return false
     }
   }
@@ -340,7 +340,7 @@ export class EnhancedSupabaseProvider extends EventEmitter {
 
       return data
     } catch (error: any) {
-      console.log(chalk.red(`❌ Blueprint upsert failed: ${error.message}`))
+      console.log(chalk.red(`✖ Blueprint upsert failed: ${error.message}`))
       throw error
     }
   }
@@ -375,7 +375,7 @@ export class EnhancedSupabaseProvider extends EventEmitter {
 
       return data
     } catch (error: any) {
-      console.log(chalk.red(`❌ Blueprint get failed: ${error.message}`))
+      console.log(chalk.red(`✖ Blueprint get failed: ${error.message}`))
       throw error
     }
   }
@@ -424,7 +424,7 @@ export class EnhancedSupabaseProvider extends EventEmitter {
 
       return data || []
     } catch (error: any) {
-      console.log(chalk.red(`❌ Blueprint search failed: ${error.message}`))
+      console.log(chalk.red(`✖ Blueprint search failed: ${error.message}`))
       throw error
     }
   }
@@ -475,7 +475,7 @@ export class EnhancedSupabaseProvider extends EventEmitter {
 
       return data || []
     } catch (error: any) {
-      console.log(chalk.red(`❌ Document vector search failed: ${error.message}`))
+      console.log(chalk.red(`✖ Document vector search failed: ${error.message}`))
       throw error
     }
   }
@@ -520,7 +520,7 @@ export class EnhancedSupabaseProvider extends EventEmitter {
 
       return data.user as any
     } catch (error: any) {
-      console.log(chalk.red(`❌ Sign in failed: ${error.message}`))
+      console.log(chalk.red(`✖ Sign in failed: ${error.message}`))
       throw error
     }
   }
@@ -546,7 +546,7 @@ export class EnhancedSupabaseProvider extends EventEmitter {
 
       return data.user as any
     } catch (error: any) {
-      console.log(chalk.red(`❌ Sign up failed: ${error.message}`))
+      console.log(chalk.red(`✖ Sign up failed: ${error.message}`))
       throw error
     }
   }
@@ -584,7 +584,7 @@ export class EnhancedSupabaseProvider extends EventEmitter {
     try {
       await this.client.auth.signOut()
     } catch (error: any) {
-      console.log(chalk.red(`❌ Sign out failed: ${error.message}`))
+      console.log(chalk.red(`✖ Sign out failed: ${error.message}`))
     }
   }
 

@@ -34,7 +34,7 @@ export class StreamttyAdapter {
     let out = text.replace(/[\u200D\uFE0F]/g, '')
     const repl: Array<[RegExp, string]> = [
       [/✅|✔️|✔|✓/g, '✓'],
-      [/❌|✖️|✖|✕/g, '×'],
+      [/✖|✖️|✖|✕/g, '×'],
       [/⚠️|⚠/g, '!'],
       [/🔴|🟥|⛔️|⛔/g, '●'],
       [/🟠|🟧/g, '●'],
@@ -401,7 +401,7 @@ async function processTablesWithRoundedCorners(content: string): Promise<string>
       let out = text.replace(/[\u200D\uFE0F]/g, '')
       const repl: Array<[RegExp, string]> = [
         [/✅|✔️|✔|✓/g, '✓'],
-        [/❌|✖️|✖|✕/g, '×'],
+        [/✖|✖️|✖|✕/g, '×'],
         [/⚠️|⚠/g, '!'],
         [/🔴|🟥|⛔️|⛔/g, '●'],
         [/🟠|🟧/g, '●'],

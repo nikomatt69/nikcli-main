@@ -282,7 +282,7 @@ export class McpClient extends EventEmitter {
         executionTime: Date.now() - startTime,
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ MCP Error: ${serverName} - ${error.message}`))
+      console.log(chalk.red(`✖ MCP Error: ${serverName} - ${error.message}`))
 
       // Attempt retry logic
       const retryCount = this.retryAttempts.get(serverName) || 0

@@ -758,7 +758,7 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
       if (error.name === 'AbortError' || this.shouldInterrupt) {
         console.log(chalk.yellow('⏹️  Operation was interrupted'))
       } else {
-        console.log(chalk.red(`\\n❌ Autonomous execution failed: ${error.message}`))
+        console.log(chalk.red(`\\n✖ Autonomous execution failed: ${error.message}`))
       }
     } finally {
       // End execution mode - resume ephemeral cleanup
@@ -1002,12 +1002,12 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
             await streamttyService.renderBlock(`\n\n🎉 ${agentName} completed autonomously!`, 'system')
             break
           case 'error':
-            await streamttyService.renderBlock(`\n❌ Agent error: ${event.content}`, 'error')
+            await streamttyService.renderBlock(`\n✖ Agent error: ${event.content}`, 'error')
             break
         }
       }
     } catch (error: any) {
-      console.log(chalk.red(`\\n❌ Agent execution failed: ${error.message}`))
+      console.log(chalk.red(`\\n✖ Agent execution failed: ${error.message}`))
     } finally {
       this.isProcessing = false
       console.log()
@@ -1059,12 +1059,12 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
             await streamttyService.renderBlock('\n🎉 Autonomous execution completed!', 'system')
             break
           case 'error':
-            await streamttyService.renderBlock(`\n❌ Error: ${event.error}`, 'error')
+            await streamttyService.renderBlock(`\n✖ Error: ${event.error}`, 'error')
             break
         }
       }
     } catch (error: any) {
-      console.log(chalk.red(`\\n❌ Autonomous execution failed: ${error.message}`))
+      console.log(chalk.red(`\\n✖ Autonomous execution failed: ${error.message}`))
     } finally {
       this.isProcessing = false
       this.showPrompt()
@@ -1136,7 +1136,7 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
 
     history.forEach((event, _index) => {
       const icon =
-        event.type === 'tool_call' ? '🔧' : event.type === 'tool_result' ? '✓' : event.type === 'error' ? '❌' : '•'
+        event.type === 'tool_call' ? '🔧' : event.type === 'tool_result' ? '✓' : event.type === 'error' ? '✖' : '•'
       console.log(`${icon} ${chalk.dim(event.type)}: ${event.content?.slice(0, 60) || 'N/A'}`)
     })
   }

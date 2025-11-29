@@ -933,7 +933,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
               cwd: commandCwd,
             }
           } catch (error: any) {
-            advancedUI.logFunctionUpdate('error', `Command failed: ${error.message}`, '❌')
+            advancedUI.logFunctionUpdate('error', `Command failed: ${error.message}`, '✖')
             return {
               command: `${command} ${args.join(' ')}`,
               error: error.message,
@@ -2274,7 +2274,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
     // What was done
     summary += `📊 **Operations Completed:** ${totalOperations} total operations across ${this.completedRounds} rounds\n`
     summary += `✓ **Successful:** ${successful} operations\n`
-    summary += `❌ **Failed:** ${failed} operations\n`
+    summary += `✖ **Failed:** ${failed} operations\n`
     summary += `🔨 **Tools Used:** ${tools.join(', ')}\n\n`
 
     // Key findings
@@ -2640,7 +2640,7 @@ Stay within project directory.`,
     }
 
     // Default fallback with suggestion
-    return `❌ ${errorMessage} • Try rephrasing your request or check your configuration.`
+    return `✖ ${errorMessage} • Try rephrasing your request or check your configuration.`
   }
 
   // Helper methods for intelligent analysis
@@ -3863,7 +3863,7 @@ Use this cognitive understanding to provide more targeted and effective response
       return validatedResults
     } catch (error: any) {
       if (!this.streamSilentMode) {
-        advancedUI.logFunctionUpdate('error', `Package search failed: ${error.message}`, '❌')
+        advancedUI.logFunctionUpdate('error', `Package search failed: ${error.message}`, '✖')
       }
       return []
     }
@@ -4014,7 +4014,7 @@ Use this cognitive understanding to provide more targeted and effective response
       this.commandHistory.push(validatedErrorResult)
 
       if (!this.streamSilentMode) {
-        advancedUI.logFunctionUpdate('error', `Command failed: ${error.message}`, '❌')
+        advancedUI.logFunctionUpdate('error', `Command failed: ${error.message}`, '✖')
       }
 
       return validatedErrorResult
@@ -4077,7 +4077,7 @@ Use this cognitive understanding to provide more targeted and effective response
       } else {
         yield {
           type: 'tool_result',
-          content: `❌ ${command.description} failed`,
+          content: `✖ ${command.description} failed`,
           toolName: command.type,
           toolResult: {
             success: false,

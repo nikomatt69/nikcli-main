@@ -75,7 +75,7 @@ export class APIKeyProxy extends EventEmitter {
       })
 
       this.server.on('error', (error) => {
-        advancedUI.logError(`❌ Proxy server error: ${error.message}`)
+        advancedUI.logError(`✖ Proxy server error: ${error.message}`)
         reject(error)
       })
     })
@@ -125,7 +125,7 @@ export class APIKeyProxy extends EventEmitter {
       advancedUI.logSuccess(`✓ Agent ${agentId} registered with proxy`)
       this.emit('agent:registered', { agentId, session })
     } catch (error: any) {
-      advancedUI.logError(`❌ Failed to register agent ${agentId}: ${error.message}`)
+      advancedUI.logError(`✖ Failed to register agent ${agentId}: ${error.message}`)
       throw error
     }
   }
@@ -219,7 +219,7 @@ export class APIKeyProxy extends EventEmitter {
         model: request.model || 'claude-3-5-sonnet-20241022',
       })
 
-      advancedUI.logError(`❌ AI request failed for ${request.agentId}: ${error.message}`)
+      advancedUI.logError(`✖ AI request failed for ${request.agentId}: ${error.message}`)
       throw error
     }
   }
@@ -329,7 +329,7 @@ export class APIKeyProxy extends EventEmitter {
           }
         }
       } catch (streamError: any) {
-        advancedUI.logError(`❌ Advanced AI provider streaming error: ${streamError.message}`)
+        advancedUI.logError(`✖ Advanced AI provider streaming error: ${streamError.message}`)
         throw streamError
       }
 
@@ -385,7 +385,7 @@ export class APIKeyProxy extends EventEmitter {
         error: error.message,
       }
 
-      advancedUI.logError(`❌ Streaming AI request failed for ${request.agentId}: ${error.message}`)
+      advancedUI.logError(`✖ Streaming AI request failed for ${request.agentId}: ${error.message}`)
       throw error
     }
   }
@@ -511,9 +511,9 @@ export class APIKeyProxy extends EventEmitter {
       const token = authHeader.slice(7)
       const tokenData = await this.tokenManager.verifyToken(token)
 
-      // Add token data to request
-      ;(req as any).agentId = tokenData.agentId
-      ;(req as any).tokenData = tokenData
+        // Add token data to request
+        ; (req as any).agentId = tokenData.agentId
+        ; (req as any).tokenData = tokenData
 
       next()
     } catch (_error: any) {
@@ -588,7 +588,7 @@ export class APIKeyProxy extends EventEmitter {
 
           // Flush buffer for real-time streaming
           if ((res as any).flush) {
-            ;(res as any).flush()
+            ; (res as any).flush()
           }
         }
 
@@ -706,7 +706,7 @@ export class APIKeyProxy extends EventEmitter {
    * Error handler middleware
    */
   private errorHandler(error: any, _req: Request, res: Response, _next: Function): void {
-    advancedUI.logError(`❌ Proxy error: ${error.message}`)
+    advancedUI.logError(`✖ Proxy error: ${error.message}`)
 
     res.status(500).json({
       error: 'Internal server error',

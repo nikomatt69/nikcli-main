@@ -229,7 +229,7 @@ export class ToolsManager {
       const _duration = Date.now() - Date.now()
       this.addToHistory(fullCommand, false, error.message)
 
-      console.log(chalk.red(`❌ Command failed: ${fullCommand}`))
+      console.log(chalk.red(`✖ Command failed: ${fullCommand}`))
       console.log(chalk.gray(`Error: ${error.message}`))
 
       return {
@@ -289,14 +289,14 @@ export class ToolsManager {
         if (code === 0) {
           console.log(chalk.green(`✅ Process completed (PID: ${child.pid})`))
         } else {
-          console.log(chalk.red(`❌ Process failed with code ${code} (PID: ${child.pid})`))
+          console.log(chalk.red(`✖ Process failed with code ${code} (PID: ${child.pid})`))
         }
 
         resolve({ stdout, stderr, code: code || 0, pid: child.pid! })
       })
 
       child.on('error', (error) => {
-        console.log(chalk.red(`❌ Process error: ${error.message}`))
+        console.log(chalk.red(`✖ Process error: ${error.message}`))
         processInfo.status = 'failed'
         this.runningProcesses.delete(child.pid!)
         resolve({ stdout, stderr: error.message, code: 1, pid: child.pid! })
@@ -340,7 +340,7 @@ export class ToolsManager {
       console.log(chalk.green(`✅ Successfully installed ${packageName}`))
       return true
     } else {
-      console.log(chalk.red(`❌ Failed to install ${packageName}`))
+      console.log(chalk.red(`✖ Failed to install ${packageName}`))
       return false
     }
   }
@@ -358,7 +358,7 @@ export class ToolsManager {
       console.log(chalk.yellow(`⚠️ Process ${pid} terminated`))
       return true
     } catch (_error) {
-      console.log(chalk.red(`❌ Could not kill process ${pid}`))
+      console.log(chalk.red(`✖ Could not kill process ${pid}`))
       return false
     }
   }
@@ -706,7 +706,7 @@ export class ToolsManager {
       console.log(chalk.green(`✅ Project ${projectName} created successfully!`))
       console.log(chalk.gray(`📁 Location: ${projectPath}`))
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to create project: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to create project: ${error.message}`))
     }
 
     return { success, path: projectPath, commands }
@@ -728,7 +728,7 @@ export class ToolsManager {
     })
 
     child.stderr?.on('data', (data) => {
-      console.log(chalk.red(`❌ Log monitor error: ${data}`))
+      console.log(chalk.red(`✖ Log monitor error: ${data}`))
     })
 
     return child

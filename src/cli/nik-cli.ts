@@ -1126,7 +1126,7 @@ export class NikCLI {
     // Always keep prompt alive on unexpected errors
     process.on('unhandledRejection', (reason: any) => {
       try {
-        console.log(require('chalk').red(`\n❌ Unhandled rejection: ${reason?.message || reason}`))
+        console.log(require('chalk').red(`\n✖ Unhandled rejection: ${reason?.message || reason}`))
       } catch { }
       try {
         this.renderPromptAfterOutput()
@@ -1135,7 +1135,7 @@ export class NikCLI {
 
     process.on('uncaughtException', (err: any) => {
       try {
-        console.log(require('chalk').red(`\n❌ Uncaught exception: ${err?.message || err}`))
+        console.log(require('chalk').red(`\n✖ Uncaught exception: ${err?.message || err}`))
       } catch { }
       try {
         this.renderPromptAfterOutput()
@@ -1595,7 +1595,7 @@ export class NikCLI {
     this.planningManager.on('planExecutionError', (event) => {
       this.withPanelOutput(async () => {
         const content = [
-          chalk.red('❌ Plan Execution Failed'),
+          chalk.red('✖ Plan Execution Failed'),
           chalk.gray('────────────────────────────────────────'),
           `${chalk.red('Error:')} ${event.error || 'Unknown error'}`,
         ].join('\n')
@@ -1788,7 +1788,7 @@ export class NikCLI {
 
         this.addLiveUpdate({
           type: success ? 'log' : 'error',
-          content: `${success ? '✓' : '❌'} ${message}`,
+          content: `${success ? '✓' : '✖'} ${message}`,
           source: 'progress-tracker',
         })
 
@@ -2177,7 +2177,7 @@ export class NikCLI {
       case 'progress':
         return '▶'
       case 'error':
-        return '❌'
+        return '✖'
       case 'warning':
         return '⚠️'
       case 'info':
@@ -2283,7 +2283,7 @@ export class NikCLI {
       case 'completed':
         return '✓'
       case 'failed':
-        return '❌'
+        return '✖'
       case 'warning':
         return '⚠️'
       default:
@@ -3763,7 +3763,7 @@ export class NikCLI {
 
     if (availableAgents.length > 0) {
       availableAgents.forEach((agent) => {
-        const statusIcon = agent.status === 'ready' ? '✓' : agent.status === 'busy' ? '⏳' : '❌'
+        const statusIcon = agent.status === 'ready' ? '✓' : agent.status === 'busy' ? '⏳' : '✖'
         content.push(`${statusIcon} @${agent.specialization} - ${agent.description}`)
 
         // Show some capabilities
@@ -3858,7 +3858,7 @@ export class NikCLI {
       if (!tokenQuota.allowed) {
         this.printPanel(
           boxen(
-            chalk.red(`❌ Token limit exceeded\n\n`) +
+            chalk.red(`✖ Token limit exceeded\n\n`) +
             chalk.gray(`Current: ${chalk.cyan(tokenQuota.used.toString())}/${chalk.cyan(tokenQuota.limit.toString())}\n`) +
             chalk.gray('Upgrade to Pro to increase limits'),
             {
@@ -4061,7 +4061,7 @@ export class NikCLI {
         } else {
           this.printPanel(
             boxen(
-              ['❌ VM Bridge not initialized', '', 'VM communication system requires proper initialization'].join('\n'),
+              ['✖ VM Bridge not initialized', '', 'VM communication system requires proper initialization'].join('\n'),
               {
                 title: 'VM Bridge Error',
                 padding: 1,
@@ -4257,7 +4257,7 @@ export class NikCLI {
           executionSuccess = false
           this.addLiveUpdate({
             type: 'error',
-            content: `❌ Task execution failed: ${error.message}`,
+            content: `✖ Task execution failed: ${error.message}`,
             source: 'planning',
           })
         }
@@ -4295,7 +4295,7 @@ export class NikCLI {
             } catch (error: any) {
               this.addLiveUpdate({
                 type: 'error',
-                content: `❌ Plan regeneration failed: ${error.message}`,
+                content: `✖ Plan regeneration failed: ${error.message}`,
                 source: 'planning',
               })
               this.addLiveUpdate({
@@ -4327,7 +4327,7 @@ export class NikCLI {
         this.resumePromptAndRender()
       }
     } catch (error: any) {
-      this.addLiveUpdate({ type: 'error', content: `❌ Planning failed: ${error.message}`, source: 'planning' })
+      this.addLiveUpdate({ type: 'error', content: `✖ Planning failed: ${error.message}`, source: 'planning' })
       this.addLiveUpdate({ type: 'warning', content: '⚡︎ Forcing recovery to default mode...', source: 'planning' })
 
       // CRITICAL: Force recovery on any error
@@ -4391,7 +4391,7 @@ export class NikCLI {
             // Stream VM output through streamttyService
             await streamttyService.streamChunk(chunk.output, 'vm')
           } else if (chunk.type === 'error') {
-            await streamttyService.renderBlock(`❌ VM Error: ${chunk.error}`, 'error')
+            await streamttyService.renderBlock(`✖ VM Error: ${chunk.error}`, 'error')
           } else if (chunk.type === 'complete') {
             await streamttyService.renderBlock('✓ VM execution completed', 'system')
           }
@@ -4406,7 +4406,7 @@ export class NikCLI {
     } catch (error: any) {
       // Log error to recentUpdates (consistent with default mode)
       await this.advancedUI.logFunctionUpdate('error', `VM tool execution failed: ${error.message}`)
-      console.log(chalk.red(`❌ VM tool execution failed: ${error.message}`))
+      console.log(chalk.red(`✖ VM tool execution failed: ${error.message}`))
 
       // Provide helpful error context
       console.log(chalk.dim(`   Tool: ${toolName}`))
@@ -4595,7 +4595,7 @@ EOF`
             // Stream VM output through streamttyService
             await streamttyService.streamChunk(chunk.output, 'vm')
           } else if (chunk.type === 'error') {
-            await streamttyService.renderBlock(`❌ VM Error: ${chunk.error}`, 'error')
+            await streamttyService.renderBlock(`✖ VM Error: ${chunk.error}`, 'error')
           } else if (chunk.type === 'complete') {
             await streamttyService.renderBlock('✓ VM execution completed', 'system')
           }
@@ -4610,7 +4610,7 @@ EOF`
     } catch (error: any) {
       // Log error to recentUpdates (consistent with default mode)
       await this.advancedUI.logFunctionUpdate('error', `VM command execution failed: ${error.message}`)
-      console.log(chalk.red(`❌ VM command execution failed: ${error.message}`))
+      console.log(chalk.red(`✖ VM command execution failed: ${error.message}`))
 
       // Provide helpful error context
       console.log(chalk.dim(`   Command: ${command}`))
@@ -4656,7 +4656,7 @@ EOF`
       console.log(chalk.green('✓ Emergency recovery completed'))
     } catch (error) {
       // Last resort - log and continue
-      console.error('❌ Emergency recovery failed:', error)
+      console.error('✖ Emergency recovery failed:', error)
       // Try minimal recovery
       this.currentMode = 'default'
       this.recursionDepth = 0
@@ -4916,7 +4916,7 @@ EOF`
 
             case 'error':
               // Stream error
-              this.addLiveUpdate({ type: 'error', content: `❌ ${agentName} error: ${ev.error}`, source: 'plan-exec' })
+              this.addLiveUpdate({ type: 'error', content: `✖ ${agentName} error: ${ev.error}`, source: 'plan-exec' })
               throw new Error(ev.error)
           }
         }
@@ -4947,7 +4947,7 @@ EOF`
     } catch (error: any) {
       this.addLiveUpdate({
         type: 'error',
-        content: `❌ ${agentName} execution failed: ${error.message}`,
+        content: `✖ ${agentName} execution failed: ${error.message}`,
         source: 'plan-exec',
       })
       throw error
@@ -5037,7 +5037,7 @@ EOF`
     } catch (error: any) {
       this.addLiveUpdate({
         type: 'error',
-        content: `❌ Parallel plan execution failed: ${error.message}`,
+        content: `✖ Parallel plan execution failed: ${error.message}`,
         source: 'parallel-plan',
       })
 
@@ -5085,7 +5085,7 @@ EOF`
       } catch (error: any) {
         this.addLiveUpdate({
           type: 'error',
-          content: `❌ ${agentName} failed on todo: ${error.message}`,
+          content: `✖ ${agentName} failed on todo: ${error.message}`,
           source: agentName,
         })
         return { success: false, agentName, error: error.message }
@@ -5618,7 +5618,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
 
                 case 'error':
                   // Stream error
-                  console.log(chalk.red(`❌ Stream error: ${ev.error}`))
+                  console.log(chalk.red(`✖ Stream error: ${ev.error}`))
                   throw new Error(ev.error)
 
                 default:
@@ -6082,7 +6082,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     const summary = boxen(
       `${chalk.bold('Execution Summary')}\n\n` +
       `${chalk.green('✓ Completed:')} ${completed}\n` +
-      `${chalk.red('❌ Failed:')} ${failed}\n` +
+      `${chalk.red('✖ Failed:')} ${failed}\n` +
       `${chalk.yellow('⚠️ Warnings:')} ${warnings}\n` +
       `${chalk.blue('📊 Total:')} ${indicators.length}\n\n` +
       `${chalk.gray('Overall Status:')} ${this.getOverallStatusText()}`,
@@ -6368,7 +6368,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
               const errorMessage = ev.content || ev.error || 'Unknown error'
 
               // Format error as markdown
-              const errorMarkdown = `> ❌ **Error**: ${errorMessage}\n`
+              const errorMarkdown = `> ✖ **Error**: ${errorMessage}\n`
               await streamttyService.streamChunk(errorMarkdown, 'error')
 
               // Log to structured UI
@@ -6916,7 +6916,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
           )
 
           if (!approved) {
-            console.log(chalk.yellow('❌ File write operation cancelled'))
+            console.log(chalk.yellow('✖ File write operation cancelled'))
             break
           }
 
@@ -7045,7 +7045,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       }
     } catch (error: any) {
       this.addLiveUpdate({ type: 'error', content: `File operation failed: ${error.message}`, source: 'file-ops' })
-      console.log(chalk.red(`❌ Error: ${error.message}`))
+      console.log(chalk.red(`✖ Error: ${error.message}`))
     } finally {
       await this.performCommandCleanup()
     }
@@ -7084,7 +7084,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
           )
 
           if (!approved) {
-            console.log(chalk.yellow('❌ Command execution cancelled'))
+            console.log(chalk.yellow('✖ Command execution cancelled'))
             break // Let finally handle cleanup
           }
           this.isInteractiveMode = false
@@ -7102,7 +7102,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
           if (success) {
             console.log(chalk.green('✓ Command completed successfully'))
           } else {
-            console.log(chalk.red(`❌ Command failed with exit code ${result.code}`))
+            console.log(chalk.red(`✖ Command failed with exit code ${result.code}`))
           }
 
           // Cleanup handled by finally block
@@ -7135,7 +7135,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
           )
 
           if (!approved) {
-            console.log(chalk.yellow('❌ Package installation cancelled'))
+            console.log(chalk.yellow('✖ Package installation cancelled'))
             break
           }
           this.isInteractiveMode = false
@@ -7269,7 +7269,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       }
     } catch (error: any) {
       this.addLiveUpdate({ type: 'error', content: `Terminal operation failed: ${error.message}`, source: 'terminal' })
-      console.log(chalk.red(`❌ Error: ${error.message}`))
+      console.log(chalk.red(`✖ Error: ${error.message}`))
     } finally {
       await this.performCommandCleanup()
     }
@@ -7291,7 +7291,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
           if (!sessionQuota.allowed) {
             this.printPanel(
               boxen(
-                chalk.red(`❌ Session limit reached\n\n`) +
+                chalk.red(`✖ Session limit reached\n\n`) +
                 chalk.gray(`Current: ${chalk.cyan(sessionQuota.used.toString())}/${chalk.cyan(sessionQuota.limit.toString())}\n`) +
                 chalk.gray('Upgrade to Pro to increase limits'),
                 {
@@ -7427,7 +7427,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
           if (apiKey) {
             console.log(chalk.green(`✓ API Key: ${apiKey.slice(0, 10)}...${apiKey.slice(-4)} (${apiKey.length} chars)`))
           } else {
-            console.log(chalk.red(`❌ API Key: Not configured`))
+            console.log(chalk.red(`✖ API Key: Not configured`))
           }
           break
         }
@@ -7474,7 +7474,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       }
     } catch (error: any) {
       this.addLiveUpdate({ type: 'error', content: `Session management failed: ${error.message}`, source: 'session' })
-      console.log(chalk.red(`❌ Error: ${error.message}`))
+      console.log(chalk.red(`✖ Error: ${error.message}`))
     } finally {
       await this.performCommandCleanup()
     }
@@ -7610,7 +7610,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
         content: `Model/config operation failed: ${error.message}`,
         source: 'config',
       })
-      console.log(chalk.red(`❌ Error: ${error.message}`))
+      console.log(chalk.red(`✖ Error: ${error.message}`))
     } finally {
       await this.performCommandCleanup()
     }
@@ -7827,7 +7827,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
 
           if (successful === 0) {
             this.printPanel(
-              boxen('❌ No agents launched successfully. Aborting parallel execution.', {
+              boxen('✖ No agents launched successfully. Aborting parallel execution.', {
                 title: 'Error',
                 padding: 1,
                 margin: 1,
@@ -7868,7 +7868,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
               [
                 `🚀 Parallel Plan-Mode Execution Initiated`,
                 `✓ Successfully launched: ${successful} agents`,
-                failed > 0 ? `❌ Failed to launch: ${failed} agents` : '',
+                failed > 0 ? `✖ Failed to launch: ${failed} agents` : '',
                 '',
                 `📋 Plan: ${plan.title || taskDescription}`,
                 `📝 Todos: ${plan.todos.length}`,
@@ -8114,7 +8114,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
 
           if (successful === 0) {
             this.printPanel(
-              boxen('❌ No agents launched successfully. Aborting parallel execution.', {
+              boxen('✖ No agents launched successfully. Aborting parallel execution.', {
                 title: 'Error',
                 padding: 1,
                 margin: 1,
@@ -8155,7 +8155,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
               [
                 `🚀 Parallel Plan-Mode Execution Initiated`,
                 `✓ Successfully launched: ${successful} agents`,
-                failed > 0 ? `❌ Failed to launch: ${failed} agents` : '',
+                failed > 0 ? `✖ Failed to launch: ${failed} agents` : '',
                 '',
                 `📋 Plan: ${plan.title || taskDescription}`,
                 `📝 Todos: ${plan.todos.length}`,
@@ -8386,7 +8386,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       }
     } catch (error: any) {
       this.addLiveUpdate({ type: 'error', content: `Advanced feature failed: ${error.message}`, source: 'advanced' })
-      console.log(chalk.red(`❌ Error: ${error.message}`))
+      console.log(chalk.red(`✖ Error: ${error.message}`))
     } finally {
       await this.performCommandCleanup()
     }
@@ -8845,7 +8845,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     for (const agentId of context.agents) {
       const logs = context.logs.get(agentId) || []
       const lastLog = logs[logs.length - 1] || 'No activity'
-      const status = lastLog.includes('ERROR') ? '❌' : lastLog.includes('completed') ? '✅' : '🔄'
+      const status = lastLog.includes('ERROR') ? '✖' : lastLog.includes('completed') ? '✅' : '🔄'
       statusLines.push(`  ${status} ${agentId}: ${logs.length} log entries`)
     }
 
@@ -9147,7 +9147,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       }
     } catch (error: any) {
       this.addLiveUpdate({ type: 'error', content: `CAD command failed: ${error.message}`, source: 'cad' })
-      console.log(chalk.red(`❌ Error: ${error.message}`))
+      console.log(chalk.red(`✖ Error: ${error.message}`))
     } finally {
       await this.performCommandCleanup()
     }
@@ -9265,7 +9265,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
           if (!fileId) {
             this.printPanel(
               boxen(
-                `❌ Invalid Figma file ID or URL: ${args[0]}\n\nPlease provide either:\n  • A file ID (e.g., ABC123def456)\n  • A Figma URL (e.g., figma.com/file/ABC123/...)`,
+                `✖ Invalid Figma file ID or URL: ${args[0]}\n\nPlease provide either:\n  • A file ID (e.g., ABC123def456)\n  • A Figma URL (e.g., figma.com/file/ABC123/...)`,
                 {
                   title: 'Invalid Input',
                   padding: 1,
@@ -9430,7 +9430,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       }
     } catch (error: any) {
       this.addLiveUpdate({ type: 'error', content: `Figma command failed: ${error.message}`, source: 'figma' })
-      console.log(chalk.red(`❌ Error: ${error.message}`))
+      console.log(chalk.red(`✖ Error: ${error.message}`))
     } finally {
       await this.performCommandCleanup()
     }
@@ -9509,10 +9509,10 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
         console.log('')
         console.log(chalk.gray(result.gcode))
       } else {
-        console.log(chalk.red('❌ G-code generation failed'))
+        console.log(chalk.red('✖ G-code generation failed'))
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Error: ${error.message}`))
+      console.log(chalk.red(`✖ Error: ${error.message}`))
     }
   }
 
@@ -9628,11 +9628,11 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
           await this.handleDocsCommand([])
           break
         default:
-          console.log(chalk.red(`❌ Unknown docs subcommand: ${subcommand}`))
+          console.log(chalk.red(`✖ Unknown docs subcommand: ${subcommand}`))
           console.log(chalk.gray('Use "/docs" for help'))
       }
     } catch (error: any) {
-      console.error(chalk.red(`❌ Docs command error: ${error.message}`))
+      console.error(chalk.red(`✖ Docs command error: ${error.message}`))
     }
     // Ensure output is flushed and visible before showing prompt
     console.log() // Extra newline for better separation
@@ -9670,7 +9670,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       const results = await docLibrary.search(query, category, 10)
 
       if (results.length === 0) {
-        console.log(chalk.yellow('❌ No documents found'))
+        console.log(chalk.yellow('✖ No documents found'))
         console.log(chalk.gray('Try different keywords or use /doc-add to add more documentation'))
         return
       }
@@ -9689,7 +9689,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
         console.log()
       })
     } catch (error: any) {
-      console.error(chalk.red(`❌ Search error: ${error.message}`))
+      console.error(chalk.red(`✖ Search error: ${error.message}`))
     }
   }
 
@@ -9722,7 +9722,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
 
       // Simple URL validation
       if (!url.startsWith('http://') && !url.startsWith('https://')) {
-        console.log(chalk.red('❌ Invalid URL. Must start with http:// or https://'))
+        console.log(chalk.red('✖ Invalid URL. Must start with http:// or https://'))
         return
       }
 
@@ -9763,7 +9763,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
         throw error
       }
     } catch (error: any) {
-      console.error(chalk.red(`❌ Add documentation error: ${error.message}`))
+      console.error(chalk.red(`✖ Add documentation error: ${error.message}`))
     }
     process.stdout.write('')
     await new Promise((resolve) => setTimeout(resolve, 150))
@@ -9797,7 +9797,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
         })
       }
     } catch (error: any) {
-      console.error(chalk.red(`❌ Stats error: ${error.message}`))
+      console.error(chalk.red(`✖ Stats error: ${error.message}`))
     }
     process.stdout.write('')
     await new Promise((resolve) => setTimeout(resolve, 150))
@@ -9858,7 +9858,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       )
       return
     } catch (error: any) {
-      console.error(chalk.red(`❌ List error: ${error.message}`))
+      console.error(chalk.red(`✖ List error: ${error.message}`))
     }
     // panel already handled prompt redraw
   }
@@ -9876,7 +9876,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
         console.log(chalk.gray(`\nYour input: ${args.join(' ')}`))
       }
     } catch (error: any) {
-      console.error(chalk.red(`❌ Tag error: ${error.message}`))
+      console.error(chalk.red(`✖ Tag error: ${error.message}`))
     }
     process.stdout.write('')
     await new Promise((resolve) => setTimeout(resolve, 150))
@@ -9925,7 +9925,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
         throw error
       }
     } catch (error: any) {
-      console.error(chalk.red(`❌ Sync error: ${error.message}`))
+      console.error(chalk.red(`✖ Sync error: ${error.message}`))
     }
     process.stdout.write('')
     await new Promise((resolve) => setTimeout(resolve, 150))
@@ -9993,7 +9993,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
         console.log(chalk.blue('\n💬 AI agents now have access to loaded documentation!'))
       }
     } catch (error: any) {
-      console.error(chalk.red(`❌ Load error: ${error.message}`))
+      console.error(chalk.red(`✖ Load error: ${error.message}`))
     }
     process.stdout.write('')
     await new Promise((resolve) => setTimeout(resolve, 150))
@@ -10008,7 +10008,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       console.log(chalk.gray('─'.repeat(50)))
 
       if (stats.loadedCount === 0) {
-        console.log(chalk.yellow('❌ No documentation loaded in context'))
+        console.log(chalk.yellow('✖ No documentation loaded in context'))
         console.log(chalk.gray('Use /doc-load <names> to load documentation'))
         console.log(chalk.gray('Use /doc-suggest <query> to find relevant docs'))
         return
@@ -10045,7 +10045,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
         console.log(summary)
       }
     } catch (error: any) {
-      console.error(chalk.red(`❌ Context error: ${error.message}`))
+      console.error(chalk.red(`✖ Context error: ${error.message}`))
     }
     process.stdout.write('')
     await new Promise((resolve) => setTimeout(resolve, 150))
@@ -10058,7 +10058,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
         // Show current loaded docs and ask for confirmation to clear all
         const stats = docsContextManager.getContextStats()
         if (stats.loadedCount === 0) {
-          console.log(chalk.yellow('❌ No documentation loaded in context'))
+          console.log(chalk.yellow('✖ No documentation loaded in context'))
           return
         }
 
@@ -10081,7 +10081,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       console.log(chalk.gray(`   • Remaining docs: ${stats.loadedCount}`))
       console.log(chalk.gray(`   • Context usage: ${stats.utilizationPercent.toFixed(1)}%`))
     } catch (error: any) {
-      console.error(chalk.red(`❌ Unload error: ${error.message}`))
+      console.error(chalk.red(`✖ Unload error: ${error.message}`))
     }
     process.stdout.write('')
     await new Promise((resolve) => setTimeout(resolve, 150))
@@ -10117,7 +10117,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       const suggestions = await docsContextManager.suggestDocs(query, 10)
 
       if (suggestions.length === 0) {
-        console.log(chalk.yellow('❌ No relevant documentation found'))
+        console.log(chalk.yellow('✖ No relevant documentation found'))
         console.log(chalk.gray('Try different keywords or use /doc-add to add more documentation'))
         return
       }
@@ -10132,7 +10132,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       console.log(chalk.gray('\n💡 To load these documents:'))
       console.log(chalk.gray(`/doc-load "${suggestions.slice(0, 3).join('" "')}"`))
     } catch (error: any) {
-      console.error(chalk.red(`❌ Suggest error: ${error.message}`))
+      console.error(chalk.red(`✖ Suggest error: ${error.message}`))
     }
   }
 
@@ -10337,7 +10337,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
         content: `Model switch failed: ${error.message}`,
         source: 'model-switch',
       })
-      console.log(chalk.red(`❌ Could not switch model: ${error.message}`))
+      console.log(chalk.red(`✖ Could not switch model: ${error.message}`))
     }
   }
 
@@ -10835,7 +10835,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
 
           redisStats =
             `${chalk.red('🚀 Redis Cache:')}\n` +
-            `  Status: ${cacheStats.redis.connected ? chalk.green('✓ Connected') : chalk.red('❌ Disconnected')}\n` +
+            `  Status: ${cacheStats.redis.connected ? chalk.green('✓ Connected') : chalk.red('✖ Disconnected')}\n` +
             `  Enabled: ${cacheStats.redis.enabled ? chalk.green('✓ Yes') : chalk.yellow('⚠️ No')}\n` +
             `  Total Hits: ${chalk.green(cacheStats.totalHits.toLocaleString())}\n` +
             `  Hit Rate: ${chalk.blue(cacheStats.hitRate.toFixed(1))}%\n` +
@@ -11209,7 +11209,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
         content: `Cost calculation failed: ${error.message}`,
         source: 'cost-analysis',
       })
-      console.log(chalk.red(`❌ Error calculating costs: ${error.message}`))
+      console.log(chalk.red(`✖ Error calculating costs: ${error.message}`))
     }
   }
 
@@ -11242,7 +11242,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
           const failed = plan.todos.filter((t) => t.status === 'failed').length
           lines.push(`${index + 1}. ${plan.title}`)
           lines.push(`   Status: ${plan.status} | Todos: ${plan.todos.length}`)
-          lines.push(`   ✓ ${completed} | ⚡︎ ${inProgress} | ⏳ ${pending} | ❌ ${failed}`)
+          lines.push(`   ✓ ${completed} | ⚡︎ ${inProgress} | ⏳ ${pending} | ✖ ${failed}`)
         })
         const maxHeight = this.getAvailablePanelHeight()
         let content = lines.join('\n')
@@ -11846,7 +11846,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
         console.log(chalk.gray(`   Response time: ${result.latency}ms`))
       }
     } else {
-      console.log(chalk.red(`❌ Server '${serverName}' is not responding`))
+      console.log(chalk.red(`✖ Server '${serverName}' is not responding`))
       if (result.error) {
         console.log(chalk.gray(`   Error: ${result.error}`))
       }
@@ -11883,7 +11883,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
         console.log(chalk.gray('Response:'))
         console.log(JSON.stringify(response.result, null, 2))
       } else if (response.error) {
-        console.log(chalk.red('❌ MCP Call Failed'))
+        console.log(chalk.red('✖ MCP Call Failed'))
         console.log(chalk.gray('Error:'), response.error.message)
       }
 
@@ -11895,7 +11895,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
         console.log(chalk.gray(`⏱️ Execution time: ${response.executionTime}ms`))
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ MCP call failed: ${error.message}`))
+      console.log(chalk.red(`✖ MCP call failed: ${error.message}`))
     }
   }
 
@@ -11944,7 +11944,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     if (removed) {
       console.log(chalk.green(`✓ Removed MCP server: ${serverName}`))
     } else {
-      console.log(chalk.red(`❌ MCP server '${serverName}' not found`))
+      console.log(chalk.red(`✖ MCP server '${serverName}' not found`))
       console.log(chalk.gray('Use /mcp list to see available servers'))
     }
   }
@@ -14929,7 +14929,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       // Summary line only; stdout/stderr already streamed by toolsManager
       advancedUI.logFunctionUpdate('info', chalk.gray(`\n📊 Exit Code: ${result.code}`))
     } catch (error: any) {
-      advancedUI.logFunctionUpdate('info', chalk.red(`❌ Command failed: ${error.message}`))
+      advancedUI.logFunctionUpdate('info', chalk.red(`✖ Command failed: ${error.message}`))
     } finally {
       try {
         if (!finalized) {
@@ -15002,7 +15002,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           break
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Cache command failed: ${error.message}`))
+      console.log(chalk.red(`✖ Cache command failed: ${error.message}`))
     }
   }
 
@@ -15054,7 +15054,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           break
       }
     } catch (error: any) {
-      advancedUI.logFunctionUpdate('info', chalk.red(`❌ Supabase command failed: ${error.message}`))
+      advancedUI.logFunctionUpdate('info', chalk.red(`✖ Supabase command failed: ${error.message}`))
     }
   }
 
@@ -15128,7 +15128,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       // Validate target format
       if (!target.includes('@')) {
         this.printPanel(
-          boxen(chalk.red('❌ Invalid format. Use: user@host'), {
+          boxen(chalk.red('✖ Invalid format. Use: user@host'), {
             title: 'SSH Error',
             padding: 1,
             margin: 1,
@@ -15194,7 +15194,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       sshProcess.on('error', (error: any) => {
         if (error.code === 'ENOENT') {
           this.printPanel(
-            boxen(chalk.red('❌ SSH command not found. Please install OpenSSH client.'), {
+            boxen(chalk.red('✖ SSH command not found. Please install OpenSSH client.'), {
               title: 'SSH Error',
               padding: 1,
               margin: 1,
@@ -15204,7 +15204,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           )
         } else {
           this.printPanel(
-            boxen(chalk.red(`❌ SSH connection failed: ${error.message}`), {
+            boxen(chalk.red(`✖ SSH connection failed: ${error.message}`), {
               title: 'SSH Error',
               padding: 1,
               margin: 1,
@@ -15247,7 +15247,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       })
     } catch (error: any) {
       this.printPanel(
-        boxen(chalk.red(`❌ SSH connection error: ${error.message}`), {
+        boxen(chalk.red(`✖ SSH connection error: ${error.message}`), {
           title: 'SSH Error',
           padding: 1,
           margin: 1,
@@ -15328,7 +15328,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         console.log(`   Memory Cache Size: ${enhancedStats.cacheSize}`)
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to get cache stats: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to get cache stats: ${error.message}`))
     }
   }
 
@@ -15449,11 +15449,11 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           // Set user for enhanced session manager
           this.enhancedSessionManager.setCurrentUser(result.session.user.id)
         } else {
-          console.log(chalk.red('❌ Sign in failed - invalid credentials'))
+          console.log(chalk.red('✖ Sign in failed - invalid credentials'))
         }
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Sign in error: ${error.message}`))
+      console.log(chalk.red(`✖ Sign in error: ${error.message}`))
     } finally {
       rl.close()
     }
@@ -15519,7 +15519,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       const { stdout, stderr } = await execAsync(gitCommand)
 
       if (stderr && !stderr.includes('warning')) {
-        console.log(chalk.red(`❌ Git error: ${stderr}`))
+        console.log(chalk.red(`✖ Git error: ${stderr}`))
         return
       }
 
@@ -15540,7 +15540,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       if (error.message.includes('not a git repository')) {
         console.log(chalk.yellow('⚠️  This directory is not a git repository'))
       } else {
-        console.log(chalk.red(`❌ Failed to get commit history: ${error.message}`))
+        console.log(chalk.red(`✖ Failed to get commit history: ${error.message}`))
       }
     }
   }
@@ -15762,7 +15762,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     } catch (error: any) {
       this.printPanel(
         boxen(`Memory command failed: ${error.message}`, {
-          title: '❌ Memory Error',
+          title: '✖ Memory Error',
           padding: 1,
           margin: 1,
           borderStyle: 'round',
@@ -16032,7 +16032,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           break
         }
         default: {
-          console.log(chalk.red(`❌ Unknown diagnostic command: ${sub}`))
+          console.log(chalk.red(`✖ Unknown diagnostic command: ${sub}`))
           const content = 'Use /diagnostic for available subcommands'
           this.printPanel(
             boxen(content, {
@@ -16048,7 +16048,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     } catch (error: any) {
       this.printPanel(
         boxen(`Diagnostic command failed: ${error.message}`, {
-          title: '❌ Diagnostic Error',
+          title: '✖ Diagnostic Error',
           padding: 1,
           margin: 1,
           borderStyle: 'round',
@@ -16119,7 +16119,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     } catch (error: any) {
       this.printPanel(
         boxen(`Snapshot failed: ${error.message}`, {
-          title: '❌ Snapshot Error',
+          title: '✖ Snapshot Error',
           padding: 1,
           margin: 1,
           borderStyle: 'round',
@@ -16171,7 +16171,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     } catch (error: any) {
       this.printPanel(
         boxen(`List snapshots failed: ${error.message}`, {
-          title: '❌ Snapshots Error',
+          title: '✖ Snapshots Error',
           padding: 1,
           margin: 1,
           borderStyle: 'round',
@@ -16215,7 +16215,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     } catch (error: any) {
       this.printPanel(
         boxen(`Restore failed: ${error.message}`, {
-          title: '❌ Restore Error',
+          title: '✖ Restore Error',
           padding: 1,
           margin: 1,
           borderStyle: 'round',
@@ -16333,7 +16333,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     } catch (error: any) {
       this.printPanel(
         boxen(`Failed to resume session: ${error.message}`, {
-          title: '❌ Resume Error',
+          title: '✖ Resume Error',
           padding: 1,
           margin: 1,
           borderStyle: 'round',
@@ -16392,7 +16392,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     } catch (error: any) {
       this.printPanel(
         boxen(`Failed to list sessions: ${error.message}`, {
-          title: '❌ List Error',
+          title: '✖ List Error',
           padding: 1,
           margin: 1,
           borderStyle: 'round',
@@ -16503,7 +16503,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     } catch (error: any) {
       this.printPanel(
         boxen(`Failed to save session: ${error.message}`, {
-          title: '❌ Save Error',
+          title: '✖ Save Error',
           padding: 1,
           margin: 1,
           borderStyle: 'round',
@@ -16562,7 +16562,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     } catch (error: any) {
       this.printPanel(
         boxen(`Failed to delete session: ${error.message}`, {
-          title: '❌ Delete Error',
+          title: '✖ Delete Error',
           padding: 1,
           margin: 1,
           borderStyle: 'round',
@@ -16613,7 +16613,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     } catch (error: any) {
       this.printPanel(
         boxen(`Failed to export session: ${error.message}`, {
-          title: '❌ Export Error',
+          title: '✖ Export Error',
           padding: 1,
           margin: 1,
           borderStyle: 'round',
@@ -16695,7 +16695,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     } catch (error: any) {
       this.printPanel(
         boxen(`Undo failed: ${error.message}`, {
-          title: '❌ Undo Error',
+          title: '✖ Undo Error',
           padding: 1,
           margin: 1,
           borderStyle: 'round',
@@ -16777,7 +16777,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     } catch (error: any) {
       this.printPanel(
         boxen(`Redo failed: ${error.message}`, {
-          title: '❌ Redo Error',
+          title: '✖ Redo Error',
           padding: 1,
           margin: 1,
           borderStyle: 'round',
@@ -16848,7 +16848,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     } catch (error: any) {
       this.printPanel(
         boxen(`Failed to get edit history: ${error.message}`, {
-          title: '❌ History Error',
+          title: '✖ History Error',
           padding: 1,
           margin: 1,
           borderStyle: 'round',
@@ -17157,7 +17157,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     } catch (error: any) {
       this.printPanel(
         boxen(`Security command failed: ${error.message}`, {
-          title: '❌ Security Error',
+          title: '✖ Security Error',
           padding: 1,
           margin: 1,
           borderStyle: 'round',
@@ -17243,7 +17243,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     } catch (error: any) {
       this.printPanel(
         boxen(`Dev-mode command failed: ${error.message}`, {
-          title: '❌ Developer Mode Error',
+          title: '✖ Developer Mode Error',
           padding: 1,
           margin: 1,
           borderStyle: 'round',
@@ -17307,7 +17307,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     } catch (error: any) {
       this.printPanel(
         boxen(`Clear approvals command failed: ${error.message}`, {
-          title: '❌ Approvals Error',
+          title: '✖ Approvals Error',
           padding: 1,
           margin: 1,
           borderStyle: 'round',
@@ -17332,7 +17332,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
 
       console.log(chalk.green('✓ All caches cleared'))
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to clear caches: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to clear caches: ${error.message}`))
     }
   }
 
@@ -17354,7 +17354,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       console.log(`   Conflicts: ${result.conflicts}`)
       console.log(`   Errors: ${result.errors}`)
     } catch (error: any) {
-      console.log(chalk.red(`❌ Session sync failed: ${error.message}`))
+      console.log(chalk.red(`✖ Session sync failed: ${error.message}`))
     }
   }
 
@@ -17390,11 +17390,11 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           console.log(`   Keys: ${health.keyspace?.keys ?? 'Unknown'}`)
         }
       } else {
-        console.log(chalk.red('❌ Redis connection failed'))
+        console.log(chalk.red('✖ Redis connection failed'))
         console.log(chalk.dim('   Check Redis server is running and configuration is correct'))
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Redis connection error: ${error.message}`))
+      console.log(chalk.red(`✖ Redis connection error: ${error.message}`))
       console.log(chalk.dim('   Ensure Redis is installed and running: redis-server'))
     }
   }
@@ -17404,7 +17404,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       const { redisProvider } = await import('./providers/redis/redis-provider')
 
       if (!redisProvider.isHealthy()) {
-        console.log(chalk.red('❌ Redis is not connected'))
+        console.log(chalk.red('✖ Redis is not connected'))
         return
       }
 
@@ -17438,7 +17438,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       console.log(`   Default TTL: ${config.ttl}s`)
       console.log(`   Max Retries: ${config.maxRetries}`)
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to get Redis health: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to get Redis health: ${error.message}`))
     }
   }
 
@@ -17529,7 +17529,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         console.log(chalk.dim('   • High miss rate detected, check cache TTL settings'))
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to get cache health: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to get cache health: ${error.message}`))
     }
   }
 
@@ -17583,7 +17583,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           return
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to clear ${cacheType} cache: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to clear ${cacheType} cache: ${error.message}`))
     }
   }
 
@@ -17602,7 +17602,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       console.log(chalk.green('✓ Redis disconnected successfully'))
       console.log(chalk.dim('   Cache will automatically fall back to memory cache'))
     } catch (error: any) {
-      console.log(chalk.red(`❌ Redis disconnect error: ${error.message}`))
+      console.log(chalk.red(`✖ Redis disconnect error: ${error.message}`))
     }
   }
 
@@ -17622,7 +17622,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       }
 
       if (!config.url || !config.anonKey) {
-        console.log(chalk.red('❌ Supabase URL and anon key required'))
+        console.log(chalk.red('✖ Supabase URL and anon key required'))
         console.log(chalk.dim('Configure Supabase credentials in settings'))
         return
       }
@@ -17652,11 +17652,11 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         console.log(chalk.green('   Connection: ✓ Established'))
         console.log(chalk.green('   Status: ✓ Ready for operations'))
       } else {
-        console.log(chalk.red('❌ Failed to connect to Supabase'))
+        console.log(chalk.red('✖ Failed to connect to Supabase'))
         console.log(chalk.dim('Check your configuration and network connection'))
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Supabase connection error: ${error.message}`))
+      console.log(chalk.red(`✖ Supabase connection error: ${error.message}`))
       if (error.message.includes('Invalid API key') || error.message.includes('Invalid JWT')) {
         console.log(chalk.dim('Check your Supabase anon key configuration'))
       } else if (error.message.includes('fetch')) {
@@ -17677,9 +17677,9 @@ This file is automatically maintained by NikCLI to provide consistent context ac
 
       // Configuration status
       console.log(chalk.bold('📋 Configuration'))
-      console.log(`   Enabled: ${config.enabled ? chalk.green('✓') : chalk.red('❌')}`)
-      console.log(`   URL: ${config.url ? chalk.green('✓ Configured') : chalk.red('❌ Missing')}`)
-      console.log(`   Anon Key: ${config.anonKey ? chalk.green('✓ Configured') : chalk.red('❌ Missing')}`)
+      console.log(`   Enabled: ${config.enabled ? chalk.green('✓') : chalk.red('✖')}`)
+      console.log(`   URL: ${config.url ? chalk.green('✓ Configured') : chalk.red('✖ Missing')}`)
+      console.log(`   Anon Key: ${config.anonKey ? chalk.green('✓ Configured') : chalk.red('✖ Missing')}`)
       console.log(`   Service Key: ${config.serviceRoleKey ? chalk.green('✓ Configured') : chalk.yellow('⚠️ Optional')}`)
       console.log()
 
@@ -17691,7 +17691,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       // Connection status
       const isHealthy = enhancedSupabaseProvider.isHealthy()
       console.log(chalk.bold('🔗 Connection Status'))
-      console.log(`   Overall: ${isHealthy ? chalk.green('✓ Healthy') : chalk.red('❌ Unhealthy')}`)
+      console.log(`   Overall: ${isHealthy ? chalk.green('✓ Healthy') : chalk.red('✖ Unhealthy')}`)
 
       if (isHealthy) {
         console.log(`   Database: ${chalk.green('✓ Connected')}`)
@@ -17718,7 +17718,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       console.log(`   Real-time: ${features.realtime ? chalk.green('✓ Enabled') : chalk.gray('⚪ Disabled')}`)
       console.log(`   Vector Search: ${features.vector ? chalk.green('✓ Enabled') : chalk.gray('⚪ Disabled')}`)
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to get Supabase health: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to get Supabase health: ${error.message}`))
     }
   }
 
@@ -17802,8 +17802,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
 
       // Configuration Guide
       console.log(chalk.bold.cyan('� Configuration'))
-      console.log(`   Project URL: ${config.url ? chalk.green('✓ Configured') : chalk.red('❌ Required')}`)
-      console.log(`   Anonymous Key: ${config.anonKey ? chalk.green('✓ Configured') : chalk.red('❌ Required')}`)
+      console.log(`   Project URL: ${config.url ? chalk.green('✓ Configured') : chalk.red('✖ Required')}`)
+      console.log(`   Anonymous Key: ${config.anonKey ? chalk.green('✓ Configured') : chalk.red('✖ Required')}`)
       console.log(
         `   Service Role Key: ${config.serviceRoleKey ? chalk.green('✓ Configured') : chalk.yellow('⚠️ Optional')}`
       )
@@ -17816,7 +17816,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         console.log(chalk.dim('   3. Update your NikCLI configuration'))
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to display Supabase features: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to display Supabase features: ${error.message}`))
     }
   }
 
@@ -17853,7 +17853,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       const { enhancedSupabaseProvider } = await import('./providers/supabase/enhanced-supabase-provider')
 
       if (!enhancedSupabaseProvider.isHealthy()) {
-        console.log(chalk.red('❌ Database not available'))
+        console.log(chalk.red('✖ Database not available'))
         console.log(chalk.dim('Run /supabase connect to establish connection'))
         return
       }
@@ -17879,7 +17879,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           console.log(chalk.dim('Available tables: sessions, blueprints, users, metrics'))
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Database operation failed: ${error.message}`))
+      console.log(chalk.red(`✖ Database operation failed: ${error.message}`))
     }
   }
 
@@ -18736,19 +18736,19 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       // Collect user information
       const email = await this.promptInput('Email address: ')
       if (!email || !this.isValidEmail(email)) {
-        console.log(chalk.red('❌ Invalid email address'))
+        console.log(chalk.red('✖ Invalid email address'))
         return
       }
 
       const password = await this.promptInput('Password (min 8 characters): ', true)
       if (!password || password.length < 8) {
-        console.log(chalk.red('❌ Password must be at least 8 characters'))
+        console.log(chalk.red('✖ Password must be at least 8 characters'))
         return
       }
 
       const confirmPassword = await this.promptInput('Confirm password: ', true)
       if (password !== confirmPassword) {
-        console.log(chalk.red('❌ Passwords do not match'))
+        console.log(chalk.red('✖ Passwords do not match'))
         return
       }
 
@@ -18785,10 +18785,10 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         // Record usage
         await authProvider.recordUsage('sessions', 1)
       } else {
-        console.log(chalk.red('❌ Account creation failed'))
+        console.log(chalk.red('✖ Account creation failed'))
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Sign up failed: ${error.message}`))
+      console.log(chalk.red(`✖ Sign up failed: ${error.message}`))
       if (error.message.includes('already exists') || error.message.includes('already registered')) {
         console.log(chalk.dim('Try signing in instead: /auth signin'))
       } else if (error.message.includes('rate limit')) {
@@ -18803,7 +18803,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       await authProvider.signOut()
       console.log(chalk.green('👋 Signed out successfully'))
     } catch (error: any) {
-      console.log(chalk.red(`❌ Sign out error: ${error.message}`))
+      console.log(chalk.red(`✖ Sign out error: ${error.message}`))
     }
   }
 
@@ -18836,7 +18836,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
 
       if (!profile || !user) {
         const panel = boxen(
-          chalk.red('❌ Could not load profile from authentication provider'),
+          chalk.red('✖ Could not load profile from authentication provider'),
           {
             title: 'Profile Error',
             padding: 1,
@@ -18868,11 +18868,11 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       lines.push(`  Theme: ${chalk.cyan(profile.preferences.theme)}`)
       lines.push(`  Language: ${chalk.cyan(profile.preferences.language)}`)
       lines.push(
-        `  Notifications: ${profile.preferences.notifications ? chalk.green('✓ On') : chalk.gray('❌ Off')
+        `  Notifications: ${profile.preferences.notifications ? chalk.green('✓ On') : chalk.gray('✖ Off')
         }`
       )
       lines.push(
-        `  Analytics: ${profile.preferences.analytics ? chalk.green('✓ On') : chalk.gray('❌ Off')}`
+        `  Analytics: ${profile.preferences.analytics ? chalk.green('✓ On') : chalk.gray('✖ Off')}`
       )
       lines.push('')
 
@@ -18945,7 +18945,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
 
       const profile = authProvider.getCurrentProfile()
       if (!profile) {
-        console.log(chalk.red('❌ Could not load profile'))
+        console.log(chalk.red('✖ Could not load profile'))
         return
       }
 
@@ -19022,7 +19022,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         })
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to load quotas: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to load quotas: ${error.message}`))
     }
   }
 
@@ -19060,7 +19060,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       // Execute todos in background (non-blocking)
       this.executeInBackground(limitedTodos, universalAgentId)
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to generate todos: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to generate todos: ${error.message}`))
       // Fallback to direct response
       console.log(chalk.yellow('⚡︎ Falling back to direct chat response...'))
 
@@ -19134,7 +19134,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         console.log(chalk.green('\n✅ Background execution completed!'))
         console.log(chalk.gray('All background tasks have been completed successfully.'))
       } catch (error: any) {
-        console.log(chalk.red(`\n❌ Background execution failed: ${error.message}`))
+        console.log(chalk.red(`\n✖ Background execution failed: ${error.message}`))
         console.log(chalk.gray(`Some background tasks encountered issues: ${error.message}`))
       }
     }, 100) // Small delay to avoid blocking the chat
@@ -19366,12 +19366,12 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       const v0Key = configManager.getApiKey('vercel') || process.env.V0_API_KEY
       const ollamaHost = process.env.OLLAMA_HOST || '127.0.0.1:11434'
 
-      lines.push(`   Anthropic (Claude): ${anthropicKey ? chalk.green('✓ configured') : chalk.red('❌ missing')}`)
-      lines.push(`   OpenAI (GPT): ${openaiKey ? chalk.green('✓ configured') : chalk.red('❌ missing')}`)
-      lines.push(`   Google (Gemini): ${googleKey ? chalk.green('✓ configured') : chalk.red('❌ missing')}`)
-      lines.push(`   AI Gateway: ${gatewayKey ? chalk.green('✓ configured') : chalk.gray('❌ optional')}`)
-      lines.push(`   V0 (Vercel): ${v0Key ? chalk.green('✓ configured') : chalk.gray('❌ optional')}`)
-      lines.push(`   Ollama: ${chalk.cyan(ollamaHost)} ${ollamaHost ? chalk.gray('(local)') : chalk.red('❌ missing')}`)
+      lines.push(`   Anthropic (Claude): ${anthropicKey ? chalk.green('✓ configured') : chalk.red('✖ missing')}`)
+      lines.push(`   OpenAI (GPT): ${openaiKey ? chalk.green('✓ configured') : chalk.red('✖ missing')}`)
+      lines.push(`   Google (Gemini): ${googleKey ? chalk.green('✓ configured') : chalk.red('✖ missing')}`)
+      lines.push(`   AI Gateway: ${gatewayKey ? chalk.green('✓ configured') : chalk.gray('✖ optional')}`)
+      lines.push(`   V0 (Vercel): ${v0Key ? chalk.green('✓ configured') : chalk.gray('✖ optional')}`)
+      lines.push(`   Ollama: ${chalk.cyan(ollamaHost)} ${ollamaHost ? chalk.gray('(local)') : chalk.red('✖ missing')}`)
 
       // 13) Blockchain & Web3 (Coinbase)
       lines.push('')
@@ -19379,9 +19379,9 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       const coinbaseId = configManager.getApiKey('coinbase_id')
       const coinbaseSecret = configManager.getApiKey('coinbase_secret')
       const coinbaseWallet = configManager.getApiKey('coinbase_wallet_secret')
-      lines.push(`   CDP API Key ID: ${coinbaseId ? chalk.green('✓ configured') : chalk.red('❌ missing')}`)
-      lines.push(`   CDP API Key Secret: ${coinbaseSecret ? chalk.green('✓ configured') : chalk.red('❌ missing')}`)
-      lines.push(`   CDP Wallet Secret: ${coinbaseWallet ? chalk.green('✓ configured') : chalk.red('❌ missing')}`)
+      lines.push(`   CDP API Key ID: ${coinbaseId ? chalk.green('✓ configured') : chalk.red('✖ missing')}`)
+      lines.push(`   CDP API Key Secret: ${coinbaseSecret ? chalk.green('✓ configured') : chalk.red('✖ missing')}`)
+      lines.push(`   CDP Wallet Secret: ${coinbaseWallet ? chalk.green('✓ configured') : chalk.red('✖ missing')}`)
       const coinbaseReady = coinbaseId && coinbaseSecret && coinbaseWallet
       lines.push(
         `   Status: ${coinbaseReady ? chalk.green('Ready for Web3 operations') : chalk.yellow('Configure with /set-coin-keys')}`
@@ -19392,8 +19392,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       lines.push(chalk.green('14) Web Browsing & Analysis (Browserbase)'))
       const browserbaseKey = configManager.getApiKey('browserbase')
       const browserbaseProject = configManager.getApiKey('browserbase_project_id')
-      lines.push(`   API Key: ${browserbaseKey ? chalk.green('✓ configured') : chalk.red('❌ missing')}`)
-      lines.push(`   Project ID: ${browserbaseProject ? chalk.green('✓ configured') : chalk.red('❌ missing')}`)
+      lines.push(`   API Key: ${browserbaseKey ? chalk.green('✓ configured') : chalk.red('✖ missing')}`)
+      lines.push(`   Project ID: ${browserbaseProject ? chalk.green('✓ configured') : chalk.red('✖ missing')}`)
       const browserbaseReady = browserbaseKey && browserbaseProject
       lines.push(
         `   Status: ${browserbaseReady ? chalk.green('Ready for web browsing') : chalk.yellow('Configure with /set-key-bb')}`
@@ -19411,7 +19411,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       const chromaUrl = process.env.CHROMA_URL || 'http://localhost:8005'
       const chromaApiKey = process.env.CHROMA_API_KEY || process.env.CHROMA_CLOUD_API_KEY
       lines.push(`   URL: ${chalk.cyan(chromaUrl)}`)
-      lines.push(`   API Key: ${chromaApiKey ? chalk.green('✓ configured') : chalk.gray('❌ optional (local)')}`)
+      lines.push(`   API Key: ${chromaApiKey ? chalk.green('✓ configured') : chalk.gray('✖ optional (local)')}`)
       lines.push(
         `   Status: ${chromaUrl.includes('localhost') ? chalk.yellow('Local instance') : chalk.green('Cloud instance')}`
       )
@@ -19421,8 +19421,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       lines.push(chalk.green('16) Cache Services (Upstash Redis)'))
       const upstashUrl = process.env.UPSTASH_REDIS_REST_URL
       const upstashToken = process.env.UPSTASH_REDIS_REST_TOKEN
-      lines.push(`   REST URL: ${upstashUrl ? chalk.green('✓ configured') : chalk.gray('❌ optional')}`)
-      lines.push(`   REST Token: ${upstashToken ? chalk.green('✓ configured') : chalk.gray('❌ optional')}`)
+      lines.push(`   REST URL: ${upstashUrl ? chalk.green('✓ configured') : chalk.gray('✖ optional')}`)
+      lines.push(`   REST Token: ${upstashToken ? chalk.green('✓ configured') : chalk.gray('✖ optional')}`)
       const upstashReady = upstashUrl && upstashToken
       lines.push(
         `   Status: ${upstashReady ? chalk.green('Cloud Redis ready') : chalk.gray('Using local Redis fallback')}`
@@ -19436,7 +19436,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         const isCurrent = name === cfg.currentModel
         const hasKey = configManager.getApiKey(name) !== undefined
         const bullet = isCurrent ? chalk.yellow('●') : chalk.gray('○')
-        const keyStatus = hasKey ? chalk.green('✓ key') : chalk.red('❌ key')
+        const keyStatus = hasKey ? chalk.green('✓ key') : chalk.red('✖ key')
         lines.push(`   ${bullet} ${chalk.cyan(name)}  (${(mc as any).provider}/${(mc as any).model})  ${keyStatus}`)
       })
 
@@ -19580,7 +19580,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         'general'
       )
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to show configuration: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to show configuration: ${error.message}`))
     }
   }
 
@@ -21187,7 +21187,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         const hasKey = configManager.getApiKey(name) !== undefined
 
         const currentIndicator = isCurrent ? chalk.yellow('→ ') : '  '
-        const keyStatus = hasKey ? chalk.green('✓') : chalk.red('❌')
+        const keyStatus = hasKey ? chalk.green('✓') : chalk.red('✖')
 
         modelsContent += `${currentIndicator}${keyStatus} ${chalk.bold(name)}\n`
         modelsContent += `     ${chalk.gray(`Provider: ${(config as any).provider}`)}\n`
@@ -21214,7 +21214,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
 
       this.printPanel(modelsBox, 'general')
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to show models: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to show models: ${error.message}`))
     }
   }
 
@@ -21333,7 +21333,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         configManager.getApiKey(configManager.getCurrentEmbeddingModel())
       if (!apiKey) {
         this.printPanel(
-          boxen(chalk.red('❌ OPENROUTER_API_KEY not found\n\nSet it with: /set-key openrouter <your-api-key>'), {
+          boxen(chalk.red('✖ OPENROUTER_API_KEY not found\n\nSet it with: /set-key openrouter <your-api-key>'), {
             title: '🔑 Missing API Key',
             padding: 1,
             margin: 1,
@@ -21392,10 +21392,10 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         this.printPanel(
           boxen(
             chalk.red(
-              `❌ Error fetching embedding models: ${response.status} ${response.statusText}\n\nCheck your API key with: /set-key openrouter <your-api-key>`
+              `✖ Error fetching embedding models: ${response.status} ${response.statusText}\n\nCheck your API key with: /set-key openrouter <your-api-key>`
             ),
             {
-              title: '❌ API Error',
+              title: '✖ API Error',
               padding: 1,
               margin: 1,
               borderStyle: 'round',
@@ -21506,8 +21506,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       }
     } catch (error: any) {
       this.printPanel(
-        boxen(chalk.red(`❌ Error: ${error.message}`), {
-          title: '❌ Error',
+        boxen(chalk.red(`✖ Error: ${error.message}`), {
+          title: '✖ Error',
           padding: 1,
           margin: 1,
           borderStyle: 'round',
@@ -21540,7 +21540,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         const hasKey =
           configManager.getApiKey(name) !== undefined || configManager.getApiKey((cfg as any).provider) !== undefined
         const currentIndicator = isCurrent ? chalk.yellow('→ ') : '  '
-        const keyStatus = hasKey ? chalk.green('✓') : chalk.red('❌')
+        const keyStatus = hasKey ? chalk.green('✓') : chalk.red('✖')
         const dims = (cfg as any).dimensions || aiSdkEmbeddingProvider.getCurrentDimensions()
 
         content += `${currentIndicator}${keyStatus} ${chalk.bold(name)}\n`
@@ -21567,7 +21567,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
 
       this.printPanel(box, 'general')
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to show embedding models: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to show embedding models: ${error.message}`))
     }
   }
 
@@ -21654,7 +21654,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       if (modelsForProvider.length === 0) {
         this.printPanel(
           boxen(`No models found for provider: ${provider}`, {
-            title: '❌ Set API Key',
+            title: '✖ Set API Key',
             padding: 1,
             margin: 1,
             borderStyle: 'round',
@@ -21765,7 +21765,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     } catch (error: any) {
       this.printPanel(
         boxen(`Failed to set API key: ${error.message}`, {
-          title: '❌ Set API Key',
+          title: '✖ Set API Key',
           padding: 1,
           margin: 1,
           borderStyle: 'round',
@@ -21869,7 +21869,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     } catch (error: any) {
       this.printPanel(
         boxen(`Failed to set Coinbase keys: ${error.message}`, {
-          title: '❌ Set Coinbase Keys',
+          title: '✖ Set Coinbase Keys',
           padding: 1,
           margin: 1,
           borderStyle: 'round',
@@ -21956,7 +21956,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     } catch (error: any) {
       this.printPanel(
         boxen(`Failed to set Browserbase keys: ${error.message}`, {
-          title: '❌ Set Browserbase Keys',
+          title: '✖ Set Browserbase Keys',
           padding: 1,
           margin: 1,
           borderStyle: 'round',
@@ -22056,7 +22056,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     } catch (error: any) {
       this.printPanel(
         boxen(`Failed to set Figma keys: ${error.message}`, {
-          title: '❌ Set Figma Keys',
+          title: '✖ Set Figma Keys',
           padding: 1,
           margin: 1,
           borderStyle: 'round',
@@ -22157,7 +22157,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     } catch (error: any) {
       this.printPanel(
         boxen(`Failed to set Redis keys: ${error.message}`, {
-          title: '❌ Set Redis Keys',
+          title: '✖ Set Redis Keys',
           padding: 1,
           margin: 1,
           borderStyle: 'round',
@@ -22256,7 +22256,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     } catch (error: any) {
       this.printPanel(
         boxen(`Failed to set Vector keys: ${error.message}`, {
-          title: '❌ Set Vector Keys',
+          title: '✖ Set Vector Keys',
           padding: 1,
           margin: 1,
           borderStyle: 'round',
@@ -22320,8 +22320,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
 
           // Connection Status
           statusContent += `${chalk.cyan('Connection:')}\n`
-          statusContent += `  Enabled: ${stats.redis.enabled ? chalk.green('✓ Yes') : chalk.red('❌ No')}\n`
-          statusContent += `  Connected: ${stats.redis.connected ? chalk.green('✓ Yes') : chalk.red('❌ No')}\n`
+          statusContent += `  Enabled: ${stats.redis.enabled ? chalk.green('✓ Yes') : chalk.red('✖ No')}\n`
+          statusContent += `  Connected: ${stats.redis.connected ? chalk.green('✓ Yes') : chalk.red('✖ No')}\n`
 
           if (stats.redis.health) {
             statusContent += `  Latency: ${chalk.blue(stats.redis.health.latency)}ms\n`
@@ -22339,8 +22339,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           statusContent += `  Hit Rate: ${chalk.blue(stats.hitRate.toFixed(1))}%\n`
 
           statusContent += `\n${chalk.cyan('Fallback:')}\n`
-          statusContent += `  SmartCache: ${stats.fallback.enabled ? chalk.green('✓ Available') : chalk.red('❌ Disabled')}\n`
-          statusContent += `  Overall Health: ${health.overall ? chalk.green('✓ Operational') : chalk.red('❌ Degraded')}\n`
+          statusContent += `  SmartCache: ${stats.fallback.enabled ? chalk.green('✓ Available') : chalk.red('✖ Disabled')}\n`
+          statusContent += `  Overall Health: ${health.overall ? chalk.green('✓ Operational') : chalk.red('✖ Degraded')}\n`
 
           this.printPanel(
             boxen(statusContent, {
@@ -22364,12 +22364,12 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         }
 
         default:
-          console.log(chalk.red('❌ Invalid Redis action. Use: enable, disable, or status'))
+          console.log(chalk.red('✖ Invalid Redis action. Use: enable, disable, or status'))
       }
     } catch (error: any) {
       this.printPanel(
         boxen(`Failed to manage Redis cache: ${error.message}`, {
-          title: '❌ Redis Management Error',
+          title: '✖ Redis Management Error',
           padding: 1,
           margin: 1,
           borderStyle: 'round',
@@ -22430,10 +22430,10 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           console.log(chalk.gray(`⏱️ Processing time: ${result.data.metadata.processing_time_ms}ms`))
         }
       } else {
-        console.log(chalk.red(`❌ Failed to browse: ${result.error}`))
+        console.log(chalk.red(`✖ Failed to browse: ${result.error}`))
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to browse: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to browse: ${error.message}`))
     }
   }
 
@@ -22509,10 +22509,10 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           console.log(chalk.gray(`⏱️ Processing time: ${result.data.metadata.processing_time_ms}ms`))
         }
       } else {
-        console.log(chalk.red(`❌ Failed to analyze: ${result.error}`))
+        console.log(chalk.red(`✖ Failed to analyze: ${result.error}`))
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to analyze: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to analyze: ${error.message}`))
     }
   }
 
@@ -22560,7 +22560,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     } catch (error: any) {
       this.printPanel(
         boxen(`Failed to show model: ${error.message}`, {
-          title: '❌ Model Error',
+          title: '✖ Model Error',
           padding: 1,
           margin: 1,
           borderStyle: 'round',
@@ -22597,7 +22597,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         console.log(chalk.green(`✓ TaskMaster plan saved to ${filename}`))
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to save plan to ${filename}: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to save plan to ${filename}: ${error.message}`))
       throw error
     }
   }
@@ -22638,7 +22638,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           : todo.status === 'in_progress'
             ? '⚡︎'
             : todo.status === 'failed'
-              ? '❌'
+              ? '✖'
               : '⏳'
 
       const priorityIcon = todo.priority === 'high' ? '🔴' : todo.priority === 'medium' ? '🟡' : '🟢'
@@ -22704,7 +22704,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
               ? '✓'
               : task.status === 'in_progress'
                 ? '⚡︎'
-                : '❌'
+                : '✖'
         content += `${index + 1}. ${status} **${task.title}**\n`
         if (task.description) {
           content += `   ${task.description}\n`
@@ -22801,7 +22801,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         confirmSteps: false,
       })
     } catch (error: any) {
-      console.log(chalk.red(`❌ Plan execution failed: ${error.message}`))
+      console.log(chalk.red(`✖ Plan execution failed: ${error.message}`))
       throw error
     }
   }
@@ -23190,7 +23190,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         color: 'green' as const,
       },
       failed: {
-        icon: '❌',
+        icon: '✖',
         title: 'Background Job Failed',
         color: 'red' as const,
       },

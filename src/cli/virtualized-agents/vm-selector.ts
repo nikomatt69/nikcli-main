@@ -114,7 +114,7 @@ export class VMSelector {
 
       return targets
     } catch (error: any) {
-      console.error(chalk.red(`❌ Failed to get VM targets: ${error.message}`))
+      console.error(chalk.red(`✖ Failed to get VM targets: ${error.message}`))
       return []
     }
   }
@@ -151,7 +151,7 @@ export class VMSelector {
     })
 
     choices.push({
-      name: chalk.gray('❌ Cancel'),
+      name: chalk.gray('✖ Cancel'),
       value: null as any,
       short: 'Cancel',
     })
@@ -590,7 +590,7 @@ export class VMSelector {
       console.log(chalk.gray(`Repository: ${targetVM.repositoryUrl || 'N/A'}`))
       console.log(chalk.gray(`Created: ${targetVM.createdAt?.toLocaleString() || 'Unknown'}`))
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to get VM system status: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to get VM system status: ${error.message}`))
     }
 
     console.log(chalk.gray('═'.repeat(70)))
@@ -625,7 +625,7 @@ export class VMSelector {
             console.log(chalk.green(`✓ ${vm.name}: Response received`))
             results.push({ vmId: vm.id, response: response.data, success: true })
           } else {
-            console.log(chalk.red(`❌ ${vm.name}: ${response?.error || 'Failed'}`))
+            console.log(chalk.red(`✖ ${vm.name}: ${response?.error || 'Failed'}`))
             results.push({ vmId: vm.id, response: response?.error, success: false })
           }
         } else {
@@ -633,7 +633,7 @@ export class VMSelector {
           results.push({ vmId: vm.id, response: 'Agent not found', success: false })
         }
       } catch (error: any) {
-        console.log(chalk.red(`❌ ${vm.name}: ${error.message}`))
+        console.log(chalk.red(`✖ ${vm.name}: ${error.message}`))
         results.push({ vmId: vm.id, response: error.message, success: false })
       }
     }
@@ -664,7 +664,7 @@ export class VMSelector {
         const agent = agents.find((a) => a.getContainerId() === vm.id)
 
         if (!agent) {
-          console.log(chalk.red('❌ Agent not available'))
+          console.log(chalk.red('✖ Agent not available'))
           healthResults.push({ vm: vm.name, status: 'agent_missing', health: 'critical' })
           continue
         }
@@ -703,7 +703,7 @@ export class VMSelector {
           healthResults.push({ vm: vm.name, status: 'partial', health: 'warning' })
         }
       } catch (error: any) {
-        console.log(chalk.red(`❌ Health check failed: ${error.message}`))
+        console.log(chalk.red(`✖ Health check failed: ${error.message}`))
         healthResults.push({ vm: vm.name, status: 'error', health: 'critical', error: error.message })
       }
     }
@@ -718,7 +718,7 @@ export class VMSelector {
 
     console.log(chalk.green(`✓ Healthy: ${healthy}`))
     console.log(chalk.yellow(`⚠️ Warnings: ${warnings}`))
-    console.log(chalk.red(`❌ Critical: ${critical}`))
+    console.log(chalk.red(`✖ Critical: ${critical}`))
 
     if (critical > 0) {
       console.log(chalk.red('\n🚨 Critical Issues Found:'))
@@ -753,7 +753,7 @@ export class VMSelector {
 
       return backupId
     } catch (error: any) {
-      console.log(chalk.red(`❌ Backup failed: ${error.message}`))
+      console.log(chalk.red(`✖ Backup failed: ${error.message}`))
       throw error
     }
   }
@@ -840,7 +840,7 @@ export class VMSelector {
         throw new Error('VM agent not found')
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Command execution failed: ${error.message}`))
+      console.log(chalk.red(`✖ Command execution failed: ${error.message}`))
       throw error
     }
   }
@@ -854,5 +854,5 @@ export const vmSelector = new VMSelector(
 
 // Method to inject VM orchestrator
 export function initializeVMSelector(vmOrchestrator: VMOrchestrator): void {
-  ;(vmSelector as any).vmOrchestrator = vmOrchestrator
+  ; (vmSelector as any).vmOrchestrator = vmOrchestrator
 }

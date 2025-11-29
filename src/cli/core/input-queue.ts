@@ -110,7 +110,7 @@ export class InputQueue {
 
       return nextInput
     } catch (error: any) {
-      advancedUI.logError(`❌ Failed to process queued input: ${error.message}`)
+      advancedUI.logError(`✖ Failed to process queued input: ${error.message}`)
 
       // Rimetti l'input in coda se è un errore temporaneo
       if (error.message.includes('timeout') || error.message.includes('network')) {

@@ -68,7 +68,7 @@ export class ModernAgent {
       execution.endTime = new Date()
       execution.error = error.message
 
-      console.log(chalk.red(`❌ ${this.name} failed: ${error.message}`))
+      console.log(chalk.red(`✖ ${this.name} failed: ${error.message}`))
       return execution
     }
   }

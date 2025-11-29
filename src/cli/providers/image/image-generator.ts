@@ -283,7 +283,7 @@ export class ImageGenerator extends EventEmitter {
 
       return result
     } catch (error: any) {
-      console.log(chalk.red(`❌ Image generation failed: ${error.message}`))
+      console.log(chalk.red(`✖ Image generation failed: ${error.message}`))
       this.emit('generation_failed', { model, error, prompt: options.prompt })
       throw error
     }

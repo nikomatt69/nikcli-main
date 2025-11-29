@@ -76,7 +76,7 @@ export class MemoryService extends EventEmitter {
       structuredLogger.success('Memory Service', '✓ Memory Service initialized')
       this.emit('initialized')
     } catch (error: any) {
-      structuredLogger.error('Memory Service', `❌ Memory Service initialization failed: ${error.message}`)
+      structuredLogger.error('Memory Service', `✖ Memory Service initialization failed: ${error.message}`)
       throw error
     }
   }
@@ -676,7 +676,7 @@ export class MemoryService extends EventEmitter {
       const memory = await mem0Provider.getMemory(memoryId)
       return memory
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to get memory: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to get memory: ${error.message}`))
       return null
     }
   }
@@ -707,7 +707,7 @@ export class MemoryService extends EventEmitter {
 
       return deleted
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to delete memory: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to delete memory: ${error.message}`))
       return false
     }
   }
@@ -771,7 +771,7 @@ export class MemoryService extends EventEmitter {
       console.log(chalk.green(`✓ Deleted ${deletedCount} memories matching criteria`))
       return deletedCount
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to delete memories by criteria: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to delete memories by criteria: ${error.message}`))
       return 0
     }
   }

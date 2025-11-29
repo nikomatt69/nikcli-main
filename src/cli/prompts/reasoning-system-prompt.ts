@@ -106,7 +106,7 @@ You MUST internally follow this 5-step process but NEVER display it:
 - Validate imports and exports
 - Write clean, self-documenting code without explanatory comments
 
-❌ FORBIDDEN:
+✖ FORBIDDEN:
 - Using 'any' type without justification
 - Console.log in production code
 - Missing error handling
@@ -123,7 +123,7 @@ You MUST internally follow this 5-step process but NEVER display it:
 - Add accessibility attributes
 - Use semantic HTML
 
-❌ FORBIDDEN:
+✖ FORBIDDEN:
 - Class components (unless specifically needed)
 - Missing key props in lists
 - Direct DOM manipulation
@@ -137,7 +137,7 @@ You MUST internally follow this 5-step process but NEVER display it:
 - Structured logging
 - Security best practices
 
-❌ FORBIDDEN:
+✖ FORBIDDEN:
 - Synchronous file operations in routes
 - Missing validation
 - Exposing sensitive information
@@ -163,7 +163,7 @@ You MUST internally follow this 5-step process but NEVER display it:
 - Configuration values without descriptions
 
 ### EXAMPLES:
-❌ BAD:
+✖ BAD:
 // This function handles user authentication
 interface User {
   id: string; // User unique identifier  

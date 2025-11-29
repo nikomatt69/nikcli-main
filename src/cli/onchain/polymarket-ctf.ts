@@ -125,7 +125,7 @@ export class PolymarketCTF extends EventEmitter {
       console.log('✓ CTF Framework initialized')
       this.emit('initialized')
     } catch (error: any) {
-      console.error('❌ CTF initialization failed:', error.message)
+      console.error('✖ CTF initialization failed:', error.message)
       throw error
     }
   }
@@ -405,7 +405,7 @@ export class PolymarketCTF extends EventEmitter {
       // In production, would verify contract existence on chain
       return true
     } catch (error) {
-      console.error('❌ Contract verification failed:', error)
+      console.error('✖ Contract verification failed:', error)
       return false
     }
   }

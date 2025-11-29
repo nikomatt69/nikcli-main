@@ -128,7 +128,7 @@ export class AgentRouter {
       const routingTime = Date.now() - startTime
       this.updateRoutingMetrics('unknown', routingTime, false)
 
-      CliUI.logError(`❌ Task routing failed: ${error.message}`)
+      CliUI.logError(`✖ Task routing failed: ${error.message}`)
 
       return {
         success: false,

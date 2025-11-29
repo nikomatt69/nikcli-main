@@ -223,7 +223,7 @@ export class ReadFileTool {
         extension,
       }
     } catch (error: any) {
-      advancedUI.logFunctionUpdate('error', `❌ Failed to read file: ${error.message}`)
+      advancedUI.logFunctionUpdate('error', `✖ Failed to read file: ${error.message}`)
       advancedUI.logFunctionCall('read-file-tool')
       throw error
     }
@@ -285,7 +285,7 @@ export class WriteFileTool {
       fs.writeFileSync(safePath, content, 'utf8')
       advancedUI.logFunctionUpdate('success', `✓ File ${fileExists ? 'updated' : 'created'}: ${filePath}`)
     } catch (error: any) {
-      advancedUI.logFunctionUpdate('error', `❌ Failed to write file: ${error.message}`)
+      advancedUI.logFunctionUpdate('error', `✖ Failed to write file: ${error.message}`)
       throw error
     }
   }
@@ -376,7 +376,7 @@ export class ListDirectoryTool {
         total: files.length + directories.length,
       }
     } catch (error: any) {
-      advancedUI.logFunctionUpdate('error', `❌ Failed to list directory: ${error.message}`)
+      advancedUI.logFunctionUpdate('error', `✖ Failed to list directory: ${error.message}`)
       throw error
     }
   }
@@ -469,7 +469,7 @@ export class ReplaceInFileTool {
         backup: backupPath ? path.relative(this.workingDirectory, backupPath) : undefined,
       }
     } catch (error: any) {
-      advancedUI.logFunctionUpdate('error', `❌ Failed to replace in file: ${error.message}`)
+      advancedUI.logFunctionUpdate('error', `✖ Failed to replace in file: ${error.message}`)
       throw error
     }
   }

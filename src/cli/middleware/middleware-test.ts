@@ -43,13 +43,13 @@ async function testMiddlewareSystem() {
         console.log(`📊 Executed middleware: ${result.executedMiddleware.join(', ')}`)
         console.log(`⚡ Total execution time: ${result.totalDuration}ms`)
       } else {
-        console.log('❌ Middleware pipeline failed:', result.error?.message)
+        console.log('✖ Middleware pipeline failed:', result.error?.message)
       }
     } else {
-      console.log('❌ Middleware pipeline returned undefined')
+      console.log('✖ Middleware pipeline returned undefined')
     }
   } catch (error: any) {
-    console.log('❌ Error during middleware execution:', error.message)
+    console.log('✖ Error during middleware execution:', error.message)
   }
 
   console.log('\n3. Displaying middleware status...')

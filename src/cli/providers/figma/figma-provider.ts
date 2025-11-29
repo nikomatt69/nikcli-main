@@ -215,7 +215,7 @@ export class FigmaProvider {
           return this.apiClient.request(error.config)
         }
 
-        console.log(chalk.red(`❌ Figma API Error: ${error.response?.status} ${error.message}`))
+        console.log(chalk.red(`✖ Figma API Error: ${error.response?.status} ${error.message}`))
         return Promise.reject(error)
       }
     )

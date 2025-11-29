@@ -99,7 +99,7 @@ export class PolymarketRelayerClient extends EventEmitter {
       console.log('✓ Relayer client initialized')
       this.emit('initialized')
     } catch (error: any) {
-      console.error('❌ Relayer initialization failed:', error.message)
+      console.error('✖ Relayer initialization failed:', error.message)
       throw error
     }
   }
@@ -285,7 +285,7 @@ export class PolymarketRelayerClient extends EventEmitter {
       const result = await this.callRelayerAPI('GET', '/health')
       return result.status === 'healthy'
     } catch (error) {
-      console.error('❌ Relayer health check failed:', error)
+      console.error('✖ Relayer health check failed:', error)
       return false
     }
   }

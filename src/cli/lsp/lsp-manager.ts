@@ -85,7 +85,7 @@ export class LSPManager {
           this.clients.set(clientKey, client)
           this.workspaceRoots.add(workspaceRoot)
         } catch (error: any) {
-          console.log(chalk.red(`❌ Failed to start ${serverInfo.name}: ${error.message}`))
+          console.log(chalk.red(`✖ Failed to start ${serverInfo.name}: ${error.message}`))
           continue
         }
       }
@@ -290,7 +290,7 @@ export class LSPManager {
 
         const hover = await client.getHover(filePath, line, character)
         if (hover) return hover
-      } catch (_error) {}
+      } catch (_error) { }
     }
 
     return null
@@ -309,7 +309,7 @@ export class LSPManager {
 
         const completions = await client.getCompletion(filePath, line, character)
         allCompletions.push(...completions)
-      } catch (_error) {}
+      } catch (_error) { }
     }
 
     return allCompletions

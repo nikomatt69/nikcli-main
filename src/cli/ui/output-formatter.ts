@@ -109,7 +109,7 @@ export class OutputFormatter {
     if (text.match(/^(✓|✅|\[OK\]|\[DONE\])/)) {
       return chalk.green(text)
     }
-    if (text.match(/^(❌|x|\[ERR\]|\[FAIL\])/)) {
+    if (text.match(/^(✖|x|\[ERR\]|\[FAIL\])/)) {
       return chalk.red(text)
     }
     if (text.match(/^(⚠️|!|\[WARN\])/)) {

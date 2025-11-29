@@ -192,7 +192,7 @@ export class OrchestratorService extends EventEmitter {
           this.displayAgentResult(task)
         }
       } else {
-        advancedUI.logFunctionUpdate('error', `Agent ${task.agentType} failed: ${task.error}`, '❌')
+        advancedUI.logFunctionUpdate('error', `Agent ${task.agentType} failed: ${task.error}`, '✖')
       }
 
       // Check if all background tasks are complete and return to default mode
@@ -261,7 +261,7 @@ export class OrchestratorService extends EventEmitter {
         advancedUI.logFunctionUpdate(
           'error',
           `Operation blocked: ${(middlewareResult as any).error?.message || 'Unknown error'}`,
-          '❌'
+          '✖'
         )
         return
       }
@@ -284,7 +284,7 @@ export class OrchestratorService extends EventEmitter {
       // Handle natural language requests
       await this.handleNaturalLanguageRequest(input)
     } catch (error: any) {
-      advancedUI.logFunctionUpdate('error', `Error processing input: ${error.message}`, '❌')
+      advancedUI.logFunctionUpdate('error', `Error processing input: ${error.message}`, '✖')
     } finally {
       this.context.isProcessing = false
     }
@@ -328,7 +328,7 @@ export class OrchestratorService extends EventEmitter {
       const taskId = await agentService.executeTask(agentName, task, {})
       console.log(chalk.dim(`Task ID: ${taskId}`))
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to launch agent: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to launch agent: ${error.message}`))
     }
   }
 
@@ -376,7 +376,7 @@ export class OrchestratorService extends EventEmitter {
           confirmSteps: !this.context.autonomous,
         })
       } catch (error: any) {
-        console.log(chalk.red(`❌ Planning failed: ${error.message}`))
+        console.log(chalk.red(`✖ Planning failed: ${error.message}`))
         console.log(chalk.blue('💬 Returning to default chat mode...'))
         console.log(chalk.gray('   Please try again with a different request.'))
         return
@@ -429,7 +429,7 @@ export class OrchestratorService extends EventEmitter {
       console.log(chalk.dim('🔐 Agent will operate in secure isolated environment'))
       console.log(chalk.dim('📊 Monitor with Ctrl+L for logs, Ctrl+S for security dashboard'))
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to launch VM agent: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to launch VM agent: ${error.message}`))
     }
   }
 
@@ -470,7 +470,7 @@ export class OrchestratorService extends EventEmitter {
       }
 
       if (result.todosFailed && result.todosFailed > 0) {
-        parts.push(`❌ Failed ${result.todosFailed} tasks`)
+        parts.push(`✖ Failed ${result.todosFailed} tasks`)
       }
 
       // Extract summary if available
@@ -606,7 +606,7 @@ export class OrchestratorService extends EventEmitter {
 
     console.log(chalk.white.bold('\\nRecent Tool Usage:'))
     toolHistory.forEach((exec) => {
-      const statusIcon = exec.status === 'completed' ? '✓' : exec.status === 'failed' ? '❌' : '⚡︎'
+      const statusIcon = exec.status === 'completed' ? '✓' : exec.status === 'failed' ? '✖' : '⚡︎'
       console.log(`  ${statusIcon} ${exec.toolName}: ${exec.status}`)
     })
 
@@ -972,7 +972,7 @@ export class OrchestratorService extends EventEmitter {
       console.log(chalk.white.bold('\nRecent Middleware Events:'))
       history.forEach((event) => {
         const icon =
-          event.type === 'complete' ? '✓' : event.type === 'error' ? '❌' : event.type === 'start' ? '⚡︎' : '⏭️'
+          event.type === 'complete' ? '✓' : event.type === 'error' ? '✖' : event.type === 'start' ? '⚡︎' : '⏭️'
         const duration = event.duration ? ` (${event.duration}ms)` : ''
         console.log(`  ${icon} ${event.middlewareName}: ${event.type}${duration}`)
       })

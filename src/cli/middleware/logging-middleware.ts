@@ -149,7 +149,7 @@ export class LoggingMiddleware extends BaseMiddleware {
     this.addLogEntry(logEntry)
 
     if (this.shouldLogToConsole('info')) {
-      const statusIcon = response.success ? '✓' : '❌'
+      const statusIcon = response.success ? '✓' : '✖'
       const durationColor = duration > 1000 ? chalk.yellow : chalk.green
       console.log(
         `${statusIcon} [${request.id.slice(0, 8)}] ${request.operation} ` + `${durationColor(`${duration}ms`)}`
@@ -176,7 +176,7 @@ export class LoggingMiddleware extends BaseMiddleware {
 
     if (this.shouldLogToConsole('error')) {
       console.log(
-        chalk.red(`❌ [${request.id.slice(0, 8)}] ${request.operation} `) + chalk.red(`FAILED: ${error.message}`)
+        chalk.red(`✖ [${request.id.slice(0, 8)}] ${request.operation} `) + chalk.red(`FAILED: ${error.message}`)
       )
     }
   }

@@ -107,7 +107,7 @@ export class ReactAgent extends CognitiveAgentBase {
       }
     } catch (error: any) {
       const executionTime = Date.now() - startTime
-      CliUI.logError(`❌ React task failed: ${error.message}`)
+      CliUI.logError(`✖ React task failed: ${error.message}`)
       this.updateCognitiveMemory(cognition, { error: error.message }, false)
 
       return {
@@ -138,7 +138,7 @@ export class ReactAgent extends CognitiveAgentBase {
 
       return reactCognition
     } catch (error: any) {
-      CliUI.logError(`❌ Failed to enhance React cognition: ${error.message}`)
+      CliUI.logError(`✖ Failed to enhance React cognition: ${error.message}`)
       return cognition
     }
   }

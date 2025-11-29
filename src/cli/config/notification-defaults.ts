@@ -263,13 +263,13 @@ ${data.planTitle ? `**Plan:** ${data.planTitle}\n` : ''}
 
   taskFailed: {
     slack: (data: any) => ({
-      text: `❌ *Task Failed* | nikcli`,
+      text: `✖ *Task Failed* | nikcli`,
       blocks: [
         {
           type: 'header',
           text: {
             type: 'plain_text',
-            text: '❌ Task Failed',
+            text: '✖ Task Failed',
             emoji: true,
           },
         },
@@ -308,7 +308,7 @@ ${data.planTitle ? `**Plan:** ${data.planTitle}\n` : ''}
     discord: (data: any) => ({
       embeds: [
         {
-          title: '❌ Task Failed',
+          title: '✖ Task Failed',
           color: 0xff0000, // Red
           fields: [
             {
@@ -340,7 +340,7 @@ ${data.planTitle ? `**Plan:** ${data.planTitle}\n` : ''}
       ],
     }),
     linear: (data: any) => `
-## ❌ Task Failed
+## ✖ Task Failed
 
 **Task:** ${data.taskTitle}
 **Agent:** ${data.agentName}
@@ -446,7 +446,7 @@ ${data.agents && data.agents.length ? `**Agents:** ${data.agents.join(', ')}\n` 
             },
             {
               type: 'mrkdwn',
-              text: `*Failed:*\n❌ ${data.failedTasks}`,
+              text: `*Failed:*\n✖ ${data.failedTasks}`,
             },
             {
               type: 'mrkdwn',
@@ -486,7 +486,7 @@ ${data.agents && data.agents.length ? `**Agents:** ${data.agents.join(', ')}\n` 
               inline: true,
             },
             {
-              name: '❌ Failed',
+              name: '✖ Failed',
               value: String(data.failedTasks),
               inline: true,
             },
@@ -514,7 +514,7 @@ ${data.agents && data.agents.length ? `**Agents:** ${data.agents.join(', ')}\n` 
 **Plan:** ${data.planTitle}
 **Total Tasks:** ${data.totalTasks}
 **Completed:** ✅ ${data.completedTasks}
-**Failed:** ❌ ${data.failedTasks}
+**Failed:** ✖ ${data.failedTasks}
 **Total Duration:** ${formatDuration(data.totalDuration)}
 
 **Agents:** ${data.agents.join(', ')}

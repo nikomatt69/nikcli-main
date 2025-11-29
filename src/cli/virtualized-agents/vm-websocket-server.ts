@@ -54,7 +54,7 @@ export class VMWebSocketServer extends EventEmitter implements VMEventEmitter {
 
       this.isRunning = true
     } catch (error: any) {
-      console.error(chalk.red(`❌ Failed to start VM WebSocket Server: ${error.message}`))
+      console.error(chalk.red(`✖ Failed to start VM WebSocket Server: ${error.message}`))
       throw error
     }
   }
@@ -90,7 +90,7 @@ export class VMWebSocketServer extends EventEmitter implements VMEventEmitter {
       this.isRunning = false
       console.log(chalk.yellow('🌐 VM WebSocket Server stopped'))
     } catch (error: any) {
-      console.error(chalk.red(`❌ Error stopping VM WebSocket Server: ${error.message}`))
+      console.error(chalk.red(`✖ Error stopping VM WebSocket Server: ${error.message}`))
       throw error
     }
   }
@@ -180,7 +180,7 @@ export class VMWebSocketServer extends EventEmitter implements VMEventEmitter {
       this.emit('disconnected', containerId)
       console.log(chalk.yellow(`🔌 Container ${containerId} disconnected: ${reason}`))
     } catch (error: any) {
-      console.error(chalk.red(`❌ Error closing connection for ${containerId}: ${error.message}`))
+      console.error(chalk.red(`✖ Error closing connection for ${containerId}: ${error.message}`))
     }
   }
 
@@ -261,7 +261,7 @@ export class VMWebSocketServer extends EventEmitter implements VMEventEmitter {
 
       console.log(chalk.blue(`📥 Received message from ${connection.containerId}: ${message.type}`))
     } catch (error: any) {
-      console.error(chalk.red(`❌ Message handling error: ${error.message}`))
+      console.error(chalk.red(`✖ Message handling error: ${error.message}`))
       if (ws.readyState === WebSocket.OPEN) {
         ws.close(4001, `Message error: ${error.message}`)
       }
@@ -321,7 +321,7 @@ export class VMWebSocketServer extends EventEmitter implements VMEventEmitter {
     )
 
     this.emit('error', vmError)
-    console.error(chalk.red(`❌ WebSocket error for ${containerId}: ${error.message}`))
+    console.error(chalk.red(`✖ WebSocket error for ${containerId}: ${error.message}`))
   }
 
   private handlePong(ws: WebSocket): void {
@@ -332,7 +332,7 @@ export class VMWebSocketServer extends EventEmitter implements VMEventEmitter {
   }
 
   private handleServerError(error: Error): void {
-    console.error(chalk.red(`❌ VM WebSocket Server error: ${error.message}`))
+    console.error(chalk.red(`✖ VM WebSocket Server error: ${error.message}`))
     this.emit('error', new VMCommunicationError(`Server error: ${error.message}`, 'server', 'SERVER_ERROR'))
   }
 

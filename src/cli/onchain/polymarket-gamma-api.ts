@@ -124,7 +124,7 @@ export class PolymarketGammaAPI extends EventEmitter {
       console.log('✓ Gamma Markets API initialized')
       this.emit('initialized')
     } catch (error: any) {
-      console.error('❌ Gamma API initialization failed:', error.message)
+      console.error('✖ Gamma API initialization failed:', error.message)
       throw error
     }
   }
@@ -300,7 +300,7 @@ export class PolymarketGammaAPI extends EventEmitter {
       const result = await this.makeRequest('GET', '/health', { noCache: true })
       return result.status === 'healthy'
     } catch (error) {
-      console.error('❌ Gamma API health check failed:', error)
+      console.error('✖ Gamma API health check failed:', error)
       return false
     }
   }

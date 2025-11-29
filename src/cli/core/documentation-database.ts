@@ -166,7 +166,7 @@ export class DocumentationDatabase {
       // Convert SupabaseDocument to DocumentationEntry
       return results.map((doc) => this.convertToDocumentationEntry(doc))
     } catch (error: any) {
-      console.log(chalk.red(`❌ Database search error: ${error.message}`))
+      console.log(chalk.red(`✖ Database search error: ${error.message}`))
       return []
     }
   }
@@ -195,7 +195,7 @@ export class DocumentationDatabase {
 
       return this.convertToDocumentationEntry(data)
     } catch (error: any) {
-      console.log(chalk.red(`❌ Database get error: ${error.message}`))
+      console.log(chalk.red(`✖ Database get error: ${error.message}`))
       return null
     }
   }
@@ -229,7 +229,7 @@ export class DocumentationDatabase {
 
       return data.map((doc: any) => this.convertToDocumentationEntry(doc))
     } catch (error: any) {
-      console.log(chalk.red(`❌ Database query error: ${error.message}`))
+      console.log(chalk.red(`✖ Database query error: ${error.message}`))
       return []
     }
   }
@@ -279,7 +279,7 @@ export class DocumentationDatabase {
         totalWords,
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Statistics error: ${error.message}`))
+      console.log(chalk.red(`✖ Statistics error: ${error.message}`))
       return { totalDocs: 0, categories: [], languages: [], totalWords: 0 }
     }
   }
@@ -310,7 +310,7 @@ export class DocumentationDatabase {
       console.log(chalk.green(`✓ Deleted documentation: ${id}`))
       return true
     } catch (error: any) {
-      console.log(chalk.red(`❌ Delete error: ${error.message}`))
+      console.log(chalk.red(`✖ Delete error: ${error.message}`))
       return false
     }
   }

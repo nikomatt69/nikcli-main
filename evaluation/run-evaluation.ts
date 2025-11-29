@@ -100,7 +100,7 @@ async function runEvaluation() {
     fs.writeFileSync(reportPath, JSON.stringify(result, null, 2));
     console.log(`\n📄 Detailed report saved to: ${reportPath}`);
   } catch (error) {
-    console.error('❌ Evaluation failed:', error.message);
+    console.error('✖ Evaluation failed:', error.message);
     process.exit(1);
   }
 }

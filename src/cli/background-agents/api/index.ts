@@ -123,7 +123,7 @@ function parseRedisConfig():
         password: url.password || undefined,
       }
     } catch (error) {
-      console.error('❌ Failed to parse Redis URL:', error)
+      console.error('✖ Failed to parse Redis URL:', error)
       return undefined
     }
   }
@@ -167,7 +167,7 @@ function parseGitHubConfig():
       } catch (error: any) {
         // Security: Don't log the private key path if it looks like a key itself
         const safePath = privateKeyPath.length > 100 ? '[REDACTED - path too long]' : privateKeyPath
-        console.error('❌ Failed to read GitHub private key from file:', safePath, error.message)
+        console.error('✖ Failed to read GitHub private key from file:', safePath, error.message)
         return undefined
       }
     }
@@ -180,7 +180,7 @@ function parseGitHubConfig():
 
   // Validate that private key is in PEM format (required for RS256)
   if (!privateKey.includes('-----BEGIN') || !privateKey.includes('-----END')) {
-    console.error('❌ GitHub private key must be in PEM format (RS256 requires RSA key)')
+    console.error('✖ GitHub private key must be in PEM format (RS256 requires RSA key)')
     console.error('   Key should start with "-----BEGIN RSA PRIVATE KEY-----" or "-----BEGIN PRIVATE KEY-----"')
     return undefined
   }
@@ -264,7 +264,7 @@ async function startServer() {
   const configuredProviders = aiProviders.filter((envVar) => process.env[envVar])
 
   if (configuredProviders.length === 0) {
-    console.error('❌ No AI provider API keys configured. At least one is required.')
+    console.error('✖ No AI provider API keys configured. At least one is required.')
     console.error('   Set one of: ANTHROPIC_API_KEY, OPENAI_API_KEY, GOOGLE_GENERATIVE_AI_API_KEY, or OPENROUTER_API_KEY')
     process.exit(1)
   }
@@ -291,13 +291,13 @@ async function startServer() {
 
   // Handle uncaught exceptions and unhandled rejections to prevent server crashes
   process.on('uncaughtException', (error: Error) => {
-    console.error('❌ Uncaught Exception:', error)
+    console.error('✖ Uncaught Exception:', error)
     console.error('Stack:', error.stack)
     // Don't exit - log and continue (Railway will restart if needed via health check)
   })
 
   process.on('unhandledRejection', (reason: any, promise: Promise<any>) => {
-    console.error('❌ Unhandled Rejection at:', promise)
+    console.error('✖ Unhandled Rejection at:', promise)
     console.error('Reason:', reason)
     // Don't exit - log and continue (Railway will restart if needed via health check)
   })
@@ -324,7 +324,7 @@ async function startServer() {
         console.log('✅ Server shut down successfully')
         process.exit(0)
       } catch (error) {
-        console.error('❌ Error during shutdown:', error)
+        console.error('✖ Error during shutdown:', error)
         process.exit(1)
       }
     }
@@ -348,13 +348,13 @@ async function startServer() {
       )
     }
   } catch (error) {
-    console.error('❌ Failed to start server:', error)
+    console.error('✖ Failed to start server:', error)
     process.exit(1)
   }
 }
 
 // Start the server
 startServer().catch((error) => {
-  console.error('❌ Unhandled error:', error)
+  console.error('✖ Unhandled error:', error)
   process.exit(1)
 })

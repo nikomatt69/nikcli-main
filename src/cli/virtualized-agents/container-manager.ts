@@ -45,8 +45,8 @@ export class ContainerManager extends EventEmitter {
       if (config.security?.readOnlyRootfs) {
         args.push('--read-only')
       }
-      ;(config.security?.capabilities?.drop || []).forEach((cap) => args.push('--cap-drop', cap))
-      ;(config.security?.capabilities?.add || []).forEach((cap) => args.push('--cap-add', cap))
+      ; (config.security?.capabilities?.drop || []).forEach((cap) => args.push('--cap-drop', cap))
+        ; (config.security?.capabilities?.add || []).forEach((cap) => args.push('--cap-add', cap))
 
       // Tmpfs mounts for extra isolation
       args.push('--tmpfs', '/tmp:rw,noexec,nosuid,size=100m')
@@ -61,11 +61,11 @@ export class ContainerManager extends EventEmitter {
         args.push('-e', `${key}=${value}`)
       })
 
-      // Volumes
-      ;(config.volumes || []).forEach((volume) => args.push('-v', this.shellQuote(volume)))
+        // Volumes
+        ; (config.volumes || []).forEach((volume) => args.push('-v', this.shellQuote(volume)))
 
-      // Ports
-      ;(config.ports || []).forEach((port) => args.push('-p', port))
+        // Ports
+        ; (config.ports || []).forEach((port) => args.push('-p', port))
 
       // Image and default command (keep container alive)
       args.push(config.image, 'sleep', 'infinity')
@@ -101,7 +101,7 @@ export class ContainerManager extends EventEmitter {
 
       return containerId
     } catch (error: any) {
-      advancedUI.logError(`❌ Failed to create container: ${error.message}`)
+      advancedUI.logError(`✖ Failed to create container: ${error.message}`)
       throw error
     }
   }
@@ -125,7 +125,7 @@ export class ContainerManager extends EventEmitter {
       advancedUI.logSuccess(`✓ Container started: ${containerId.slice(0, 12)}`)
       this.emit('container:started', { containerId })
     } catch (error: any) {
-      advancedUI.logError(`❌ Failed to start container: ${error.message}`)
+      advancedUI.logError(`✖ Failed to start container: ${error.message}`)
       throw error
     }
   }
@@ -147,14 +147,14 @@ export class ContainerManager extends EventEmitter {
       advancedUI.logSuccess(`✓ Container stopped: ${containerId.slice(0, 12)}`)
       this.emit('container:stopped', { containerId })
     } catch (error: any) {
-      advancedUI.logError(`❌ Failed to stop container: ${error.message}`)
+      advancedUI.logError(`✖ Failed to stop container: ${error.message}`)
 
       // Force kill if graceful stop fails
       try {
         await execAsync(`docker kill ${containerId}`)
         advancedUI.logWarning(`⚠️ Container force killed: ${containerId.slice(0, 12)}`)
       } catch (killError: any) {
-        advancedUI.logError(`❌ Failed to kill container: ${killError.message}`)
+        advancedUI.logError(`✖ Failed to kill container: ${killError.message}`)
       }
     }
   }
@@ -176,7 +176,7 @@ export class ContainerManager extends EventEmitter {
       advancedUI.logSuccess(`✓ Container removed: ${containerId.slice(0, 12)}`)
       this.emit('container:removed', { containerId })
     } catch (error: any) {
-      advancedUI.logError(`❌ Failed to remove container: ${error.message}`)
+      advancedUI.logError(`✖ Failed to remove container: ${error.message}`)
     }
   }
 
@@ -204,8 +204,8 @@ export class ContainerManager extends EventEmitter {
 
       return stdout
     } catch (error: any) {
-      advancedUI.logError(`❌ Command execution failed: ${error.message}`)
-      advancedUI.logError(`❌ Command failed in ${containerId.slice(0, 8)}: ${command}`)
+      advancedUI.logError(`✖ Command execution failed: ${error.message}`)
+      advancedUI.logError(`✖ Command failed in ${containerId.slice(0, 8)}: ${command}`)
       throw new Error(`Command failed: ${command} - ${error.message}`)
     }
   }
@@ -225,7 +225,7 @@ export class ContainerManager extends EventEmitter {
 
       return stdout || stderr || 'No logs available'
     } catch (error: any) {
-      advancedUI.logError(`❌ Failed to get container logs: ${error.message}`)
+      advancedUI.logError(`✖ Failed to get container logs: ${error.message}`)
       throw error
     }
   }
@@ -255,7 +255,7 @@ export class ContainerManager extends EventEmitter {
         uptime: await this.getContainerUptime(containerId),
       }
     } catch (error: any) {
-      advancedUI.logError(`❌ Failed to get container stats: ${error.message}`)
+      advancedUI.logError(`✖ Failed to get container stats: ${error.message}`)
       return {
         memory_usage: 0,
         cpu_usage: 0,
@@ -274,7 +274,7 @@ export class ContainerManager extends EventEmitter {
       await execAsync('docker version --format "{{.Server.Version}}"')
       return true
     } catch (_error) {
-      advancedUI.logError('❌ Docker is not available or not running')
+      advancedUI.logError('✖ Docker is not available or not running')
       return false
     }
   }
@@ -293,7 +293,7 @@ export class ContainerManager extends EventEmitter {
         await execAsync(`docker network create --driver bridge ${this.networkName}`)
         advancedUI.logSuccess(`✓ Created secure Docker network: ${this.networkName}`)
       } catch (createError: any) {
-        advancedUI.logError(`❌ Failed to create Docker network: ${createError.message}`)
+        advancedUI.logError(`✖ Failed to create Docker network: ${createError.message}`)
       }
     }
   }

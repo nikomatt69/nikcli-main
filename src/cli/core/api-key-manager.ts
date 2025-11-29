@@ -96,7 +96,7 @@ export class APIKeyManager {
 
       console.log(chalk.green(`✅ Saved ${provider} API key to config`))
     } catch (error) {
-      console.error(chalk.red(`❌ Failed to save API key: ${error instanceof Error ? error.message : 'Unknown error'}`))
+      console.error(chalk.red(`✖ Failed to save API key: ${error instanceof Error ? error.message : 'Unknown error'}`))
     }
   }
 
@@ -229,7 +229,7 @@ export class APIKeyManager {
 
     for (const provider of providers) {
       const source = this.getAPIKeySource(provider)
-      const icon = source !== 'none' ? '✅' : '❌'
+      const icon = source !== 'none' ? '✅' : '✖'
       const sourceLabel = {
         env: chalk.blue('(local env)'),
         config: chalk.cyan('(config file)'),
@@ -299,7 +299,7 @@ export class APIKeyManager {
       }
     } catch (error) {
       console.error(
-        chalk.red(`❌ Failed to remove API key: ${error instanceof Error ? error.message : 'Unknown error'}`)
+        chalk.red(`✖ Failed to remove API key: ${error instanceof Error ? error.message : 'Unknown error'}`)
       )
     }
   }

@@ -525,7 +525,7 @@ You are a backend specialist focusing on:
       console.log(chalk.green(`✓ Created sample ${type} guidance file: ${targetPath}`))
       return targetPath
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to create guidance file: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to create guidance file: ${error.message}`))
       throw error
     }
   }

@@ -233,7 +233,7 @@ export class CodingAgent extends CognitiveAgentBase {
       }
     } catch (error: any) {
       const executionTime = Date.now() - startTime
-      CliUI.logError(`❌ Coding task failed: ${error.message}`)
+      CliUI.logError(`✖ Coding task failed: ${error.message}`)
       this.updateCognitiveMemory(cognition, { error: error.message }, false)
 
       return {
@@ -304,7 +304,7 @@ export class CodingAgent extends CognitiveAgentBase {
 
       return codingCognition
     } catch (error: any) {
-      CliUI.logError(`❌ Failed to enhance Coding cognition: ${error.message}`)
+      CliUI.logError(`✖ Failed to enhance Coding cognition: ${error.message}`)
       return cognition
     }
   }

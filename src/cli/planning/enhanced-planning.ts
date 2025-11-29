@@ -436,7 +436,7 @@ export class EnhancedPlanningSystem {
       try { await this.sendPlanCompletionNotification(plan, failedCount === 0) } catch { }
     } catch (error: any) {
       plan.status = 'failed'
-      advancedUI.logError(`Enhanced plan execution failed: ${error.message}`, '❌')
+      advancedUI.logError(`Enhanced plan execution failed: ${error.message}`, '✖')
       try { await this.sendPlanCompletionNotification(plan, false) } catch { }
     } finally {
       // Always return to default mode after plan execution
@@ -523,15 +523,15 @@ export class EnhancedPlanningSystem {
                 inquirer,
                 inputQueue
               )
-          if (!approved) {
-            // Skip this todo and continue with the rest
-            todo.status = 'skipped'
-            try {
-              await this.updateStoreForTodo(plan, todo.id, 'cancelled')
-            } catch { }
-            try { await this.sendTaskCompletionOrFailure(plan, todo, false, 'Skipped by user approval') } catch { }
-            continue
-          }
+              if (!approved) {
+                // Skip this todo and continue with the rest
+                todo.status = 'skipped'
+                try {
+                  await this.updateStoreForTodo(plan, todo.id, 'cancelled')
+                } catch { }
+                try { await this.sendTaskCompletionOrFailure(plan, todo, false, 'Skipped by user approval') } catch { }
+                continue
+              }
               await runCmd.execute(cmd)
             }
           }
@@ -626,7 +626,7 @@ export class EnhancedPlanningSystem {
         } catch (err: any) {
           // On any failure, mark as cancelled to keep flow going
           if (!compact)
-            advancedUI.logError(`   ❌ Toolchain failed for todo '${todo.title}': ${err?.message || err}`)
+            advancedUI.logError(`   ✖ Toolchain failed for todo '${todo.title}': ${err?.message || err}`)
           todo.status = 'failed'
           todo.errorMessage = String(err?.message || err)
           try {
@@ -705,7 +705,7 @@ export class EnhancedPlanningSystem {
           message: 'Approve this operation?',
           choices: [
             { name: '✓ Yes, continue', value: true },
-            { name: '❌ No, stop plan', value: false },
+            { name: '✖ No, stop plan', value: false },
           ],
           // Default to Yes for smoother flow; user can still reject
           default: 0,
@@ -905,7 +905,7 @@ Generate a comprehensive plan that is practical and executable.`,
       advancedUI.logSuccess(`Generated ${todos.length} todos`, '✓')
       return todos
     } catch (error: any) {
-      advancedUI.logError(`Failed to generate AI plan: ${error.message}`, '❌')
+      advancedUI.logError(`Failed to generate AI plan: ${error.message}`, '✖')
       if (lastModelOutput) {
         const preview = lastModelOutput.replace(/```/g, '```').slice(0, 400)
         advancedUI.logInfo(
@@ -1218,7 +1218,7 @@ Generate a comprehensive plan that is practical and executable.`,
       case 'in_progress':
         return '⚡︎'
       case 'failed':
-        return '❌'
+        return '✖'
       case 'skipped':
         return '⏭️'
       default:
@@ -1233,7 +1233,7 @@ Generate a comprehensive plan that is practical and executable.`,
       case 'in_progress':
         return '⚡︎'
       case 'failed':
-        return '❌'
+        return '✖'
       case 'skipped':
         return '⏭️'
       default:
@@ -1428,7 +1428,7 @@ Generate a comprehensive plan that is practical and executable.`,
       if (plan) {
         this.displayEnhancedPlan(plan)
       } else {
-        advancedUI.logError(`Plan ${planId} not found`, '❌')
+        advancedUI.logError(`Plan ${planId} not found`, '✖')
       }
     } else {
       const plans = this.getActivePlans()

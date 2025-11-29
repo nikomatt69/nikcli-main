@@ -81,7 +81,7 @@ export class DocumentationLibrary {
 
       return entry
     } catch (error: any) {
-      console.error(chalk.red(`❌ Failed to add documentation: ${error.message}`))
+      console.error(chalk.red(`✖ Failed to add documentation: ${error.message}`))
       throw error
     }
   }
@@ -149,7 +149,7 @@ export class DocumentationLibrary {
 
       return webResults
     } catch (error) {
-      console.error(chalk.red(`❌ Web search failed: ${error}`))
+      console.error(chalk.red(`✖ Web search failed: ${error}`))
       return localResults // Ritorna risultati locali anche se scarsi
     }
   }

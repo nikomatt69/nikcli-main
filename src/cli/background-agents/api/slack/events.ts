@@ -29,7 +29,7 @@ export default async function handler(req: Request, res: Response) {
     const body = (req as any).rawBody || JSON.stringify(req.body)
 
     if (!verifySlackSignature(body, signature, timestamp)) {
-      console.error('❌ Invalid Slack signature')
+      console.error('✖ Invalid Slack signature')
       return res.status(401).json({ error: 'Invalid signature' })
     }
 
@@ -52,7 +52,7 @@ export default async function handler(req: Request, res: Response) {
       if (event.type === 'app_mention') {
         // Process asynchronously to avoid Slack timeout
         processAppMention(event).catch(error => {
-          console.error('❌ Error processing app_mention:', error)
+          console.error('✖ Error processing app_mention:', error)
         })
 
         // Respond quickly to Slack
@@ -62,7 +62,7 @@ export default async function handler(req: Request, res: Response) {
 
     return res.status(200).json({ ok: true })
   } catch (error: any) {
-    console.error('❌ Slack events endpoint error:', error)
+    console.error('✖ Slack events endpoint error:', error)
     return res.status(500).json({ error: 'Internal server error', message: error.message })
   }
 }
@@ -79,13 +79,13 @@ function verifySlackSignature(body: string, signature: string, timestamp: string
   const currentTime = Math.floor(Date.now() / 1000)
   const requestTime = parseInt(timestamp, 10)
   if (Math.abs(currentTime - requestTime) > 300) {
-    console.error('❌ Slack request timestamp too old')
+    console.error('✖ Slack request timestamp too old')
     return false
   }
 
   const signingSecret = process.env.SLACK_SIGNING_SECRET
   if (!signingSecret) {
-    console.error('❌ SLACK_SIGNING_SECRET not configured')
+    console.error('✖ SLACK_SIGNING_SECRET not configured')
     return false
   }
 
@@ -109,7 +109,7 @@ async function processAppMention(event: any): Promise<void> {
   try {
     // Initialize Slack service
     if (!process.env.SLACK_BOT_TOKEN || !process.env.SLACK_SIGNING_SECRET) {
-      console.error('❌ Slack credentials not configured')
+      console.error('✖ Slack credentials not configured')
       return
     }
 
@@ -133,7 +133,7 @@ async function processAppMention(event: any): Promise<void> {
 
     console.log(`✅ @nikcli mention processed successfully`)
   } catch (error: any) {
-    console.error('❌ Error in processAppMention:', error)
+    console.error('✖ Error in processAppMention:', error)
     throw error
   }
 }

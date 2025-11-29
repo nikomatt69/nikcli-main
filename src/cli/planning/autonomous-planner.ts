@@ -158,7 +158,7 @@ export class AutonomousPlanner extends EventEmitter {
         type: 'plan_failed',
         planId,
         error: error.message,
-        content: `❌ Planning failed: ${error.message}`,
+        content: `✖ Planning failed: ${error.message}`,
       }
     }
   }
@@ -382,7 +382,7 @@ IMPORTANT: Only use tools that are actually available. Be specific about file pa
               type: 'todo_complete',
               planId: mutablePlan.id,
               todoId: todo.id,
-              content: `❌ Failed: ${todo.title} - ${error.message}`,
+              content: `✖ Failed: ${todo.title} - ${error.message}`,
               error: error.message,
             }
 
@@ -413,7 +413,7 @@ IMPORTANT: Only use tools that are actually available. Be specific about file pa
       yield {
         type: 'plan_failed',
         planId: mutablePlan.id,
-        content: `❌ Plan failed: ${error.message}`,
+        content: `✖ Plan failed: ${error.message}`,
         error: error.message,
       }
     } finally {

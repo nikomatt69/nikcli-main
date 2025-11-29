@@ -159,7 +159,7 @@ export class VMSessionManager extends EventEmitter implements VMEventEmitter {
       this.emit('message_sent', sessionId, message)
       return true
     } catch (error: any) {
-      console.error(chalk.red(`❌ Failed to send message to session ${sessionId}: ${error.message}`))
+      console.error(chalk.red(`✖ Failed to send message to session ${sessionId}: ${error.message}`))
       throw error
     }
   }
@@ -170,7 +170,7 @@ export class VMSessionManager extends EventEmitter implements VMEventEmitter {
   async receiveMessage(message: VMMessage): Promise<void> {
     const session = this.sessions.get(message.sessionId)
     if (!session) {
-      console.error(chalk.red(`❌ Received message for unknown session: ${message.sessionId}`))
+      console.error(chalk.red(`✖ Received message for unknown session: ${message.sessionId}`))
       return
     }
 
@@ -193,7 +193,7 @@ export class VMSessionManager extends EventEmitter implements VMEventEmitter {
         '📥'
       )
     } catch (error: any) {
-      advancedUI.logFunctionUpdate('error', `Error processing received message: ${error.message}`, '❌')
+      advancedUI.logFunctionUpdate('error', `Error processing received message: ${error.message}`, '✖')
     }
   }
 
@@ -219,7 +219,7 @@ export class VMSessionManager extends EventEmitter implements VMEventEmitter {
 
       this.emit('session_ended', sessionId, reason)
     } catch (error: any) {
-      advancedUI.logFunctionUpdate('error', `Error ending session ${sessionId}: ${error.message}`, '❌')
+      advancedUI.logFunctionUpdate('error', `Error ending session ${sessionId}: ${error.message}`, '✖')
     }
   }
 
@@ -359,7 +359,7 @@ export class VMSessionManager extends EventEmitter implements VMEventEmitter {
       this.messageQueues.set(sessionId, [])
       console.log(chalk.cyan(`📫 Processed ${queue.length} queued messages for session ${sessionId}`))
     } catch (error: any) {
-      console.error(chalk.red(`❌ Error processing queued messages: ${error.message}`))
+      console.error(chalk.red(`✖ Error processing queued messages: ${error.message}`))
     }
   }
 

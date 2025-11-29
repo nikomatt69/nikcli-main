@@ -1323,7 +1323,7 @@ export class ValidatorManager extends EventEmitter {
     }
 
     if (errors.length > 0) {
-      advancedUI.logError(`${prefix}❌ ${fileName} - ${errors.length} error(s):`)
+      advancedUI.logError(`${prefix}✖ ${fileName} - ${errors.length} error(s):`)
       errors.forEach((error, index) => {
         console.log(chalk.red(`   ${index + 1}. ${error}`))
       })

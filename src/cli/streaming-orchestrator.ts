@@ -290,7 +290,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
       } else {
         this.queueMessage({
           type: 'error',
-          content: `❌ Agent ${task.agentType} failed: ${task.error}`,
+          content: `✖ Agent ${task.agentType} failed: ${task.error}`,
           metadata: { agentId: task.id, error: task.error },
         })
       }
@@ -417,7 +417,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
     } catch (error: any) {
       this.queueMessage({
         type: 'error',
-        content: `❌ Error processing message: ${error.message}`,
+        content: `✖ Error processing message: ${error.message}`,
       })
     } finally {
       message.status = 'completed'
@@ -502,7 +502,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
       default:
         this.queueMessage({
           type: 'error',
-          content: `❌ Unknown command: ${cmd}. Try /help or /commands.`,
+          content: `✖ Unknown command: ${cmd}. Try /help or /commands.`,
         })
     }
   }
@@ -511,7 +511,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
     if (!task) {
       this.queueMessage({
         type: 'error',
-        content: `❌ Agent ${agentName} requires a task description`,
+        content: `✖ Agent ${agentName} requires a task description`,
       })
       return
     }
@@ -553,7 +553,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
     } catch (error: any) {
       this.queueMessage({
         type: 'error',
-        content: `❌ Failed to launch ${agentName}: ${error.message}`,
+        content: `✖ Failed to launch ${agentName}: ${error.message}`,
       })
     }
   }
@@ -666,12 +666,12 @@ class StreamingOrchestratorImpl extends EventEmitter {
             }
           } catch (streamError: any) {
             retryCount++
-            advancedUI.logError('info', `❌ Streaming error attempt ${retryCount}: ${streamError.message}`)
+            advancedUI.logError('info', `✖ Streaming error attempt ${retryCount}: ${streamError.message}`)
 
             if (retryCount >= maxRetries) {
               this.queueMessage({
                 type: 'error',
-                content: `❌ VM Agent streaming failed after ${maxRetries} attempts: ${streamError.message}`,
+                content: `✖ VM Agent streaming failed after ${maxRetries} attempts: ${streamError.message}`,
               })
               hasContent = false
               break
@@ -717,7 +717,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
     } catch (error: any) {
       this.queueMessage({
         type: 'error',
-        content: `❌ VM Agent chat error: ${error.message}`,
+        content: `✖ VM Agent chat error: ${error.message}`,
       })
     }
     // Ensure prompt is restored after VM agent chat completes
@@ -766,7 +766,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
       } catch (error: any) {
         this.queueMessage({
           type: 'error',
-          content: `❌ Planning failed: ${error.message}`,
+          content: `✖ Planning failed: ${error.message}`,
         })
       }
     } else {
@@ -846,8 +846,8 @@ class StreamingOrchestratorImpl extends EventEmitter {
         chunkType = 'tool'
         break
       case 'error':
-        prefix = '❌'
-        markdownContent = `> ❌ **Error**\n> ${content.replace(/\n/g, '\n> ')}\n`
+        prefix = '✖'
+        markdownContent = `> ✖ **Error**\n> ${content.replace(/\n/g, '\n> ')}\n`
         chunkType = 'error'
         break
       case 'diff':
@@ -1041,10 +1041,10 @@ class StreamingOrchestratorImpl extends EventEmitter {
 
     // Adaptive features status
     console.log(chalk.cyan.bold('\\n🔨 Adaptive Features:'))
-    console.log(`${chalk.blue('Adaptive Supervision:')} ${this.context.adaptiveSupervision ? '✓' : '❌'}`)
-    console.log(`${chalk.blue('Intelligent Prioritization:')} ${this.context.intelligentPrioritization ? '✓' : '❌'}`)
-    console.log(chalk.hex('#4a4a4a')(`Cognitive Filtering: ${this.context.cognitiveFiltering ? '✓' : '❌'}`))
-    console.log(`${chalk.blue('Orchestration Awareness:')} ${this.context.orchestrationAwareness ? '✓' : '❌'}`)
+    console.log(`${chalk.blue('Adaptive Supervision:')} ${this.context.adaptiveSupervision ? '✓' : '✖'}`)
+    console.log(`${chalk.blue('Intelligent Prioritization:')} ${this.context.intelligentPrioritization ? '✓' : '✖'}`)
+    console.log(chalk.hex('#4a4a4a')(`Cognitive Filtering: ${this.context.cognitiveFiltering ? '✓' : '✖'}`))
+    console.log(`${chalk.blue('Orchestration Awareness:')} ${this.context.orchestrationAwareness ? '✓' : '✖'}`)
 
     // Input queue status
     console.log(chalk.cyan.bold('\\n📥 Input Processing:'))
@@ -1150,7 +1150,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
     } catch (error: any) {
       this.queueMessage({
         type: 'error',
-        content: `❌ VM cleanup error: ${error.message}`,
+        content: `✖ VM cleanup error: ${error.message}`,
       })
     }
   }
@@ -1480,7 +1480,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
       process.env.ANTHROPIC_API_KEY || process.env.OPENAI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY
     if (!hasAny) {
       console.log(
-        chalk.red('❌ No API keys found. Please set ANTHROPIC_API_KEY, OPENAI_API_KEY, or GOOGLE_GENERATIVE_AI_API_KEY')
+        chalk.red('✖ No API keys found. Please set ANTHROPIC_API_KEY, OPENAI_API_KEY, or GOOGLE_GENERATIVE_AI_API_KEY')
       )
       return false
     }

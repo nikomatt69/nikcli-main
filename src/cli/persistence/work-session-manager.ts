@@ -269,7 +269,7 @@ export class WorkSessionManager extends EventEmitter {
         try {
           await queuedSave()
         } catch (error) {
-          console.log(chalk.red(`❌ Queued save failed: ${error}`))
+          console.log(chalk.red(`✖ Queued save failed: ${error}`))
         }
       }
     }
@@ -304,29 +304,29 @@ export class WorkSessionManager extends EventEmitter {
         if (existsSync(backupPath)) {
           try {
             await fs.unlink(backupPath)
-          } catch {}
+          } catch { }
         }
         this.emit('session_saved', session)
       } catch (renameError) {
         try {
           if (existsSync(tempPath)) await fs.unlink(tempPath)
-        } catch {}
+        } catch { }
         throw renameError
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to save session: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to save session: ${error.message}`))
       const sessionPath = this.getSessionPath(session.id)
       const backupPath = `${sessionPath}.backup`
       const tempPath = `${sessionPath}.tmp`
       try {
         if (existsSync(tempPath)) await fs.unlink(tempPath)
-      } catch {}
+      } catch { }
       if (existsSync(backupPath)) {
         try {
           await fs.copyFile(backupPath, sessionPath)
           console.log(chalk.yellow('✓ Restored from backup'))
         } catch {
-          console.log(chalk.red('❌ Could not restore from backup'))
+          console.log(chalk.red('✖ Could not restore from backup'))
         }
       }
       throw error
@@ -342,7 +342,7 @@ export class WorkSessionManager extends EventEmitter {
       this.emit('session_loaded', session)
       return session
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to load session: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to load session: ${error.message}`))
       return null
     }
   }
@@ -396,7 +396,7 @@ export class WorkSessionManager extends EventEmitter {
       sessions.sort((a, b) => new Date(b.lastAccessedAt).getTime() - new Date(a.lastAccessedAt).getTime())
       return sessions
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to list sessions: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to list sessions: ${error.message}`))
       return []
     }
   }
@@ -410,7 +410,7 @@ export class WorkSessionManager extends EventEmitter {
       console.log(chalk.green(`✓ Session deleted: ${sessionId}`))
       return true
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to delete session: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to delete session: ${error.message}`))
       return false
     }
   }
@@ -429,7 +429,7 @@ export class WorkSessionManager extends EventEmitter {
       console.log(chalk.green(`🧹 Cleaned up ${deletedCount} old sessions`))
       return deletedCount
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to cleanup sessions: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to cleanup sessions: ${error.message}`))
       return 0
     }
   }

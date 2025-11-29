@@ -88,7 +88,7 @@ export class BrowserChatBridge extends EventEmitter {
 
     } catch (error: any) {
       this.currentMode = 'error'
-      advancedUI.logFunctionUpdate('error', `Failed to start browser mode: ${error.message}`, '❌')
+      advancedUI.logFunctionUpdate('error', `Failed to start browser mode: ${error.message}`, '✖')
 
       const result: BrowserModeResult = {
         success: false,
@@ -178,7 +178,7 @@ export class BrowserChatBridge extends EventEmitter {
       return response
 
     } catch (error: any) {
-      advancedUI.logFunctionUpdate('error', `Chat processing failed: ${error.message}`, '❌')
+      advancedUI.logFunctionUpdate('error', `Chat processing failed: ${error.message}`, '✖')
 
       const response: BrowserChatResponse = {
         success: false,
@@ -368,7 +368,7 @@ export class BrowserChatBridge extends EventEmitter {
 
     } catch (error: any) {
       this.currentMode = 'error'
-      advancedUI.logFunctionUpdate('error', `Failed to exit browser mode: ${error.message}`, '❌')
+      advancedUI.logFunctionUpdate('error', `Failed to exit browser mode: ${error.message}`, '✖')
       throw error
     }
   }

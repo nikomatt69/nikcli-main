@@ -163,7 +163,7 @@ export class RedisProvider extends EventEmitter {
     this.isConnected = false
     this.connectionAttempts++
 
-    console.log(chalk.red(`❌ Redis connection failed (attempt ${this.connectionAttempts}): ${error.message}`))
+    console.log(chalk.red(`✖ Redis connection failed (attempt ${this.connectionAttempts}): ${error.message}`))
 
     // Provide context-specific troubleshooting info
     if (this.config.host && this.config.port) {
@@ -305,7 +305,7 @@ export class RedisProvider extends EventEmitter {
 
       return true
     } catch (error) {
-      console.log(chalk.red(`❌ Redis SET failed for key ${key}: ${(error as Error).message}`))
+      console.log(chalk.red(`✖ Redis SET failed for key ${key}: ${(error as Error).message}`))
       throw error
     }
   }
@@ -355,7 +355,7 @@ export class RedisProvider extends EventEmitter {
 
       return entry
     } catch (error) {
-      console.log(chalk.red(`❌ Redis GET failed for key ${key}: ${(error as Error).message}`))
+      console.log(chalk.red(`✖ Redis GET failed for key ${key}: ${(error as Error).message}`))
       throw error
     }
   }
@@ -382,7 +382,7 @@ export class RedisProvider extends EventEmitter {
 
       return result > 0
     } catch (error) {
-      console.log(chalk.red(`❌ Redis DEL failed for key ${key}: ${(error as Error).message}`))
+      console.log(chalk.red(`✖ Redis DEL failed for key ${key}: ${(error as Error).message}`))
       throw error
     }
   }
@@ -409,7 +409,7 @@ export class RedisProvider extends EventEmitter {
 
       return result > 0
     } catch (error) {
-      console.log(chalk.red(`❌ Redis EXISTS failed for key ${key}: ${(error as Error).message}`))
+      console.log(chalk.red(`✖ Redis EXISTS failed for key ${key}: ${(error as Error).message}`))
       throw error
     }
   }
@@ -440,7 +440,7 @@ export class RedisProvider extends EventEmitter {
       }
       return result
     } catch (error) {
-      console.log(chalk.red(`❌ Redis KEYS failed for pattern ${pattern}: ${(error as Error).message}`))
+      console.log(chalk.red(`✖ Redis KEYS failed for pattern ${pattern}: ${(error as Error).message}`))
       throw error
     }
   }
@@ -497,7 +497,7 @@ export class RedisProvider extends EventEmitter {
         throw new Error('No Redis client available')
       }
     } catch (error) {
-      console.log(chalk.red(`❌ Redis FLUSH failed: ${(error as Error).message}`))
+      console.log(chalk.red(`✖ Redis FLUSH failed: ${(error as Error).message}`))
       throw error
     }
   }
@@ -795,7 +795,7 @@ export class RedisProvider extends EventEmitter {
 
       return true
     } catch (error) {
-      console.log(chalk.red(`❌ Vector cache clear failed: ${(error as Error).message}`))
+      console.log(chalk.red(`✖ Vector cache clear failed: ${(error as Error).message}`))
       return false
     }
   }

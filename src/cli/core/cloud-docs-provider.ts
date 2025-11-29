@@ -116,7 +116,7 @@ export class CloudDocsProvider {
       this.isInitialized = true
 
     } catch (error: any) {
-      structuredLogger.error('Docs Cloud', `❌ Failed to initialize Supabase: ${error.message}`)
+      structuredLogger.error('Docs Cloud', `✖ Failed to initialize Supabase: ${error.message}`)
     }
   }
 
@@ -161,7 +161,7 @@ export class CloudDocsProvider {
       console.log(chalk.green(`✓ Sync completed: ${downloaded} downloaded, ${uploaded} uploaded`))
       return { downloaded, uploaded }
     } catch (error: any) {
-      console.error(chalk.red(`❌ Sync failed: ${error.message}`))
+      console.error(chalk.red(`✖ Sync failed: ${error.message}`))
       throw error
     }
   }
@@ -198,7 +198,7 @@ export class CloudDocsProvider {
       console.log(chalk.green(`✓ Published: ${data.title}`))
       return data as SharedDocEntry
     } catch (error: any) {
-      console.error(chalk.red(`❌ Publish failed: ${error.message}`))
+      console.error(chalk.red(`✖ Publish failed: ${error.message}`))
       throw error
     }
   }
@@ -230,7 +230,7 @@ export class CloudDocsProvider {
 
       return data || []
     } catch (error: any) {
-      console.error(chalk.red(`❌ Search failed: ${error.message}`))
+      console.error(chalk.red(`✖ Search failed: ${error.message}`))
       throw error
     }
   }
@@ -256,7 +256,7 @@ export class CloudDocsProvider {
 
       return data || []
     } catch (error: any) {
-      console.error(chalk.red(`❌ Failed to get popular libraries: ${error.message}`))
+      console.error(chalk.red(`✖ Failed to get popular libraries: ${error.message}`))
       return []
     }
   }
@@ -301,7 +301,7 @@ export class CloudDocsProvider {
       console.log(chalk.green(`✓ Installed ${docs?.length || 0} documents from '${libraryName}'`))
       return docs || []
     } catch (error: any) {
-      console.error(chalk.red(`❌ Install failed: ${error.message}`))
+      console.error(chalk.red(`✖ Install failed: ${error.message}`))
       throw error
     }
   }

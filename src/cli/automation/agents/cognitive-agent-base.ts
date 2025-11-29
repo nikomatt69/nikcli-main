@@ -120,7 +120,7 @@ export abstract class CognitiveAgentBase extends BaseAgent implements CognitiveC
 
       return cognition
     } catch (error: any) {
-      CliUI.logError(`❌ Cognitive parsing failed: ${error.message}`)
+      CliUI.logError(`✖ Cognitive parsing failed: ${error.message}`)
 
       // Return minimal cognition on error
       return {
@@ -185,7 +185,7 @@ export abstract class CognitiveAgentBase extends BaseAgent implements CognitiveC
 
       return plan
     } catch (error: any) {
-      CliUI.logError(`❌ Orchestration planning failed: ${error.message}`)
+      CliUI.logError(`✖ Orchestration planning failed: ${error.message}`)
       throw error
     }
   }
@@ -222,7 +222,7 @@ export abstract class CognitiveAgentBase extends BaseAgent implements CognitiveC
 
       CliUI.logDebug(`📊 Cognitive memory updated: ${success ? 'SUCCESS' : 'FAILURE'} for ${patternKey}`)
     } catch (error: any) {
-      CliUI.logError(`❌ Failed to update cognitive memory: ${error.message}`)
+      CliUI.logError(`✖ Failed to update cognitive memory: ${error.message}`)
     }
   }
 
@@ -274,7 +274,7 @@ export abstract class CognitiveAgentBase extends BaseAgent implements CognitiveC
 
       CliUI.logDebug(`💡 Generated ${optimizations.length} optimization suggestions`)
     } catch (error: any) {
-      CliUI.logError(`❌ Failed to generate optimizations: ${error.message}`)
+      CliUI.logError(`✖ Failed to generate optimizations: ${error.message}`)
     }
 
     return optimizations

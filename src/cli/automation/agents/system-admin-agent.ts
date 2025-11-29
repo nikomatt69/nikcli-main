@@ -232,7 +232,7 @@ Generate a structured plan with commands to execute.`,
         })
 
         if (result.code !== 0) {
-          console.log(chalk.red(`❌ Command failed: ${cmd.command}`))
+          console.log(chalk.red(`✖ Command failed: ${cmd.command}`))
           console.log(chalk.gray('Stopping execution due to failure'))
           break
         } else {
@@ -248,7 +248,7 @@ Generate a structured plan with commands to execute.`,
         total: (planResult.commands || []).length,
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Error planning commands: ${error.message}`))
+      console.log(chalk.red(`✖ Error planning commands: ${error.message}`))
       return {
         success: false,
         error: error.message,
@@ -286,7 +286,7 @@ Generate a structured plan with commands to execute.`,
 
     console.log(chalk.blue.bold(`\n📊 Installation Summary:`))
     console.log(chalk.green(`✓ Successful: ${successful}`))
-    console.log(chalk.red(`❌ Failed: ${failed}`))
+    console.log(chalk.red(`✖ Failed: ${failed}`))
 
     return {
       success: failed === 0,
@@ -353,7 +353,7 @@ Generate a structured plan with commands to execute.`,
     if (result.success) {
       console.log(chalk.green('✓ Script executed successfully'))
     } else {
-      console.log(chalk.red('❌ Script execution failed'))
+      console.log(chalk.red('✖ Script execution failed'))
     }
 
     console.log(chalk.blue('Output:'))
@@ -446,7 +446,7 @@ Generate a structured plan with commands to execute.`,
       }
     } catch (error: any) {
       const executionTime = Date.now() - startTime
-      CliUI.logError(`❌ System Admin task failed: ${error.message}`)
+      CliUI.logError(`✖ System Admin task failed: ${error.message}`)
       this.updateCognitiveMemory(cognition, { error: error.message }, false)
 
       return {
@@ -475,7 +475,7 @@ Generate a structured plan with commands to execute.`,
 
       return systemAdminCognition
     } catch (error: any) {
-      CliUI.logError(`❌ Failed to enhance System Admin cognition: ${error.message}`)
+      CliUI.logError(`✖ Failed to enhance System Admin cognition: ${error.message}`)
       return cognition
     }
   }
@@ -575,7 +575,7 @@ Generate working commands, scripts, and configurations.`
       )
       return implementation
     } catch (error: any) {
-      CliUI.logError(`❌ System administration failed: ${error.message}`)
+      CliUI.logError(`✖ System administration failed: ${error.message}`)
       throw error
     }
   }

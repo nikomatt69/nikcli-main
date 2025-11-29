@@ -128,7 +128,7 @@ export class PromptRegistry {
         this.logRegistryStats()
       }
     } catch (error: any) {
-      advancedUI.logError(`❌ Prompt Registry initialization failed: ${error.message}`)
+      advancedUI.logError(`✖ Prompt Registry initialization failed: ${error.message}`)
       throw error
     }
   }
@@ -160,7 +160,7 @@ export class PromptRegistry {
 
       advancedUI.logSuccess(`⚡︎ Registered prompt: ${promptMetadata.name} (${promptId})`)
     } catch (error: any) {
-      advancedUI.logError(`❌ Failed to register prompt ${promptId}: ${error.message}`)
+      advancedUI.logError(`✖ Failed to register prompt ${promptId}: ${error.message}`)
       throw error
     }
   }
@@ -190,7 +190,7 @@ export class PromptRegistry {
 
       return compiledPrompt
     } catch (error: any) {
-      advancedUI.logError(`❌ Failed to get prompt ${promptId}: ${error.message}`)
+      advancedUI.logError(`✖ Failed to get prompt ${promptId}: ${error.message}`)
       throw error
     }
   }

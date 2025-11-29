@@ -104,12 +104,12 @@ export class PolymarketRTDS extends EventEmitter {
             const message = JSON.parse(event.data) as RTDSMessage
             this.handleMessage(message)
           } catch (error) {
-            console.error('❌ Failed to parse RTDS message:', error)
+            console.error('✖ Failed to parse RTDS message:', error)
           }
         }
 
         this.ws.onerror = (error) => {
-          console.error('❌ RTDS connection error:', error)
+          console.error('✖ RTDS connection error:', error)
           this.emit('error', error)
           reject(error)
         }
@@ -186,7 +186,7 @@ export class PolymarketRTDS extends EventEmitter {
 
       this.emit('subscribed', { topic })
     } catch (error) {
-      console.error(`❌ Failed to subscribe to ${topic}:`, error)
+      console.error(`✖ Failed to subscribe to ${topic}:`, error)
       this.subscriptions.delete(topic)
     }
   }
@@ -212,7 +212,7 @@ export class PolymarketRTDS extends EventEmitter {
       console.log(`✓ Unsubscribed from: ${topic}`)
       this.emit('unsubscribed', { topic })
     } catch (error) {
-      console.error(`❌ Failed to unsubscribe from ${topic}:`, error)
+      console.error(`✖ Failed to unsubscribe from ${topic}:`, error)
     }
   }
 
@@ -288,7 +288,7 @@ export class PolymarketRTDS extends EventEmitter {
         console.log(`✓ Subscription confirmed: ${message.payload.topic}`)
         break
       case 'error':
-        console.error('❌ RTDS error:', message.payload)
+        console.error('✖ RTDS error:', message.payload)
         this.emit('rtdsError', message.payload)
         break
     }
@@ -309,7 +309,7 @@ export class PolymarketRTDS extends EventEmitter {
    */
   private scheduleReconnect(): void {
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.error('❌ Max reconnection attempts reached')
+      console.error('✖ Max reconnection attempts reached')
       this.emit('maxReconnectAttemptsReached')
       return
     }
@@ -329,7 +329,7 @@ export class PolymarketRTDS extends EventEmitter {
           this.reconnectAttempts = 0
         })
         .catch((error) => {
-          console.error('❌ Reconnection failed:', error)
+          console.error('✖ Reconnection failed:', error)
           this.scheduleReconnect()
         })
     }, delay)
@@ -348,7 +348,7 @@ export class PolymarketRTDS extends EventEmitter {
         try {
           this.ws.send(JSON.stringify(pingMessage))
         } catch (error) {
-          console.error('❌ Failed to send ping:', error)
+          console.error('✖ Failed to send ping:', error)
         }
       }
     }, 5000)

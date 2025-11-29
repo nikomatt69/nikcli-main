@@ -62,7 +62,7 @@ export class SnapshotService extends EventEmitter {
 
       this.emit('initialized')
     } catch (error: any) {
-      structuredLogger.error('Snapshot Service', `❌ Snapshot Service initialization failed: ${error.message}`)
+      structuredLogger.error('Snapshot Service', `✖ Snapshot Service initialization failed: ${error.message}`)
       throw error
     }
   }
@@ -423,7 +423,7 @@ export class SnapshotService extends EventEmitter {
         // Reschedule
         this.scheduleTemplate(name, template)
       } catch (error: any) {
-        console.log(chalk.red(`❌ Scheduled snapshot failed: ${error.message}`))
+        console.log(chalk.red(`✖ Scheduled snapshot failed: ${error.message}`))
       }
     }, scheduleMs)
 

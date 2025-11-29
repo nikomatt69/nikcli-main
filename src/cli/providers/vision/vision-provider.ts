@@ -154,7 +154,7 @@ export class VisionProvider extends EventEmitter {
       result.metadata.model_used = provider
       return result
     } catch (error: any) {
-      console.log(chalk.red(`❌ Vision analysis failed: ${error.message}`))
+      console.log(chalk.red(`✖ Vision analysis failed: ${error.message}`))
       this.emit('analysis_failed', { provider, error, imagePath })
       throw error
     }

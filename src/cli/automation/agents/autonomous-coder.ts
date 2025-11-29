@@ -72,20 +72,19 @@ export class AutonomousCoder extends BaseAgent {
 Framework: ${analysis.framework || 'Unknown'}
 Technologies: ${analysis.technologies.join(', ')}
 Structure: ${JSON.stringify(analysis.structure, null, 2)}
-Package Info: ${
-          analysis.packageInfo
+Package Info: ${analysis.packageInfo
             ? JSON.stringify(
-                {
-                  name: analysis.packageInfo.name,
-                  version: analysis.packageInfo.version,
-                  scripts: Object.keys(analysis.packageInfo.scripts || {}),
-                  dependencies: Object.keys(analysis.packageInfo.dependencies || {}),
-                },
-                null,
-                2
-              )
+              {
+                name: analysis.packageInfo.name,
+                version: analysis.packageInfo.version,
+                scripts: Object.keys(analysis.packageInfo.scripts || {}),
+                dependencies: Object.keys(analysis.packageInfo.dependencies || {}),
+              },
+              null,
+              2
+            )
             : 'No package.json found'
-        }`,
+          }`,
       },
     ]
 
@@ -197,7 +196,7 @@ Follow the project's existing patterns and conventions.`,
         explanation: planResult.explanation || 'Feature created successfully',
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Error creating feature: ${error.message}`))
+      console.log(chalk.red(`✖ Error creating feature: ${error.message}`))
       return {
         success: false,
         error: error.message,
@@ -301,7 +300,7 @@ ${error.line ? `Line: ${error.line}` : ''}`,
       await toolsManager.editFile(fix.file, fix.changes)
       console.log(chalk.green(`✓ Fix applied: ${fix.explanation}`))
     } catch (_error) {
-      console.log(chalk.red(`❌ Could not apply fix to ${fix.file}`))
+      console.log(chalk.red(`✖ Could not apply fix to ${fix.file}`))
     }
   }
 
@@ -402,7 +401,7 @@ Return JSON with:
     if (result.success) {
       console.log(chalk.green('✓ All tests passed!'))
     } else {
-      console.log(chalk.red('❌ Some tests failed'))
+      console.log(chalk.red('✖ Some tests failed'))
 
       // Try to fix failing tests
       if (result.errors) {

@@ -268,7 +268,7 @@ export class EnhancedTokenCacheManager {
       QuietCacheLogger.logCacheSave(tokensSaved)
       tokenTelemetry.recordCache({ action: 'store', tokensSaved })
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to cache response: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to cache response: ${error.message}`))
     }
   }
 

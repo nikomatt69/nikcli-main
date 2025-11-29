@@ -525,7 +525,7 @@ export class StreamttyService {
   }
 
   private static readonly EMOJI_REPLACEMENTS = new Map([
-    ['✅', '✓'], ['❌', '✗'], ['⚠️', '⚡'], ['⚠', '⚡'], ['⏺', '●'],
+    ['✅', '✓'], ['✖', '✗'], ['⚠️', '⚡'], ['⚠', '⚡'], ['⏺', '●'],
     ['⎿', '└─'], ['🚀', '»'], ['💡', '○'], ['🔍', '◎'], ['📝', '∙'],
     ['🎯', '◉'], ['🔧', '⚙'], ['📊', '▤'], ['🌐', '◈']
   ])
@@ -562,7 +562,7 @@ export class StreamttyService {
     out = out.replace(/⭐/g, '*')
     // Status/indicators → width-1 symbols
     out = out.replace(/✅|✔️|✔|✓/g, '✓')
-      .replace(/❌|✖️|✖|✕|✗/g, '×')
+      .replace(/✖|✖️|✖|✕|✗/g, '×')
       .replace(/⚠️|⚠/g, '!')
       .replace(/🔴|🟠|🟡|🟢|🔵|🟣|⚫️|⚫/g, '●')
       .replace(/⚪️|⚪/g, '○')
@@ -704,11 +704,11 @@ export class StreamttyService {
     // Always use enhanced inline mode - direct stdout with enhanced formatting
     const chunkLines = TerminalOutputManager.calculateLines(processedChunk)
     const outputId = terminalOutputManager.reserveSpace('StreamttyChunk', chunkLines)
-    
+
     // Force immediate flush for streaming (critical for pkg binaries)
     // In pkg binaries, stdout may be buffered, so we need to handle this explicitly
     await this.flushStdout(processedChunk)
-    
+
     terminalOutputManager.confirmOutput(outputId, 'StreamttyChunk', chunkLines, {
       persistent: false,
       expiryMs: 30000,
@@ -1251,7 +1251,7 @@ export class StreamttyService {
         return `\n${statusIcon} ${chalk.bold(event.content)}\n\n`
 
       case 'error':
-        return `\n❌ ${chalk.red.bold('Error')}: ${event.content}\n\n`
+        return `\n✖ ${chalk.red.bold('Error')}: ${event.content}\n\n`
 
       case 'start':
         return `\n🚀 ${chalk.bold('Starting')}...\n\n`
@@ -1272,7 +1272,7 @@ export class StreamttyService {
       'pending': '⏳',
       'running': '🔄',
       'completed': '✅',
-      'failed': '❌',
+      'failed': '✖',
       'info': 'ℹ️',
     }
     return iconMap[status || 'info'] || 'ℹ️'

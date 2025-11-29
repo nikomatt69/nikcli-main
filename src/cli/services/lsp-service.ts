@@ -81,7 +81,7 @@ export class LSPService {
         if (server.status !== 'running' && server.process) {
           try {
             server.process.kill()
-          } catch {}
+          } catch { }
           server.status = 'error'
           console.log(chalk.red(`⏱️  ${server.name} startup timed out`))
         }
@@ -97,7 +97,7 @@ export class LSPService {
 
       process.on('error', (error) => {
         server.status = 'error'
-        console.log(chalk.red(`❌ Failed to start ${server.name}: ${error.message}`))
+        console.log(chalk.red(`✖ Failed to start ${server.name}: ${error.message}`))
         clearTimeout(startupTimeout)
         this.startupTimers.delete(serverName)
       })
@@ -120,7 +120,7 @@ export class LSPService {
       return true
     } catch (error: any) {
       server.status = 'error'
-      console.log(chalk.red(`❌ Failed to start ${server.name}: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to start ${server.name}: ${error.message}`))
       return false
     }
   }
@@ -139,7 +139,7 @@ export class LSPService {
       return true
     } catch (error: any) {
       server.status = 'error'
-      console.log(chalk.red(`❌ Failed to stop ${server.name}: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to stop ${server.name}: ${error.message}`))
       return false
     }
   }

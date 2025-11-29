@@ -75,7 +75,7 @@ export class TaskExecutor {
       })
       console.log('✅ Slack service initialized in TaskExecutor')
     } catch (error) {
-      console.error('❌ Error initializing Slack service:', error)
+      console.error('✖ Error initializing Slack service:', error)
     }
   }
 
@@ -94,7 +94,7 @@ export class TaskExecutor {
 
       return isAvailable
     } catch (error) {
-      console.error('❌ Error detecting background agent service:', error)
+      console.error('✖ Error detecting background agent service:', error)
       console.warn('⚠️  Falling back to local execution mode')
       return false
     }
@@ -133,7 +133,7 @@ export class TaskExecutor {
 
       return result
     } catch (error: any) {
-      console.error(`❌ Task execution failed:`, error)
+      console.error(`✖ Task execution failed:`, error)
 
       // Notify Slack of failure
       await this.notifySlackFailure(job, error)
@@ -627,7 +627,7 @@ export class TaskExecutor {
       console.log('🔍 Executing advanced PR review with automated fixes')
       return await this.prReviewExecutor.reviewAndFixPR(context.job, context.repository, context.originalPR)
     }
-    
+
     // Fallback to generic review
     return this.executeGenericCommand('review', command, context)
   }
@@ -904,44 +904,44 @@ ${result.analysis ? `## Analysis\n${result.analysis}\n` : ''}
         ].concat(
           result.prUrl
             ? [
-                {
-                  type: 'actions',
-                  elements: [
-                    {
-                      type: 'button',
-                      text: {
-                        type: 'plain_text',
-                        text: '👁️ View Results on GitHub',
-                      },
-                      url: `https://github.com/${job.repository}/issues/${job.issueNumber}`,
+              {
+                type: 'actions',
+                elements: [
+                  {
+                    type: 'button',
+                    text: {
+                      type: 'plain_text',
+                      text: '👁️ View Results on GitHub',
                     },
-                    {
-                      type: 'button',
-                      text: {
-                        type: 'plain_text',
-                        text: '🔀 View Pull Request',
-                      },
-                      url: result.prUrl,
-                      style: 'primary',
+                    url: `https://github.com/${job.repository}/issues/${job.issueNumber}`,
+                  },
+                  {
+                    type: 'button',
+                    text: {
+                      type: 'plain_text',
+                      text: '🔀 View Pull Request',
                     },
-                  ],
-                },
-              ]
+                    url: result.prUrl,
+                    style: 'primary',
+                  },
+                ],
+              },
+            ]
             : [
-                {
-                  type: 'actions',
-                  elements: [
-                    {
-                      type: 'button',
-                      text: {
-                        type: 'plain_text',
-                        text: '👁️ View Results on GitHub',
-                      },
-                      url: `https://github.com/${job.repository}/issues/${job.issueNumber}`,
+              {
+                type: 'actions',
+                elements: [
+                  {
+                    type: 'button',
+                    text: {
+                      type: 'plain_text',
+                      text: '👁️ View Results on GitHub',
                     },
-                  ],
-                },
-              ],
+                    url: `https://github.com/${job.repository}/issues/${job.issueNumber}`,
+                  },
+                ],
+              },
+            ],
         ) as any,
       })
 
@@ -965,13 +965,13 @@ ${result.analysis ? `## Analysis\n${result.analysis}\n` : ''}
       await this.slackService.webClient.chat.postMessage({
         channel: process.env.SLACK_DEFAULT_CHANNEL,
         thread_ts: job.slackThreadTs,
-        text: `❌ Task failed`,
+        text: `✖ Task failed`,
         blocks: [
           {
             type: 'section',
             text: {
               type: 'mrkdwn',
-              text: `*❌ Task Failed*\n\`@nikcli ${commandText}\``,
+              text: `*✖ Task Failed*\n\`@nikcli ${commandText}\``,
             },
           },
           {

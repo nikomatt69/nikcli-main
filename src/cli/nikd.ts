@@ -81,7 +81,7 @@ async function startDaemon(options: NikdOptions) {
         console.log(chalk.green('✓ nikd daemon stopped gracefully'))
         process.exit(0)
       } catch (error) {
-        console.error(chalk.red('❌ Error during shutdown:'), error)
+        console.error(chalk.red('✖ Error during shutdown:'), error)
         process.exit(1)
       }
     }
@@ -89,7 +89,7 @@ async function startDaemon(options: NikdOptions) {
     process.on('SIGINT', cleanup)
     process.on('SIGTERM', cleanup)
   } catch (error: any) {
-    console.error(chalk.red('❌ Failed to start nikd daemon:'), error.message)
+    console.error(chalk.red('✖ Failed to start nikd daemon:'), error.message)
     process.exit(1)
   }
 }
@@ -122,7 +122,7 @@ async function main() {
             webhookSecret: options.githubWebhookSecret || '',
           }
         } catch (error) {
-          console.error(chalk.red('❌ Failed to read GitHub private key:'), error)
+          console.error(chalk.red('✖ Failed to read GitHub private key:'), error)
           process.exit(1)
         }
       }
@@ -150,7 +150,7 @@ async function main() {
         console.log(chalk.blue(`⏱️  Uptime: ${Math.round(data.uptime)}s`))
         console.log(chalk.blue(`🕒 Last check: ${data.timestamp}`))
       } catch (_error) {
-        console.log(chalk.red('❌ nikd daemon is not running'))
+        console.log(chalk.red('✖ nikd daemon is not running'))
         console.log(chalk.gray(`   Could not connect to ${options.apiUrl}`))
         process.exit(1)
       }

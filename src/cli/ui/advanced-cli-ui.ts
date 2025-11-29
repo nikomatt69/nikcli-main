@@ -436,7 +436,7 @@ export class AdvancedCliUI {
     const summary = boxen(
       `${chalk.bold('Execution Summary')}\\n\\n` +
       `${chalk.green('✓ Completed:')} ${completed}\\n` +
-      `${chalk.red('❌ Failed:')} ${failed}\\n` +
+      `${chalk.red('✖ Failed:')} ${failed}\\n` +
       `${chalk.yellow('⚠️ Warnings:')} ${warnings}\\n` +
       `${chalk.blue('📊 Total:')} ${indicators.length}\\n\\n` +
       `${chalk.gray('Overall Status:')} ${this.getOverallStatusText()}`,
@@ -734,7 +734,7 @@ export class AdvancedCliUI {
       case 'progress':
         return '▶'
       case 'error':
-        return '❌'
+        return '✖'
       case 'warning':
         return '⚠️'
       case 'info':
@@ -1074,7 +1074,7 @@ export class AdvancedCliUI {
           : t.status === 'in_progress'
             ? '⚡︎'
             : t.status === 'failed'
-              ? '❌'
+              ? '✖'
               : t.status === 'skipped'
                 ? '⏭️'
                 : '⏳'
@@ -1212,7 +1212,7 @@ export class AdvancedCliUI {
     }
 
     const statusIcon = (s: string) =>
-      s === 'completed' ? '✓' : s === 'in_progress' ? '⚡︎' : s === 'failed' ? '❌' : '⏳'
+      s === 'completed' ? '✓' : s === 'in_progress' ? '⚡︎' : s === 'failed' ? '✖' : '⏳'
 
     const fmt = (s: string) => {
       if (s === 'completed') return this.theme.success.strikethrough
@@ -2193,7 +2193,7 @@ export class AdvancedCliUI {
       case 'completed':
         return '✓'
       case 'error':
-        return '❌'
+        return '✖'
       default:
         return '🔌'
     }

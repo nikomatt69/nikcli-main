@@ -209,7 +209,7 @@ export class LSPClient {
       this.isInitialized = true
       console.log(chalk.green(`✓ ${this.serverInfo.name} initialized`))
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to initialize ${this.serverInfo.name}: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to initialize ${this.serverInfo.name}: ${error.message}`))
       throw error
     }
   }
@@ -247,7 +247,7 @@ export class LSPClient {
       this.openFiles.set(absolutePath, 1)
       console.log(chalk.blue(`📖 Opened: ${relative(this.workspaceRoot, absolutePath)}`))
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to open file ${filePath}: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to open file ${filePath}: ${error.message}`))
       throw error
     }
   }
@@ -473,10 +473,10 @@ export class LSPClient {
       // Terminate server process
       try {
         this.server.process.kill()
-      } catch {}
+      } catch { }
       try {
         this.connection.end()
-      } catch {}
+      } catch { }
 
       console.log(chalk.green(`🛑 ${this.serverInfo.name} shutdown`))
     } catch (error: any) {

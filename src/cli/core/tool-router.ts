@@ -932,7 +932,7 @@ export class ToolRouter extends EventEmitter {
 
       return validatedTools
     } catch (error: any) {
-      console.log(chalk.red(`❌ Advanced routing failed: ${error.message}`))
+      console.log(chalk.red(`✖ Advanced routing failed: ${error.message}`))
 
       // Fallback to basic routing
       const basicRecommendations = this.analyzeMessage({ role: 'user', content: context.userIntent })

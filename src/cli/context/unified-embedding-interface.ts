@@ -212,7 +212,7 @@ export class UnifiedEmbeddingInterface {
           }
         }
       } catch (error) {
-        console.error(chalk.red(`❌ Embedding generation failed: ${(error as Error).message}`))
+        console.error(chalk.red(`✖ Embedding generation failed: ${(error as Error).message}`))
         throw error
       }
     }

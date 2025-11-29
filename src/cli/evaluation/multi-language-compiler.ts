@@ -236,7 +236,7 @@ export class MultiLanguageCompiler {
   getCompilationReport(result: CompilationResult): string {
     return [
       chalk.bold(`Compilation Report: ${result.language.toUpperCase()}`),
-      `Status: ${result.success ? chalk.green('✅ SUCCESS') : chalk.red('❌ FAILED')}`,
+      `Status: ${result.success ? chalk.green('✅ SUCCESS') : chalk.red('✖ FAILED')}`,
       `Exit Code: ${result.exitCode}`,
       `Duration: ${result.duration}ms`,
       result.stdout ? `\nOutput:\n${result.stdout}` : '',

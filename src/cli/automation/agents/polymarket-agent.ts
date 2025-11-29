@@ -128,7 +128,7 @@ export class PolymarketAgent extends BaseAgent implements AgentInstance {
       console.log(`✅ ${this.specialization} ready`)
     } catch (error: any) {
       this.status = 'error'
-      console.error('❌ Agent initialization failed:', error.message)
+      console.error('✖ Agent initialization failed:', error.message)
       throw error
     }
   }

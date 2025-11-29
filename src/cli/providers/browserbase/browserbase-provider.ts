@@ -147,7 +147,7 @@ export class BrowserbaseProvider extends EventEmitter {
 
       return session
     } catch (error: any) {
-      console.log(chalk.red(`❌ Session creation failed: ${error.message}`))
+      console.log(chalk.red(`✖ Session creation failed: ${error.message}`))
       this.emit('session_failed', error)
       throw error
     }
@@ -229,7 +229,7 @@ export class BrowserbaseProvider extends EventEmitter {
 
       return content
     } catch (error: any) {
-      console.log(chalk.red(`❌ Navigation failed: ${error.message}`))
+      console.log(chalk.red(`✖ Navigation failed: ${error.message}`))
       this.emit('navigation_failed', { sessionId, url, error })
       throw error
     }
@@ -295,7 +295,7 @@ export class BrowserbaseProvider extends EventEmitter {
 
       return analysis
     } catch (error: any) {
-      console.log(chalk.red(`❌ Content analysis failed: ${error.message}`))
+      console.log(chalk.red(`✖ Content analysis failed: ${error.message}`))
       this.emit('analysis_failed', { content, error, provider })
       throw error
     }

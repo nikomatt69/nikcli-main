@@ -1124,7 +1124,7 @@ class OnboardingModule {
           // Silent failure
         }
       } else {
-        const failureBox = boxen(chalk.red('❌ Sign in failed. Check your credentials and try again.'), {
+        const failureBox = boxen(chalk.red('✖ Sign in failed. Check your credentials and try again.'), {
           padding: 1,
           borderStyle: 'round',
           borderColor: 'red',
@@ -1134,7 +1134,7 @@ class OnboardingModule {
         OnboardingModule.renderSection([header, failureBox])
       }
     } catch (_error: any) {
-      const errorBox = boxen(chalk.red('❌ Sign in error'), {
+      const errorBox = boxen(chalk.red('✖ Sign in error'), {
         padding: 1,
         borderStyle: 'round',
         borderColor: 'red',
@@ -1206,7 +1206,7 @@ class OnboardingModule {
         )
         OnboardingModule.renderSection([header, successBox])
       } else {
-        const failureBox = boxen(chalk.red('❌ Account creation failed. Please try again later.'), {
+        const failureBox = boxen(chalk.red('✖ Account creation failed. Please try again later.'), {
           padding: 1,
           borderStyle: 'round',
           borderColor: 'red',
@@ -1216,7 +1216,7 @@ class OnboardingModule {
         OnboardingModule.renderSection([header, failureBox])
       }
     } catch (_error: any) {
-      const errorBox = boxen(chalk.red('❌ Sign up error'), {
+      const errorBox = boxen(chalk.red('✖ Sign up error'), {
         padding: 1,
         borderStyle: 'round',
         borderColor: 'red',
@@ -1913,11 +1913,11 @@ class MainOrchestrator {
   private setupGlobalHandlers(): void {
     // Global error handler
     process.on('unhandledRejection', (reason, promise) => {
-      advancedUI.logError('❌ Unhandled Rejection: ' + reason)
+      advancedUI.logError('✖ Unhandled Rejection: ' + reason)
     })
 
     process.on('uncaughtException', (error) => {
-      advancedUI.logError('❌ Uncaught Exception: ' + error)
+      advancedUI.logError('✖ Uncaught Exception: ' + error)
       this.gracefulShutdown()
     })
 
@@ -1940,7 +1940,7 @@ class MainOrchestrator {
 
       advancedUI.logSuccess('✓ Orchestrator shut down cleanly')
     } catch (error) {
-      advancedUI.logError('❌ Error during shutdown: ' + error)
+      advancedUI.logError('✖ Error during shutdown: ' + error)
     } finally {
       process.exit(0)
     }
@@ -2004,7 +2004,7 @@ class MainOrchestrator {
         structuredUI: true,
       })
     } catch (error: any) {
-      console.error(chalk.red('❌ Failed to start orchestrator:'), error)
+      console.error(chalk.red('✖ Failed to start orchestrator:'), error)
       process.exit(1)
     }
   }
@@ -2058,7 +2058,7 @@ async function maybeHandleMenubar(argv: string[]): Promise<boolean> {
       if (result.binary) console.log(chalk.gray(`using: ${result.binary}`))
       if (result.message) console.log(result.message)
     } else {
-      console.log(chalk.red('❌ Failed to start menubar'), result.message ? chalk.gray(result.message) : '')
+      console.log(chalk.red('✖ Failed to start menubar'), result.message ? chalk.gray(result.message) : '')
     }
   } catch (error: any) {
     console.error(chalk.red('Failed to control menubar:'), error?.message || error)
@@ -2148,7 +2148,7 @@ async function main() {
 // Start the application
 if (require.main === module) {
   main().catch((error) => {
-    console.error(chalk.red('❌ Startup failed:'), error)
+    console.error(chalk.red('✖ Startup failed:'), error)
     process.exit(1)
   })
 }

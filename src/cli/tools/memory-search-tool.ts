@@ -79,9 +79,9 @@ export const memorySearchTool: CoreTool = tool({
         tags,
         timeRange: timeRange
           ? {
-              start: timeRange.start || 0,
-              end: timeRange.end || Date.now(),
-            }
+            start: timeRange.start || 0,
+            end: timeRange.end || Date.now(),
+          }
           : undefined,
       }
 
@@ -165,7 +165,7 @@ export const memorySearchTool: CoreTool = tool({
         result.summary += `**Search Mode:** ${result.searchMode}\n`
         result.summary += `**Use Case:** Use this information to provide context-aware responses based on previous interactions.`
       } else {
-        result.summary = `❌ No memories found for "${query}"\n\n`
+        result.summary = `✖ No memories found for "${query}"\n\n`
         result.summary += `**Suggestions:**\n`
         result.summary += `- Try different keywords or a more general query\n`
         result.summary += `- Check if memories exist for this user/session\n`
@@ -175,7 +175,7 @@ export const memorySearchTool: CoreTool = tool({
 
       return result
     } catch (error: any) {
-      console.error(chalk.red(`❌ Memory search failed: ${error.message}`))
+      console.error(chalk.red(`✖ Memory search failed: ${error.message}`))
       return {
         query,
         found: false,
@@ -240,7 +240,7 @@ export const getConversationContextTool: CoreTool = tool({
 
       return contextSummary
     } catch (error: any) {
-      console.error(chalk.red(`❌ Failed to get conversation context: ${error.message}`))
+      console.error(chalk.red(`✖ Failed to get conversation context: ${error.message}`))
       return {
         sessionId: sessionId || 'current',
         memoriesFound: 0,

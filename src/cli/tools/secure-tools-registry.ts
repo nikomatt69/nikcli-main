@@ -241,7 +241,7 @@ export class SecureToolsRegistry {
       }
 
       this.executionHistory.push(result)
-      console.log(chalk.red(`❌ Tool failed: ${toolName} - ${error.message}`))
+      console.log(chalk.red(`✖ Tool failed: ${toolName} - ${error.message}`))
 
       throw error
     }

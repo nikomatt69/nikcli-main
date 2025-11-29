@@ -362,7 +362,7 @@ export class PinoLoggerAdapter {
     switch (level) {
       case 'error':
         colorFunc = chalk.red
-        icon = '❌'
+        icon = '✖'
         break
       case 'warn':
         colorFunc = chalk.yellow

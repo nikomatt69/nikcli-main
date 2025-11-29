@@ -22,7 +22,7 @@ async function setupDatabase() {
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY
 
   if (!supabaseUrl || !supabaseKey) {
-    console.log(chalk.red('❌ Missing Supabase credentials'))
+    console.log(chalk.red('✖ Missing Supabase credentials'))
     console.log(chalk.gray('\nSet environment variables:'))
     console.log(chalk.yellow('  export SUPABASE_URL="https://your-project.supabase.co"'))
     console.log(chalk.yellow('  export SUPABASE_SERVICE_ROLE_KEY="your-service-role-key"'))
@@ -110,7 +110,7 @@ async function setupDatabase() {
           continue
         }
 
-        console.log(chalk.red(`\n❌ Error executing statement:`))
+        console.log(chalk.red(`\n✖ Error executing statement:`))
         console.log(chalk.gray(statement.substring(0, 100) + '...'))
         console.log(chalk.red(`Error: ${err.message}\n`))
         throw err
@@ -143,7 +143,7 @@ async function setupDatabase() {
     console.log(chalk.cyan('  3. Query profiles: SELECT * FROM user_profiles\n'))
 
   } catch (error: any) {
-    console.log(chalk.red('\n❌ Migration failed:'))
+    console.log(chalk.red('\n✖ Migration failed:'))
     console.log(chalk.red(error.message))
     console.log(chalk.gray('\n💡 Alternative method:'))
     console.log(chalk.yellow('1. Go to: https://app.supabase.com/project/YOUR_PROJECT/sql'))

@@ -121,7 +121,7 @@ export class AuthProvider extends EventEmitter {
       advancedUI.logFunctionCall('authproviderinit')
       advancedUI.logFunctionUpdate('success', 'Auth Provider initialized', '✓')
     } catch (error: any) {
-      advancedUI.logFunctionUpdate('error', `Auth initialization failed: ${error.message}`, '❌')
+      advancedUI.logFunctionUpdate('error', `Auth initialization failed: ${error.message}`, '✖')
     }
   }
 
@@ -197,7 +197,7 @@ export class AuthProvider extends EventEmitter {
 
       return { session, profile }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Sign in failed: ${error.message}`))
+      console.log(chalk.red(`✖ Sign in failed: ${error.message}`))
       this.emit('sign_in_failed', error)
       throw error
     }
@@ -269,7 +269,7 @@ export class AuthProvider extends EventEmitter {
 
       return { session, profile }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Sign up failed: ${error.message}`))
+      console.log(chalk.red(`✖ Sign up failed: ${error.message}`))
       this.emit('sign_up_failed', error)
       throw error
     }
@@ -311,7 +311,7 @@ export class AuthProvider extends EventEmitter {
 
       this.emit('signed_out')
     } catch (error: any) {
-      console.log(chalk.red(`❌ Sign out failed: ${error.message}`))
+      console.log(chalk.red(`✖ Sign out failed: ${error.message}`))
       this.emit('sign_out_failed', error)
       throw error
     }
@@ -385,7 +385,7 @@ export class AuthProvider extends EventEmitter {
 
       return updatedProfile
     } catch (error: any) {
-      console.log(chalk.red(`❌ Profile update failed: ${error.message}`))
+      console.log(chalk.red(`✖ Profile update failed: ${error.message}`))
       throw error
     }
   }
@@ -628,7 +628,7 @@ export class AuthProvider extends EventEmitter {
         if (currentUser) {
           const accessToken = await this.supabase.getAccessToken()
           const refreshToken = await this.supabase.getRefreshToken()
-          
+
           if (accessToken && refreshToken) {
             const session: AuthSession = {
               user: currentUser,
@@ -674,7 +674,7 @@ export class AuthProvider extends EventEmitter {
             // Get fresh tokens from Supabase client after refresh
             const freshAccessToken = await this.supabase.getAccessToken()
             const freshRefreshToken = await this.supabase.getRefreshToken()
-            
+
             const session: AuthSession = {
               user,
               accessToken: freshAccessToken || savedCredentials.accessToken,

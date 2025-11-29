@@ -200,7 +200,7 @@ export class ToolRegistry {
         this.logRegistryStats()
       }
     } catch (error: any) {
-      advancedUI.logError(`❌ Tool Registry initialization failed: ${error.message}`)
+      advancedUI.logError(`✖ Tool Registry initialization failed: ${error.message}`)
       throw error
     }
   }
@@ -253,7 +253,7 @@ export class ToolRegistry {
       }
       return toolMetadata.id
     } catch (error: any) {
-      advancedUI.logError(`❌ Failed to register tool: ${error.message}`)
+      advancedUI.logError(`✖ Failed to register tool: ${error.message}`)
       throw error
     }
   }
@@ -433,7 +433,7 @@ export class ToolRegistry {
       advancedUI.logInfo(`🗑️  Unregistered tool: ${toolInstance.metadata.name}`)
       return true
     } catch (error: any) {
-      advancedUI.logError(`❌ Failed to unregister tool ${toolId}: ${error.message}`)
+      advancedUI.logError(`✖ Failed to unregister tool ${toolId}: ${error.message}`)
       return false
     }
   }
@@ -450,7 +450,7 @@ export class ToolRegistry {
       advancedUI.logInfo(`⚡︎ Reloaded tool: ${metadata.name}`)
       return true
     } catch (error: any) {
-      advancedUI.logError(`❌ Failed to reload tool ${toolId}: ${error.message}`)
+      advancedUI.logError(`✖ Failed to reload tool ${toolId}: ${error.message}`)
       return false
     }
   }

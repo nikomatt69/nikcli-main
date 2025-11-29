@@ -354,7 +354,7 @@ export class AgentTodoManager {
         completedCount++
       } catch (_error) {
         failedCount++
-        console.log(chalk.red(`❌ Todo failed: ${todo.title}`))
+        console.log(chalk.red(`✖ Todo failed: ${todo.title}`))
       }
     }
 
@@ -362,7 +362,7 @@ export class AgentTodoManager {
     console.log(chalk.green.bold(`\n🎉 Execution Summary:`))
     console.log(chalk.green(`✓ Completed: ${completedCount}/${pendingTodos.length} todos`))
     if (failedCount > 0) {
-      console.log(chalk.red(`❌ Failed: ${failedCount} todos`))
+      console.log(chalk.red(`✖ Failed: ${failedCount} todos`))
     }
 
     // Check if analysis report was generated
@@ -427,7 +427,7 @@ export class AgentTodoManager {
     } catch (error) {
       todo.status = 'failed'
       todo.progress = 50 // Partial progress
-      console.log(chalk.red(`❌ Failed: ${todo.title} - ${error}`))
+      console.log(chalk.red(`✖ Failed: ${todo.title} - ${error}`))
     }
 
     todo.updatedAt = new Date()
@@ -574,7 +574,7 @@ export class AgentTodoManager {
     console.log(`✓ Completed: ${chalk.green(stats.completed.toString())}`)
     console.log(`⚡ In Progress: ${chalk.yellow(stats.inProgress.toString())}`)
     console.log(`📋 Pending: ${chalk.cyan(stats.pending.toString())}`)
-    console.log(`❌ Failed: ${chalk.red(stats.failed.toString())}`)
+    console.log(`✖ Failed: ${chalk.red(stats.failed.toString())}`)
     console.log(`⏱️  Avg Completion: ${Math.round(stats.averageCompletionTime)}min`)
     console.log(`🎯 Efficiency: ${Math.round(stats.efficiency)}%`)
 
@@ -587,7 +587,7 @@ export class AgentTodoManager {
             : todo.status === 'in_progress'
               ? '⚡'
               : todo.status === 'failed'
-                ? '❌'
+                ? '✖'
                 : '📋'
         const priority = todo.priority === 'critical' ? '🔴' : todo.priority === 'high' ? '🟡' : '🟢'
 
@@ -668,7 +668,7 @@ export class AgentTodoManager {
         conflicts.forEach((conflict) => console.log(chalk.gray(`   - ${conflict}`)))
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ TaskMaster sync failed: ${error.message}`))
+      console.log(chalk.red(`✖ TaskMaster sync failed: ${error.message}`))
     }
   }
 }

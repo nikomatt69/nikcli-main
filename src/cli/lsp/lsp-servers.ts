@@ -91,7 +91,7 @@ export const LSP_SERVERS: Record<string, LSPServerInfo> = {
           },
         }
       } catch (error) {
-        console.log(chalk.red(`❌ Failed to start TypeScript LSP: ${error}`))
+        console.log(chalk.red(`✖ Failed to start TypeScript LSP: ${error}`))
         return undefined
       }
     },
@@ -138,7 +138,7 @@ export const LSP_SERVERS: Record<string, LSPServerInfo> = {
           },
         }
       } catch (error) {
-        console.log(chalk.red(`❌ Failed to start Python LSP: ${error}`))
+        console.log(chalk.red(`✖ Failed to start Python LSP: ${error}`))
         return undefined
       }
     },
@@ -173,7 +173,7 @@ export const LSP_SERVERS: Record<string, LSPServerInfo> = {
 
         return { process }
       } catch (error) {
-        console.log(chalk.red(`❌ Failed to start Rust Analyzer: ${error}`))
+        console.log(chalk.red(`✖ Failed to start Rust Analyzer: ${error}`))
         return undefined
       }
     },
@@ -209,7 +209,7 @@ export const LSP_SERVERS: Record<string, LSPServerInfo> = {
 
         return { process: goplsProcess }
       } catch (error) {
-        console.log(chalk.red(`❌ Failed to start Gopls: ${error}`))
+        console.log(chalk.red(`✖ Failed to start Gopls: ${error}`))
         return undefined
       }
     },
@@ -226,7 +226,7 @@ export const LSP_SERVERS: Record<string, LSPServerInfo> = {
         console.log(chalk.yellow('⚠️ Java LSP requires manual Eclipse JDT Language Server setup'))
         return undefined
       } catch (error) {
-        console.log(chalk.red(`❌ Failed to start Java LSP: ${error}`))
+        console.log(chalk.red(`✖ Failed to start Java LSP: ${error}`))
         return undefined
       }
     },
@@ -261,7 +261,7 @@ export const LSP_SERVERS: Record<string, LSPServerInfo> = {
 
         return { process }
       } catch (error) {
-        console.log(chalk.red(`❌ Failed to start Ruby LSP: ${error}`))
+        console.log(chalk.red(`✖ Failed to start Ruby LSP: ${error}`))
         return undefined
       }
     },
@@ -339,7 +339,7 @@ async function installTypeScriptLSP(): Promise<void> {
         console.log(chalk.green('✓ TypeScript LSP installed'))
         resolve()
       } else {
-        console.log(chalk.red('❌ TypeScript LSP installation failed'))
+        console.log(chalk.red('✖ TypeScript LSP installation failed'))
         reject(new Error(`Installation failed with code ${code}`))
       }
     })
@@ -357,7 +357,7 @@ async function installPythonLSP(): Promise<void> {
         console.log(chalk.green('✓ Python LSP installed'))
         resolve()
       } else {
-        console.log(chalk.red('❌ Python LSP installation failed'))
+        console.log(chalk.red('✖ Python LSP installation failed'))
         reject(new Error(`Installation failed with code ${code}`))
       }
     })
@@ -375,7 +375,7 @@ async function installRustAnalyzer(): Promise<void> {
         console.log(chalk.green('✓ Rust Analyzer installed'))
         resolve()
       } else {
-        console.log(chalk.red('❌ Rust Analyzer installation failed'))
+        console.log(chalk.red('✖ Rust Analyzer installation failed'))
         reject(new Error(`Installation failed with code ${code}`))
       }
     })
@@ -394,7 +394,7 @@ async function installGopls(): Promise<void> {
         console.log(chalk.green('✓ Gopls installed'))
         resolve()
       } else {
-        console.log(chalk.red('❌ Gopls installation failed'))
+        console.log(chalk.red('✖ Gopls installation failed'))
         reject(new Error(`Installation failed with code ${code}`))
       }
     })
@@ -412,7 +412,7 @@ async function installRubyLSP(): Promise<void> {
         console.log(chalk.green('✓ Ruby LSP installed'))
         resolve()
       } else {
-        console.log(chalk.red('❌ Ruby LSP installation failed'))
+        console.log(chalk.red('✖ Ruby LSP installation failed'))
         reject(new Error(`Installation failed with code ${code}`))
       }
     })

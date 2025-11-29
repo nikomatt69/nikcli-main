@@ -222,7 +222,7 @@ export class EnhancedSlackService {
   ): Promise<void> {
     const emojis = {
       success: '✅',
-      failure: '❌',
+      failure: '✖',
       in_progress: '🔄',
     };
 
@@ -589,7 +589,7 @@ export class EnhancedSlackService {
     channel: string,
     error: string,
   ): Promise<void> {
-    await this.sendResponse(channel, `❌ ${error}`);
+    await this.sendResponse(channel, `✖ ${error}`);
   }
 
   private async sendUsage(
@@ -626,7 +626,7 @@ export class EnhancedSlackService {
 
     // Security check
     if (!(await this.checkChannelWhitelist(event.channel))) {
-      console.warn(`❌ Channel ${event.channel} not in whitelist`);
+      console.warn(`✖ Channel ${event.channel} not in whitelist`);
       return;
     }
 
@@ -809,11 +809,11 @@ export class EnhancedSlackService {
         session.messages.push({ role: 'assistant', content: accumulatedText });
       }
     } catch (error: any) {
-      console.error('❌ Error streaming AI response:', error);
+      console.error('✖ Error streaming AI response:', error);
       await this.webClient.chat.postMessage({
         channel: session.channel,
         thread_ts: session.threadTs,
-        text: `❌ Sorry, I encountered an error: ${error.message}`,
+        text: `✖ Sorry, I encountered an error: ${error.message}`,
       });
     }
   }
@@ -917,7 +917,7 @@ export class EnhancedSlackService {
       console.log(`✅ GitHub mention notified to Slack channel ${channel}`);
       return result.ts!;
     } catch (error: any) {
-      console.error('❌ Error notifying GitHub mention:', error);
+      console.error('✖ Error notifying GitHub mention:', error);
       throw error;
     }
   }

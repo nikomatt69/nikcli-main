@@ -130,7 +130,7 @@ Include proper types, error handling, and JSDoc comments.`
       }
     } catch (error: any) {
       const executionTime = Date.now() - startTime
-      CliUI.logError(`❌ Code generation failed: ${error.message}`)
+      CliUI.logError(`✖ Code generation failed: ${error.message}`)
       this.updateCognitiveMemory(cognition, { error: error.message }, false)
 
       return {
@@ -158,7 +158,7 @@ Include proper types, error handling, and JSDoc comments.`
 
       return codeGeneratorCognition
     } catch (error: any) {
-      CliUI.logError(`❌ Failed to enhance Code Generator cognition: ${error.message}`)
+      CliUI.logError(`✖ Failed to enhance Code Generator cognition: ${error.message}`)
       return cognition
     }
   }

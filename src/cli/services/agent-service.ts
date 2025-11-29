@@ -318,7 +318,7 @@ export class AgentService extends EventEmitter {
       }
       this.agents.set(agent.name, agent)
     } catch (error: any) {
-      console.error(chalk.red(`❌ Failed to register agent: ${error.message}`))
+      console.error(chalk.red(`✖ Failed to register agent: ${error.message}`))
       this.emit('error', new Error(`Agent registration failed: ${error.message}`))
     }
   }
@@ -377,7 +377,7 @@ export class AgentService extends EventEmitter {
       if (this.runningCount < this.maxConcurrentAgents) {
         // Start task asynchronously; do not await to keep API responsive
         this.runTask(agentTask).catch((err) => {
-          console.error(chalk.red(`❌ Failed to start task: ${err.message}`))
+          console.error(chalk.red(`✖ Failed to start task: ${err.message}`))
           this.emit('error', err)
           agentTask.status = 'failed'
           agentTask.error = err.message
@@ -390,7 +390,7 @@ export class AgentService extends EventEmitter {
       // Return taskId immediately; callers can poll getTaskStatus or listen to events
       return taskId
     } catch (error: any) {
-      console.error(chalk.red(`❌ Task execution setup failed: ${error.message}`))
+      console.error(chalk.red(`✖ Task execution setup failed: ${error.message}`))
       this.emit('error', error)
       throw error
     }
@@ -513,7 +513,7 @@ export class AgentService extends EventEmitter {
       agentTask.error = error.message || 'Unknown error occurred'
       agentTask.endTime = new Date()
 
-      console.log(chalk.red(`❌ ${agentTask.agentType} failed: ${agentTask.error}`))
+      console.log(chalk.red(`✖ ${agentTask.agentType} failed: ${agentTask.error}`))
       this.emit('error', error)
     } finally {
       // Cleanup generator/cancellation tracking
@@ -529,7 +529,7 @@ export class AgentService extends EventEmitter {
           await this.runTask(nextTask)
         }
       } catch (nextTaskError: any) {
-        console.error(chalk.red(`❌ Failed to start next task: ${nextTaskError.message}`))
+        console.error(chalk.red(`✖ Failed to start next task: ${nextTaskError.message}`))
         this.emit('error', nextTaskError)
       }
     }
@@ -583,7 +583,7 @@ export class AgentService extends EventEmitter {
         const gen = this.runningGenerators.get(taskId)
         if (gen && typeof (gen as any).return === 'function') {
           try {
-            ;(gen as any).return()
+            ; (gen as any).return()
           } catch {
             /* ignore */
           }
@@ -596,7 +596,7 @@ export class AgentService extends EventEmitter {
       console.warn(chalk.yellow(`⚠️ Cannot cancel task ${taskId} in state ${task.status}`))
       return false
     } catch (error: any) {
-      console.error(chalk.red(`❌ Error cancelling task: ${error.message}`))
+      console.error(chalk.red(`✖ Error cancelling task: ${error.message}`))
       this.emit('error', error)
       return false
     }
@@ -787,10 +787,10 @@ export class AgentService extends EventEmitter {
         },
         gitStatus: gitInfo
           ? {
-              branch: gitInfo.branch || 'Unknown',
-              hasChanges: (gitInfo.files || []).length > 0,
-              modifiedFiles: (gitInfo.files || []).length,
-            }
+            branch: gitInfo.branch || 'Unknown',
+            hasChanges: (gitInfo.files || []).length > 0,
+            modifiedFiles: (gitInfo.files || []).length,
+          }
           : null,
         qualityAssessment: {
           hasTypeScript: (tsFiles?.matches?.length || 0) > 0,
@@ -832,7 +832,7 @@ export class AgentService extends EventEmitter {
         )
       }
       console.log(
-        `${chalk.blue('Quality:')} ${analysis.qualityAssessment.hasTests ? '✓' : '❌'} Tests, ${analysis.qualityAssessment.hasConfig ? '✓' : '❌'} TypeScript Config`
+        `${chalk.blue('Quality:')} ${analysis.qualityAssessment.hasTests ? '✓' : '✖'} Tests, ${analysis.qualityAssessment.hasConfig ? '✓' : '✖'} TypeScript Config`
       )
 
       if (analysis.recommendations.length > 0) {
@@ -1708,7 +1708,7 @@ export class AgentService extends EventEmitter {
     console.log(chalk.gray('═'.repeat(60)))
 
     // Summary statistics
-    const statusIcon = success ? '✓' : '❌'
+    const statusIcon = success ? '✓' : '✖'
     const statusColor = success ? chalk.green : chalk.red
     console.log(`${statusIcon} ${statusColor('Status:')} ${success ? 'Success' : 'Failed'}`)
     console.log(`${chalk.blue('Autonomy Level:')} ${autonomyLevel}`)
@@ -1717,7 +1717,7 @@ export class AgentService extends EventEmitter {
     // Progress summary
     console.log(chalk.cyan.bold('\n📊 Execution Summary:'))
     console.log(`  ${chalk.green('✓')} Successful: ${summary.successful}/${summary.total}`)
-    console.log(`  ${chalk.red('❌')} Failed: ${summary.failed}/${summary.total}`)
+    console.log(`  ${chalk.red('✖')} Failed: ${summary.failed}/${summary.total}`)
     console.log(`  ${chalk.yellow('📈')} Success Rate: ${summary.successRate}%`)
 
     // Individual results (show first 5)
@@ -1725,7 +1725,7 @@ export class AgentService extends EventEmitter {
       console.log(chalk.cyan.bold('\n📋 Task Results:'))
       const displayResults = results.slice(0, 5)
       displayResults.forEach((result: any, index: number) => {
-        const icon = result.success !== false ? '✓' : '❌'
+        const icon = result.success !== false ? '✓' : '✖'
         const color = result.success !== false ? chalk.green : chalk.red
         console.log(`  ${icon} ${color(`Result ${index + 1}:`)} ${result.summary || result.action || 'Task completed'}`)
       })
@@ -1754,7 +1754,7 @@ export class AgentService extends EventEmitter {
 **Agent:** ${agent}  
 **Task:** ${agentTask.task}  
 **Timestamp:** ${timestamp}  
-**Status:** ${success ? '✓ Success' : '❌ Failed'}  
+**Status:** ${success ? '✓ Success' : '✖ Failed'}  
 **Autonomy Level:** ${autonomyLevel}  
 
 ## 📊 Execution Summary
@@ -1767,33 +1767,31 @@ export class AgentService extends EventEmitter {
 ## 📋 Detailed Results
 
 ${results
-  .map((result: any, index: number) => {
-    const status = result.success !== false ? '✓' : '❌'
-    const title = result.title || result.action || `Task ${index + 1}`
-    const description = result.summary || result.description || 'No description available'
+        .map((result: any, index: number) => {
+          const status = result.success !== false ? '✓' : '✖'
+          const title = result.title || result.action || `Task ${index + 1}`
+          const description = result.summary || result.description || 'No description available'
 
-    return `### ${status} Result ${index + 1}: ${title}
+          return `### ${status} Result ${index + 1}: ${title}
 
 ${description}
 
-${
-  result.details
-    ? `**Details:** ${result.details}
+${result.details
+              ? `**Details:** ${result.details}
 
 `
-    : ''
-}`
-  })
-  .join('')}
-${
-  errors && errors.length > 0
-    ? `## ❌ Errors
+              : ''
+            }`
+        })
+        .join('')}
+${errors && errors.length > 0
+        ? `## ✖ Errors
 
 ${errors.map((error: any) => `- **${error.step}:** ${error.error}`).join('\n')}
 
 `
-    : ''
-}
+        : ''
+      }
 ## 🔌 Agent Information
 
 - **Agent ID:** ${agent}

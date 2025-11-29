@@ -362,7 +362,7 @@ export class NikCLIBenchmarkSuite {
   }
 
   private printTaskResult(result: EvaluationResult): void {
-    const status = result.success ? '✅ SUCCESS' : '❌ FAILED';
+    const status = result.success ? '✅ SUCCESS' : '✖ FAILED';
     const score = result.quality_score.toFixed(1);
     const time = (result.execution_time / 1000).toFixed(1);
 

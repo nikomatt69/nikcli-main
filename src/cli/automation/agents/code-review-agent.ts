@@ -126,7 +126,7 @@ export class CodeReviewAgent extends CognitiveAgentBase {
       }
     } catch (error: any) {
       const executionTime = Date.now() - startTime
-      CliUI.logError(`❌ Code review failed: ${error.message}`)
+      CliUI.logError(`✖ Code review failed: ${error.message}`)
       this.updateCognitiveMemory(cognition, { error: error.message }, false)
 
       return {
@@ -154,7 +154,7 @@ export class CodeReviewAgent extends CognitiveAgentBase {
 
       return codeReviewCognition
     } catch (error: any) {
-      CliUI.logError(`❌ Failed to enhance Code Review cognition: ${error.message}`)
+      CliUI.logError(`✖ Failed to enhance Code Review cognition: ${error.message}`)
       return cognition
     }
   }

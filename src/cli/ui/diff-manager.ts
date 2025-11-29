@@ -76,7 +76,7 @@ export class DiffManager {
     console.log(
       boxen(
         `${chalk.blue.bold('File Diff:')} ${chalk.cyan(filePath)}\\n` +
-          `${chalk.gray('Status:')} ${this.getStatusColor(diff.status)}`,
+        `${chalk.gray('Status:')} ${this.getStatusColor(diff.status)}`,
         {
           padding: 1,
           margin: 1,
@@ -189,7 +189,7 @@ export class DiffManager {
       console.log(chalk.green(`✅ Applied changes to ${filePath}`))
       return true
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to apply changes to ${filePath}: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to apply changes to ${filePath}: ${error.message}`))
       return false
     }
   }

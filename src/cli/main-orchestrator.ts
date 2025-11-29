@@ -51,13 +51,13 @@ export class MainOrchestrator {
   private setupGlobalHandlers(): void {
     // Enhanced global error handler with recovery
     process.on('unhandledRejection', (reason, _promise) => {
-      console.error(chalk.red('❌ Unhandled Rejection:'), reason)
+      console.error(chalk.red('✖ Unhandled Rejection:'), reason)
       // Attempt graceful recovery
       this.handleRecoverableError(reason)
     })
 
     process.on('uncaughtException', (error) => {
-      console.error(chalk.red('❌ Uncaught Exception:'), error)
+      console.error(chalk.red('✖ Uncaught Exception:'), error)
       this.gracefulShutdown()
     })
 
@@ -126,7 +126,7 @@ export class MainOrchestrator {
 
       advancedUI.logSuccess('✓ Orchestrator shut down cleanly')
     } catch (error) {
-      advancedUI.logError('❌ Error during shutdown: ' + error)
+      advancedUI.logError('✖ Error during shutdown: ' + error)
     } finally {
       process.exit(0)
     }
@@ -167,7 +167,7 @@ export class MainOrchestrator {
 
       advancedUI.logSuccess('✓ Error recovery completed')
     } catch (recoveryError) {
-      advancedUI.logError('❌ Recovery failed: ' + recoveryError)
+      advancedUI.logError('✖ Recovery failed: ' + recoveryError)
     }
   }
 

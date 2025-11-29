@@ -79,10 +79,10 @@ export class FigmaService extends EventEmitter {
         this.emit('initialized')
         console.log(chalk.green('✓ Figma service initialized'))
       } else {
-        console.log(chalk.red('❌ Failed to initialize Figma provider'))
+        console.log(chalk.red('✖ Failed to initialize Figma provider'))
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Figma service initialization failed: ${error.message}`))
+      console.log(chalk.red(`✖ Figma service initialization failed: ${error.message}`))
       this.emit('error', error)
     }
   }

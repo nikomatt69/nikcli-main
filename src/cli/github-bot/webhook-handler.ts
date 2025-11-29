@@ -53,7 +53,7 @@ export class GitHubWebhookHandler {
       })
       console.log('✅ Slack service initialized')
     } catch (error) {
-      console.error('❌ Error initializing Slack service:', error)
+      console.error('✖ Error initializing Slack service:', error)
     }
   }
 
@@ -63,7 +63,7 @@ export class GitHubWebhookHandler {
       this.cacheService = cacheService
       console.log('✅ Cache service initialized')
     } catch (error) {
-      console.error('❌ Error initializing cache service:', error)
+      console.error('✖ Error initializing cache service:', error)
     }
   }
 
@@ -76,14 +76,14 @@ export class GitHubWebhookHandler {
       const requestTime = parseInt(timestamp)
       const now = Math.floor(Date.now() / 1000)
       if (Math.abs(now - requestTime) > 300) {
-        console.error('❌ Webhook timestamp too old or from future')
+        console.error('✖ Webhook timestamp too old or from future')
         return false
       }
     }
 
     // Validate signature exists
     if (!signature) {
-      console.error('❌ Missing webhook signature')
+      console.error('✖ Missing webhook signature')
       return false
     }
 
@@ -110,7 +110,7 @@ export class GitHubWebhookHandler {
 
     // Verify webhook signature with timestamp
     if (!this.verifySignature(payload, signature, timestamp)) {
-      console.error('❌ Invalid webhook signature or timestamp')
+      console.error('✖ Invalid webhook signature or timestamp')
       res.status(401).json({ error: 'Invalid signature or timestamp' })
       return
     }
@@ -121,7 +121,7 @@ export class GitHubWebhookHandler {
       await this.processWebhookEvent(event, req.body)
       res.status(200).json({ success: true })
     } catch (error) {
-      console.error('❌ Webhook processing error:', error)
+      console.error('✖ Webhook processing error:', error)
       res.status(500).json({ error: 'Internal server error' })
     }
   }
@@ -182,14 +182,14 @@ export class GitHubWebhookHandler {
 
     // Security validation
     if (!(await this.validateAccess(repository.full_name, comment.user.login))) {
-      console.warn(`❌ Access denied for ${comment.user.login} in ${repository.full_name}`)
+      console.warn(`✖ Access denied for ${comment.user.login} in ${repository.full_name}`)
       await this.postSecurityError(repository.full_name, issue.number, comment.id)
       return
     }
 
     // Rate limiting check
     if (this.cacheService && !(await this.checkRateLimit(comment.user.login))) {
-      console.warn(`❌ Rate limit exceeded for ${comment.user.login}`)
+      console.warn(`✖ Rate limit exceeded for ${comment.user.login}`)
       await this.postRateLimitError(repository.full_name, issue.number, comment.id)
       return
     }
@@ -387,7 +387,7 @@ export class GitHubWebhookHandler {
         await this.updateStatusComment(job, statusCommentId, 'completed', result.details?.jobId)
       }
     } catch (error) {
-      console.error(`❌ Job failed: ${job.id}`, error)
+      console.error(`✖ Job failed: ${job.id}`, error)
 
       job.status = 'failed'
       job.error = error instanceof Error ? error.message : 'Unknown error'
@@ -463,7 +463,7 @@ export class GitHubWebhookHandler {
       started: '⚡',
       running: '🔌',
       completed: '✅',
-      failed: '❌',
+      failed: '✖',
     }
 
     const emoji = statusEmoji[status as keyof typeof statusEmoji] || '⚙️'
@@ -673,7 +673,7 @@ ${result.files.map((f: string) => `- \`${f}\``).join('\n')}
     })
 
     if (!isAllowed) {
-      console.warn(`❌ Repository ${repo} not in whitelist`)
+      console.warn(`✖ Repository ${repo} not in whitelist`)
       return false
     }
 
@@ -698,7 +698,7 @@ ${result.files.map((f: string) => `- \`${f}\``).join('\n')}
       console.log(`✅ ${username} is member of ${org}`)
       return true
     } catch (error) {
-      console.warn(`❌ ${username} is not member of ${org}`)
+      console.warn(`✖ ${username} is not member of ${org}`)
       return false
     }
   }
@@ -719,7 +719,7 @@ ${result.files.map((f: string) => `- \`${f}\``).join('\n')}
       const count = await this.cacheService.increment(rateLimitKey, ttl)
 
       if (count > limit) {
-        console.warn(`❌ Rate limit exceeded for ${username}: ${count}/${limit}`)
+        console.warn(`✖ Rate limit exceeded for ${username}: ${count}/${limit}`)
         return false
       }
 
@@ -741,7 +741,7 @@ ${result.files.map((f: string) => `- \`${f}\``).join('\n')}
         owner,
         repo: repoName,
         issue_number: issueNumber,
-        body: `❌ **Access Denied**
+        body: `✖ **Access Denied**
 
 This repository or organization is not authorized to use @nikcli.
 

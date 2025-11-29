@@ -884,7 +884,7 @@ export class PlanExecutor {
     const duration = result.endTime ? result.endTime.getTime() - result.startTime.getTime() : 0
 
     // Format as markdown summary
-    const statusIcon = result.status === 'completed' ? '✓' : result.status === 'partial' ? '⚠️' : '❌'
+    const statusIcon = result.status === 'completed' ? '✓' : result.status === 'partial' ? '⚠️' : '✖'
 
     let summaryMarkdown = `\n## Execution Summary\n\n`
     summaryMarkdown += `${statusIcon} **Status:** ${result.status.toUpperCase()}\n\n`

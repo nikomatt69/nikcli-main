@@ -78,10 +78,10 @@ export class CADCommands {
         console.log(chalk.green('✓ CAD model generated'))
         console.log(chalk.gray(result.model.substring(0, 1000)))
       } else {
-        console.log(chalk.red('❌ CAD generation returned no data'))
+        console.log(chalk.red('✖ CAD generation returned no data'))
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Error: ${error.message}`))
+      console.log(chalk.red(`✖ Error: ${error.message}`))
     }
   }
 
@@ -104,10 +104,10 @@ export class CADCommands {
         console.log(chalk.green('✓ CAD model generated'))
         console.log(chalk.gray(result.model.substring(0, 1000)))
       } else {
-        console.log(chalk.red('❌ Streaming not supported via provider yet'))
+        console.log(chalk.red('✖ Streaming not supported via provider yet'))
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Error: ${error.message}`))
+      console.log(chalk.red(`✖ Error: ${error.message}`))
     }
   }
 
@@ -126,7 +126,7 @@ export class CADCommands {
     const description = args.slice(1).join(' ')
 
     if (!['stl', 'step', 'dwg', 'scad'].includes(format)) {
-      console.log(chalk.red('❌ Unsupported format. Use: stl, step, dwg, or scad'))
+      console.log(chalk.red('✖ Unsupported format. Use: stl, step, dwg, or scad'))
       return
     }
 
@@ -139,10 +139,10 @@ export class CADCommands {
         console.log(chalk.gray(`Format requested: ${format.toUpperCase()}`))
         console.log(chalk.gray(result.model.substring(0, 1000)))
       } else {
-        console.log(chalk.red('❌ Export failed'))
+        console.log(chalk.red('✖ Export failed'))
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Error: ${error.message}`))
+      console.log(chalk.red(`✖ Error: ${error.message}`))
     }
   }
 

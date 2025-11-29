@@ -106,7 +106,7 @@ export class FeatureFlagManager extends EventEmitter {
         this.logFlagStats()
       }
     } catch (error: any) {
-      advancedUI.logError(`❌ Feature Flag Manager initialization failed: ${error.message}`)
+      advancedUI.logError(`✖ Feature Flag Manager initialization failed: ${error.message}`)
       throw error
     }
   }

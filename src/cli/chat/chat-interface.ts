@@ -112,7 +112,7 @@ export class ChatInterface {
 
     // Validate API key
     if (!modelProvider.validateApiKey()) {
-      console.log(chalk.red('\n❌ Cannot start chat without valid API key'))
+      console.log(chalk.red('\n✖ Cannot start chat without valid API key'))
       console.log(chalk.gray('Use /help for setup instructions\n'))
     }
 
@@ -192,7 +192,7 @@ ${chalk.gray('Type your message or use slash commands...')}
       chatManager.addMessage(responseText, 'assistant')
     } catch (error: any) {
       this.isStreaming = false
-      console.log(chalk.red(`\n❌ Error: ${error.message}`))
+      console.log(chalk.red(`\n✖ Error: ${error.message}`))
 
       if (error.message.includes('API key')) {
         console.log(chalk.gray('Use /set-key command to configure API keys'))

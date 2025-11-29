@@ -326,7 +326,7 @@ export class SecurityMiddleware extends BaseMiddleware {
         if (approved) {
           console.log(chalk.green('✓ Operation approved'))
         } else {
-          console.log(chalk.red('❌ Operation denied'))
+          console.log(chalk.red('✖ Operation denied'))
         }
 
         resolve(approved)

@@ -64,7 +64,7 @@ export const documentationSearchTool: CoreTool = tool({
         topResult: formattedResults[0],
       }
     } catch (error: any) {
-      console.error(chalk.red(`❌ Documentation search failed: ${error.message}`))
+      console.error(chalk.red(`✖ Documentation search failed: ${error.message}`))
       return {
         found: false,
         error: error.message,
@@ -106,7 +106,7 @@ export const addDocumentationTool: CoreTool = tool({
         },
       }
     } catch (error: any) {
-      console.error(chalk.red(`❌ Failed to add documentation: ${error.message}`))
+      console.error(chalk.red(`✖ Failed to add documentation: ${error.message}`))
       return {
         success: false,
         error: error.message,

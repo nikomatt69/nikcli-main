@@ -249,7 +249,7 @@ export class AdvancedTools {
           if (unavailable.length > 0 && showDetails) {
             console.log(chalk.yellow('\n📋 Unavailable Providers (missing API keys):'))
             unavailable.forEach((provider) => {
-              console.log(chalk.gray(`❌ ${provider.provider}: ${provider.model}`))
+              console.log(chalk.gray(`✖ ${provider.provider}: ${provider.model}`))
             })
           }
 

@@ -173,14 +173,14 @@ class ChromaDBVectorStore extends VectorStore {
           })
           console.log(chalk.green(`✓ Created new collection: ${this.config.collectionName}`))
         } catch (finalError) {
-          console.error(chalk.red(`❌ Failed to create collection: ${(finalError as Error).message}`))
+          console.error(chalk.red(`✖ Failed to create collection: ${(finalError as Error).message}`))
           throw finalError
         }
       }
 
       return true
     } catch (error) {
-      console.error(chalk.red(`❌ ChromaDB connection failed: ${(error as Error).message}`))
+      console.error(chalk.red(`✖ ChromaDB connection failed: ${(error as Error).message}`))
       this.stats.errors++
       return false
     }
@@ -271,7 +271,7 @@ class ChromaDBVectorStore extends VectorStore {
       this.stats.indexedDocuments += documents.length
       return true
     } catch (error) {
-      console.error(chalk.red(`❌ Failed to add documents: ${error}`))
+      console.error(chalk.red(`✖ Failed to add documents: ${error}`))
       this.stats.errors++
       return false
     }
@@ -329,7 +329,7 @@ class ChromaDBVectorStore extends VectorStore {
       this.updateSearchStats(Date.now() - startTime)
       return searchResults.sort((a, b) => b.score - a.score)
     } catch (error) {
-      console.error(chalk.red(`❌ ChromaDB search failed: ${error}`))
+      console.error(chalk.red(`✖ ChromaDB search failed: ${error}`))
       this.stats.errors++
       return []
     }
@@ -366,7 +366,7 @@ class ChromaDBVectorStore extends VectorStore {
       this.updateSearchStats(Date.now() - startTime)
       return searchResults.sort((a, b) => b.score - a.score)
     } catch (error) {
-      console.error(chalk.red(`❌ ChromaDB vector search failed: ${error}`))
+      console.error(chalk.red(`✖ ChromaDB vector search failed: ${error}`))
       this.stats.errors++
       return []
     }
@@ -467,7 +467,7 @@ class UpstashVectorStore extends VectorStore {
       )
       return false
     } catch (error) {
-      console.error(chalk.red(`❌ Upstash connection failed: ${String(error)}`))
+      console.error(chalk.red(`✖ Upstash connection failed: ${String(error)}`))
       this.stats.errors++
       return false
     }
@@ -541,7 +541,7 @@ class UpstashVectorStore extends VectorStore {
               continue // Skip this document
             }
           } catch (error) {
-            console.error(chalk.red(`❌ Failed to generate embedding for document ${doc.id}: ${(error as Error).message}`))
+            console.error(chalk.red(`✖ Failed to generate embedding for document ${doc.id}: ${(error as Error).message}`))
             continue // Skip this document
           }
         }
@@ -574,7 +574,7 @@ class UpstashVectorStore extends VectorStore {
       this.stats.indexedDocuments += documents.length
       return true
     } catch (error) {
-      console.error(chalk.red(`❌ Failed to add documents to Upstash: ${String(error)}`))
+      console.error(chalk.red(`✖ Failed to add documents to Upstash: ${String(error)}`))
       this.stats.errors++
       return false
     }
@@ -658,7 +658,7 @@ class UpstashVectorStore extends VectorStore {
       this.updateSearchStats(Date.now() - start)
       return results.sort((a, b) => b.score - a.score).slice(0, limit)
     } catch (error) {
-      console.error(chalk.red(`❌ Upstash search failed: ${String(error)}`))
+      console.error(chalk.red(`✖ Upstash search failed: ${String(error)}`))
       this.stats.errors++
       return []
     }
@@ -716,7 +716,7 @@ class UpstashVectorStore extends VectorStore {
       this.updateSearchStats(Date.now() - start)
       return results.sort((a, b) => b.score - a.score).slice(0, limit)
     } catch (error) {
-      console.error(chalk.red(`❌ Upstash vector search failed: ${String(error)}`))
+      console.error(chalk.red(`✖ Upstash vector search failed: ${String(error)}`))
       this.stats.errors++
       return []
     }
@@ -790,7 +790,7 @@ class LocalVectorStore extends VectorStore {
       console.log(chalk.green(`✓ Local vector store connected (${this.documents.size} documents)`))
       return true
     } catch (error) {
-      console.error(chalk.red(`❌ Local vector store connection failed: ${error}`))
+      console.error(chalk.red(`✖ Local vector store connection failed: ${error}`))
       this.stats.errors++
       return false
     }
@@ -830,7 +830,7 @@ class LocalVectorStore extends VectorStore {
               continue // Skip this document
             }
           } catch (error) {
-            console.error(chalk.red(`❌ Failed to generate embedding for document ${doc.id}: ${(error as Error).message}`))
+            console.error(chalk.red(`✖ Failed to generate embedding for document ${doc.id}: ${(error as Error).message}`))
             continue // Skip this document
           }
         }
@@ -844,7 +844,7 @@ class LocalVectorStore extends VectorStore {
       await this.saveIndex()
       return true
     } catch (error) {
-      console.error(chalk.red(`❌ Failed to add documents to local store: ${error}`))
+      console.error(chalk.red(`✖ Failed to add documents to local store: ${error}`))
       this.stats.errors++
       return false
     }
@@ -876,7 +876,7 @@ class LocalVectorStore extends VectorStore {
       const queryResult = await unifiedEmbeddingInterface.generateEmbedding(query)
       return await this.searchByVector(queryResult.vector, limit, threshold)
     } catch (error) {
-      console.error(chalk.red(`❌ Local search failed: ${error}`))
+      console.error(chalk.red(`✖ Local search failed: ${error}`))
       this.stats.errors++
       return []
     } finally {
@@ -910,7 +910,7 @@ class LocalVectorStore extends VectorStore {
       this.updateSearchStats(Date.now() - startTime)
       return results.sort((a, b) => b.score - a.score).slice(0, limit)
     } catch (error) {
-      console.error(chalk.red(`❌ Local vector search failed: ${error}`))
+      console.error(chalk.red(`✖ Local vector search failed: ${error}`))
       this.stats.errors++
       return []
     }
@@ -1060,11 +1060,11 @@ export class VectorStoreManager {
       if (await this.fallbackStore.connect()) {
         this.activeStore = this.fallbackStore
       } else {
-        console.error(chalk.red('❌ Failed to initialize any vector store'))
+        console.error(chalk.red('✖ Failed to initialize any vector store'))
         return false
       }
     } else if (!this.activeStore) {
-      console.error(chalk.red('❌ No vector stores configured'))
+      console.error(chalk.red('✖ No vector stores configured'))
       return false
     }
 
@@ -1096,7 +1096,7 @@ export class VectorStoreManager {
    */
   async addDocuments(documents: VectorDocument[]): Promise<boolean> {
     if (!this.activeStore) {
-      console.error(chalk.red('❌ No active vector store'))
+      console.error(chalk.red('✖ No active vector store'))
       return false
     }
 
@@ -1118,7 +1118,7 @@ export class VectorStoreManager {
    */
   async search(query: string, limit = 10, threshold = 0.3): Promise<VectorSearchResult[]> {
     if (!this.activeStore) {
-      console.error(chalk.red('❌ No active vector store'))
+      console.error(chalk.red('✖ No active vector store'))
       return []
     }
 
@@ -1130,7 +1130,7 @@ export class VectorStoreManager {
    */
   async searchByVector(embedding: number[], limit = 10, threshold = 0.3): Promise<VectorSearchResult[]> {
     if (!this.activeStore) {
-      console.error(chalk.red('❌ No active vector store'))
+      console.error(chalk.red('✖ No active vector store'))
       return []
     }
 

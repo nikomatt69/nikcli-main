@@ -124,14 +124,14 @@ export class CloudIntegration {
         `✅ Background Agents API: ${chalk.green('Connected')} ${latency ? chalk.gray(`(${latency}ms)`) : ''}`
       )
     } else {
-      console.log(`❌ Background Agents API: ${chalk.red('Unavailable')} ${chalk.gray('(using local mode)')}`)
+      console.log(`✖ Background Agents API: ${chalk.red('Unavailable')} ${chalk.gray('(using local mode)')}`)
     }
 
     // GitHub Integration
     if (s.services.github.available) {
       console.log(`✅ GitHub Webhooks: ${chalk.green('Connected')}`)
     } else {
-      console.log(`❌ GitHub Webhooks: ${chalk.red('Unavailable')}`)
+      console.log(`✖ GitHub Webhooks: ${chalk.red('Unavailable')}`)
     }
 
     console.log()
@@ -231,7 +231,7 @@ export class CloudIntegration {
           console.log(`  ${chalk.yellow('⚠️  Stats unavailable')}`)
         }
       } else {
-        console.log(`  ${chalk.red('❌ Not available')}`)
+        console.log(`  ${chalk.red('✖ Not available')}`)
       }
 
       console.log()
@@ -242,7 +242,7 @@ export class CloudIntegration {
         console.log(`  ${chalk.green('✅ Connected')}`)
         console.log(`  ${chalk.gray(`URL: ${status.services.github.url}`)}`)
       } else {
-        console.log(`  ${chalk.red('❌ Not available')}`)
+        console.log(`  ${chalk.red('✖ Not available')}`)
       }
 
       console.log()

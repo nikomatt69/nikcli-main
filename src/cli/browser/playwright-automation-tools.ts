@@ -138,7 +138,7 @@ export class BrowserNavigateTool extends BaseTool {
   }
 
   private handleError(error: any, startTime: number, params: any): ToolExecutionResult {
-    advancedUI.logFunctionUpdate('error', `Navigation failed: ${error.message}`, '❌')
+    advancedUI.logFunctionUpdate('error', `Navigation failed: ${error.message}`, '✖')
     return {
       success: false,
       data: null,
@@ -202,7 +202,7 @@ export class BrowserClickTool extends BaseTool {
   }
 
   private handleError(error: any, startTime: number, params: any): ToolExecutionResult {
-    advancedUI.logFunctionUpdate('error', `Click failed: ${error.message}`, '❌')
+    advancedUI.logFunctionUpdate('error', `Click failed: ${error.message}`, '✖')
     return {
       success: false,
       data: null,
@@ -268,7 +268,7 @@ export class BrowserTypeTool extends BaseTool {
   }
 
   private handleError(error: any, startTime: number, params: any): ToolExecutionResult {
-    advancedUI.logFunctionUpdate('error', `Type failed: ${error.message}`, '❌')
+    advancedUI.logFunctionUpdate('error', `Type failed: ${error.message}`, '✖')
     return {
       success: false,
       data: null,
@@ -330,7 +330,7 @@ export class BrowserScreenshotTool extends BaseTool {
   }
 
   private handleError(error: any, startTime: number, params: any): ToolExecutionResult {
-    advancedUI.logFunctionUpdate('error', `Screenshot failed: ${error.message}`, '❌')
+    advancedUI.logFunctionUpdate('error', `Screenshot failed: ${error.message}`, '✖')
     return {
       success: false,
       data: null,
@@ -392,7 +392,7 @@ export class BrowserExtractTextTool extends BaseTool {
   }
 
   private handleError(error: any, startTime: number, params: any): ToolExecutionResult {
-    advancedUI.logFunctionUpdate('error', `Text extraction failed: ${error.message}`, '❌')
+    advancedUI.logFunctionUpdate('error', `Text extraction failed: ${error.message}`, '✖')
     return {
       success: false,
       data: null,
@@ -457,7 +457,7 @@ export class BrowserWaitForElementTool extends BaseTool {
   }
 
   private handleError(error: any, startTime: number, params: any): ToolExecutionResult {
-    advancedUI.logFunctionUpdate('error', `Wait failed: ${error.message}`, '❌')
+    advancedUI.logFunctionUpdate('error', `Wait failed: ${error.message}`, '✖')
     return {
       success: false,
       data: null,
@@ -522,7 +522,7 @@ export class BrowserScrollTool extends BaseTool {
   }
 
   private handleError(error: any, startTime: number, params: any): ToolExecutionResult {
-    advancedUI.logFunctionUpdate('error', `Scroll failed: ${error.message}`, '❌')
+    advancedUI.logFunctionUpdate('error', `Scroll failed: ${error.message}`, '✖')
     return {
       success: false,
       data: null,
@@ -585,7 +585,7 @@ export class BrowserExecuteScriptTool extends BaseTool {
   }
 
   private handleError(error: any, startTime: number, params: any): ToolExecutionResult {
-    advancedUI.logFunctionUpdate('error', `Script execution failed: ${error.message}`, '❌')
+    advancedUI.logFunctionUpdate('error', `Script execution failed: ${error.message}`, '✖')
     return {
       success: false,
       data: null,
@@ -643,7 +643,7 @@ export class BrowserGetPageInfoTool extends BaseTool {
   }
 
   private handleError(error: any, startTime: number, params: any): ToolExecutionResult {
-    advancedUI.logFunctionUpdate('error', `Get page info failed: ${error.message}`, '❌')
+    advancedUI.logFunctionUpdate('error', `Get page info failed: ${error.message}`, '✖')
     return {
       success: false,
       data: null,

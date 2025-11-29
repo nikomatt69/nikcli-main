@@ -236,7 +236,7 @@ export class UnifiedChatInterface extends EventEmitter {
         }
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Error processing prompt: ${error.message}`))
+      console.log(chalk.red(`✖ Error processing prompt: ${error.message}`))
       this.addAssistantMessage(`I encountered an error: ${error.message}. Please try again.`)
     }
   }
@@ -283,7 +283,7 @@ export class UnifiedChatInterface extends EventEmitter {
       this.session.currentPlan = plan
       return plan
     } catch (error: any) {
-      console.log(chalk.red(`❌ Planning failed: ${error.message}`))
+      console.log(chalk.red(`✖ Planning failed: ${error.message}`))
       return null
     }
   }
@@ -364,7 +364,7 @@ export class UnifiedChatInterface extends EventEmitter {
       console.log(chalk.green.bold('✓ Plan execution completed successfully!'))
       this.addAssistantMessage(`Successfully completed: ${plan.title}`)
     } catch (error: any) {
-      console.log(chalk.red(`❌ Plan execution failed: ${error.message}`))
+      console.log(chalk.red(`✖ Plan execution failed: ${error.message}`))
       this.addAssistantMessage(`Execution failed: ${error.message}`)
     } finally {
       this.session.isExecuting = false
@@ -421,7 +421,7 @@ export class UnifiedChatInterface extends EventEmitter {
 
       console.log(chalk.green(`✓ Completed: ${step.title}`))
     } catch (error: any) {
-      console.log(chalk.red(`❌ Step failed: ${error.message}`))
+      console.log(chalk.red(`✖ Step failed: ${error.message}`))
       throw error
     }
   }
@@ -467,7 +467,7 @@ export class UnifiedChatInterface extends EventEmitter {
 
         console.log(chalk.green(`✓ [${agentId}] Completed secondary task`))
       } catch (error: any) {
-        console.log(chalk.red(`❌ Secondary agent failed: ${error.message}`))
+        console.log(chalk.red(`✖ Secondary agent failed: ${error.message}`))
       }
     }
   }
@@ -539,7 +539,7 @@ export class UnifiedChatInterface extends EventEmitter {
       // Execute todos in background (non-blocking)
       this.executeInBackground(todos, universalAgentId)
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to generate todos: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to generate todos: ${error.message}`))
       // Fallback to direct response
       await this.generateDirectResponse(input)
     }
@@ -564,7 +564,7 @@ export class UnifiedChatInterface extends EventEmitter {
         console.log(chalk.green('\n✓ Background execution completed!'))
         this.addAssistantMessage('All background tasks have been completed successfully.')
       } catch (error: any) {
-        console.log(chalk.red(`\n❌ Background execution failed: ${error.message}`))
+        console.log(chalk.red(`\n✖ Background execution failed: ${error.message}`))
         this.addAssistantMessage(`Some background tasks encountered issues: ${error.message}`)
       }
     }, 100) // Small delay to avoid blocking the chat
@@ -590,7 +590,7 @@ export class UnifiedChatInterface extends EventEmitter {
       this.addAssistantMessage(response as any)
       console.log(chalk.white(response as any))
     } catch (error: any) {
-      console.log(chalk.red(`❌ Response generation failed: ${error.message}`))
+      console.log(chalk.red(`✖ Response generation failed: ${error.message}`))
       this.addAssistantMessage('I apologize, but I encountered an error generating a response. Please try again.')
     }
   }
@@ -845,7 +845,7 @@ export class UnifiedChatInterface extends EventEmitter {
     try {
       // Check API keys
       if (!process.env.ANTHROPIC_API_KEY && !process.env.OPENAI_API_KEY) {
-        console.log(chalk.red('❌ No API keys found. Please set ANTHROPIC_API_KEY or OPENAI_API_KEY'))
+        console.log(chalk.red('✖ No API keys found. Please set ANTHROPIC_API_KEY or OPENAI_API_KEY'))
         process.exit(1)
       }
 
@@ -862,7 +862,7 @@ export class UnifiedChatInterface extends EventEmitter {
 
       this.initialized = true
     } catch (error: any) {
-      console.error(chalk.red('❌ Failed to start NikCLI:'), error)
+      console.error(chalk.red('✖ Failed to start NikCLI:'), error)
       process.exit(1)
     }
   }
@@ -931,7 +931,7 @@ async function main() {
 // Start if run directly
 if (require.main === module) {
   main().catch((error) => {
-    console.error(chalk.red('❌ Startup failed:'), error)
+    console.error(chalk.red('✖ Startup failed:'), error)
     process.exit(1)
   })
 }

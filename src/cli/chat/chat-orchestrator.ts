@@ -397,7 +397,7 @@ Last updated: ${context?.lastUpdated ? new Date(context.lastUpdated).toLocaleStr
         } catch (error: any) {
           session.messages.push({
             role: 'assistant',
-            content: `❌ Failed to create guidance file: ${error.message}`,
+            content: `✖ Failed to create guidance file: ${error.message}`,
             timestamp: new Date().toISOString(),
           })
         }
@@ -416,7 +416,7 @@ Last updated: ${context?.lastUpdated ? new Date(context.lastUpdated).toLocaleStr
         } catch (error: any) {
           session.messages.push({
             role: 'assistant',
-            content: `❌ Failed to reload guidance: ${error.message}`,
+            content: `✖ Failed to reload guidance: ${error.message}`,
             timestamp: new Date().toISOString(),
           })
         }

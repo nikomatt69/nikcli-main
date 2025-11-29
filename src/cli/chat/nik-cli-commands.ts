@@ -147,12 +147,12 @@ function validateCommandArgs<T>(schema: z.ZodSchema<T>, data: any, commandName: 
     return parsedArgs
   } catch (error) {
     if (error instanceof z.ZodError) {
-      console.log(chalk.red(`❌ Invalid arguments for /${commandName}:`))
+      console.log(chalk.red(`✖ Invalid arguments for /${commandName}:`))
       error.errors.forEach((err) => {
         console.log(chalk.yellow(`   • ${err.path.join('.')}: ${err.message}`))
       })
     } else {
-      console.log(chalk.red(`❌ Failed to validate /${commandName}: ${error}`))
+      console.log(chalk.red(`✖ Failed to validate /${commandName}: ${error}`))
     }
     return null
   }
@@ -452,7 +452,7 @@ export class SlashCommandHandler {
 
     const handler = this.commands.get(command)
     if (!handler) {
-      console.log(chalk.red(`❌ Unknown command: ${command}`))
+      console.log(chalk.red(`✖ Unknown command: ${command}`))
       console.log(chalk.gray('Type /help or /commands for available commands'))
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
@@ -860,7 +860,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         if (nik?.printPanel) nik.printPanel(successBox)
         else console.log(successBox)
       } else {
-        const errorBox = boxen(chalk.red('❌ Authentication failed'), {
+        const errorBox = boxen(chalk.red('✖ Authentication failed'), {
           padding: 1,
           borderStyle: 'round',
           borderColor: 'red',
@@ -887,7 +887,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     if (typeof handler === 'function') {
       await handler.call(this.cliInstance, 'supabase', args)
     } else {
-      console.log(chalk.red('❌ Supabase handler unavailable in this context.'))
+      console.log(chalk.red('✖ Supabase handler unavailable in this context.'))
     }
     return { shouldExit: false, shouldUpdatePrompt: false }
   }
@@ -902,7 +902,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     if (typeof handler === 'function') {
       await handler.call(this.cliInstance, 'db', args)
     } else {
-      console.log(chalk.red('❌ Database handler unavailable in this context.'))
+      console.log(chalk.red('✖ Database handler unavailable in this context.'))
     }
     return { shouldExit: false, shouldUpdatePrompt: false }
   }
@@ -917,7 +917,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     if (typeof handler === 'function') {
       await handler.call(this.cliInstance, 'session-sync', args)
     } else {
-      console.log(chalk.red('❌ Session sync handler unavailable in this context.'))
+      console.log(chalk.red('✖ Session sync handler unavailable in this context.'))
     }
     return { shouldExit: false, shouldUpdatePrompt: false }
   }
@@ -1088,7 +1088,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           }
         } catch (e: any) {
           const nik: any = (global as any).__nikCLI
-          const panel = boxen(chalk.red(`❌ Activation failed: ${e.message}`), {
+          const panel = boxen(chalk.red(`✖ Activation failed: ${e.message}`), {
             title: 'Plan',
             padding: 1,
             margin: 1,
@@ -1101,11 +1101,11 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         return { shouldExit: false, shouldUpdatePrompt: false }
       }
 
-      console.log(chalk.red(`❌ Unknown subcommand: ${sub}`))
+      console.log(chalk.red(`✖ Unknown subcommand: ${sub}`))
       console.log(chalk.gray('Use /pro help for available commands'))
       return { shouldExit: false, shouldUpdatePrompt: false }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Pro command failed: ${error.message}`))
+      console.log(chalk.red(`✖ Pro command failed: ${error.message}`))
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
   }
@@ -1144,7 +1144,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       // ALL /ads commands require pro tier
       if (userTier === 'free') {
         const panel = boxen(
-          chalk.red('❌ /ads commands require Pro subscription\n\n') +
+          chalk.red('✖ /ads commands require Pro subscription\n\n') +
           chalk.gray('Free users:\n') +
           chalk.gray('  • Ads are always displayed\n') +
           chalk.gray('  • No opt-out available\n\n') +
@@ -1421,7 +1421,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           // Display result panel
           if (error) {
             const errorPanel = boxen(
-              chalk.red('❌ Campaign Creation Failed\n\n') +
+              chalk.red('✖ Campaign Creation Failed\n\n') +
               chalk.gray(error.message),
               {
                 title: 'Error',
@@ -1493,7 +1493,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         }
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Ads command failed: ${error.message}`))
+      console.log(chalk.red(`✖ Ads command failed: ${error.message}`))
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
   }
@@ -1549,7 +1549,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         return { shouldExit: false, shouldUpdatePrompt: true }
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ ${error.message}`))
+      console.log(chalk.red(`✖ ${error.message}`))
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
   }
@@ -1632,7 +1632,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       )
       return { shouldExit: false, shouldUpdatePrompt: true }
     } catch (error: any) {
-      console.log(chalk.red(`❌ ${error.message}`))
+      console.log(chalk.red(`✖ ${error.message}`))
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
   }
@@ -1650,7 +1650,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     Object.entries(models).forEach(([name, config]) => {
       const isCurrent = name === currentModel
       const hasKey = configManager.getApiKey(name) !== undefined || configManager.getApiKey(config.provider) !== undefined
-      const status = hasKey ? chalk.green('✓') : chalk.red('❌')
+      const status = hasKey ? chalk.green('✓') : chalk.red('✖')
       const prefix = isCurrent ? chalk.yellow('→ ') : '  '
       const dims = (config as any).dimensions || aiSdkEmbeddingProvider.getCurrentDimensions()
 
@@ -1686,7 +1686,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     Object.entries(models).forEach(([name, config]) => {
       const isCurrent = name === currentModel
       const hasKey = configManager.getApiKey(name) !== undefined
-      const status = hasKey ? chalk.green('✓') : chalk.red('❌')
+      const status = hasKey ? chalk.green('✓') : chalk.red('✖')
       const prefix = isCurrent ? chalk.yellow('→ ') : '  '
 
       console.log(`${prefix}${status} ${chalk.bold(name)}`)
@@ -1720,7 +1720,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       const apiKey = process.env.OPENROUTER_API_KEY || configManager.getApiKey('openrouter')
       if (!apiKey) {
         this.printPanel(
-          boxen(chalk.red('❌ OPENROUTER_API_KEY not found\n\nSet it with: /set-key openrouter <your-api-key>'), {
+          boxen(chalk.red('✖ OPENROUTER_API_KEY not found\n\nSet it with: /set-key openrouter <your-api-key>'), {
             title: '🔑 Missing API Key',
             padding: 1,
             margin: 1,
@@ -1744,10 +1744,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         this.printPanel(
           boxen(
             chalk.red(
-              `❌ Error fetching models: ${response.status} ${response.statusText}\n\nCheck your API key with: /set-key openrouter <your-api-key>`
+              `✖ Error fetching models: ${response.status} ${response.statusText}\n\nCheck your API key with: /set-key openrouter <your-api-key>`
             ),
             {
-              title: '❌ API Error',
+              title: '✖ API Error',
               padding: 1,
               margin: 1,
               borderStyle: 'round',
@@ -1868,8 +1868,8 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       nik?.suspendPrompt?.()
 
       this.printPanel(
-        boxen(chalk.red(`❌ Error: ${error.message}`), {
-          title: '❌ Error',
+        boxen(chalk.red(`✖ Error: ${error.message}`), {
+          title: '✖ Error',
           padding: 1,
           margin: 1,
           borderStyle: 'round',
@@ -1905,7 +1905,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       return { shouldExit: false, shouldUpdatePrompt: true }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to set embedding key: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to set embedding key: ${error.message}`))
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
   }
@@ -1919,7 +1919,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       const apiKey = process.env.OPENROUTER_API_KEY || configManager.getApiKey('openrouter')
       if (!apiKey) {
         this.printPanel(
-          boxen(chalk.red('❌ OPENROUTER_API_KEY not found\n\nSet it with: /set-key openrouter <your-api-key>'), {
+          boxen(chalk.red('✖ OPENROUTER_API_KEY not found\n\nSet it with: /set-key openrouter <your-api-key>'), {
             title: '🔑 Missing API Key',
             padding: 1,
             margin: 1,
@@ -1977,10 +1977,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         this.printPanel(
           boxen(
             chalk.red(
-              `❌ Error fetching ${modelType}: ${response.status} ${response.statusText}\n\nCheck your API key with: /set-key openrouter <your-api-key>`
+              `✖ Error fetching ${modelType}: ${response.status} ${response.statusText}\n\nCheck your API key with: /set-key openrouter <your-api-key>`
             ),
             {
-              title: '❌ API Error',
+              title: '✖ API Error',
               padding: 1,
               margin: 1,
               borderStyle: 'round',
@@ -2094,8 +2094,8 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       nik?.suspendPrompt?.()
 
       this.printPanel(
-        boxen(chalk.red(`❌ Error: ${error.message}`), {
-          title: '❌ Error',
+        boxen(chalk.red(`✖ Error: ${error.message}`), {
+          title: '✖ Error',
           padding: 1,
           margin: 1,
           borderStyle: 'round',
@@ -2263,7 +2263,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     } catch (error: any) {
       this.cliInstance.printPanel(
         boxen(`Router error: ${error.message}`, {
-          title: '❌ Router',
+          title: '✖ Router',
           padding: 1,
           margin: 1,
           borderStyle: 'round',
@@ -2360,7 +2360,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       } else if (keyName === 'openrouter' || keyName === 'nikcli') {
         const valid = await this.validateOpenRouterKey(apiKey)
         if (!valid) {
-          console.log(chalk.red('❌ Invalid OpenRouter API key'))
+          console.log(chalk.red('✖ Invalid OpenRouter API key'))
           return { shouldExit: false, shouldUpdatePrompt: false }
         }
         configManager.setApiKey('openrouter', apiKey)
@@ -2399,7 +2399,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         console.log(chalk.green(`✓ API key set for ${name}`))
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ ${error.message}`))
+      console.log(chalk.red(`✖ ${error.message}`))
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
@@ -2509,7 +2509,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     } catch (error: any) {
       this.cliInstance.printPanel(
         boxen(`Failed to set Coinbase keys: ${error.message}`, {
-          title: '❌ Set Coinbase Keys',
+          title: '✖ Set Coinbase Keys',
           padding: 1,
           margin: 1,
           borderStyle: 'round',
@@ -2595,7 +2595,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     } catch (error: any) {
       this.cliInstance.printPanel(
         boxen(`Failed to set Browserbase keys: ${error.message}`, {
-          title: '❌ Set Browserbase Keys',
+          title: '✖ Set Browserbase Keys',
           padding: 1,
           margin: 1,
           borderStyle: 'round',
@@ -2708,7 +2708,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     } catch (error: any) {
       this.cliInstance.printPanel(
         boxen(`Failed to set NikDrive API key: ${error.message}`, {
-          title: '❌ Set NikDrive API Key',
+          title: '✖ Set NikDrive API Key',
           padding: 1,
           margin: 1,
           borderStyle: 'round',
@@ -2733,13 +2733,13 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     const resolvedPath = resolve(process.cwd(), providedPath)
 
     if (!existsSync(resolvedPath)) {
-      console.log(chalk.red(`❌ Env file not found: ${providedPath}`))
+      console.log(chalk.red(`✖ Env file not found: ${providedPath}`))
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
 
     const stats = statSync(resolvedPath)
     if (!stats.isFile()) {
-      console.log(chalk.red(`❌ Path is not a file: ${providedPath}`))
+      console.log(chalk.red(`✖ Path is not a file: ${providedPath}`))
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
 
@@ -2781,7 +2781,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     } catch (error: any) {
       this.cliInstance.printPanel(
         boxen(`Failed to import environment variables: ${error.message}`, {
-          title: '❌ Env Import Failed',
+          title: '✖ Env Import Failed',
           padding: 1,
           margin: 1,
           borderStyle: 'round',
@@ -2858,7 +2858,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       const containers = this.vmOrchestrator.getActiveContainers()
       const container = containers.find((c) => c.id.startsWith(containerIdPrefix))
       if (!container) {
-        console.log(chalk.red(`❌ Container ${containerIdPrefix} not found`))
+        console.log(chalk.red(`✖ Container ${containerIdPrefix} not found`))
         console.log(chalk.gray('Use /vm-list to see active containers'))
         return { shouldExit: false, shouldUpdatePrompt: false }
       }
@@ -2879,7 +2879,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       console.log(chalk.green(`✓ Pull request ready: ${prUrl}`))
       return { shouldExit: false, shouldUpdatePrompt: false }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to create PR: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to create PR: ${error.message}`))
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
   }
@@ -2918,7 +2918,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       console.log(chalk.green(`✓ Session exported to ${filename}`))
     } catch (error: any) {
-      console.log(chalk.red(`❌ ${error.message}`))
+      console.log(chalk.red(`✖ ${error.message}`))
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
@@ -2993,7 +2993,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     if (!this.cliInstance || !(typeof this.cliInstance.getMLStatus === 'function' as string)) {
       this.printPanel(
         boxen('ML System status unavailable - CLI instance not initialized', {
-          title: '❌ ML System Status',
+          title: '✖ ML System Status',
           padding: 1,
           margin: 1,
           borderStyle: 'round',
@@ -3053,7 +3053,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     } catch (error: any) {
       this.printPanel(
         boxen(`Error checking ML status: ${error.message}`, {
-          title: '❌ ML Status Check Failed',
+          title: '✖ ML Status Check Failed',
           padding: 1,
           margin: 1,
           borderStyle: 'round',
@@ -3085,7 +3085,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     if (Number.isNaN(temp) || temp < 0 || temp > 2) {
       this.printPanel(
         boxen('Temperature must be between 0.0 and 2.0', {
-          title: '❌ Invalid Value',
+          title: '✖ Invalid Value',
           padding: 1,
           margin: 1,
           borderStyle: 'round',
@@ -3130,7 +3130,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     if (setting !== 'on' && setting !== 'off') {
       this.printPanel(
         boxen('Usage: /history <on|off>', {
-          title: '❌ Invalid Argument',
+          title: '✖ Invalid Argument',
           padding: 1,
           margin: 1,
           borderStyle: 'round',
@@ -3167,7 +3167,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       const currentModelConfig = models[currentModel]
 
       if (!currentModelConfig) {
-        console.log(chalk.red(`❌ Model configuration missing for: ${currentModel}`))
+        console.log(chalk.red(`✖ Model configuration missing for: ${currentModel}`))
         return { shouldExit: false, shouldUpdatePrompt: false }
       }
 
@@ -3179,7 +3179,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       if (apiKey) {
         console.log(chalk.green(`✓ API Key: ${apiKey.slice(0, 10)}...${apiKey.slice(-4)} (${apiKey.length} chars)`))
       } else {
-        console.log(chalk.red(`❌ API Key: Not configured`))
+        console.log(chalk.red(`✖ API Key: Not configured`))
         console.log(chalk.yellow(`   Set with: /set-key ${currentModel} <your-api-key>`))
       }
 
@@ -3188,7 +3188,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         const isValid = modelProvider.validateApiKey()
         console.log(chalk.green(`✓ Model Provider Validation: ${isValid ? 'Valid' : 'Invalid'}`))
       } catch (error: any) {
-        console.log(chalk.red(`❌ Model Provider Validation Failed: ${error.message}`))
+        console.log(chalk.red(`✖ Model Provider Validation Failed: ${error.message}`))
       }
 
       // Test a simple generation
@@ -3200,7 +3200,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         })
         console.log(chalk.green(`✓ Test Generation: ${testResponse.trim()}`))
       } catch (error: any) {
-        console.log(chalk.red(`❌ Test Generation Failed: ${error.message}`))
+        console.log(chalk.red(`✖ Test Generation Failed: ${error.message}`))
       }
 
       // Environment variables
@@ -3211,11 +3211,11 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         if (value) {
           console.log(chalk.green(`✓ ${envVar}: ${value.slice(0, 10)}...${value.slice(-4)}`))
         } else {
-          console.log(chalk.gray(`❌ ${envVar}: Not set`))
+          console.log(chalk.gray(`✖ ${envVar}: Not set`))
         }
       })
     } catch (error: any) {
-      console.log(chalk.red(`❌ Debug error: ${error.message}`))
+      console.log(chalk.red(`✖ Debug error: ${error.message}`))
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
@@ -3265,7 +3265,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
               `Platform: ${process.platform}\n` +
               `Node: ${process.version}\n` +
               `Memory: ${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB`, {
-              title: '❌ Dashboard Error',
+              title: '✖ Dashboard Error',
               padding: 1,
               margin: 1,
               borderStyle: 'round',
@@ -3294,7 +3294,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           } catch (error: any) {
             this.printPanel(
               boxen(`Error loading metrics: ${error.message}`, {
-                title: '❌ Metrics Error',
+                title: '✖ Metrics Error',
                 padding: 1,
                 margin: 1,
                 borderStyle: 'round',
@@ -3326,7 +3326,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           } catch (error: any) {
             this.printPanel(
               boxen(`Full dashboard error: ${error.message}`, {
-                title: '❌ Dashboard Error',
+                title: '✖ Dashboard Error',
                 padding: 1,
                 margin: 1,
                 borderStyle: 'round',
@@ -3339,7 +3339,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         case 'live':
         case 'realtime':
           if (!this.cliInstance) {
-            console.log(chalk.red('❌ Interactive dashboard not available in this context'))
+            console.log(chalk.red('✖ Interactive dashboard not available in this context'))
             return { shouldExit: false, shouldUpdatePrompt: false }
           }
           console.log(chalk.yellow('⚠️ Launching interactive dashboard - this will take over your terminal'))
@@ -3375,7 +3375,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         default:
           this.printPanel(
             boxen(`Unknown dashboard command: ${action}\nUse /dashboard help for available commands`, {
-              title: '❌ Invalid Command',
+              title: '✖ Invalid Command',
               padding: 1,
               margin: 1,
               borderStyle: 'round',
@@ -3386,7 +3386,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     } catch (error: any) {
       this.printPanel(
         boxen(`Dashboard error: ${error.message}`, {
-          title: '❌ Dashboard Error',
+          title: '✖ Dashboard Error',
           padding: 1,
           margin: 1,
           borderStyle: 'round',
@@ -4164,7 +4164,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     try {
       const agent = this.agentManager.getAgent(agentName)
       if (!agent) {
-        console.log(chalk.red(`❌ Agent '${agentName}' not found`))
+        console.log(chalk.red(`✖ Agent '${agentName}' not found`))
         console.log(chalk.gray('Use /agents to see available agents'))
         return { shouldExit: false, shouldUpdatePrompt: false }
       }
@@ -4193,7 +4193,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         console.log(JSON.stringify(result, null, 2))
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Error running agent: ${error.message}`))
+      console.log(chalk.red(`✖ Error running agent: ${error.message}`))
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
@@ -4226,13 +4226,13 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       await agent.cleanup()
 
       if (result.error) {
-        console.log(chalk.red(`❌ ${result.error}`))
+        console.log(chalk.red(`✖ ${result.error}`))
       } else {
         console.log(chalk.green('✓ Autonomous execution completed!'))
         console.log(chalk.gray('Use /stream to see execution details'))
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Error in autonomous execution: ${error.message}`))
+      console.log(chalk.red(`✖ Error in autonomous execution: ${error.message}`))
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
@@ -4287,7 +4287,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         }
       })
     } catch (error: any) {
-      console.log(chalk.red(`❌ Error in parallel execution: ${error.message}`))
+      console.log(chalk.red(`✖ Error in parallel execution: ${error.message}`))
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
@@ -4300,7 +4300,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     if (args.length === 0) {
       this.printPanel(
         boxen('Usage: /read <filepath>', {
-          title: '❌ Missing Argument',
+          title: '✖ Missing Argument',
           padding: 1,
           margin: 1,
           borderStyle: 'round',
@@ -4328,7 +4328,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       )
       console.log(fileInfo.content)
     } catch (error: any) {
-      console.log(chalk.red(`❌ Error reading file: ${error.message}`))
+      console.log(chalk.red(`✖ Error reading file: ${error.message}`))
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
@@ -4340,7 +4340,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     if (args.length < 2) {
       this.printPanel(
         boxen('Usage: /write <filepath> <content>', {
-          title: '❌ Missing Arguments',
+          title: '✖ Missing Arguments',
           padding: 1,
           margin: 1,
           borderStyle: 'round',
@@ -4394,7 +4394,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       advancedUI.logError(`Error writing file: ${error.message}`)
       this.printPanel(
         boxen(`Error: ${error.message}`, {
-          title: '❌ Write Failed',
+          title: '✖ Write Failed',
           padding: 1,
           margin: 1,
           borderStyle: 'round',
@@ -4412,7 +4412,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     if (args.length === 0) {
       this.printPanel(
         boxen('Usage: /edit <filepath>', {
-          title: '❌ Missing Argument',
+          title: '✖ Missing Argument',
           padding: 1,
           margin: 1,
           borderStyle: 'round',
@@ -4439,7 +4439,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     } catch (error: any) {
       this.printPanel(
         boxen(`Error: ${error.message}`, {
-          title: '❌ Editor Failed',
+          title: '✖ Editor Failed',
           padding: 1,
           margin: 1,
           borderStyle: 'round',
@@ -4488,7 +4488,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     } catch (error: any) {
       this.printPanel(
         boxen(`Error: ${error.message}`, {
-          title: '❌ List Failed',
+          title: '✖ List Failed',
           padding: 1,
           margin: 1,
           borderStyle: 'round',
@@ -4589,7 +4589,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         const result = await webTool.execute({ query, maxResults, searchType, mode, includeContent, maxContentBytes })
 
         if (result?.error) {
-          console.log(chalk.red(`❌ ${result.error}`))
+          console.log(chalk.red(`✖ ${result.error}`))
           return { shouldExit: false, shouldUpdatePrompt: false }
         }
 
@@ -4616,7 +4616,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
         return { shouldExit: false, shouldUpdatePrompt: false }
       } catch (error: any) {
-        console.log(chalk.red(`❌ Web search failed: ${error.message}`))
+        console.log(chalk.red(`✖ Web search failed: ${error.message}`))
         return { shouldExit: false, shouldUpdatePrompt: false }
       }
     }
@@ -4684,7 +4684,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         }
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Error searching: ${error.message}`))
+      console.log(chalk.red(`✖ Error searching: ${error.message}`))
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
@@ -4707,7 +4707,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       const approved = await approvalSystem.requestCommandApproval(command, commandArgs, process.cwd())
 
       if (!approved) {
-        console.log(chalk.yellow('❌ Command execution cancelled'))
+        console.log(chalk.yellow('✖ Command execution cancelled'))
         return { shouldExit: false, shouldUpdatePrompt: false }
       }
 
@@ -4724,11 +4724,11 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         console.log(chalk.green('✓ Command completed successfully'))
       } else {
         advancedUI.stopSpinner(cmdId, false, `Command failed with exit code ${result.code}`)
-        console.log(chalk.red(`❌ Command failed with exit code ${result.code}`))
+        console.log(chalk.red(`✖ Command failed with exit code ${result.code}`))
       }
     } catch (error: any) {
       advancedUI.logError(`Error running command: ${error.message}`)
-      console.log(chalk.red(`❌ Error running command: ${error.message}`))
+      console.log(chalk.red(`✖ Error running command: ${error.message}`))
     } finally {
       const nik: any = (global as any).__nikCLI
       nik?.requestPromptCleanup?.()
@@ -4754,7 +4754,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       const approved = await approvalSystem.requestPackageApproval(packages, manager, isGlobal)
 
       if (!approved) {
-        console.log(chalk.yellow('❌ Package installation cancelled'))
+        console.log(chalk.yellow('✖ Package installation cancelled'))
         return { shouldExit: false, shouldUpdatePrompt: false }
       }
 
@@ -4788,7 +4788,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       console.log(chalk.green(`✓ Package installation completed`))
     } catch (error: any) {
       advancedUI.logError(`Error installing packages: ${error.message}`)
-      console.log(chalk.red(`❌ Error installing packages: ${error.message}`))
+      console.log(chalk.red(`✖ Error installing packages: ${error.message}`))
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
@@ -4828,7 +4828,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         })
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Error listing processes: ${error.message}`))
+      console.log(chalk.red(`✖ Error listing processes: ${error.message}`))
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
@@ -4854,10 +4854,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       if (success) {
         console.log(chalk.green(`✓ Process ${pid} terminated`))
       } else {
-        console.log(chalk.red(`❌ Could not kill process ${pid}`))
+        console.log(chalk.red(`✖ Could not kill process ${pid}`))
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Error killing process: ${error.message}`))
+      console.log(chalk.red(`✖ Error killing process: ${error.message}`))
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
@@ -4920,7 +4920,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       // Validate target format
       if (!target.includes('@')) {
-        console.log(chalk.red('❌ Invalid format. Use: user@host'))
+        console.log(chalk.red('✖ Invalid format. Use: user@host'))
         return { shouldExit: false, shouldUpdatePrompt: false }
       }
 
@@ -4960,9 +4960,9 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       // Handle process events
       sshProcess.on('error', (error: any) => {
         if (error.code === 'ENOENT') {
-          console.log(chalk.red('❌ SSH command not found. Please install OpenSSH client.'))
+          console.log(chalk.red('✖ SSH command not found. Please install OpenSSH client.'))
         } else {
-          console.log(chalk.red(`❌ SSH connection failed: ${error.message}`))
+          console.log(chalk.red(`✖ SSH connection failed: ${error.message}`))
         }
       })
 
@@ -4983,7 +4983,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       return { shouldExit: false, shouldUpdatePrompt: false }
     } catch (error: any) {
-      console.log(chalk.red(`❌ SSH connection error: ${error.message}`))
+      console.log(chalk.red(`✖ SSH connection error: ${error.message}`))
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
   }
@@ -5022,7 +5022,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
             : ''
         this.printPanel(
           boxen(`Build failed${errors}`, {
-            title: '❌ Build Failed',
+            title: '✖ Build Failed',
             padding: 1,
             margin: 1,
             borderStyle: 'round',
@@ -5033,7 +5033,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     } catch (error: any) {
       this.printPanel(
         boxen(`Error: ${error.message}`, {
-          title: '❌ Build Error',
+          title: '✖ Build Error',
           padding: 1,
           margin: 1,
           borderStyle: 'round',
@@ -5079,7 +5079,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
             : ''
         this.printPanel(
           boxen(`Some tests failed${errors}`, {
-            title: '❌ Tests Failed',
+            title: '✖ Tests Failed',
             padding: 1,
             margin: 1,
             borderStyle: 'round',
@@ -5090,7 +5090,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     } catch (error: any) {
       this.printPanel(
         boxen(`Error: ${error.message}`, {
-          title: '❌ Test Error',
+          title: '✖ Test Error',
           padding: 1,
           margin: 1,
           borderStyle: 'round',
@@ -5120,7 +5120,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         }
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Error running linter: ${error.message}`))
+      console.log(chalk.red(`✖ Error running linter: ${error.message}`))
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
@@ -5144,10 +5144,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         console.log(chalk.green(`✓ Project ${name} created successfully!`))
         console.log(chalk.gray(`📁 Location: ${result.path}`))
       } else {
-        console.log(chalk.red(`❌ Failed to create project ${name}`))
+        console.log(chalk.red(`✖ Failed to create project ${name}`))
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Error creating project: ${error.message}`))
+      console.log(chalk.red(`✖ Error creating project: ${error.message}`))
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
@@ -5252,7 +5252,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     if (args.length === 0) {
       this.printPanel(
         boxen('Usage: /vm-create <repository-url|os> [--os alpine|debian|ubuntu] [--mount-desktop] [--no-repo]', {
-          title: '❌ Missing Repository URL',
+          title: '✖ Missing Repository URL',
           padding: 1,
           margin: 1,
           borderStyle: 'round',
@@ -5362,7 +5362,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     } catch (error: any) {
       this.printPanel(
         boxen(`Error: ${error.message}`, {
-          title: '❌ VM Creation Failed',
+          title: '✖ VM Creation Failed',
           padding: 1,
           margin: 1,
           borderStyle: 'round',
@@ -5421,7 +5421,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     } catch (error: any) {
       this.printPanel(
         boxen(`Error: ${error.message}`, {
-          title: '❌ List Failed',
+          title: '✖ List Failed',
           padding: 1,
           margin: 1,
           borderStyle: 'round',
@@ -5439,7 +5439,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     if (args.length === 0) {
       this.printPanel(
         boxen('Usage: /vm-stop <container-id>', {
-          title: '❌ Missing Container ID',
+          title: '✖ Missing Container ID',
           padding: 1,
           margin: 1,
           borderStyle: 'round',
@@ -5474,7 +5474,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     } catch (error: any) {
       this.printPanel(
         boxen(`Error: ${error.message}`, {
-          title: '❌ Stop Failed',
+          title: '✖ Stop Failed',
           padding: 1,
           margin: 1,
           borderStyle: 'round',
@@ -5492,7 +5492,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     if (args.length === 0) {
       this.printPanel(
         boxen('Usage: /vm-remove <container-id>', {
-          title: '❌ Missing Container ID',
+          title: '✖ Missing Container ID',
           padding: 1,
           margin: 1,
           borderStyle: 'round',
@@ -5527,7 +5527,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     } catch (error: any) {
       this.printPanel(
         boxen(`Error: ${error.message}`, {
-          title: '❌ Remove Failed',
+          title: '✖ Remove Failed',
           padding: 1,
           margin: 1,
           borderStyle: 'round',
@@ -5545,7 +5545,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     if (args.length === 0) {
       this.printPanel(
         boxen('Usage: /vm-connect <container-id>', {
-          title: '❌ Missing Container ID',
+          title: '✖ Missing Container ID',
           padding: 1,
           margin: 1,
           borderStyle: 'round',
@@ -5563,7 +5563,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       if (!container) {
         this.printPanel(
           boxen(`Container ${chalk.cyan(containerId)} not found\n\nUse /vm-list to see active containers`, {
-            title: '❌ Container Not Found',
+            title: '✖ Container Not Found',
             padding: 1,
             margin: 1,
             borderStyle: 'round',
@@ -5597,7 +5597,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     } catch (error: any) {
       this.printPanel(
         boxen(`Error: ${error.message}`, {
-          title: '❌ Connection Failed',
+          title: '✖ Connection Failed',
           padding: 1,
           margin: 1,
           borderStyle: 'round',
@@ -5634,7 +5634,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         console.log(chalk.yellow('📋 No logs available for this container'))
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to get container logs: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to get container logs: ${error.message}`))
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
@@ -5704,7 +5704,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           console.log(chalk.gray('VM switch cancelled'))
         }
       } catch (error: any) {
-        console.log(chalk.red(`❌ Failed to switch VM: ${error.message}`))
+        console.log(chalk.red(`✖ Failed to switch VM: ${error.message}`))
       }
     }
 
@@ -5777,7 +5777,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     } catch (error: any) {
       this.printPanel(
         boxen(`Error: ${error.message}`, {
-          title: '❌ VM Dashboard Failed',
+          title: '✖ VM Dashboard Failed',
           padding: 1,
           margin: 1,
           borderStyle: 'round',
@@ -5806,7 +5806,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           console.log(chalk.gray('VM selection cancelled'))
         }
       } catch (error: any) {
-        console.log(chalk.red(`❌ Failed to select VM: ${error.message}`))
+        console.log(chalk.red(`✖ Failed to select VM: ${error.message}`))
       }
     } else {
       const vmId = args[0]
@@ -5817,11 +5817,11 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         if (success) {
           console.log(chalk.green(`✓ Selected VM: ${vmId}`))
         } else {
-          console.log(chalk.red(`❌ VM not found: ${vmId}`))
+          console.log(chalk.red(`✖ VM not found: ${vmId}`))
           console.log(chalk.gray('Use /vm-list to see available VMs'))
         }
       } catch (error: any) {
-        console.log(chalk.red(`❌ Failed to select VM: ${error.message}`))
+        console.log(chalk.red(`✖ Failed to select VM: ${error.message}`))
       }
     }
 
@@ -5907,7 +5907,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     } catch (error: any) {
       this.printPanel(
         boxen(`Error: ${error.message}`, {
-          title: '❌ VM Status Failed',
+          title: '✖ VM Status Failed',
           padding: 1,
           margin: 1,
           borderStyle: 'round',
@@ -5946,7 +5946,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       try {
         await vmSelector.executeVMCommand(selectedVM.id, command)
       } catch (error: any) {
-        console.log(chalk.red(`❌ Command execution failed: ${error.message}`))
+        console.log(chalk.red(`✖ Command execution failed: ${error.message}`))
       }
     }
 
@@ -5986,7 +5986,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           })
         }
       } catch (error: any) {
-        console.log(chalk.red(`❌ Failed to list files: ${error.message}`))
+        console.log(chalk.red(`✖ Failed to list files: ${error.message}`))
       }
     }
 
@@ -6007,7 +6007,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     try {
       await vmSelector.broadcastToAllVMs(message)
     } catch (error: any) {
-      console.log(chalk.red(`❌ Broadcast failed: ${error.message}`))
+      console.log(chalk.red(`✖ Broadcast failed: ${error.message}`))
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
@@ -6019,7 +6019,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     try {
       await vmSelector.performHealthCheckAll()
     } catch (error: any) {
-      console.log(chalk.red(`❌ Health check failed: ${error.message}`))
+      console.log(chalk.red(`✖ Health check failed: ${error.message}`))
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
@@ -6040,14 +6040,14 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         const backupId = await vmSelector.backupVMSession(selectedVM.id)
         console.log(chalk.green(`✓ Backup completed: ${backupId}`))
       } catch (error: any) {
-        console.log(chalk.red(`❌ Backup failed: ${error.message}`))
+        console.log(chalk.red(`✖ Backup failed: ${error.message}`))
       }
     } else {
       try {
         const backupId = await vmSelector.backupVMSession(vmId)
         console.log(chalk.green(`✓ Backup completed: ${backupId}`))
       } catch (error: any) {
-        console.log(chalk.red(`❌ Backup failed: ${error.message}`))
+        console.log(chalk.red(`✖ Backup failed: ${error.message}`))
       }
     }
 
@@ -6151,7 +6151,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     } catch (error: any) {
       this.printPanel(
         boxen(`Error: ${error.message}`, {
-          title: '❌ VM Stats Failed',
+          title: '✖ VM Stats Failed',
           padding: 1,
           margin: 1,
           borderStyle: 'round',
@@ -6209,7 +6209,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       try {
         CreateAgentCommandSchema.parse({ name, specialization, type: agentType })
       } catch (validationError: any) {
-        console.log(chalk.red('❌ Invalid arguments:'))
+        console.log(chalk.red('✖ Invalid arguments:'))
         validationError.errors?.forEach((err: any) => {
           console.log(chalk.yellow(`   • ${err.path.join('.')}: ${err.message}`))
         })
@@ -6239,7 +6239,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       console.log(chalk.gray('Use /launch-agent <id> to launch this agent'))
     } catch (error: any) {
-      console.log(chalk.red(`❌ Error creating agent: ${error.message}`))
+      console.log(chalk.red(`✖ Error creating agent: ${error.message}`))
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
@@ -6275,7 +6275,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         console.log(chalk.gray(`Use /agent ${agent.getBlueprint().name} <task> to run tasks`))
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Error launching agent:`))
+      console.log(chalk.red(`✖ Error launching agent:`))
       // Split multiline error messages for better readability
       const errorLines = error.message.split('\n')
       errorLines.forEach((line: string) => {
@@ -6320,7 +6320,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         await this.showEnhancedContext()
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Error updating context: ${error.message}`))
+      console.log(chalk.red(`✖ Error updating context: ${error.message}`))
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
@@ -6917,7 +6917,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
                     : plan.status === 'approved'
                       ? '🟢'
                       : plan.status === 'failed'
-                        ? '❌'
+                        ? '✖'
                         : '⏳'
               console.log(`  ${index + 1}. ${statusIcon} ${plan.title} (${plan.todos.length} todos)`)
               console.log(`     Status: ${plan.status} | Created: ${plan.createdAt}`)
@@ -6931,7 +6931,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           console.log(chalk.gray('Available commands: create, execute, approve, show, list'))
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Plan command failed: ${error.message}`))
+      console.log(chalk.red(`✖ Plan command failed: ${error.message}`))
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
@@ -6989,7 +6989,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
             const pending = plan.todos.filter((t) => t.status === 'pending').length
             const failed = plan.todos.filter((t) => t.status === 'failed').length
 
-            console.log(`   ✓ ${completed} | ⚡︎ ${inProgress} | ⏳ ${pending} | ❌ ${failed}`)
+            console.log(`   ✓ ${completed} | ⚡︎ ${inProgress} | ⏳ ${pending} | ✖ ${failed}`)
           })
           break
         }
@@ -7075,7 +7075,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           console.log(chalk.gray('Available commands: list, show, open, edit'))
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Todo command failed: ${error.message}`))
+      console.log(chalk.red(`✖ Todo command failed: ${error.message}`))
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
@@ -7300,7 +7300,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           console.log(chalk.gray('Available commands: auto-approve, test'))
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Approval command failed: ${error.message}`))
+      console.log(chalk.red(`✖ Approval command failed: ${error.message}`))
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
@@ -7400,7 +7400,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
                 simpleConfigManager.set('securityMode', value as 'safe' | 'default' | 'developer')
                 console.log(chalk.green(`✓ Security mode set to: ${value}`))
               } else {
-                console.log(chalk.red('❌ Invalid mode. Use: safe, default, or developer'))
+                console.log(chalk.red('✖ Invalid mode. Use: safe, default, or developer'))
               }
               break
 
@@ -7427,12 +7427,12 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
                 simpleConfigManager.setAll(config)
                 console.log(chalk.green(`✓ ${mode} policy set to: ${value}`))
               } else {
-                console.log(chalk.red('❌ Invalid value. Use: always, risky, or never'))
+                console.log(chalk.red('✖ Invalid value. Use: always, risky, or never'))
               }
               break
 
             default:
-              console.log(chalk.red(`❌ Unknown setting: ${mode}`))
+              console.log(chalk.red(`✖ Unknown setting: ${mode}`))
           }
           break
         }
@@ -7454,7 +7454,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           console.log(chalk.gray('Use /security help for available commands'))
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Security command failed: ${error.message}`))
+      console.log(chalk.red(`✖ Security command failed: ${error.message}`))
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
@@ -7499,7 +7499,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           console.log(chalk.gray('Use /dev-mode help for available commands'))
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Dev-mode command failed: ${error.message}`))
+      console.log(chalk.red(`✖ Dev-mode command failed: ${error.message}`))
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
@@ -7513,7 +7513,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       console.log(chalk.green('🔒 Safe mode enabled - maximum security restrictions'))
       console.log(chalk.gray('All risky operations will require approval. Use /security status to see details.'))
     } catch (error: any) {
-      console.log(chalk.red(`❌ Safe mode command failed: ${error.message}`))
+      console.log(chalk.red(`✖ Safe mode command failed: ${error.message}`))
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
@@ -7525,7 +7525,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       console.log(chalk.green('✓ All session approvals cleared'))
       console.log(chalk.gray('Next operations will require fresh approval'))
     } catch (error: any) {
-      console.log(chalk.red(`❌ Clear approvals command failed: ${error.message}`))
+      console.log(chalk.red(`✖ Clear approvals command failed: ${error.message}`))
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
@@ -7586,7 +7586,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       console.log(chalk.gray('   /import-blueprint <file> - Import blueprint'))
       console.log(chalk.gray('   /search-blueprints <query> - Search blueprints'))
     } catch (error: any) {
-      console.log(chalk.red(`❌ Error managing blueprints: ${error.message}`))
+      console.log(chalk.red(`✖ Error managing blueprints: ${error.message}`))
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
@@ -7604,7 +7604,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       const blueprint = await agentFactory.getBlueprint(identifier)
 
       if (!blueprint) {
-        console.log(chalk.red(`❌ Blueprint '${identifier}' not found`))
+        console.log(chalk.red(`✖ Blueprint '${identifier}' not found`))
         console.log(chalk.gray('Use /blueprints to see all available blueprints'))
         return { shouldExit: false, shouldUpdatePrompt: false }
       }
@@ -7641,7 +7641,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       console.log(chalk.gray(`\n💡 Use /launch-agent ${blueprint.name} [task] to launch this agent`))
     } catch (error: any) {
-      console.log(chalk.red(`❌ Error retrieving blueprint: ${error.message}`))
+      console.log(chalk.red(`✖ Error retrieving blueprint: ${error.message}`))
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
@@ -7659,7 +7659,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       const blueprint = await agentFactory.getBlueprint(identifier)
 
       if (!blueprint) {
-        console.log(chalk.red(`❌ Blueprint '${identifier}' not found`))
+        console.log(chalk.red(`✖ Blueprint '${identifier}' not found`))
         return { shouldExit: false, shouldUpdatePrompt: false }
       }
 
@@ -7682,13 +7682,13 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         if (deleted) {
           console.log(chalk.green(`✓ Blueprint '${blueprint.name}' deleted successfully`))
         } else {
-          console.log(chalk.red(`❌ Failed to delete blueprint '${blueprint.name}'`))
+          console.log(chalk.red(`✖ Failed to delete blueprint '${blueprint.name}'`))
         }
       } else {
-        console.log(chalk.gray('❌ Deletion cancelled'))
+        console.log(chalk.gray('✖ Deletion cancelled'))
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Error deleting blueprint: ${error.message}`))
+      console.log(chalk.red(`✖ Error deleting blueprint: ${error.message}`))
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
@@ -7709,10 +7709,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       if (success) {
         console.log(chalk.green(`✓ Blueprint exported successfully to: ${filePath}`))
       } else {
-        console.log(chalk.red(`❌ Failed to export blueprint '${identifier}'`))
+        console.log(chalk.red(`✖ Failed to export blueprint '${identifier}'`))
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Error exporting blueprint: ${error.message}`))
+      console.log(chalk.red(`✖ Error exporting blueprint: ${error.message}`))
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
@@ -7734,10 +7734,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         console.log(chalk.gray(`   New ID: ${blueprint.id}`))
         console.log(chalk.gray(`   Use /launch-agent ${blueprint.name} to launch it`))
       } else {
-        console.log(chalk.red(`❌ Failed to import blueprint from: ${filePath}`))
+        console.log(chalk.red(`✖ Failed to import blueprint from: ${filePath}`))
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Error importing blueprint: ${error.message}`))
+      console.log(chalk.red(`✖ Error importing blueprint: ${error.message}`))
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
@@ -7778,7 +7778,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         console.log(chalk.gray('💡 Use /launch-agent <name> [task] to launch an agent'))
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Error searching blueprints: ${error.message}`))
+      console.log(chalk.red(`✖ Error searching blueprints: ${error.message}`))
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
@@ -7856,7 +7856,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
             if (['claude', 'openai', 'google', 'openrouter'].includes(value)) {
               options.provider = value
             } else {
-              console.log(chalk.red(`❌ Invalid provider: ${value}. Use: claude, openai, google, openrouter`))
+              console.log(chalk.red(`✖ Invalid provider: ${value}. Use: claude, openai, google, openrouter`))
               return { shouldExit: false, shouldUpdatePrompt: false }
             }
             break
@@ -7941,7 +7941,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         nik?.endPanelOutput?.()
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Image analysis failed: ${error.message}`))
+      console.log(chalk.red(`✖ Image analysis failed: ${error.message}`))
 
       // Provide helpful suggestions
       if (error.message.includes('not found')) {
@@ -8063,7 +8063,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     } catch (error: any) {
       this.cliInstance.printPanel(
         boxen(`Failed to list/analyze images: ${error.message}`, {
-          title: '❌ Images Error',
+          title: '✖ Images Error',
           padding: 1,
           margin: 1,
           borderStyle: 'round',
@@ -8129,7 +8129,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       }
 
       if (!prompt.trim()) {
-        console.log(chalk.red('❌ Please provide a prompt for image generation'))
+        console.log(chalk.red('✖ Please provide a prompt for image generation'))
         return { shouldExit: false, shouldUpdatePrompt: false }
       }
 
@@ -8164,7 +8164,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
             } else {
               console.log(
                 chalk.red(
-                  `❌ Invalid model: ${value}. Use: dall-e-3, dall-e-2, gpt-image-1, google/gemini-2.5-flash-image, google/gemini-3-pro-image-preview, openai/gpt-5-image-mini, openai/gpt-5-image`
+                  `✖ Invalid model: ${value}. Use: dall-e-3, dall-e-2, gpt-image-1, google/gemini-2.5-flash-image, google/gemini-3-pro-image-preview, openai/gpt-5-image-mini, openai/gpt-5-image`
                 )
               )
               return { shouldExit: false, shouldUpdatePrompt: false }
@@ -8174,7 +8174,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
             if (['1024x1024', '1792x1024', '1024x1792', '512x512', '256x256'].includes(value)) {
               options.size = value
             } else {
-              console.log(chalk.red(`❌ Invalid size: ${value}. Common sizes: 1024x1024, 1792x1024, 1024x1792`))
+              console.log(chalk.red(`✖ Invalid size: ${value}. Common sizes: 1024x1024, 1792x1024, 1024x1792`))
               return { shouldExit: false, shouldUpdatePrompt: false }
             }
             break
@@ -8182,7 +8182,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
             if (['standard', 'hd'].includes(value)) {
               options.quality = value
             } else {
-              console.log(chalk.red(`❌ Invalid quality: ${value}. Use: standard, hd`))
+              console.log(chalk.red(`✖ Invalid quality: ${value}. Use: standard, hd`))
               return { shouldExit: false, shouldUpdatePrompt: false }
             }
             break
@@ -8190,7 +8190,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
             if (['vivid', 'natural'].includes(value)) {
               options.style = value
             } else {
-              console.log(chalk.red(`❌ Invalid style: ${value}. Use: vivid, natural`))
+              console.log(chalk.red(`✖ Invalid style: ${value}. Use: vivid, natural`))
               return { shouldExit: false, shouldUpdatePrompt: false }
             }
             break
@@ -8262,7 +8262,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         console.log(chalk.gray('• Enable auto-save to download images automatically'))
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Image generation failed: ${error.message}`))
+      console.log(chalk.red(`✖ Image generation failed: ${error.message}`))
 
       // Provide helpful suggestions
       if (error.message.includes('API key')) {
@@ -8732,7 +8732,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         lines.push(`${chalk.gray('Chains:')} ${data.chains.join(', ')}`)
       }
     } else {
-      lines.push(chalk.red('❌ Not initialized'))
+      lines.push(chalk.red('✖ Not initialized'))
       if (result?.error) lines.push(chalk.gray(result.error))
       lines.push('')
       lines.push(chalk.yellow('Run /goat init to set up GOAT SDK'))
@@ -8755,7 +8755,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       if (data.plugins?.length) lines.push(`${chalk.gray('Plugins:')} ${data.plugins.join(', ')}`)
       lines.push(`${chalk.gray('Tools:')} ${data.toolsCount || 0} available`)
     } else {
-      lines.push(chalk.red('❌ Initialization failed'))
+      lines.push(chalk.red('✖ Initialization failed'))
       if (result?.error) lines.push(chalk.gray(result.error))
     }
 
@@ -8782,7 +8782,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         lines.push(`${chalk.gray('Active Plugins:')} ${data.plugins.join(', ')}`)
       }
     } else {
-      lines.push(chalk.red('❌ Failed to get wallet info'))
+      lines.push(chalk.red('✖ Failed to get wallet info'))
       if (result?.error) lines.push(chalk.gray(result.error))
     }
 
@@ -8828,7 +8828,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         lines.push(chalk.white(dataBlock.response))
       }
     } else {
-      lines.push(chalk.red('❌ Failed to load markets'))
+      lines.push(chalk.red('✖ Failed to load markets'))
       if (result?.error) lines.push(chalk.gray(result.error))
     }
 
@@ -8853,7 +8853,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         lines.push(chalk.white(dataBlock.response))
       }
     } else {
-      lines.push(chalk.red('❌ Transfer failed'))
+      lines.push(chalk.red('✖ Transfer failed'))
       if (result?.error) lines.push(chalk.gray(result.error))
     }
 
@@ -8873,7 +8873,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         lines.push(chalk.white(dataBlock.response))
       }
     } else {
-      lines.push(chalk.red('❌ Failed to fetch balance'))
+      lines.push(chalk.red('✖ Failed to fetch balance'))
       if (result?.error) lines.push(chalk.gray(result.error))
     }
 
@@ -8896,7 +8896,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         lines.push(chalk.white(dataBlock.response))
       }
     } else {
-      lines.push(chalk.red('❌ Failed'))
+      lines.push(chalk.red('✖ Failed'))
       if (result?.error) lines.push(chalk.gray(result.error))
     }
 
@@ -8919,7 +8919,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         lines.push(chalk.white(dataBlock.response))
       }
     } else {
-      lines.push(chalk.red('❌ Bet placement failed'))
+      lines.push(chalk.red('✖ Bet placement failed'))
       if (result?.error) lines.push(chalk.gray(result.error))
     }
 
@@ -8939,7 +8939,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         lines.push(chalk.white(dataBlock.response))
       }
     } else {
-      lines.push(chalk.red('❌ Failed to load positions'))
+      lines.push(chalk.red('✖ Failed to load positions'))
       if (result?.error) lines.push(chalk.gray(result.error))
     }
 
@@ -8966,7 +8966,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         lines.push(chalk.white(dataBlock.response))
       }
     } else {
-      lines.push(chalk.red('❌ Token approval failed'))
+      lines.push(chalk.red('✖ Token approval failed'))
       if (result?.error) lines.push(chalk.gray(result.error))
     }
 
@@ -8986,7 +8986,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         lines.push(chalk.white(dataBlock.response))
       }
     } else {
-      lines.push(chalk.red('❌ Reset failed'))
+      lines.push(chalk.red('✖ Reset failed'))
       if (result?.error) lines.push(chalk.gray(result.error))
     }
 
@@ -9010,7 +9010,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         lines.push(chalk.white(dataBlock.response))
       }
     } else {
-      lines.push(chalk.red('❌ Failed to get builder status'))
+      lines.push(chalk.red('✖ Failed to get builder status'))
       if (result?.error) lines.push(chalk.gray(result.error))
     }
 
@@ -9034,7 +9034,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         lines.push(chalk.white(dataBlock.response))
       }
     } else {
-      lines.push(chalk.red('❌ Failed to get builder metrics'))
+      lines.push(chalk.red('✖ Failed to get builder metrics'))
       if (result?.error) lines.push(chalk.gray(result.error))
     }
 
@@ -9057,7 +9057,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         lines.push(chalk.white(dataBlock.response))
       }
     } else {
-      lines.push(chalk.red('❌ Failed to set funder address'))
+      lines.push(chalk.red('✖ Failed to set funder address'))
       if (result?.error) lines.push(chalk.gray(result.error))
     }
 
@@ -9080,7 +9080,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         lines.push(chalk.white(dataBlock.response))
       }
     } else {
-      lines.push(chalk.red('❌ Failed to get funder status'))
+      lines.push(chalk.red('✖ Failed to get funder status'))
       if (result?.error) lines.push(chalk.gray(result.error))
     }
 
@@ -9105,7 +9105,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         lines.push(chalk.white(dataBlock.response))
       }
     } else {
-      lines.push(chalk.red('❌ Failed to load trending markets'))
+      lines.push(chalk.red('✖ Failed to load trending markets'))
       if (result?.error) lines.push(chalk.gray(result.error))
     }
 
@@ -9134,7 +9134,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         lines.push(chalk.white(dataBlock.response))
       }
     } else {
-      lines.push(chalk.red('❌ Search failed'))
+      lines.push(chalk.red('✖ Search failed'))
       if (result?.error) lines.push(chalk.gray(result.error))
     }
 
@@ -9157,7 +9157,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         lines.push(chalk.white(dataBlock.response))
       }
     } else {
-      lines.push(chalk.red('❌ Failed to connect to real-time data stream'))
+      lines.push(chalk.red('✖ Failed to connect to real-time data stream'))
       if (result?.error) lines.push(chalk.gray(result.error))
     }
 
@@ -9180,7 +9180,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         lines.push(chalk.white(dataBlock.response))
       }
     } else {
-      lines.push(chalk.red('❌ Failed to establish WebSocket connection'))
+      lines.push(chalk.red('✖ Failed to establish WebSocket connection'))
       if (result?.error) lines.push(chalk.gray(result.error))
     }
 
@@ -9395,7 +9395,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       lines.push('')
       lines.push(chalk.gray('The toolchain execution has been stopped'))
     } else {
-      lines.push(chalk.red(`❌ Failed to cancel: ${executionId}`))
+      lines.push(chalk.red(`✖ Failed to cancel: ${executionId}`))
       lines.push('')
       lines.push(chalk.gray('Execution not found or already completed'))
     }
@@ -9412,7 +9412,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       case 'completed':
         return chalk.green('✅ Completed')
       case 'failed':
-        return chalk.red('❌ Failed')
+        return chalk.red('✖ Failed')
       case 'cancelled':
         return chalk.gray('🛑 Cancelled')
       default:
@@ -10027,7 +10027,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       if (data.selected) lines.push(`${chalk.gray('Address:')} ${data.selected}`)
       if (data.walletInfo?.networkId) lines.push(`${chalk.gray('Network:')} ${data.walletInfo.networkId}`)
     } else {
-      lines.push(chalk.red('❌ Failed to select wallet'))
+      lines.push(chalk.red('✖ Failed to select wallet'))
       if (result?.error) lines.push(chalk.gray(result.error))
     }
     return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
@@ -10048,7 +10048,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         lines.push(`${chalk.gray('Selected Wallet:')} ${data.selectedWallet}`)
       }
     } else {
-      lines.push(chalk.red('❌ Not initialized'))
+      lines.push(chalk.red('✖ Not initialized'))
       if (result?.error) lines.push(chalk.gray(result.error))
       lines.push('')
       lines.push(chalk.yellow('Run /web3 init to set up AgentKit'))
@@ -10069,7 +10069,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       if (data.canUseFaucet) lines.push(chalk.yellow('💰 Faucet available (testnet)'))
       lines.push(`${chalk.gray('Tools:')} ${data.toolsAvailable}`)
     } else {
-      lines.push(chalk.red('❌ Initialization failed'))
+      lines.push(chalk.red('✖ Initialization failed'))
       if (result?.error) lines.push(chalk.gray(result.error))
     }
     return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
@@ -10087,7 +10087,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       if (data.networkId) lines.push(`${chalk.gray('Network:')} ${data.networkId}`)
       if (data.canUseFaucet) lines.push(chalk.yellow('💰 Faucet available (testnet)'))
     } else {
-      lines.push(chalk.red('❌ Failed to fetch wallet info'))
+      lines.push(chalk.red('✖ Failed to fetch wallet info'))
       if (result?.error) lines.push(chalk.gray(result.error))
     }
     return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
@@ -10106,7 +10106,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         lines.push(chalk.white(data.response))
       }
     } else {
-      lines.push(chalk.red('❌ Failed to fetch balance'))
+      lines.push(chalk.red('✖ Failed to fetch balance'))
       if (result?.error) lines.push(chalk.gray(result.error))
     }
     return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
@@ -10127,7 +10127,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         lines.push(chalk.white(dataBlock.response))
       }
     } else {
-      lines.push(chalk.red('❌ Transfer failed'))
+      lines.push(chalk.red('✖ Transfer failed'))
       if (result?.error) lines.push(chalk.gray(result.error))
     }
     return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
@@ -10156,7 +10156,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         lines.push(chalk.white(dataBlock.response))
       }
     } else {
-      lines.push(chalk.red('❌ Failed'))
+      lines.push(chalk.red('✖ Failed'))
       if (result?.error) lines.push(chalk.gray(result.error))
     }
     return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
@@ -10208,7 +10208,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       }
 
       if (!fact.trim()) {
-        console.log(chalk.red('❌ Please provide information to remember'))
+        console.log(chalk.red('✖ Please provide information to remember'))
         return { shouldExit: false, shouldUpdatePrompt: false }
       }
 
@@ -10225,7 +10225,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
             if (importance >= 1 && importance <= 10) {
               options.importance = importance
             } else {
-              console.log(chalk.red('❌ Importance must be between 1 and 10'))
+              console.log(chalk.red('✖ Importance must be between 1 and 10'))
               return { shouldExit: false, shouldUpdatePrompt: false }
             }
             break
@@ -10260,7 +10260,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         console.log(chalk.gray(`Context: ${options.context}`))
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to store memory: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to store memory: ${error.message}`))
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
@@ -10307,7 +10307,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       }
 
       if (!query.trim()) {
-        console.log(chalk.red('❌ Please provide a search query'))
+        console.log(chalk.red('✖ Please provide a search query'))
         return { shouldExit: false, shouldUpdatePrompt: false }
       }
 
@@ -10393,7 +10393,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       console.log(chalk.gray('─'.repeat(60)))
       console.log(chalk.gray(`Use /forget <ID> to remove unwanted memories`))
     } catch (error: any) {
-      console.log(chalk.red(`❌ Memory search failed: ${error.message}`))
+      console.log(chalk.red(`✖ Memory search failed: ${error.message}`))
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
@@ -10440,11 +10440,11 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           break
 
         default:
-          console.log(chalk.red(`❌ Unknown memory subcommand: ${subcommand}`))
+          console.log(chalk.red(`✖ Unknown memory subcommand: ${subcommand}`))
           console.log(chalk.gray('Use /memory help to see available commands'))
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Memory command failed: ${error.message}`))
+      console.log(chalk.red(`✖ Memory command failed: ${error.message}`))
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
@@ -10455,7 +10455,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
    */
   private async forgetCommand(args: string[]): Promise<CommandResult> {
     if (args.length === 0) {
-      console.log(chalk.red('❌ Please provide a memory ID to forget'))
+      console.log(chalk.red('✖ Please provide a memory ID to forget'))
       console.log(chalk.gray('Use /recall to find memory IDs, then /forget <ID>'))
       console.log('')
       console.log(chalk.yellow('📖 Additional options:'))
@@ -10478,7 +10478,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       if (args[0] === '--tag') {
         if (!args[1]) {
-          console.log(chalk.red('❌ Please specify a tag to forget'))
+          console.log(chalk.red('✖ Please specify a tag to forget'))
           return { shouldExit: false, shouldUpdatePrompt: false }
         }
         return await this.forgetMemoriesByTag(args[1])
@@ -10491,7 +10491,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       const memory = await memoryService.getMemory(memoryId)
 
       if (!memory) {
-        console.log(chalk.red(`❌ Memory not found: ${memoryId}`))
+        console.log(chalk.red(`✖ Memory not found: ${memoryId}`))
         console.log(chalk.gray('Use /recall to search for memories and get their IDs'))
         return { shouldExit: false, shouldUpdatePrompt: false }
       }
@@ -10530,7 +10530,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       readline.close()
 
       if (confirmation.toLowerCase() !== 'yes' && confirmation.toLowerCase() !== 'y') {
-        console.log(chalk.gray('❌ Memory deletion cancelled'))
+        console.log(chalk.gray('✖ Memory deletion cancelled'))
         return { shouldExit: false, shouldUpdatePrompt: false }
       }
 
@@ -10542,10 +10542,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         console.log(chalk.green('✓ Memory deleted successfully'))
         console.log(chalk.gray(`Deleted memory: ${memoryId.substring(0, 8)}...`))
       } else {
-        console.log(chalk.red('❌ Failed to delete memory'))
+        console.log(chalk.red('✖ Failed to delete memory'))
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Error during memory deletion: ${error.message}`))
+      console.log(chalk.red(`✖ Error during memory deletion: ${error.message}`))
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
@@ -10555,7 +10555,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     const session = memoryService.getCurrentSession()
 
     if (!session) {
-      console.log(chalk.red('❌ No active session'))
+      console.log(chalk.red('✖ No active session'))
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
 
@@ -10589,7 +10589,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     readline.close()
 
     if (confirmation.toLowerCase() !== 'yes' && confirmation.toLowerCase() !== 'y') {
-      console.log(chalk.gray('❌ Session memory deletion cancelled'))
+      console.log(chalk.gray('✖ Session memory deletion cancelled'))
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
 
@@ -10608,7 +10608,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
   private async forgetOldMemories(days: number): Promise<CommandResult> {
     if (days < 1) {
-      console.log(chalk.red('❌ Days must be at least 1'))
+      console.log(chalk.red('✖ Days must be at least 1'))
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
 
@@ -10643,7 +10643,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       readline.close()
 
       if (confirmation.toLowerCase() !== 'yes' && confirmation.toLowerCase() !== 'y') {
-        console.log(chalk.gray('❌ Old memory deletion cancelled'))
+        console.log(chalk.gray('✖ Old memory deletion cancelled'))
         return { shouldExit: false, shouldUpdatePrompt: false }
       }
 
@@ -10683,7 +10683,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       readline.close()
 
       if (confirmation.toLowerCase() !== 'yes' && confirmation.toLowerCase() !== 'y') {
-        console.log(chalk.gray('❌ Tag-based memory deletion cancelled'))
+        console.log(chalk.gray('✖ Tag-based memory deletion cancelled'))
         return { shouldExit: false, shouldUpdatePrompt: false }
       }
 
@@ -10700,7 +10700,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
    */
   private async snapshotCommand(args: string[]): Promise<CommandResult> {
     if (args.length === 0) {
-      console.log(chalk.red('❌ Please provide a name for the snapshot'))
+      console.log(chalk.red('✖ Please provide a name for the snapshot'))
       console.log(chalk.gray('Usage: /snapshot <name> [type]'))
       console.log(chalk.gray('Types: quick (default), full, dev, config'))
       console.log('')
@@ -10745,7 +10745,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         chalk.cyan(`📊 Total snapshots: ${stats.totalSnapshots}, Total size: ${this.formatSize(stats.totalSize)}`)
       )
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to create snapshot: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to create snapshot: ${error.message}`))
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
@@ -10756,7 +10756,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
    */
   private async restoreCommand(args: string[]): Promise<CommandResult> {
     if (args.length === 0) {
-      console.log(chalk.red('❌ Please provide a snapshot ID to restore'))
+      console.log(chalk.red('✖ Please provide a snapshot ID to restore'))
       console.log(chalk.gray('Use /snapshots to see available snapshots'))
       console.log('')
       console.log(chalk.yellow('📖 Options:'))
@@ -10776,7 +10776,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       const snapshot = snapshots.find((s) => s.id.startsWith(snapshotId) || s.id === snapshotId)
 
       if (!snapshot) {
-        console.log(chalk.red(`❌ Snapshot not found: ${snapshotId}`))
+        console.log(chalk.red(`✖ Snapshot not found: ${snapshotId}`))
         console.log(chalk.gray('Use /snapshots to see available snapshots'))
         return { shouldExit: false, shouldUpdatePrompt: false }
       }
@@ -10811,7 +10811,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       readline.close()
 
       if (confirmation.toLowerCase() !== 'yes' && confirmation.toLowerCase() !== 'y') {
-        console.log(chalk.gray('❌ Restoration cancelled'))
+        console.log(chalk.gray('✖ Restoration cancelled'))
         return { shouldExit: false, shouldUpdatePrompt: false }
       }
 
@@ -10823,7 +10823,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       console.log(chalk.green('✓ Snapshot restored successfully'))
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to restore snapshot: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to restore snapshot: ${error.message}`))
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
@@ -10887,7 +10887,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       console.log('')
       console.log(chalk.gray('Use /restore <snapshot-id> to restore a snapshot'))
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to list snapshots: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to list snapshots: ${error.message}`))
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
@@ -11086,7 +11086,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
             if (!Number.isNaN(maxFiles) && maxFiles > 0) {
               options.maxFiles = maxFiles
             } else {
-              console.log(chalk.red('❌ Invalid max-files value. Must be a positive number.'))
+              console.log(chalk.red('✖ Invalid max-files value. Must be a positive number.'))
               return { shouldExit: false, shouldUpdatePrompt: false }
             }
             break
@@ -11096,7 +11096,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
             if (!Number.isNaN(costLimit) && costLimit > 0) {
               options.costLimit = costLimit
             } else {
-              console.log(chalk.red('❌ Invalid cost-limit value. Must be a positive number.'))
+              console.log(chalk.red('✖ Invalid cost-limit value. Must be a positive number.'))
               return { shouldExit: false, shouldUpdatePrompt: false }
             }
             break
@@ -11110,7 +11110,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       // Validate path exists
       if (!existsSync(fullPath)) {
-        console.log(chalk.red(`❌ Path not found: ${targetPath}`))
+        console.log(chalk.red(`✖ Path not found: ${targetPath}`))
         console.log(chalk.gray(`Resolved to: ${fullPath}`))
         return { shouldExit: false, shouldUpdatePrompt: false }
       }
@@ -11118,7 +11118,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       // Check if it's a directory
       const pathStats = statSync(fullPath)
       if (!pathStats.isDirectory()) {
-        console.log(chalk.red(`❌ Path is not a directory: ${targetPath}`))
+        console.log(chalk.red(`✖ Path is not a directory: ${targetPath}`))
         console.log(chalk.gray('Use /index <directory-path> to index a directory'))
         return { shouldExit: false, shouldUpdatePrompt: false }
       }
@@ -11155,7 +11155,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         // Check if the result indicates an error
         if (!result || (result as any).error) {
           advancedUI.stopSpinner(indexId, false, 'Indexing failed')
-          console.log(chalk.red(`❌ Indexing failed: ${(result as any)?.error || 'Unknown error'}`))
+          console.log(chalk.red(`✖ Indexing failed: ${(result as any)?.error || 'Unknown error'}`))
           return { shouldExit: false, shouldUpdatePrompt: false }
         }
 
@@ -11202,7 +11202,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       // Ensure any remaining UI elements are properly stopped
       // The spinner should already be stopped above, but this ensures cleanup
     } catch (error: any) {
-      console.log(chalk.red(`❌ Indexing failed: ${error.message}`))
+      console.log(chalk.red(`✖ Indexing failed: ${error.message}`))
 
       // Provide helpful suggestions
       if (error.message.includes('not found')) {
@@ -11248,11 +11248,11 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         case 'run':
           return await this.runDiagnosticScan()
         default:
-          console.log(chalk.red(`❌ Unknown diagnostic command: ${subCommand}`))
+          console.log(chalk.red(`✖ Unknown diagnostic command: ${subCommand}`))
           console.log(chalk.gray('Use /diagnostic for help'))
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Diagnostic command failed: ${error.message}`))
+      console.log(chalk.red(`✖ Diagnostic command failed: ${error.message}`))
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
@@ -11289,7 +11289,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       console.log(chalk.gray('💡 Use /diag-status to check monitoring status'))
       console.log(chalk.gray('💡 Use /diagnostic stop to stop monitoring'))
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to start monitoring: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to start monitoring: ${error.message}`))
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
@@ -11309,7 +11309,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         console.log(chalk.yellow(`⏹️ Stopped all monitoring`))
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to stop monitoring: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to stop monitoring: ${error.message}`))
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
@@ -11338,7 +11338,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       const quickStatus = await ideDiagnosticIntegration.getQuickStatus()
       console.log(`\nCurrent status: ${quickStatus}`)
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to get status: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to get status: ${error.message}`))
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
@@ -11408,7 +11408,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         ideDiagnosticIntegration.setActive(false)
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Diagnostic scan failed: ${error.message}`))
+      console.log(chalk.red(`✖ Diagnostic scan failed: ${error.message}`))
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
@@ -11444,7 +11444,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     console.log(chalk.gray('─'.repeat(50)))
 
     const isConfigured = isFigmaConfigured()
-    const tokenStatus = isConfigured ? chalk.green('✓ Configured') : chalk.red('❌ Not configured')
+    const tokenStatus = isConfigured ? chalk.green('✓ Configured') : chalk.red('✖ Not configured')
 
     console.log(`${chalk.cyan('Figma API Token:')} ${tokenStatus}`)
 
@@ -11480,12 +11480,12 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
   private async figmaInfoCommand(args: string[]): Promise<CommandResult> {
     if (!isFigmaConfigured()) {
-      console.log(chalk.red('❌ Figma API not configured. Use /figma-config for setup instructions.'))
+      console.log(chalk.red('✖ Figma API not configured. Use /figma-config for setup instructions.'))
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
 
     if (args.length === 0) {
-      console.log(chalk.red('❌ File ID or URL required'))
+      console.log(chalk.red('✖ File ID or URL required'))
       console.log(chalk.gray('Usage: /figma-info <file-id-or-url>'))
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
@@ -11495,7 +11495,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       const fileId = input.startsWith('http') ? extractFileIdFromUrl(input) : input
 
       if (!fileId) {
-        console.log(chalk.red('❌ Could not extract valid file ID from input'))
+        console.log(chalk.red('✖ Could not extract valid file ID from input'))
         return { shouldExit: false, shouldUpdatePrompt: false }
       }
 
@@ -11528,10 +11528,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           }
         }
       } else {
-        console.log(chalk.red(`❌ Failed to get file info: ${result.error}`))
+        console.log(chalk.red(`✖ Failed to get file info: ${result.error}`))
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Error: ${error.message}`))
+      console.log(chalk.red(`✖ Error: ${error.message}`))
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
@@ -11539,12 +11539,12 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
   private async figmaExportCommand(args: string[]): Promise<CommandResult> {
     if (!isFigmaConfigured()) {
-      console.log(chalk.red('❌ Figma API not configured. Use /figma-config for setup instructions.'))
+      console.log(chalk.red('✖ Figma API not configured. Use /figma-config for setup instructions.'))
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
 
     if (args.length === 0) {
-      console.log(chalk.red('❌ File ID or URL required'))
+      console.log(chalk.red('✖ File ID or URL required'))
       console.log(chalk.gray('Usage: /figma-export <file-id-or-url> [format] [output-path]'))
       console.log(chalk.gray('Formats: png (default), jpg, svg, pdf'))
       return { shouldExit: false, shouldUpdatePrompt: false }
@@ -11557,7 +11557,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       const outputPath = args[2]
 
       if (!fileId) {
-        console.log(chalk.red('❌ Could not extract valid file ID from input'))
+        console.log(chalk.red('✖ Could not extract valid file ID from input'))
         return { shouldExit: false, shouldUpdatePrompt: false }
       }
 
@@ -11601,10 +11601,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           }
         }
       } else {
-        console.log(chalk.red(`❌ Export failed: ${result.error}`))
+        console.log(chalk.red(`✖ Export failed: ${result.error}`))
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Error: ${error.message}`))
+      console.log(chalk.red(`✖ Error: ${error.message}`))
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
@@ -11612,12 +11612,12 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
   private async figmaToCodeCommand(args: string[]): Promise<CommandResult> {
     if (!isFigmaConfigured()) {
-      console.log(chalk.red('❌ Figma API not configured. Use /figma-config for setup instructions.'))
+      console.log(chalk.red('✖ Figma API not configured. Use /figma-config for setup instructions.'))
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
 
     if (args.length === 0) {
-      console.log(chalk.red('❌ File ID or URL required'))
+      console.log(chalk.red('✖ File ID or URL required'))
       console.log(chalk.gray('Usage: /figma-to-code <file-id-or-url> [framework] [library]'))
       console.log(chalk.gray('Frameworks: react (default), vue, svelte, html'))
       console.log(chalk.gray('Libraries: shadcn (default), chakra, mantine, custom'))
@@ -11631,7 +11631,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       const library = args[2] || 'shadcn'
 
       if (!fileId) {
-        console.log(chalk.red('❌ Could not extract valid file ID from input'))
+        console.log(chalk.red('✖ Could not extract valid file ID from input'))
         return { shouldExit: false, shouldUpdatePrompt: false }
       }
 
@@ -11661,10 +11661,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         console.log(result.generatedCode)
         console.log(chalk.gray('─'.repeat(50)))
       } else {
-        console.log(chalk.red(`❌ Code generation failed: ${result.error}`))
+        console.log(chalk.red(`✖ Code generation failed: ${result.error}`))
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Error: ${error.message}`))
+      console.log(chalk.red(`✖ Error: ${error.message}`))
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
@@ -11672,12 +11672,12 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
   private async figmaOpenCommand(args: string[]): Promise<CommandResult> {
     if (process.platform !== 'darwin') {
-      console.log(chalk.red('❌ Desktop app automation is only available on macOS'))
+      console.log(chalk.red('✖ Desktop app automation is only available on macOS'))
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
 
     if (args.length === 0) {
-      console.log(chalk.red('❌ File URL required'))
+      console.log(chalk.red('✖ File URL required'))
       console.log(chalk.gray('Usage: /figma-open <figma-file-url>'))
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
@@ -11686,7 +11686,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       const fileUrl = args[0]
 
       if (!fileUrl.includes('figma.com')) {
-        console.log(chalk.red('❌ Invalid Figma URL'))
+        console.log(chalk.red('✖ Invalid Figma URL'))
         return { shouldExit: false, shouldUpdatePrompt: false }
       }
 
@@ -11700,10 +11700,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       if (result.success) {
         console.log(chalk.green('✓ File opened in Figma desktop app'))
       } else {
-        console.log(chalk.red(`❌ Failed to open file: ${result.error}`))
+        console.log(chalk.red(`✖ Failed to open file: ${result.error}`))
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Error: ${error.message}`))
+      console.log(chalk.red(`✖ Error: ${error.message}`))
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
@@ -11711,12 +11711,12 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
   private async figmaTokensCommand(args: string[]): Promise<CommandResult> {
     if (!isFigmaConfigured()) {
-      console.log(chalk.red('❌ Figma API not configured. Use /figma-config for setup instructions.'))
+      console.log(chalk.red('✖ Figma API not configured. Use /figma-config for setup instructions.'))
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
 
     if (args.length === 0) {
-      console.log(chalk.red('❌ File ID or URL required'))
+      console.log(chalk.red('✖ File ID or URL required'))
       console.log(chalk.gray('Usage: /figma-tokens <file-id-or-url> [format]'))
       console.log(chalk.gray('Formats: json (default), css, scss, tokens-studio'))
       return { shouldExit: false, shouldUpdatePrompt: false }
@@ -11728,7 +11728,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       const format = args[1] || 'json'
 
       if (!fileId) {
-        console.log(chalk.red('❌ Could not extract valid file ID from input'))
+        console.log(chalk.red('✖ Could not extract valid file ID from input'))
         return { shouldExit: false, shouldUpdatePrompt: false }
       }
 
@@ -11772,10 +11772,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           console.log(chalk.gray('─'.repeat(50)))
         }
       } else {
-        console.log(chalk.red(`❌ Token extraction failed: ${result.error}`))
+        console.log(chalk.red(`✖ Token extraction failed: ${result.error}`))
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Error: ${error.message}`))
+      console.log(chalk.red(`✖ Error: ${error.message}`))
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
@@ -11783,7 +11783,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
   private async figmaCreateCommand(args: string[]): Promise<CommandResult> {
     if (args.length === 0) {
-      console.log(chalk.red('❌ Component file path required'))
+      console.log(chalk.red('✖ Component file path required'))
       console.log(chalk.gray('Usage: /figma-create <component-path> [name]'))
       console.log(chalk.gray('Example: /figma-create ./src/components/Button.tsx MyButton'))
       return { shouldExit: false, shouldUpdatePrompt: false }
@@ -11834,10 +11834,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         console.log('  • Use the design specification to manually create the Figma file')
         console.log('  • Import the extracted design tokens into your design system')
       } else {
-        console.log(chalk.red(`❌ Creation failed: ${result.error}`))
+        console.log(chalk.red(`✖ Creation failed: ${result.error}`))
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Error: ${error.message}`))
+      console.log(chalk.red(`✖ Error: ${error.message}`))
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
@@ -11876,12 +11876,12 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     const action = args[1]?.toLowerCase()
 
     if (!['slack', 'discord', 'linear', 'all'].includes(provider)) {
-      console.log(chalk.red('❌ Invalid provider. Use: slack, discord, linear, or all'))
+      console.log(chalk.red('✖ Invalid provider. Use: slack, discord, linear, or all'))
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
 
     if (!['on', 'off'].includes(action)) {
-      console.log(chalk.red('❌ Invalid action. Use: on or off'))
+      console.log(chalk.red('✖ Invalid action. Use: on or off'))
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
 
@@ -11930,7 +11930,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         )
       )
     } catch (error: any) {
-      console.log(chalk.red(`❌ Error updating notifications: ${error.message}`))
+      console.log(chalk.red(`✖ Error updating notifications: ${error.message}`))
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
@@ -11973,12 +11973,12 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           if (OutputStyleUtils.isValidStyle(subcommand)) {
             return this.handleStyleSet([subcommand])
           }
-          console.log(chalk.red(`❌ Unknown style command: ${subcommand}`))
+          console.log(chalk.red(`✖ Unknown style command: ${subcommand}`))
           console.log(chalk.gray('Use /style help for available commands'))
           break
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Error managing output style: ${error.message}`))
+      console.log(chalk.red(`✖ Error managing output style: ${error.message}`))
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
@@ -12032,14 +12032,14 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
    */
   private async handleStyleSet(args: string[]): Promise<{ shouldExit: boolean; shouldUpdatePrompt: boolean }> {
     if (args.length === 0) {
-      console.log(chalk.red('❌ Please specify a style name'))
+      console.log(chalk.red('✖ Please specify a style name'))
       console.log(chalk.gray(`Available styles: ${OutputStyleUtils.getAllStyles().join(', ')}`))
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
 
     const styleName = args[0] as OutputStyle
     if (!OutputStyleUtils.isValidStyle(styleName)) {
-      console.log(chalk.red(`❌ Invalid style: ${styleName}`))
+      console.log(chalk.red(`✖ Invalid style: ${styleName}`))
       console.log(chalk.gray(`Available styles: ${OutputStyleUtils.getAllStyles().join(', ')}`))
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
@@ -12052,7 +12052,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       console.log(chalk.gray(`   ${metadata.description}`))
       console.log(chalk.gray(`   Target audience: ${metadata.targetAudience}`))
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to set style: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to set style: ${error.message}`))
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
@@ -12099,14 +12099,14 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
    */
   private async handleStyleModel(args: string[]): Promise<{ shouldExit: boolean; shouldUpdatePrompt: boolean }> {
     if (args.length === 0) {
-      console.log(chalk.red('❌ Please specify a style name'))
+      console.log(chalk.red('✖ Please specify a style name'))
       console.log(chalk.gray(`Available styles: ${OutputStyleUtils.getAllStyles().join(', ')}`))
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
 
     const styleName = args[0] as OutputStyle
     if (!OutputStyleUtils.isValidStyle(styleName)) {
-      console.log(chalk.red(`❌ Invalid style: ${styleName}`))
+      console.log(chalk.red(`✖ Invalid style: ${styleName}`))
       console.log(chalk.gray(`Available styles: ${OutputStyleUtils.getAllStyles().join(', ')}`))
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
@@ -12119,7 +12119,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       console.log(chalk.green(`✓ Output style for model '${currentModel}' set to: ${chalk.bold(styleName)}`))
       console.log(chalk.gray(`   ${metadata.description}`))
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to set model style: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to set model style: ${error.message}`))
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
@@ -12130,7 +12130,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
    */
   private async handleStyleContext(args: string[]): Promise<{ shouldExit: boolean; shouldUpdatePrompt: boolean }> {
     if (args.length < 2) {
-      console.log(chalk.red('❌ Please specify context and style name'))
+      console.log(chalk.red('✖ Please specify context and style name'))
       console.log(chalk.gray('Usage: /style context <chat|planning|code-generation> <style-name>'))
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
@@ -12139,14 +12139,14 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     const styleName = args[1] as OutputStyle
 
     if (!OutputStyleUtils.isValidStyle(styleName)) {
-      console.log(chalk.red(`❌ Invalid style: ${styleName}`))
+      console.log(chalk.red(`✖ Invalid style: ${styleName}`))
       console.log(chalk.gray(`Available styles: ${OutputStyleUtils.getAllStyles().join(', ')}`))
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
 
     const validContexts = ['chat', 'planning', 'code-generation', 'documentation', 'debugging', 'analysis']
     if (!validContexts.includes(context)) {
-      console.log(chalk.red(`❌ Invalid context: ${context}`))
+      console.log(chalk.red(`✖ Invalid context: ${context}`))
       console.log(chalk.gray(`Valid contexts: ${validContexts.join(', ')}`))
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
@@ -12158,7 +12158,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       console.log(chalk.green(`✓ Output style for context '${context}' set to: ${chalk.bold(styleName)}`))
       console.log(chalk.gray(`   ${metadata.description}`))
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to set context style: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to set context style: ${error.message}`))
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
@@ -12272,7 +12272,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       return { shouldExit: false, shouldUpdatePrompt: true }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to resume session: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to resume session: ${error.message}`))
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
   }
@@ -12343,7 +12343,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       const boxen = (await import('boxen')).default
       this.printPanel(
         boxen(`Failed to list sessions:\n${error.message}`, {
-          title: '❌ Error',
+          title: '✖ Error',
           padding: 1,
           margin: 1,
           borderStyle: 'round',
@@ -12392,7 +12392,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       return { shouldExit: false, shouldUpdatePrompt: false }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to save session: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to save session: ${error.message}`))
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
   }
@@ -12403,7 +12403,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
   private async deleteSessionCommand(args: string[]): Promise<CommandResult> {
     try {
       if (args.length === 0) {
-        console.log(chalk.red('❌ Please provide a session ID'))
+        console.log(chalk.red('✖ Please provide a session ID'))
         console.log(chalk.dim('Usage: /delete-session <session-id>'))
         return { shouldExit: false, shouldUpdatePrompt: false }
       }
@@ -12422,7 +12422,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       return { shouldExit: false, shouldUpdatePrompt: false }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to delete session: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to delete session: ${error.message}`))
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
   }
@@ -12433,7 +12433,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
   private async exportSessionCommand(args: string[]): Promise<CommandResult> {
     try {
       if (args.length < 2) {
-        console.log(chalk.red('❌ Please provide session ID and export path'))
+        console.log(chalk.red('✖ Please provide session ID and export path'))
         console.log(chalk.dim('Usage: /export-session <session-id> <output-path>'))
         return { shouldExit: false, shouldUpdatePrompt: false }
       }
@@ -12448,7 +12448,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       return { shouldExit: false, shouldUpdatePrompt: false }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to export session: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to export session: ${error.message}`))
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
   }
@@ -12472,7 +12472,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       const count = args.length > 0 ? parseInt(args[0]) : 1
 
       if (isNaN(count) || count < 1) {
-        console.log(chalk.red('❌ Invalid count. Please provide a positive number.'))
+        console.log(chalk.red('✖ Invalid count. Please provide a positive number.'))
         return { shouldExit: false, shouldUpdatePrompt: false }
       }
 
@@ -12488,7 +12488,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       return { shouldExit: false, shouldUpdatePrompt: false }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Undo failed: ${error.message}`))
+      console.log(chalk.red(`✖ Undo failed: ${error.message}`))
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
   }
@@ -12510,7 +12510,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       const count = args.length > 0 ? parseInt(args[0]) : 1
 
       if (isNaN(count) || count < 1) {
-        console.log(chalk.red('❌ Invalid count. Please provide a positive number.'))
+        console.log(chalk.red('✖ Invalid count. Please provide a positive number.'))
         return { shouldExit: false, shouldUpdatePrompt: false }
       }
 
@@ -12526,7 +12526,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       return { shouldExit: false, shouldUpdatePrompt: false }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Redo failed: ${error.message}`))
+      console.log(chalk.red(`✖ Redo failed: ${error.message}`))
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
   }
@@ -12604,7 +12604,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       const boxen = (await import('boxen')).default
       this.printPanel(
         boxen(`Failed to show history:\n${error.message}`, {
-          title: '❌ Error',
+          title: '✖ Error',
           padding: 1,
           margin: 1,
           borderStyle: 'round',
@@ -12683,7 +12683,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       console.log(chalk.gray(`  /bg-status ${jobId}`))
       console.log(chalk.gray(`  /bg-logs ${jobId}`))
     } catch (error: any) {
-      console.log(chalk.red(`❌ Error creating background job: ${error.message}`))
+      console.log(chalk.red(`✖ Error creating background job: ${error.message}`))
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
@@ -12700,7 +12700,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       const jobs = await backgroundAgentService.listJobs({ status, limit: 20 })
       const stats = await backgroundAgentService.getStats()
     } catch (error: any) {
-      console.log(chalk.red(`❌ Error listing jobs: ${error.message}`))
+      console.log(chalk.red(`✖ Error listing jobs: ${error.message}`))
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
@@ -12731,7 +12731,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       const job = backgroundAgentService.getJob(jobId)
 
       if (!job) {
-        console.log(chalk.red(`❌ Job not found: ${jobId}`))
+        console.log(chalk.red(`✖ Job not found: ${jobId}`))
         return { shouldExit: false, shouldUpdatePrompt: false }
       }
 
@@ -12781,7 +12781,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         })
       )
     } catch (error: any) {
-      console.log(chalk.red(`❌ Error getting job status: ${error.message}`))
+      console.log(chalk.red(`✖ Error getting job status: ${error.message}`))
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
@@ -12813,7 +12813,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       const job = backgroundAgentService.getJob(jobId)
 
       if (!job) {
-        console.log(chalk.red(`❌ Job not found: ${jobId}`))
+        console.log(chalk.red(`✖ Job not found: ${jobId}`))
         return { shouldExit: false, shouldUpdatePrompt: false }
       }
 
@@ -12832,7 +12832,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         const levelIcon = {
           info: 'ℹ️',
           warn: '⚠️',
-          error: '❌',
+          error: '✖',
           debug: '🐛',
         }[log.level]
 
@@ -12851,7 +12851,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         })
       )
     } catch (error: any) {
-      console.log(chalk.red(`❌ Error getting job logs: ${error.message}`))
+      console.log(chalk.red(`✖ Error getting job logs: ${error.message}`))
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
@@ -12880,7 +12880,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     } catch (error: any) {
       this.printPanel(
         boxen(
-          chalk.red(`❌ Failed to create session: ${error.message}`),
+          chalk.red(`✖ Failed to create session: ${error.message}`),
           {
             padding: 1,
             margin: 1,
@@ -12895,7 +12895,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
   private async browseSearchCommand(args: string[]): Promise<CommandResult> {
     if (args.length < 2) {
-      this.printPanel(chalk.red('❌ Usage: /browse-search <sessionId> <query>'))
+      this.printPanel(chalk.red('✖ Usage: /browse-search <sessionId> <query>'))
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
 
@@ -12925,14 +12925,14 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       return { shouldExit: false, shouldUpdatePrompt: false }
     } catch (error: any) {
-      this.printPanel(chalk.red(`❌ Search failed: ${error.message}`))
+      this.printPanel(chalk.red(`✖ Search failed: ${error.message}`))
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
   }
 
   private async browseVisitCommand(args: string[]): Promise<CommandResult> {
     if (args.length < 2) {
-      this.printPanel(chalk.red('❌ Usage: /browse-visit <sessionId> <url> [prompt]'))
+      this.printPanel(chalk.red('✖ Usage: /browse-visit <sessionId> <url> [prompt]'))
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
 
@@ -12961,14 +12961,14 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       return { shouldExit: false, shouldUpdatePrompt: false }
     } catch (error: any) {
-      this.printPanel(chalk.red(`❌ Failed to visit page: ${error.message}`))
+      this.printPanel(chalk.red(`✖ Failed to visit page: ${error.message}`))
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
   }
 
   private async browseChatCommand(args: string[]): Promise<CommandResult> {
     if (args.length < 2) {
-      this.printPanel(chalk.red('❌ Usage: /browse-chat <sessionId> <message>'))
+      this.printPanel(chalk.red('✖ Usage: /browse-chat <sessionId> <message>'))
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
 
@@ -12992,7 +12992,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       return { shouldExit: false, shouldUpdatePrompt: false }
     } catch (error: any) {
-      this.printPanel(chalk.red(`❌ Chat failed: ${error.message}`))
+      this.printPanel(chalk.red(`✖ Chat failed: ${error.message}`))
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
   }
@@ -13027,14 +13027,14 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       return { shouldExit: false, shouldUpdatePrompt: false }
     } catch (error: any) {
-      this.printPanel(chalk.red(`❌ Failed to list sessions: ${error.message}`))
+      this.printPanel(chalk.red(`✖ Failed to list sessions: ${error.message}`))
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
   }
 
   private async browseInfoCommand(args: string[]): Promise<CommandResult> {
     if (args.length === 0) {
-      this.printPanel(chalk.red('❌ Usage: /browse-info <sessionId>'))
+      this.printPanel(chalk.red('✖ Usage: /browse-info <sessionId>'))
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
 
@@ -13066,14 +13066,14 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       return { shouldExit: false, shouldUpdatePrompt: false }
     } catch (error: any) {
-      this.printPanel(chalk.red(`❌ Failed to get session info: ${error.message}`))
+      this.printPanel(chalk.red(`✖ Failed to get session info: ${error.message}`))
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
   }
 
   private async browseCloseCommand(args: string[]): Promise<CommandResult> {
     if (args.length === 0) {
-      this.printPanel(chalk.red('❌ Usage: /browse-close <sessionId>'))
+      this.printPanel(chalk.red('✖ Usage: /browse-close <sessionId>'))
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
 
@@ -13096,7 +13096,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       return { shouldExit: false, shouldUpdatePrompt: false }
     } catch (error: any) {
-      this.printPanel(chalk.red(`❌ Failed to close session: ${error.message}`))
+      this.printPanel(chalk.red(`✖ Failed to close session: ${error.message}`))
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
   }
@@ -13120,14 +13120,14 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       return { shouldExit: false, shouldUpdatePrompt: false }
     } catch (error: any) {
-      this.printPanel(chalk.red(`❌ Cleanup failed: ${error.message}`))
+      this.printPanel(chalk.red(`✖ Cleanup failed: ${error.message}`))
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
   }
 
   private async browseQuickCommand(args: string[]): Promise<CommandResult> {
     if (args.length === 0) {
-      this.printPanel(chalk.red('❌ Usage: /browse-quick <query> [prompt]'))
+      this.printPanel(chalk.red('✖ Usage: /browse-quick <query> [prompt]'))
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
 
@@ -13178,7 +13178,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       return { shouldExit: false, shouldUpdatePrompt: false }
     } catch (error: any) {
-      this.printPanel(chalk.red(`❌ Quick browse failed: ${error.message}`))
+      this.printPanel(chalk.red(`✖ Quick browse failed: ${error.message}`))
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
   }
@@ -13191,7 +13191,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       const command = args.join(' ')
 
       if (!command) {
-        console.log(chalk.red('❌ Usage: /run <command>'))
+        console.log(chalk.red('✖ Usage: /run <command>'))
         return { shouldExit: false, shouldUpdatePrompt: false }
       }
 
@@ -13221,7 +13221,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       // Display summary
       const summaryBox = boxen(
-        (result.success ? chalk.green('✅ Command executed successfully') : chalk.red('❌ Command failed')) +
+        (result.success ? chalk.green('✅ Command executed successfully') : chalk.red('✖ Command failed')) +
         '\n' +
         chalk.gray(`Exit Code: ${result.exitCode}\n`) +
         chalk.gray(`Duration: ${(result.duration / 1000).toFixed(2)}s\n`) +
@@ -13243,7 +13243,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       return { shouldExit: false, shouldUpdatePrompt: false }
     } catch (error: any) {
-      console.error(chalk.red(`❌ /run failed: ${error.message}`))
+      console.error(chalk.red(`✖ /run failed: ${error.message}`))
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
   }
@@ -13316,7 +13316,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       })
 
       const summaryBox = boxen(
-        (result.success ? chalk.green('✅ Script executed successfully') : chalk.red('❌ Script failed')) +
+        (result.success ? chalk.green('✅ Script executed successfully') : chalk.red('✖ Script failed')) +
         '\n' +
         chalk.gray(`Exit Code: ${result.exitCode}\n`) +
         chalk.gray(`Duration: ${(result.duration / 1000).toFixed(2)}s`),
@@ -13337,7 +13337,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       return { shouldExit: false, shouldUpdatePrompt: false }
     } catch (error: any) {
-      console.error(chalk.red(`❌ /exec failed: ${error.message}`))
+      console.error(chalk.red(`✖ /exec failed: ${error.message}`))
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
   }
@@ -13360,7 +13360,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           const lines: string[] = [`📋 Sandbox Sessions: ${sessions.length} total`]
           sessions.forEach((session) => {
             const statusEmoji =
-              session.status === 'running' ? '🔄' : session.status === 'completed' ? '✅' : '❌'
+              session.status === 'running' ? '🔄' : session.status === 'completed' ? '✅' : '✖'
             lines.push(`${statusEmoji} ${session.id}: ${session.command} (${session.status})`)
           })
 
@@ -13386,7 +13386,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           const lines: string[] = [
             `📊 Active: ${stats.active}`,
             `✅ Completed: ${stats.completed}`,
-            `❌ Failed: ${stats.failed}`,
+            `✖ Failed: ${stats.failed}`,
             `🛑 Killed: ${stats.killed}`,
             `⏱️  Avg Duration: ${(stats.averageDuration / 1000).toFixed(2)}s`,
           ]
@@ -13417,13 +13417,13 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         case 'kill': {
           const sessionId = args[1]
           if (!sessionId) {
-            console.log(chalk.red('❌ Usage: /sandbox kill <sessionId>'))
+            console.log(chalk.red('✖ Usage: /sandbox kill <sessionId>'))
             break
           }
 
           const session = sandboxSessionManager.getSession(sessionId)
           if (!session) {
-            console.log(chalk.red(`❌ Session not found: ${sessionId}`))
+            console.log(chalk.red(`✖ Session not found: ${sessionId}`))
             break
           }
 
@@ -13446,7 +13446,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       return { shouldExit: false, shouldUpdatePrompt: false }
     } catch (error: any) {
-      console.error(chalk.red(`❌ /sandbox failed: ${error.message}`))
+      console.error(chalk.red(`✖ /sandbox failed: ${error.message}`))
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
   }
@@ -13526,7 +13526,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       return { shouldExit: false, shouldUpdatePrompt: false }
     } catch (error: any) {
-      console.error(chalk.red(`❌ /profile failed: ${error.message}`))
+      console.error(chalk.red(`✖ /profile failed: ${error.message}`))
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
   }
@@ -13552,7 +13552,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       if (!validTypes.includes(benchmarkType)) {
         console.log(
           chalk.red(
-            `❌ Invalid benchmark type: ${benchmarkType}\nValid options: ${validTypes.join(', ')}`
+            `✖ Invalid benchmark type: ${benchmarkType}\nValid options: ${validTypes.join(', ')}`
           )
         )
         return { shouldExit: false, shouldUpdatePrompt: false }
@@ -13593,7 +13593,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           resolve(code || 0)
         })
         benchmarkProcess.on('error', (error) => {
-          console.error(chalk.red(`❌ Benchmark process error: ${error.message}`))
+          console.error(chalk.red(`✖ Benchmark process error: ${error.message}`))
           resolve(1)
         })
       })
@@ -13613,7 +13613,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           console.log(completionPanel)
         }
       } else {
-        const errorPanel = boxen(chalk.red(`❌ Benchmark failed with exit code ${exitCode}`), {
+        const errorPanel = boxen(chalk.red(`✖ Benchmark failed with exit code ${exitCode}`), {
           title: '📊 Benchmark',
           padding: 1,
           margin: 1,
@@ -13630,7 +13630,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       return { shouldExit: false, shouldUpdatePrompt: false }
     } catch (error: any) {
-      console.error(chalk.red(`❌ /benchmark failed: ${error.message}`))
+      console.error(chalk.red(`✖ /benchmark failed: ${error.message}`))
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
   }
@@ -13757,7 +13757,7 @@ export async function handleBrowserCommand(args: string[]): Promise<void> {
     } else {
       console.log(
         boxen(
-          `${chalk.red('❌ Browser Mode Failed')}\n\n` +
+          `${chalk.red('✖ Browser Mode Failed')}\n\n` +
           `${chalk.white('Error:')} ${result.error || 'Unknown error'}\n\n` +
           `${chalk.yellow('Common Issues:')}\n` +
           `• Docker not running\n` +
@@ -13774,7 +13774,7 @@ export async function handleBrowserCommand(args: string[]): Promise<void> {
       )
     }
   } catch (error: any) {
-    console.log(chalk.red(`❌ Failed to start browser mode: ${error.message}`))
+    console.log(chalk.red(`✖ Failed to start browser mode: ${error.message}`))
   }
 }
 
@@ -13838,7 +13838,7 @@ export async function handleBrowserStatus(): Promise<void> {
       )
     )
   } catch (error: any) {
-    console.log(chalk.red(`❌ Failed to get browser status: ${error.message}`))
+    console.log(chalk.red(`✖ Failed to get browser status: ${error.message}`))
   }
 }
 
@@ -13874,7 +13874,7 @@ export async function handleBrowserExit(): Promise<void> {
       )
     )
   } catch (error: any) {
-    console.log(chalk.red(`❌ Failed to exit browser mode: ${error.message}`))
+    console.log(chalk.red(`✖ Failed to exit browser mode: ${error.message}`))
   }
 }
 
@@ -13913,10 +13913,10 @@ export async function handleBrowserScreenshot(): Promise<void> {
         )
       )
     } else {
-      console.log(chalk.red('❌ Failed to capture screenshot'))
+      console.log(chalk.red('✖ Failed to capture screenshot'))
     }
   } catch (error: any) {
-    console.log(chalk.red(`❌ Failed to take screenshot: ${error.message}`))
+    console.log(chalk.red(`✖ Failed to take screenshot: ${error.message}`))
   }
 }
 
@@ -14239,7 +14239,7 @@ function formatGoatStatusPanel(result: any): string {
       lines.push(`${chalk.gray('Chains:')} ${data.chains.join(', ')}`)
     }
   } else {
-    lines.push(chalk.red('❌ Not initialized'))
+    lines.push(chalk.red('✖ Not initialized'))
     if (result?.error) lines.push(chalk.gray(result.error))
     lines.push('')
     lines.push(chalk.yellow('Run /goat init to set up GOAT SDK'))
@@ -14262,7 +14262,7 @@ function formatGoatInitPanel(result: any): string {
     if (data.plugins?.length) lines.push(`${chalk.gray('Plugins:')} ${data.plugins.join(', ')}`)
     lines.push(`${chalk.gray('Tools:')} ${data.toolsCount || 0} available`)
   } else {
-    lines.push(chalk.red('❌ Initialization failed'))
+    lines.push(chalk.red('✖ Initialization failed'))
     if (result?.error) lines.push(chalk.gray(result.error))
   }
 
@@ -14289,7 +14289,7 @@ function formatGoatWalletPanel(result: any): string {
       lines.push(`${chalk.gray('Active Plugins:')} ${data.plugins.join(', ')}`)
     }
   } else {
-    lines.push(chalk.red('❌ Failed to get wallet info'))
+    lines.push(chalk.red('✖ Failed to get wallet info'))
     if (result?.error) lines.push(chalk.gray(result.error))
   }
 
@@ -14335,7 +14335,7 @@ function formatGoatMarketsPanel(result: any): string {
       lines.push(chalk.white(dataBlock.response))
     }
   } else {
-    lines.push(chalk.red('❌ Failed to load markets'))
+    lines.push(chalk.red('✖ Failed to load markets'))
     if (result?.error) lines.push(chalk.gray(result.error))
   }
 
@@ -14360,7 +14360,7 @@ function formatGoatTransferPanel({ result, amount, to, chain, token }: any): str
       lines.push(chalk.white(dataBlock.response))
     }
   } else {
-    lines.push(chalk.red('❌ Transfer failed'))
+    lines.push(chalk.red('✖ Transfer failed'))
     if (result?.error) lines.push(chalk.gray(result.error))
   }
 
@@ -14380,7 +14380,7 @@ function formatGoatBalancePanel(result: any): string {
       lines.push(chalk.white(dataBlock.response))
     }
   } else {
-    lines.push(chalk.red('❌ Failed to fetch balance'))
+    lines.push(chalk.red('✖ Failed to fetch balance'))
     if (result?.error) lines.push(chalk.gray(result.error))
   }
 
@@ -14403,7 +14403,7 @@ function formatGoatChatPanel(message: string, result: any): string {
       lines.push(chalk.white(dataBlock.response))
     }
   } else {
-    lines.push(chalk.red('❌ Failed'))
+    lines.push(chalk.red('✖ Failed'))
     if (result?.error) lines.push(chalk.gray(result.error))
   }
 
@@ -14426,7 +14426,7 @@ function formatGoatBetPanel(result: any): string {
       lines.push(chalk.white(dataBlock.response))
     }
   } else {
-    lines.push(chalk.red('❌ Bet placement failed'))
+    lines.push(chalk.red('✖ Bet placement failed'))
     if (result?.error) lines.push(chalk.gray(result.error))
   }
 
@@ -14446,7 +14446,7 @@ function formatGoatPositionsPanel(result: any): string {
       lines.push(chalk.white(dataBlock.response))
     }
   } else {
-    lines.push(chalk.red('❌ Failed to load positions'))
+    lines.push(chalk.red('✖ Failed to load positions'))
     if (result?.error) lines.push(chalk.gray(result.error))
   }
 
@@ -14555,7 +14555,7 @@ function formatWeb3ToolchainCancelPanel(cancelled: boolean, executionId: string)
     lines.push('')
     lines.push(chalk.gray('The toolchain execution has been stopped'))
   } else {
-    lines.push(chalk.red(`❌ Failed to cancel: ${executionId}`))
+    lines.push(chalk.red(`✖ Failed to cancel: ${executionId}`))
     lines.push('')
     lines.push(chalk.gray('Execution not found or already completed'))
   }
@@ -14572,7 +14572,7 @@ function formatExecutionStatus(status: string): string {
     case 'completed':
       return chalk.green('✅ Completed')
     case 'failed':
-      return chalk.red('❌ Failed')
+      return chalk.red('✖ Failed')
     case 'cancelled':
       return chalk.gray('🛑 Cancelled')
     default:

@@ -636,7 +636,7 @@ export class ApprovalSystem extends EventEmitter {
           message: chalk.cyan.bold(`🎯 ${question}`),
           choices: [
             { name: '✓ Yes', value: true },
-            { name: '❌ No', value: false },
+            { name: '✖ No', value: false },
           ],
           default: defaultValue ? 0 : 1,
           prefix: '', // No prefix for more compact layout
@@ -662,7 +662,7 @@ export class ApprovalSystem extends EventEmitter {
       const answers = await Promise.race([promptPromise, timeoutPromise])
       return !!(answers as any).ok
     } catch (error: any) {
-      console.log(chalk.red(`❌ Approval failed: ${error.message}`))
+      console.log(chalk.red(`✖ Approval failed: ${error.message}`))
       // Return default value instead of false on error
       console.log(chalk.yellow(`🔄 Proceeding with default (${defaultValue ? 'Yes' : 'No'})`))
       return defaultValue
@@ -769,7 +769,7 @@ export class ApprovalSystem extends EventEmitter {
       console.log()
       return !!(answers as any).ok
     } catch (error: any) {
-      console.log(chalk.red(`❌ Confirmation failed: ${error.message}`))
+      console.log(chalk.red(`✖ Confirmation failed: ${error.message}`))
       // Return default value instead of false on error
       console.log(chalk.yellow(`🔄 Proceeding with default (${defaultValue ? 'Yes' : 'No'})`))
       return defaultValue
@@ -1229,7 +1229,7 @@ export class ApprovalSystem extends EventEmitter {
           request.type === 'plan'
             ? [
               { name: '✓ Yes, execute the plan now', value: true },
-              { name: '❌ No, return to default mode', value: false },
+              { name: '✖ No, return to default mode', value: false },
             ]
             : [
               { name: 'Yes', value: true },
@@ -1288,7 +1288,7 @@ export class ApprovalSystem extends EventEmitter {
       if (approved) {
         console.log(chalk.green.bold('✓ Operation approved'))
       } else {
-        console.log(chalk.yellow.bold('❌ Operation cancelled'))
+        console.log(chalk.yellow.bold('✖ Operation cancelled'))
       }
 
       // Add final spacing
@@ -1301,7 +1301,7 @@ export class ApprovalSystem extends EventEmitter {
       }
     } catch (_error) {
       // Handle Ctrl+C or other interruption
-      console.log(chalk.red('\n❌ Operation cancelled by user'))
+      console.log(chalk.red('\n✖ Operation cancelled by user'))
       return {
         approved: false,
         timestamp: new Date(),
@@ -1822,7 +1822,7 @@ export class ApprovalSystem extends EventEmitter {
         message: chalk.yellow.bold('\n🚀 ENTERPRISE APPROVAL DECISION:'),
         choices: [
           { name: '✓ Approve Request', value: 'approve' },
-          { name: '❌ Reject Request', value: 'reject' },
+          { name: '✖ Reject Request', value: 'reject' },
           { name: '⚠️  Approve with Conditions', value: 'conditional' },
           { name: '📋 Request More Information', value: 'info' },
           { name: '⬆️  Escalate to Manager', value: 'escalate' },
@@ -1894,7 +1894,7 @@ export class ApprovalSystem extends EventEmitter {
         console.log(chalk.yellow('⚠️  Conditional approval with enterprise requirements'))
       }
     } else {
-      console.log(chalk.red.bold('❌ Enterprise Operation Rejected'))
+      console.log(chalk.red.bold('✖ Enterprise Operation Rejected'))
     }
     console.log()
 
@@ -1918,7 +1918,7 @@ export class ApprovalSystem extends EventEmitter {
 
   private handleRequestRejected(response: ApprovalResponse): void {
     if (this.config.auditLevel !== 'basic') {
-      console.log(chalk.red(`❌ Enterprise request rejected by ${response.approver}`))
+      console.log(chalk.red(`✖ Enterprise request rejected by ${response.approver}`))
     }
   }
 
@@ -2215,10 +2215,10 @@ class WorkflowEngine {
       // Display approval box
       const approvalBox = boxen(
         chalk.yellow(`${riskEmoji} Sandbox Permission Required\n\n`) +
-          chalk.bold(`Tool: `) + chalk.cyan(toolName) + '\n' +
-          chalk.bold(`Operation: `) + chalk.white(operationText) + '\n' +
-          chalk.bold(`Risk Level: `) + chalk.red(riskLevel.toUpperCase()) +
-          (details?.reason ? '\n' + chalk.bold(`Reason: `) + chalk.gray(details.reason) : ''),
+        chalk.bold(`Tool: `) + chalk.cyan(toolName) + '\n' +
+        chalk.bold(`Operation: `) + chalk.white(operationText) + '\n' +
+        chalk.bold(`Risk Level: `) + chalk.red(riskLevel.toUpperCase()) +
+        (details?.reason ? '\n' + chalk.bold(`Reason: `) + chalk.gray(details.reason) : ''),
         {
           title: 'Sandbox Permission',
           padding: 1,
@@ -2232,7 +2232,7 @@ class WorkflowEngine {
       // Suspend main prompt and enable bypass to prevent interference
       try {
         ; (global as any).__nikCLI?.suspendPrompt?.()
-      } catch {}
+      } catch { }
 
       if (!wasEnabled) {
         inputQueue.enableBypass()
@@ -2275,7 +2275,7 @@ class WorkflowEngine {
 
       // If denied
       if (approvalResponse === null) {
-        console.log(chalk.red('❌ Operation denied by user'))
+        console.log(chalk.red('✖ Operation denied by user'))
         return { approved: false, remember: false }
       }
 
@@ -2289,7 +2289,7 @@ class WorkflowEngine {
       console.log(chalk.yellow('✓ Operation approved (remember disabled)'))
       return { approved: true, remember: false }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Approval request failed: ${error.message}`))
+      console.log(chalk.red(`✖ Approval request failed: ${error.message}`))
       console.log(chalk.yellow(`🔄 Operation DENIED (default on error)`))
       return { approved: false, remember: false }
     } finally {
@@ -2308,13 +2308,13 @@ class WorkflowEngine {
       if (inquirerInstance) {
         try {
           inquirerInstance.removeAllListeners?.()
-        } catch {}
+        } catch { }
       }
 
       // Restore prompt after approval interaction - CRITICAL for interactive mode
       try {
         ; (global as any).__nikCLI?.resumePromptAndRender?.()
-      } catch {}
+      } catch { }
     }
   }
 }

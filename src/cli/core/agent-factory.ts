@@ -343,7 +343,7 @@ export class DynamicAgent extends BaseAgent {
             timestamp: new Date().toISOString(),
           })
 
-          console.log(chalk.red(`❌ Agent ${this.id}: Todo "${todo.title}" failed: ${error.message}`))
+          console.log(chalk.red(`✖ Agent ${this.id}: Todo "${todo.title}" failed: ${error.message}`))
         }
       }
 
@@ -733,7 +733,7 @@ export class AgentFactory extends EventEmitter {
       this.isInitialized = true
       console.log(chalk.gray(`🏭 Agent Factory initialized with ${this.blueprints.size} blueprints`))
     } catch (error: any) {
-      console.error(chalk.red(`❌ Failed to initialize Agent Factory: ${error.message}`))
+      console.error(chalk.red(`✖ Failed to initialize Agent Factory: ${error.message}`))
       throw error
     }
   }
@@ -879,7 +879,7 @@ export class AgentFactory extends EventEmitter {
 
       console.log(chalk.gray(`Using model: ${modelInfo.name} (${modelInfo.config.provider})`))
     } catch (error: any) {
-      console.log(chalk.red(`❌ Model configuration error: ${error.message}`))
+      console.log(chalk.red(`✖ Model configuration error: ${error.message}`))
       throw error
     }
 
@@ -989,7 +989,7 @@ Context Scope: ${requirements.contextScope || 'project'}`,
 
       return blueprint
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to create agent blueprint: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to create agent blueprint: ${error.message}`))
 
       // Try to create a fallback blueprint if the main process fails
       console.log(chalk.yellow('⚡︎ Creating fallback blueprint...'))
@@ -1031,7 +1031,7 @@ Context Scope: ${requirements.contextScope || 'project'}`,
 
         return validatedBlueprint
       } catch (fallbackError: any) {
-        console.log(chalk.red(`❌ Fallback blueprint creation also failed: ${fallbackError.message}`))
+        console.log(chalk.red(`✖ Fallback blueprint creation also failed: ${fallbackError.message}`))
         // Create a minimal valid blueprint as last resort
         const minimalBlueprint: AgentBlueprint = {
           id: nanoid(),
@@ -1242,7 +1242,7 @@ Execute tasks step-by-step and verify results before proceeding.`
           try {
             await existing.run(task)
           } catch (error: any) {
-            console.log(chalk.red(`❌ Task execution failed: ${error.message}`))
+            console.log(chalk.red(`✖ Task execution failed: ${error.message}`))
             // If task execution fails, consider the agent unhealthy and remove it
             console.log(chalk.yellow(`🧹 Removing unhealthy agent instance`))
             this.instances.delete(blueprint.name)
@@ -1272,7 +1272,7 @@ Execute tasks step-by-step and verify results before proceeding.`
         try {
           await agent.run(task)
         } catch (error: any) {
-          console.log(chalk.red(`❌ Task execution failed: ${error.message}`))
+          console.log(chalk.red(`✖ Task execution failed: ${error.message}`))
           // Don't remove the agent just because the first task failed
           // The agent might still be functional for other tasks
         }
@@ -1281,7 +1281,7 @@ Execute tasks step-by-step and verify results before proceeding.`
       return agent
     } catch (initError: any) {
       // If initialization fails, ensure we don't leave a broken agent in the registry
-      console.log(chalk.red(`❌ Agent initialization failed: ${initError.message}`))
+      console.log(chalk.red(`✖ Agent initialization failed: ${initError.message}`))
       this.instances.delete(blueprint.name)
       await this.cleanupAgent(agent)
       throw initError
@@ -1355,7 +1355,7 @@ Execute tasks step-by-step and verify results before proceeding.`
 
     const blueprint = await this.getBlueprint(identifier)
     if (!blueprint) {
-      console.log(chalk.red(`❌ Blueprint '${identifier}' not found`))
+      console.log(chalk.red(`✖ Blueprint '${identifier}' not found`))
       return false
     }
 

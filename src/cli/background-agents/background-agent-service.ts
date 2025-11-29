@@ -1243,7 +1243,7 @@ export class BackgroundAgentService extends EventEmitter {
                 break
               } else {
                 // Real error - throw it
-                this.logJob(job, 'error', `❌ Background agent error: ${ev.error}`)
+                this.logJob(job, 'error', `✖ Background agent error: ${ev.error}`)
                 throw new Error(ev.error)
               }
           }
@@ -1321,7 +1321,7 @@ export class BackgroundAgentService extends EventEmitter {
         this.logJob(job, 'info', `✅ Completed task ${index + 1}: ${todo.title}`)
 
       } catch (error: any) {
-        this.logJob(job, 'error', `❌ Failed task ${index + 1}: ${todo.title} - ${error.message}`)
+        this.logJob(job, 'error', `✖ Failed task ${index + 1}: ${todo.title} - ${error.message}`)
         // Continue with other tasks even if one fails
       }
     }
@@ -1400,7 +1400,7 @@ try {
   console.log('✅ Task completed successfully in container');
 
 } catch (error) {
-  console.error('❌ Task failed in container:', error.message);
+  console.error('✖ Task failed in container:', error.message);
   process.exit(1);
 }
 `;

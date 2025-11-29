@@ -62,7 +62,7 @@ export default async function handler(req: Request, res: Response) {
 
     const missingVars = requiredEnvVars.filter((envVar) => !process.env[envVar])
     if (missingVars.length > 0) {
-      console.error('❌ Missing environment variables:', missingVars)
+      console.error('✖ Missing environment variables:', missingVars)
       return res.status(500).json({
         error: 'Configuration error',
         message: `Missing required environment variables: ${missingVars.join(', ')}`,
@@ -99,7 +99,7 @@ export default async function handler(req: Request, res: Response) {
     await handler.handleWebhook(mockReq, mockRes)
     return
   } catch (error) {
-    console.error('❌ Webhook handler error:', error)
+    console.error('✖ Webhook handler error:', error)
 
     return res.status(500).json({
       error: 'Internal server error',

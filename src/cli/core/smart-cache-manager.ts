@@ -366,7 +366,7 @@ export class SmartCacheManager {
     const stats: any = {}
 
     for (const [strategyId, strategy] of this.strategies) {
-    const entries = Array.from(this.cache.values()).filter((e) => e.strategy === strategyId)
+      const entries = Array.from(this.cache.values()).filter((e) => e.strategy === strategyId)
 
       stats[strategyId] = {
         name: strategy.name,
@@ -421,7 +421,7 @@ export class SmartCacheManager {
     const stats = this.getCacheStats()
     for (const [_strategyId, stat] of Object.entries(stats)) {
       const typedStat = stat as any
-      const status = typedStat.enabled ? chalk.green('✓') : chalk.red('❌')
+      const status = typedStat.enabled ? chalk.green('✓') : chalk.red('✖')
       console.log(`${status} ${typedStat.name}: ${typedStat.entries} entries, ${typedStat.totalAccesses} accesses`)
     }
   }

@@ -221,7 +221,7 @@ set -g renumber-windows on
       console.log(chalk.green(`✓ tmux session created: ${sessionName}`))
       return sessionName
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to create tmux session: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to create tmux session: ${error.message}`))
       return null
     }
   }
@@ -246,7 +246,7 @@ set -g renumber-windows on
       console.log(chalk.green(`✓ Attached to tmux session: ${sessionName}`))
       return true
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to attach to session: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to attach to session: ${error.message}`))
       return false
     }
   }
@@ -287,7 +287,7 @@ set -g renumber-windows on
       console.log(chalk.green(`✓ tmux session killed: ${sessionName}`))
       return true
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to kill session: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to kill session: ${error.message}`))
       return false
     }
   }

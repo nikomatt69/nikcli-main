@@ -117,7 +117,7 @@ export class SecureVirtualizedAgent extends EventEmitter implements Agent {
 
       advancedUI.logSuccess(`✓ VM agent ${this.id} security initialized`)
     } catch (error: any) {
-      advancedUI.logError(`❌ Failed to initialize VM agent security: ${error.message}`)
+      advancedUI.logError(`✖ Failed to initialize VM agent security: ${error.message}`)
       throw error
     }
   }
@@ -152,7 +152,7 @@ export class SecureVirtualizedAgent extends EventEmitter implements Agent {
       advancedUI.logSuccess(`✓ VM agent ${this.id} security initialized`)
     } catch (error: any) {
       this.status = 'error'
-      advancedUI.logError(`❌ Failed to initialize VM agent security: ${error.message}`)
+      advancedUI.logError(`✖ Failed to initialize VM agent security: ${error.message}`)
       throw error
     }
   }
@@ -201,7 +201,7 @@ export class SecureVirtualizedAgent extends EventEmitter implements Agent {
       this.status = 'error'
       this.currentTasks--
 
-      advancedUI.logError(`❌ VM Agent task failed: ${error.message}`)
+      advancedUI.logError(`✖ VM Agent task failed: ${error.message}`)
 
       return {
         taskId: task.id,
@@ -272,7 +272,7 @@ export class SecureVirtualizedAgent extends EventEmitter implements Agent {
 
       return result
     } catch (error: any) {
-      advancedUI.logError(`❌ VM Agent task failed: ${error.message}`)
+      advancedUI.logError(`✖ VM Agent task failed: ${error.message}`)
       throw error
     }
   }
@@ -294,7 +294,7 @@ export class SecureVirtualizedAgent extends EventEmitter implements Agent {
 
       advancedUI.logSuccess(`✓ VM agent ${this.id} stopped and cleaned up`)
     } catch (error: any) {
-      advancedUI.logError(`❌ Error stopping VM agent: ${error.message}`)
+      advancedUI.logError(`✖ Error stopping VM agent: ${error.message}`)
     }
   }
 
@@ -682,7 +682,7 @@ export class SecureVirtualizedAgent extends EventEmitter implements Agent {
     })
 
     this.on('vm:error', (error: Error) => {
-      advancedUI.logError(`❌ VM error: ${error.message}`)
+      advancedUI.logError(`✖ VM error: ${error.message}`)
       this.emitVMCommunication(`Error: ${error.message}`)
     })
 
@@ -759,7 +759,7 @@ export class SecureVirtualizedAgent extends EventEmitter implements Agent {
 
       advancedUI.logSuccess(`✓ VM Chat Mode activated for agent: ${this.id}`)
     } catch (error: any) {
-      advancedUI.logError(`❌ Failed to start VM Chat Mode: ${error.message}`)
+      advancedUI.logError(`✖ Failed to start VM Chat Mode: ${error.message}`)
       this.status = 'error'
       throw error
     }
@@ -825,7 +825,7 @@ export class SecureVirtualizedAgent extends EventEmitter implements Agent {
     } catch (error: any) {
       this.status = 'ready' // Return to ready even on error
       this.emitVMCommunication(`Error processing message: ${error.message}`)
-      return `❌ Error processing message: ${error.message}`
+      return `✖ Error processing message: ${error.message}`
     }
   }
 
@@ -890,7 +890,7 @@ export class SecureVirtualizedAgent extends EventEmitter implements Agent {
             } else if (chunk.type === 'error') {
               // Handle streaming error
               this.emitVMCommunication(`AI streaming error: ${chunk.error}`)
-              yield `\n\n❌ AI Error: ${chunk.error}`
+              yield `\n\n✖ AI Error: ${chunk.error}`
               break
             }
           }
@@ -905,7 +905,7 @@ export class SecureVirtualizedAgent extends EventEmitter implements Agent {
     } catch (error: any) {
       this.status = 'ready' // Return to ready even on error
       this.emitVMCommunication(`Streaming error: ${error.message}`)
-      yield `❌ Error processing message: ${error.message}`
+      yield `✖ Error processing message: ${error.message}`
     }
   }
 

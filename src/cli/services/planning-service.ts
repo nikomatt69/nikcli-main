@@ -441,7 +441,7 @@ export class PlanningService {
             this.emitPlanEvent({ ...event, planId: plan.id, todoStatus: event.error ? 'failed' : 'completed' })
             break
           case 'plan_failed':
-            if (!superCompact) advancedUI.logError(`Plan execution failed: ${event.error}`, '❌')
+            if (!superCompact) advancedUI.logError(`Plan execution failed: ${event.error}`, '✖')
             this.updatePlanStatus(plan.id, 'failed')
             this.emitPlanEvent({ ...event, planId: plan.id })
             try {
@@ -462,7 +462,7 @@ export class PlanningService {
         }
       }
     } catch (error: any) {
-      advancedUI.logError(`Plan execution error: ${error.message}`, '❌')
+      advancedUI.logError(`Plan execution error: ${error.message}`, '✖')
       plan.status = 'failed'
       // Ensure prompt is restored on error
       try {

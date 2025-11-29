@@ -61,7 +61,7 @@ export class JobQueue extends EventEmitter {
    */
   private handleUpstashError(error: any): void {
     if (error.message?.includes('max requests limit exceeded')) {
-      console.error('❌ Upstash limit exceeded, permanently disabling Upstash Redis for this session')
+      console.error('✖ Upstash limit exceeded, permanently disabling Upstash Redis for this session')
       this.upstashRedis = undefined
       this.config.type = 'local'
     }
@@ -226,7 +226,7 @@ export class JobQueue extends EventEmitter {
         this.config.type = 'redis' // Ensure queue type is set to redis
         this.emit('connected')
       } catch (error: any) {
-        console.error('❌ Background agents: Upstash Redis connection failed:', error.message)
+        console.error('✖ Background agents: Upstash Redis connection failed:', error.message)
         this.emit('error', error)
 
         // Don't fallback to local Redis - use local queue instead
@@ -237,7 +237,7 @@ export class JobQueue extends EventEmitter {
     } else if (this.config.redis.host && this.config.redis.port) {
       // Standard Redis connection (fallback, not recommended for background agents)
       console.warn('⚠️  Background agents: Using standard Redis (Upstash is preferred)')
-      
+
       this.redis = new IORedis({
         host: this.config.redis.host,
         port: this.config.redis.port,
@@ -247,7 +247,7 @@ export class JobQueue extends EventEmitter {
         enableReadyCheck: false,
         retryStrategy: (times) => {
           if (times > 3) {
-            console.error('❌ Background agents: Redis connection failed after 3 attempts')
+            console.error('✖ Background agents: Redis connection failed after 3 attempts')
             console.error('   Falling back to local queue')
             this.config.type = 'local'
             return null // Stop retrying
@@ -262,7 +262,7 @@ export class JobQueue extends EventEmitter {
       })
 
       this.redis.on('error', (error) => {
-        console.error('❌ Background agents: Redis queue error:', error.message)
+        console.error('✖ Background agents: Redis queue error:', error.message)
         this.emit('error', error)
 
         // Gracefully degrade to local queue if Redis disconnects/errors

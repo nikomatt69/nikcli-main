@@ -313,7 +313,7 @@ export class UnifiedToolRenderer {
       case 'success': return '✓'
       case 'info': return 'ℹ'
       case 'warning': return '⚠︎'
-      case 'error': return '❌'
+      case 'error': return '✖'
       default: return '•'
     }
   }

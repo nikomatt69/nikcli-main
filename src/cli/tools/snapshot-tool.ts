@@ -96,7 +96,7 @@ export const createSnapshotTool = tool({
         },
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to create snapshot: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to create snapshot: ${error.message}`))
       return {
         success: false,
         error: error.message,
@@ -135,7 +135,7 @@ export const restoreSnapshotTool = tool({
         filesRestored: selectedFiles ? selectedFiles.length : 'all',
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to restore snapshot: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to restore snapshot: ${error.message}`))
       return {
         success: false,
         error: error.message,
@@ -198,7 +198,7 @@ export const listSnapshotsTool = tool({
         message: `Found ${snapshots.length} snapshots`,
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to list snapshots: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to list snapshots: ${error.message}`))
       return {
         success: false,
         error: error.message,
@@ -273,7 +273,7 @@ export const compareSnapshotsTool = tool({
         message: `Comparison completed: ${comparison.added.length} added, ${comparison.modified.length} modified, ${comparison.removed.length} removed`,
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to compare snapshots: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to compare snapshots: ${error.message}`))
       return {
         success: false,
         error: error.message,
@@ -319,7 +319,7 @@ export const deleteSnapshotTool = tool({
         }
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to delete snapshot: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to delete snapshot: ${error.message}`))
       return {
         success: false,
         error: error.message,
@@ -366,7 +366,7 @@ export const createSnapshotTemplateTool = tool({
         message: `Template created successfully: ${name}`,
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to create template: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to create template: ${error.message}`))
       return {
         success: false,
         error: error.message,
@@ -419,7 +419,7 @@ export const getSnapshotStatsTool = tool({
         message: `Found ${stats.totalSnapshots} snapshots`,
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to get snapshot stats: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to get snapshot stats: ${error.message}`))
       return {
         success: false,
         error: error.message,

@@ -300,7 +300,7 @@ export class GoatTool extends BaseTool {
       if (!isInstalled) {
         const error =
           'GOAT SDK not installed. Run: bun add @goat-sdk/adapter-vercel-ai @goat-sdk/wallet-viem @goat-sdk/plugin-polymarket @goat-sdk/plugin-erc20'
-        console.log(chalk.red(`❌ ${error}`))
+        console.log(chalk.red(`✖ ${error}`))
         return {
           success: false,
           data: null,
@@ -381,7 +381,7 @@ export class GoatTool extends BaseTool {
         },
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to initialize GOAT SDK: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to initialize GOAT SDK: ${error.message}`))
       return {
         success: false,
         data: null,
@@ -491,7 +491,7 @@ ALWAYS confirm with user before executing any blockchain transaction.`,
         },
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Chat processing failed: ${error.message}`))
+      console.log(chalk.red(`✖ Chat processing failed: ${error.message}`))
       return {
         success: false,
         data: null,
@@ -2657,7 +2657,7 @@ ALWAYS confirm with user before executing any blockchain transaction.`,
       if (section) {
         this.printSection(section)
       } else {
-        console.log(chalk.red(`❌ Category not found: ${category}`))
+        console.log(chalk.red(`✖ Category not found: ${category}`))
         console.log(chalk.yellow(`\nAvailable categories: ${helpData.sections.map(s => s.name).join(', ')}\n`))
       }
     } else {

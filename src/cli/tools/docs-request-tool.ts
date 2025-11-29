@@ -270,7 +270,7 @@ export const docsRequestTool: CoreTool = tool({
           sources: result.externalSources.map((s) => s.url),
         })
 
-        result.summary = `❌ No local documentation found for "${concept}".\n\n`
+        result.summary = `✖ No local documentation found for "${concept}".\n\n`
         result.summary += `**Context:** ${context}\n\n`
 
         if (result.externalSources.length > 0) {
@@ -291,7 +291,7 @@ export const docsRequestTool: CoreTool = tool({
 
       return result
     } catch (error: any) {
-      console.error(chalk.red(`❌ Docs request failed: ${error.message}`))
+      console.error(chalk.red(`✖ Docs request failed: ${error.message}`))
       return {
         success: false,
         error: error.message,
@@ -380,7 +380,7 @@ export const docsGapReportTool: CoreTool = tool({
         ],
       }
     } catch (error: any) {
-      console.error(chalk.red(`❌ Gap report failed: ${error.message}`))
+      console.error(chalk.red(`✖ Gap report failed: ${error.message}`))
       return {
         success: false,
         error: error.message,

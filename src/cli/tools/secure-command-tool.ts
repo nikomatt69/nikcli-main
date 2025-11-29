@@ -303,7 +303,7 @@ export class SecureCommandTool {
       if (approved) {
         console.log(chalk.green(`✓ Batch approved! Session ID: ${sessionId}`))
       } else {
-        console.log(chalk.red('❌ Batch execution cancelled by user'))
+        console.log(chalk.red('✖ Batch execution cancelled by user'))
       }
 
       return session
@@ -362,13 +362,13 @@ export class SecureCommandTool {
 
             // Stop on first failure unless continuing
             if (result.exitCode !== 0) {
-              console.log(chalk.red(`❌ Command failed, stopping batch execution`))
+              console.log(chalk.red(`✖ Command failed, stopping batch execution`))
               session.status = 'failed'
               session.onError?.(new Error(`Command failed: ${command}`), command, i)
               return
             }
           } catch (error: any) {
-            console.log(chalk.red(`❌ [${i + 1}/${session.commands.length}] Failed: ${command}`))
+            console.log(chalk.red(`✖ [${i + 1}/${session.commands.length}] Failed: ${command}`))
             console.log(chalk.red(`Error: ${error.message}`))
 
             session.status = 'failed'
@@ -385,7 +385,7 @@ export class SecureCommandTool {
         session.onComplete?.(session.results)
       } catch (error: any) {
         session.status = 'failed'
-        console.log(chalk.red.bold(`\n❌ Batch Execution Failed: ${sessionId}`))
+        console.log(chalk.red.bold(`\n✖ Batch Execution Failed: ${sessionId}`))
         console.log(chalk.red(`Error: ${error.message}`))
       }
     })
@@ -558,7 +558,7 @@ export class SecureCommandTool {
         duration,
       })
 
-      console.log(chalk.red(`❌ Command failed after ${duration}ms`))
+      console.log(chalk.red(`✖ Command failed after ${duration}ms`))
       console.log(chalk.red(`Error: ${error.message}`))
 
       return {
@@ -628,11 +628,11 @@ export class SecureCommandTool {
 
         // Stop on first failure unless explicitly continuing
         if (result.exitCode !== 0) {
-          console.log(chalk.red(`❌ Command ${i + 1} failed, stopping sequence`))
+          console.log(chalk.red(`✖ Command ${i + 1} failed, stopping sequence`))
           break
         }
       } catch (error) {
-        console.log(chalk.red(`❌ Command ${i + 1} failed: ${error}`))
+        console.log(chalk.red(`✖ Command ${i + 1} failed: ${error}`))
         break
       }
     }

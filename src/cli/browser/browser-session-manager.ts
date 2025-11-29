@@ -166,7 +166,7 @@ export class BrowserSessionManager extends EventEmitter {
       return true
 
     } catch (error: any) {
-      advancedUI.logFunctionUpdate('error', `Failed to send message to session ${sessionId}: ${error.message}`, '❌')
+      advancedUI.logFunctionUpdate('error', `Failed to send message to session ${sessionId}: ${error.message}`, '✖')
       throw error
     }
   }
@@ -206,7 +206,7 @@ export class BrowserSessionManager extends EventEmitter {
       return result
 
     } catch (error: any) {
-      advancedUI.logFunctionUpdate('error', `Browser action failed: ${error.message}`, '❌')
+      advancedUI.logFunctionUpdate('error', `Browser action failed: ${error.message}`, '✖')
       throw error
     }
   }
@@ -332,7 +332,7 @@ export class BrowserSessionManager extends EventEmitter {
       this.emit('session:ended', sessionId, reason)
 
     } catch (error: any) {
-      advancedUI.logFunctionUpdate('error', `Error ending session ${sessionId}: ${error.message}`, '❌')
+      advancedUI.logFunctionUpdate('error', `Error ending session ${sessionId}: ${error.message}`, '✖')
     }
   }
 

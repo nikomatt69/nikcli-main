@@ -143,7 +143,7 @@ export class ContextAwareRAGSystem {
     try {
       writeFileSync(memoryFile, JSON.stringify(data, null, 2))
     } catch (_error) {
-      console.log(chalk.red('❌ Failed to save workspace memory'))
+      console.log(chalk.red('✖ Failed to save workspace memory'))
     }
   }
 

@@ -201,7 +201,7 @@ slackRouter.post('/events', async (req: Request, res: Response): Promise<void> =
 
     // Verify Slack signature
     if (!verifySlackSignature(body, signature, timestamp)) {
-      console.error('❌ Invalid Slack signature')
+      console.error('✖ Invalid Slack signature')
       res.status(401).json({ error: 'Invalid signature' })
       return
     }
@@ -238,7 +238,7 @@ slackRouter.post('/events', async (req: Request, res: Response): Promise<void> =
       if (event.type === 'app_mention') {
         // Process asynchronously to avoid Slack timeout
         processAppMention(event).catch(error => {
-          console.error('❌ Error processing app_mention:', error)
+          console.error('✖ Error processing app_mention:', error)
         })
 
         // Respond quickly to Slack
@@ -249,7 +249,7 @@ slackRouter.post('/events', async (req: Request, res: Response): Promise<void> =
 
     res.status(200).json({ ok: true })
   } catch (error: any) {
-    console.error('❌ Slack events endpoint error:', error)
+    console.error('✖ Slack events endpoint error:', error)
     res.status(500).json({ error: 'Internal server error', message: error.message })
   }
 })
@@ -328,7 +328,7 @@ export async function notifyJobCompleted(jobId: string, repo: string, duration: 
 
 export async function notifyJobFailed(jobId: string, repo: string, error: string) {
   await sendSlackNotification({
-    title: '❌ Job Failed',
+    title: '✖ Job Failed',
     message: `Background job failed for repository \`${repo}\``,
     color: 'danger',
     fields: [
@@ -364,13 +364,13 @@ function verifySlackSignature(body: string, signature: string, timestamp: string
   const currentTime = Math.floor(Date.now() / 1000)
   const requestTime = parseInt(timestamp, 10)
   if (Math.abs(currentTime - requestTime) > 300) {
-    console.error('❌ Slack request timestamp too old')
+    console.error('✖ Slack request timestamp too old')
     return false
   }
 
   const signingSecret = process.env.SLACK_SIGNING_SECRET
   if (!signingSecret) {
-    console.error('❌ SLACK_SIGNING_SECRET not configured')
+    console.error('✖ SLACK_SIGNING_SECRET not configured')
     return false
   }
 
@@ -394,7 +394,7 @@ async function processAppMention(event: any): Promise<void> {
   try {
     // Initialize Slack service
     if (!process.env.SLACK_BOT_TOKEN || !process.env.SLACK_SIGNING_SECRET) {
-      console.error('❌ Slack credentials not configured')
+      console.error('✖ Slack credentials not configured')
       return
     }
 
@@ -419,7 +419,7 @@ async function processAppMention(event: any): Promise<void> {
 
     console.log(`✅ @nikcli mention processed successfully`)
   } catch (error: any) {
-    console.error('❌ Error in processAppMention:', error)
+    console.error('✖ Error in processAppMention:', error)
     throw error
   }
 }

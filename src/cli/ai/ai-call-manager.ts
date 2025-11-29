@@ -345,7 +345,7 @@ Estimate realistic durations and assess risk levels accurately.`
 
         return plan
       } catch (error: any) {
-        console.log(chalk.red(`❌ Failed to generate execution plan: ${error.message}`))
+        console.log(chalk.red(`✖ Failed to generate execution plan: ${error.message}`))
         throw new Error(`Failed to generate execution plan: ${error.message}`)
       }
     } catch (error: any) {
@@ -422,7 +422,7 @@ Estimate realistic durations and assess risk levels accurately.`
               console.log(chalk.green(`✓ Batch execution completed: ${results.length} commands`))
             },
             onError: (error, command, index) => {
-              console.log(chalk.red(`❌ Batch execution failed at command ${index + 1}: ${command}`))
+              console.log(chalk.red(`✖ Batch execution failed at command ${index + 1}: ${command}`))
               console.log(chalk.red(`Error: ${error.message}`))
             },
           })
@@ -486,7 +486,7 @@ Estimate realistic durations and assess risk levels accurately.`
                 executionTime: 0,
               }
 
-              console.log(chalk.red(`❌ [${displayIndex}/${plan.toolCalls.length}] Failed: ${error.message}`))
+              console.log(chalk.red(`✖ [${displayIndex}/${plan.toolCalls.length}] Failed: ${error.message}`))
 
               // Store error result
               return toolResult
@@ -545,7 +545,7 @@ Estimate realistic durations and assess risk levels accurately.`
 
       return results
     } catch (error: any) {
-      console.log(chalk.red.bold(`\n❌ Plan execution failed: ${error.message}`))
+      console.log(chalk.red.bold(`\n✖ Plan execution failed: ${error.message}`))
       throw error
     }
   }

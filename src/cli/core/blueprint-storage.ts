@@ -77,7 +77,7 @@ export class BlueprintStorage {
       this.initialized = true
       console.log(chalk.gray(`📁 Blueprint storage initialized: ${this.config.storageDir}`))
     } catch (error: any) {
-      console.error(chalk.red(`❌ Failed to initialize blueprint storage: ${error.message}`))
+      console.error(chalk.red(`✖ Failed to initialize blueprint storage: ${error.message}`))
       throw error
     }
   }
@@ -113,7 +113,7 @@ export class BlueprintStorage {
 
       console.log(chalk.gray(`💾 Blueprint saved: ${blueprint.name} (${blueprint.id})`))
     } catch (error: any) {
-      console.error(chalk.red(`❌ Failed to save blueprint: ${error.message}`))
+      console.error(chalk.red(`✖ Failed to save blueprint: ${error.message}`))
       throw error
     }
   }
@@ -154,7 +154,7 @@ export class BlueprintStorage {
       if (error.code === 'ENOENT') {
         return null // File non trovato
       }
-      console.error(chalk.red(`❌ Failed to load blueprint ${blueprintId}: ${error.message}`))
+      console.error(chalk.red(`✖ Failed to load blueprint ${blueprintId}: ${error.message}`))
       throw error
     }
   }
@@ -192,7 +192,7 @@ export class BlueprintStorage {
       console.log(chalk.gray(`📋 Loaded ${this.blueprintsCache.size} blueprints from storage`))
     } catch (error: any) {
       if (error.code !== 'ENOENT') {
-        console.error(chalk.red(`❌ Failed to load blueprints: ${error.message}`))
+        console.error(chalk.red(`✖ Failed to load blueprints: ${error.message}`))
         throw error
       }
     }
@@ -245,7 +245,7 @@ export class BlueprintStorage {
       if (error.code === 'ENOENT') {
         return false // File già non esistente
       }
-      console.error(chalk.red(`❌ Failed to delete blueprint: ${error.message}`))
+      console.error(chalk.red(`✖ Failed to delete blueprint: ${error.message}`))
       throw error
     }
   }
@@ -264,7 +264,7 @@ export class BlueprintStorage {
       console.log(chalk.green(`📤 Blueprint exported: ${exportPath}`))
       return true
     } catch (error: any) {
-      console.error(chalk.red(`❌ Failed to export blueprint: ${error.message}`))
+      console.error(chalk.red(`✖ Failed to export blueprint: ${error.message}`))
       return false
     }
   }
@@ -285,7 +285,7 @@ export class BlueprintStorage {
       console.log(chalk.green(`📥 Blueprint imported: ${blueprint.name}`))
       return blueprint
     } catch (error: any) {
-      console.error(chalk.red(`❌ Failed to import blueprint: ${error.message}`))
+      console.error(chalk.red(`✖ Failed to import blueprint: ${error.message}`))
       return null
     }
   }
@@ -424,7 +424,7 @@ export class BlueprintStorage {
 
       console.log(chalk.gray(`🧹 Storage cleanup completed`))
     } catch (error: any) {
-      console.error(chalk.red(`❌ Storage cleanup failed: ${error.message}`))
+      console.error(chalk.red(`✖ Storage cleanup failed: ${error.message}`))
     }
   }
 

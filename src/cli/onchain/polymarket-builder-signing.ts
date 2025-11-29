@@ -164,7 +164,7 @@ export class PolymarketBuilderSigningService extends EventEmitter {
       const result = await response.json()
 
       if (!response.ok) {
-        console.error('❌ Order submission failed:', result.errorMsg)
+        console.error('✖ Order submission failed:', result.errorMsg)
         this.metrics.totalOrdersFailed++
         this.emit('orderFailed', { request, error: result.errorMsg })
 
@@ -195,7 +195,7 @@ export class PolymarketBuilderSigningService extends EventEmitter {
         status: result.status
       }
     } catch (error: any) {
-      console.error('❌ Order signing failed:', error.message)
+      console.error('✖ Order signing failed:', error.message)
       this.metrics.totalOrdersFailed++
       this.emit('signingError', error)
 

@@ -126,7 +126,7 @@ export class OptimizationAgent extends CognitiveAgentBase {
       }
     } catch (error: any) {
       const executionTime = Date.now() - startTime
-      CliUI.logError(`❌ Optimization failed: ${error.message}`)
+      CliUI.logError(`✖ Optimization failed: ${error.message}`)
       this.updateCognitiveMemory(cognition, { error: error.message }, false)
 
       return {
@@ -157,7 +157,7 @@ export class OptimizationAgent extends CognitiveAgentBase {
 
       return optimizationCognition
     } catch (error: any) {
-      CliUI.logError(`❌ Failed to enhance Optimization cognition: ${error.message}`)
+      CliUI.logError(`✖ Failed to enhance Optimization cognition: ${error.message}`)
       return cognition
     }
   }

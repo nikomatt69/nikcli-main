@@ -2317,7 +2317,7 @@ export async function indexProject(projectPath: string) {
     advancedUI.logFunctionUpdate('success', `✓ Legacy indexing completed - ${result.indexedFiles} files processed`)
   } catch (error: any) {
     advancedUI.logFunctionCall('unifiedraganalysis')
-    advancedUI.logFunctionUpdate('error', `❌ Legacy indexing failed: ${error.message}`)
+    advancedUI.logFunctionUpdate('error', `✖ Legacy indexing failed: ${error.message}`)
   }
 }
 
@@ -2341,7 +2341,7 @@ export async function search(query: string) {
     }
   } catch (error: any) {
     advancedUI.logFunctionCall('unifiedraganalysis')
-    advancedUI.logFunctionUpdate('error', `❌ Legacy search failed: ${error.message}`)
+    advancedUI.logFunctionUpdate('error', `✖ Legacy search failed: ${error.message}`)
     return { documents: [[]], metadatas: [[]] }
   }
 }

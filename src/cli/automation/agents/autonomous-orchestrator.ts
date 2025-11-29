@@ -137,7 +137,7 @@ Consider parallel execution where possible.`,
         completedTasks.add(task.id)
         console.log(chalk.green(`✓ Task ${task.id} completed (${result.duration}ms)`))
       } else {
-        console.log(chalk.red(`❌ Task ${task.id} failed: ${result.error}`))
+        console.log(chalk.red(`✖ Task ${task.id} failed: ${result.error}`))
       }
     }
 
@@ -270,7 +270,7 @@ Consider parallel execution where possible.`,
 
       console.log(chalk.blue.bold('\n📊 Execution Summary:'))
       console.log(chalk.green(`✓ Successful tasks: ${successful}`))
-      console.log(chalk.red(`❌ Failed tasks: ${failed}`))
+      console.log(chalk.red(`✖ Failed tasks: ${failed}`))
       console.log(chalk.gray(`⏱️  Total time: ${totalTime}ms`))
 
       return {
@@ -440,11 +440,11 @@ Consider parallel execution where possible.`,
 
     // Return in execution order: critical -> high -> normal -> low
     const ordered = new Map<string, any[]>()
-    ;['critical', 'high', 'normal', 'low'].forEach((priority) => {
-      if (groups.has(priority)) {
-        ordered.set(priority, groups.get(priority)!)
-      }
-    })
+      ;['critical', 'high', 'normal', 'low'].forEach((priority) => {
+        if (groups.has(priority)) {
+          ordered.set(priority, groups.get(priority)!)
+        }
+      })
 
     return ordered
   }
@@ -470,9 +470,9 @@ Consider parallel execution where possible.`,
           result.status === 'fulfilled'
             ? result.value
             : {
-                success: false,
-                error: result.reason?.message || 'Unknown error',
-              }
+              success: false,
+              error: result.reason?.message || 'Unknown error',
+            }
         )
       )
 

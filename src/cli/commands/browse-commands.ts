@@ -42,7 +42,7 @@ export function createBrowseCommands(): Command {
         ))
 
       } catch (error: any) {
-        console.error(chalk.red('❌ Failed to create session:'), error.message)
+        console.error(chalk.red('✖ Failed to create session:'), error.message)
         process.exit(1)
       }
     })
@@ -86,7 +86,7 @@ export function createBrowseCommands(): Command {
         }
 
       } catch (error: any) {
-        console.error(chalk.red('❌ Search failed:'), error.message)
+        console.error(chalk.red('✖ Search failed:'), error.message)
         process.exit(1)
       }
     })
@@ -135,7 +135,7 @@ export function createBrowseCommands(): Command {
         }
 
       } catch (error: any) {
-        console.error(chalk.red('❌ Failed to visit page:'), error.message)
+        console.error(chalk.red('✖ Failed to visit page:'), error.message)
         process.exit(1)
       }
     })
@@ -166,7 +166,7 @@ export function createBrowseCommands(): Command {
         ))
 
       } catch (error: any) {
-        console.error(chalk.red('❌ Chat failed:'), error.message)
+        console.error(chalk.red('✖ Chat failed:'), error.message)
         process.exit(1)
       }
     })
@@ -203,7 +203,7 @@ export function createBrowseCommands(): Command {
         ))
 
       } catch (error: any) {
-        console.error(chalk.red('❌ Failed to list sessions:'), error.message)
+        console.error(chalk.red('✖ Failed to list sessions:'), error.message)
         process.exit(1)
       }
     })
@@ -237,7 +237,7 @@ export function createBrowseCommands(): Command {
         ))
 
       } catch (error: any) {
-        console.error(chalk.red('❌ Failed to get session info:'), error.message)
+        console.error(chalk.red('✖ Failed to get session info:'), error.message)
         process.exit(1)
       }
     })
@@ -267,7 +267,7 @@ export function createBrowseCommands(): Command {
         ))
 
       } catch (error: any) {
-        console.error(chalk.red('❌ Failed to close session:'), error.message)
+        console.error(chalk.red('✖ Failed to close session:'), error.message)
         process.exit(1)
       }
     })
@@ -297,7 +297,7 @@ export function createBrowseCommands(): Command {
         ))
 
       } catch (error: any) {
-        console.error(chalk.red('❌ Cleanup failed:'), error.message)
+        console.error(chalk.red('✖ Cleanup failed:'), error.message)
         process.exit(1)
       }
     })
@@ -359,7 +359,7 @@ export function createBrowseCommands(): Command {
         await browseGPTService.closeSession(sessionId)
 
       } catch (error: any) {
-        console.error(chalk.red('❌ Quick browse failed:'), error.message)
+        console.error(chalk.red('✖ Quick browse failed:'), error.message)
         process.exit(1)
       }
     })

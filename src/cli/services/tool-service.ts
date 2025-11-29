@@ -465,7 +465,7 @@ export class ToolService {
       execution.status = 'failed'
       execution.error = error.message
 
-      if (!compact) advancedUI.logFunctionUpdate('error', `❌ ${toolName} failed: ${error.message}`)
+      if (!compact) advancedUI.logFunctionUpdate('error', `✖ ${toolName} failed: ${error.message}`)
       throw error
     } finally {
       if (timeoutHandle) clearTimeout(timeoutHandle)

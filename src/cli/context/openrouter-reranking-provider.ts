@@ -146,7 +146,7 @@ export class OpenRouterRerankingProvider {
         this.updateStats(latency, false)
 
         if (lastError) {
-            advancedUI.logError(`❌ Reranking failed after ${this.config.maxRetries} attempts: ${lastError.message}`)
+            advancedUI.logError(`✖ Reranking failed after ${this.config.maxRetries} attempts: ${lastError.message}`)
             throw new Error(`OpenRouter reranking failed: ${lastError.message}`)
         }
 

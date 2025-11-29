@@ -112,7 +112,7 @@ export class AgentStreamManager extends EventEmitter {
       executing: '⚡',
       progress: '📊',
       result: '✓',
-      error: '❌',
+      error: '✖',
       info: 'ℹ',
     }
 
@@ -315,7 +315,7 @@ export class AgentStreamManager extends EventEmitter {
       console.log(chalk.yellow('Recent Events:'))
       recentEvents.forEach((event) => {
         const icon =
-          event.type === 'result' ? '✓' : event.type === 'error' ? '❌' : event.type === 'executing' ? '⚡' : '•'
+          event.type === 'result' ? '✓' : event.type === 'error' ? '✖' : event.type === 'executing' ? '⚡' : '•'
         console.log(`  ${icon} ${event.message}`)
       })
     })
@@ -385,7 +385,7 @@ export class AgentStreamManager extends EventEmitter {
     const averageActionDuration =
       completedActions.length > 0
         ? completedActions.reduce((sum, action) => sum + (action.endTime!.getTime() - action.startTime.getTime()), 0) /
-          completedActions.length
+        completedActions.length
         : 0
 
     return {

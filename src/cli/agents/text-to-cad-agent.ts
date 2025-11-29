@@ -144,7 +144,7 @@ export class TextToCADAgent extends BaseAgent {
     } catch (error: any) {
       return {
         success: false,
-        output: `❌ CAD generation failed: ${error.message}`,
+        output: `✖ CAD generation failed: ${error.message}`,
         error: error.message,
       }
     }

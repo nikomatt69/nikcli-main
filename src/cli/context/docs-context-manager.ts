@@ -288,7 +288,7 @@ export class DocsContextManager {
 
         notFound.push(identifier)
       } catch (error) {
-        console.error(chalk.red(`❌ Error loading '${identifier}': ${error}`))
+        console.error(chalk.red(`✖ Error loading '${identifier}': ${error}`))
         notFound.push(identifier)
       }
     }

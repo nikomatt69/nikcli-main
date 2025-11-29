@@ -221,7 +221,7 @@ export class TaskMasterService extends EventEmitter {
 
     const plan = this.activePlans.get(planId)
     if (!plan) {
-      advancedUI.logFunctionUpdate('error', chalk.red(`❌ Plan ${planId} not found in active plans`))
+      advancedUI.logFunctionUpdate('error', chalk.red(`✖ Plan ${planId} not found in active plans`))
       advancedUI.logFunctionUpdate(
         'info',
         chalk.gray(`Available plans: ${JSON.stringify(Array.from(this.activePlans.keys()))}`)

@@ -90,7 +90,7 @@ export abstract class BaseAgent implements AgentInstance {
       advancedUI.logSuccess(`✓ Agent ${this.id} initialized successfully`)
     } catch (error: any) {
       this.status = 'error'
-      CliUI.logError(`❌ Failed to initialize agent ${this.id}: ${error.message}`)
+      CliUI.logError(`✖ Failed to initialize agent ${this.id}: ${error.message}`)
       throw error
     }
   }
@@ -165,7 +165,7 @@ export abstract class BaseAgent implements AgentInstance {
         duration: execution.duration,
       })
 
-      CliUI.logError(`❌ Task ${task.id} failed: ${error.message}`)
+      CliUI.logError(`✖ Task ${task.id} failed: ${error.message}`)
       throw error
     } finally {
       this.currentTasks = Math.max(0, this.currentTasks - 1)
@@ -206,7 +206,7 @@ export abstract class BaseAgent implements AgentInstance {
 
       advancedUI.logSuccess(`✓ Agent ${this.id} stopped successfully`)
     } catch (error: any) {
-      CliUI.logError(`❌ Failed to stop agent ${this.id}: ${error.message}`)
+      CliUI.logError(`✖ Failed to stop agent ${this.id}: ${error.message}`)
       throw error
     }
   }

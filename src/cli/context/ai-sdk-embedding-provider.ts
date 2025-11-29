@@ -675,7 +675,7 @@ export class AiSdkEmbeddingProvider {
       return true
     }
 
-    advancedUI.logError(`❌ Provider ${provider} not available. Available: ${this.availableProviders.join(', ')}`)
+    advancedUI.logError(`✖ Provider ${provider} not available. Available: ${this.availableProviders.join(', ')}`)
     return false
   }
 

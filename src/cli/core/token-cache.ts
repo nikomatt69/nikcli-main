@@ -362,7 +362,7 @@ export class TokenCacheManager {
       await fs.writeFile(this.cacheFile, JSON.stringify(data, null, 2))
       // Silent save
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to save cache: ${error.message}`))
+      console.log(chalk.red(`✖ Failed to save cache: ${error.message}`))
     }
   }
 

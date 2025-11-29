@@ -87,7 +87,7 @@ export class BrowseGPTService {
       return id
 
     } catch (error: any) {
-      advancedUI.logFunctionUpdate('error', `Session creation failed: ${error.message}`, '❌')
+      advancedUI.logFunctionUpdate('error', `Session creation failed: ${error.message}`, '✖')
       throw error
     }
   }
@@ -115,7 +115,7 @@ export class BrowseGPTService {
       advancedUI.logFunctionUpdate('success', `Connected to browser session`, '🔌')
 
     } catch (error: any) {
-      advancedUI.logFunctionUpdate('error', `Failed to connect: ${error.message}`, '❌')
+      advancedUI.logFunctionUpdate('error', `Failed to connect: ${error.message}`, '✖')
       throw error
     }
   }
@@ -162,7 +162,7 @@ export class BrowseGPTService {
       }
 
     } catch (error: any) {
-      advancedUI.logFunctionUpdate('error', `Search failed: ${error.message}`, '❌')
+      advancedUI.logFunctionUpdate('error', `Search failed: ${error.message}`, '✖')
       throw error
     }
   }
@@ -221,7 +221,7 @@ export class BrowseGPTService {
       return result
 
     } catch (error: any) {
-      advancedUI.logFunctionUpdate('error', `Content extraction failed: ${error.message}`, '❌')
+      advancedUI.logFunctionUpdate('error', `Content extraction failed: ${error.message}`, '✖')
       throw error
     }
   }
@@ -269,7 +269,7 @@ When responding:
       return response.text
 
     } catch (error: any) {
-      advancedUI.logFunctionUpdate('error', `Chat failed: ${error.message}`, '❌')
+      advancedUI.logFunctionUpdate('error', `Chat failed: ${error.message}`, '✖')
       throw error
     }
   }

@@ -55,7 +55,7 @@ export class NotificationService {
         advancedUI.logFunctionUpdate('success', 'Linear notification provider initialized', '✓')
       }
     } catch (error: any) {
-      advancedUI.logFunctionUpdate('error', `Notification service initialization failed: ${error.message}`, '❌')
+      advancedUI.logFunctionUpdate('error', `Notification service initialization failed: ${error.message}`, '✖')
     }
   }
 
@@ -273,7 +273,7 @@ export class NotificationService {
 
       advancedUI.logFunctionUpdate('success', `Discord notification ${response.status})`, '✓')
     } catch (error: any) {
-      advancedUI.logFunctionUpdate('error', `Discord notification failed: ${error.message}`, '❌')
+      advancedUI.logFunctionUpdate('error', `Discord notification failed: ${error.message}`, '✖')
       if (error.response) {
         advancedUI.logFunctionUpdate('error', `Discord API error: ${JSON.stringify(error.response.data)}`, '⚠️')
       }

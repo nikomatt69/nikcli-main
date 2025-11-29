@@ -128,7 +128,7 @@ export class Mem0Provider extends EventEmitter {
       this.isInitialized = true
 
     } catch (error: any) {
-      structuredLogger.error('Memory', `❌ Mem0 initialization failed: ${error.message}`)
+      structuredLogger.error('Memory', `✖ Mem0 initialization failed: ${error.message}`)
       throw error
     }
   }
@@ -233,7 +233,7 @@ export class Mem0Provider extends EventEmitter {
 
       return results
     } catch (error: any) {
-      console.log(chalk.red(`❌ Memory search failed: ${error.message}`))
+      console.log(chalk.red(`✖ Memory search failed: ${error.message}`))
       throw error
     }
   }

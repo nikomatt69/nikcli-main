@@ -456,7 +456,7 @@ export class ModuleManager {
 
     history.forEach((event: any, _index: number) => {
       const icon =
-        event.type === 'tool_call' ? '🔧' : event.type === 'tool_result' ? '✓' : event.type === 'error' ? '❌' : '•'
+        event.type === 'tool_call' ? '🔧' : event.type === 'tool_result' ? '✓' : event.type === 'error' ? '✖' : '•'
       console.log(`${icon} ${chalk.dim(event.type)}: ${event.content?.slice(0, 60) || 'N/A'}`)
     })
   }
@@ -576,7 +576,7 @@ export class ModuleManager {
       console.log(chalk.white.bold('\\nRecent Events:'))
       history.forEach((event) => {
         const icon =
-          event.type === 'complete' ? '✓' : event.type === 'error' ? '❌' : event.type === 'start' ? '⚡︎' : '⏭️'
+          event.type === 'complete' ? '✓' : event.type === 'error' ? '✖' : event.type === 'start' ? '⚡︎' : '⏭️'
         const duration = event.duration ? ` (${event.duration}ms)` : ''
         console.log(`  ${icon} ${event.middlewareName}: ${event.type}${duration}`)
       })
@@ -586,7 +586,7 @@ export class ModuleManager {
   private async handleMiddlewareEnable(args: string[], _context: ModuleContext): Promise<void> {
     const middlewareName = args[0]
     if (!middlewareName) {
-      console.log(chalk.red('❌ Please specify middleware name'))
+      console.log(chalk.red('✖ Please specify middleware name'))
       return
     }
 
@@ -594,14 +594,14 @@ export class ModuleManager {
     if (success) {
       console.log(chalk.green(`✓ Enabled middleware: ${middlewareName}`))
     } else {
-      console.log(chalk.red(`❌ Middleware not found: ${middlewareName}`))
+      console.log(chalk.red(`✖ Middleware not found: ${middlewareName}`))
     }
   }
 
   private async handleMiddlewareDisable(args: string[], _context: ModuleContext): Promise<void> {
     const middlewareName = args[0]
     if (!middlewareName) {
-      console.log(chalk.red('❌ Please specify middleware name'))
+      console.log(chalk.red('✖ Please specify middleware name'))
       return
     }
 
@@ -609,7 +609,7 @@ export class ModuleManager {
     if (success) {
       console.log(chalk.yellow(`⚠️ Disabled middleware: ${middlewareName}`))
     } else {
-      console.log(chalk.red(`❌ Middleware not found: ${middlewareName}`))
+      console.log(chalk.red(`✖ Middleware not found: ${middlewareName}`))
     }
   }
 
@@ -634,7 +634,7 @@ export class ModuleManager {
 
     const middleware = middlewareManager.getMiddleware(middlewareName)
     if (!middleware) {
-      console.log(chalk.red(`❌ Middleware not found: ${middlewareName}`))
+      console.log(chalk.red(`✖ Middleware not found: ${middlewareName}`))
       return
     }
 
@@ -663,7 +663,7 @@ export class ModuleManager {
         event.type === 'complete'
           ? '✓'
           : event.type === 'error'
-            ? '❌'
+            ? '✖'
             : event.type === 'start'
               ? '⚡︎'
               : event.type === 'skip'
