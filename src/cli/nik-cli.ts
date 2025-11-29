@@ -12879,7 +12879,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     } catch {
       /* ignore */
     }
-    const providerDisplay = `${chalk.hex('#666666')('Provider AI:')} ${chalk.white(aiProviderName)}`
+
 
     // Create responsive status bar
     const statusLeft = `${modeIcon} ${readyText} | ${responsiveModelDisplay} | ${contextInfo}${tokenRate}${vmInfo}`
@@ -12961,7 +12961,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       const ctrlpShortcut = chalk.hex('#666666')('Ctrl+B:Commands')
 
       const controlsLeft = ` ${progressBar}  ${userDisplay}`
-      const controlsCenterPieces = [dateTimeDisplay, providerDisplay]
+      const controlsCenterPieces = [dateTimeDisplay]
       const controlsCenter = controlsCenterPieces.join('   ')
       const controlsRight = `${escShortcut}   ${ctrlpShortcut}`
 
@@ -13173,7 +13173,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       this.suspendPrompt()
 
       // Build output with trailing spacing to push prompt/status down
-      const panelOutput = `${content}\n${'\n'.repeat(5)}`
+      const panelOutput = `${content}\n${'\n'.repeat(3)}`
 
       // Route panels through the scroll region when fixed prompt is active
       if (terminalOutputManager.isFixedPromptEnabled()) {
@@ -13532,7 +13532,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     } catch {
       /* ignore */
     }
-    const providerDisplay = `${chalk.hex('#666666')('Provider AI:')} ${chalk.white(aiProviderName)}`
+
 
     const queueStatus = inputQueue.getStatus()
     const queueCount = queueStatus.queueLength
@@ -13594,7 +13594,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     const ctrlpShortcut = chalk.hex('#666666')('Ctrl+B:Commands')
 
     const controlsLeft = ` ${progressBar}  ${userDisplay}${dynamicInfo ? `  ${dynamicInfo}` : ''}`
-    const controlsCenterPieces = [dateTimeDisplay, providerDisplay]
+    const controlsCenterPieces = [dateTimeDisplay]
     const controlsCenter = controlsCenterPieces.join('   ')
     const controlsRight = `${escShortcut}   ${ctrlpShortcut}`
 
