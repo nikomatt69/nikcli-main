@@ -31,8 +31,9 @@ export class AIChatService extends EventEmitter {
 
   constructor(config?: AIChatServiceConfig) {
     super()
-    // Default to MiniMax M2 for background agents (fast, reliable, low cost)
-    this.model = config?.model || process.env.OPENROUTER_MODEL || 'minimax/minimax-m2'
+    // Default to Google Gemini Flash 1.5-8B for background agents (fast, reliable, no mandatory reasoning)
+    // Previous: minimax/minimax-m2 requires mandatory reasoning which causes streaming errors
+    this.model = config?.model || process.env.OPENROUTER_MODEL || 'openai/gpt-5'
     const apiKey = config?.apiKey || process.env.OPENROUTER_API_KEY || ''
     this.maxTokens = config?.maxTokens || 8000
     this.temperature = config?.temperature || 0.7

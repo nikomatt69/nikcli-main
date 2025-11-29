@@ -83,6 +83,7 @@ import { structuredLogger } from './utils/structured-logger'
 import { configureSyntaxHighlighting } from './utils/syntax-highlighter'
 import { formatAgent, formatCommand, formatFileOp, formatSearch, formatStatus, wrapBlue } from './utils/text-wrapper'
 import { terminalOutputManager } from './ui/terminal-output-manager'
+import { fixedPromptManager } from './ui/fixed-prompt-manager'
 
 // VM System imports
 import { vmSelector } from './virtualized-agents/vm-selector'
@@ -450,6 +451,12 @@ export class NikCLI {
 
     // Initialize chat UI system
     this.initializeChatUI()
+
+    // Abilita fixed prompt se TTY (e non disabilitato da env var)
+    const DISABLE_FIXED_PROMPT = process.env.NIKCLI_DISABLE_FIXED_PROMPT === 'true'
+    if (process.stdout.isTTY && !DISABLE_FIXED_PROMPT) {
+      terminalOutputManager.enableFixedPrompt()
+    }
 
     // Render initial prompt
     void void this.renderPromptArea()
@@ -2051,7 +2058,7 @@ export class NikCLI {
       }
     )
 
-    console.log(header)
+    this.printLogLines([header, ''])
   }
 
   private showActiveIndicators(): void {
@@ -2059,14 +2066,16 @@ export class NikCLI {
 
     if (indicators.length === 0) return
 
-    console.log(chalk.blue.bold('📊 Active Tasks:'))
-    console.log(chalk.gray('─'.repeat(60)))
+    const lines: string[] = []
+    lines.push(chalk.blue.bold('📊 Active Tasks:'))
+    lines.push(chalk.gray('─'.repeat(60)))
 
     indicators.forEach((indicator) => {
-      this.printIndicatorLine(indicator)
+      lines.push(...this.buildIndicatorLines(indicator))
     })
 
-    console.log()
+    lines.push('')
+    this.printLogLines(lines)
   }
 
   private showRecentUpdates(): void {
@@ -2078,22 +2087,26 @@ export class NikCLI {
     // Raggruppa updates per source
     const groupedUpdates = this.groupUpdatesBySource(recentUpdates)
 
+    const lines: string[] = []
+
     // Rendering strutturato per source
     for (const [source, updates] of groupedUpdates.entries()) {
       // Header del gruppo con ⏺
       const functionName = this.formatSourceAsFunctionName(source)
-      console.log(chalk.cyan(`⏺ ${functionName}()`))
+      lines.push(chalk.cyan(`⏺ ${functionName}()`))
 
       // Updates del gruppo con ⎿
       updates.forEach((update) => {
-        this.printLiveUpdateStructured(update)
+        lines.push(this.formatLiveUpdateStructured(update))
       })
 
-      console.log() // Spazio tra gruppi
+      lines.push('') // Spazio tra gruppi
     }
+
+    this.printLogLines(lines)
   }
 
-  private printIndicatorLine(indicator: StatusIndicator): void {
+  private buildIndicatorLines(indicator: StatusIndicator): string[] {
     const statusIcon = this.getStatusIcon(indicator.status)
     const duration = this.getDuration(indicator)
 
@@ -2108,11 +2121,13 @@ export class NikCLI {
       line += ` ${chalk.gray(`(${duration})`)}`
     }
 
-    console.log(line)
+    const lines = [line]
 
     if (indicator.details) {
-      console.log(`   ${chalk.gray(indicator.details)}`)
+      lines.push(`   ${chalk.gray(indicator.details)}`)
     }
+
+    return lines
   }
 
   private printLiveUpdate(update: LiveUpdate): void {
@@ -2122,13 +2137,13 @@ export class NikCLI {
     const sourceStr = update.source ? chalk.gray(`[${update.source}]`) : ''
 
     const line = `${chalk.gray(timeStr)} ${sourceStr} ${typeColor(update.content)}`
-    console.log(line)
+    this.printLogLines([line])
   }
 
   /**
-   * Print live update in structured format (⏺ style)
+   * Format live update in structured style (⏺)
    */
-  private printLiveUpdateStructured(update: LiveUpdate): void {
+  private formatLiveUpdateStructured(update: LiveUpdate): string {
     const typeIcon = this.getStatusIconForUpdate(update.type)
     const color = this.getUpdateTypeColor(update.type)
 
@@ -2147,7 +2162,7 @@ export class NikCLI {
     }
 
     // Rendering con tutto grigio scuro tranne il contenuto colorato
-    console.log(`${chalk.dim('  ⎿  ')}${chalk.dim(typeIcon)} ${content}`)
+    return `${chalk.dim('  ⎿  ')}${chalk.dim(typeIcon)} ${content}`
   }
 
   /**
@@ -2206,16 +2221,56 @@ export class NikCLI {
       .join('')
   }
 
+  /**
+   * Route log output into the scroll region, pausing the prompt to avoid overlap
+   */
+  private printLogLines(lines: string[], options: { suspendPrompt?: boolean } = {}): void {
+    if (!lines.length) return
+
+    const shouldSuspend =
+      (options.suspendPrompt ?? terminalOutputManager.isFixedPromptEnabled()) &&
+      terminalOutputManager.isFixedPromptEnabled() &&
+      !this.isInquirerActive &&
+      !this.isPrintingPanel
+
+    if (shouldSuspend) {
+      this.suspendPrompt()
+    }
+
+    try {
+      const text = lines.join('\n')
+      this.writeToOutputArea(text)
+    } finally {
+      if (shouldSuspend) {
+        this.resumePromptAndRender()
+      }
+    }
+  }
+
+  /**
+   * Low-level writer that respects the fixed scroll region
+   */
+  private writeToOutputArea(text: string): void {
+    const normalized = text.endsWith('\n') ? text : `${text}\n`
+    if (terminalOutputManager.isFixedPromptEnabled()) {
+      fixedPromptManager.printToScrollRegion(normalized)
+    } else {
+      process.stdout.write(normalized)
+    }
+  }
+
   private logStatusUpdate(indicator: StatusIndicator): void {
     if (this.cleanChatMode) return
     const statusIcon = this.getStatusIcon(indicator.status)
     const statusColor = this.getStatusColor(indicator.status)
 
-    console.log(`${statusIcon} ${statusColor(indicator.title)}`)
+    const lines = [`${statusIcon} ${statusColor(indicator.title)}`]
 
     if (indicator.details) {
-      console.log(`   ${chalk.gray(indicator.details)}`)
+      lines.push(`   ${chalk.gray(indicator.details)}`)
     }
+
+    this.printLogLines(lines)
   }
 
   // UI Utility Methods
@@ -5983,8 +6038,8 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
         .update({ impressions_served: newImpressions })
         .eq('id', selectedAd.id)
 
-      // Display as structured log
-      adDisplayManager.displayAdAsStructuredLog(selectedAd)
+      // Display as structured log (only during assistant processing)
+      adDisplayManager.displayAdAsStructuredLog(selectedAd, this.assistantProcessing)
     } catch (error: any) {
       // Silently fail - ads should never break user experience
     }
@@ -12824,8 +12879,16 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       const bgColor = chalk.bgHex('#1a1a1a')
 
 
-      // ZONA 1: Empty line for input with vertical bar
+      // ZONA 0.5: Empty line SOPRA il prompt input (same as renderPromptArea)
       const emptyPadding = ' '.repeat(Math.max(0, terminalWidth - 2))
+      process.stdout.write(bgColor(`${verticalBar}${emptyPadding}`) + '\n')
+
+      // ZONA 1: Input line with prompt symbol + extra space (same as renderPromptArea)
+      const promptSymbol = chalk.greenBright('❯ ') + ' '
+      const inputPadding = ' '.repeat(Math.max(0, terminalWidth - 2 - this._stripAnsi(promptSymbol).length))
+      process.stdout.write(bgColor(`${verticalBar}${promptSymbol}${inputPadding}`) + '\n')
+
+      // ZONA 1.5: Empty separator line below input (same as renderPromptArea)
       process.stdout.write(bgColor(`${verticalBar}${emptyPadding}`) + '\n')
 
       // ZONA 2: Info Line - Left (Mode + Model) | Right (Statusbar)
@@ -12858,12 +12921,18 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
 
     }
 
-    // Input prompt with dynamic state
-    const inputPrompt = this.assistantProcessing
-      ? chalk.blue(`⏲ ${this.renderLoadingBar(8)} `)
-      : chalk.green('❯ ')
-    this.rl.setPrompt(inputPrompt)
-    this.rl.prompt()
+    // Input prompt management (same as renderPromptArea)
+    // Il simbolo ❯ è già renderizzato nell'area prompt sopra
+    if (this.rl) {
+      this.rl.setPrompt('') // Prompt vuoto - il simbolo è già renderizzato
+
+      // Posiziona cursor solo quando può accettare input
+      const isReadlineListening = this.rl.listenerCount('line') > 0
+      if (!this.assistantProcessing && !this.isPrintingPanel && isReadlineListening) {
+        // Non usiamo fixed prompt nel legacy, quindi usiamo rl.prompt()
+        this.rl.prompt()
+      }
+    }
   }
 
   /**
@@ -13047,11 +13116,18 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
   private async printPanel(content: string, componentType?: string): Promise<void> {
     this.beginPanelOutput()
     try {
-      // Show content and scroll down enough to avoid status bar overlap
-      console.log(content)
+      // Always pause prompt before printing panels to avoid overlap
+      this.suspendPrompt()
 
-      // Add some spacing to push the status bar down
-      console.log('\n'.repeat(4))
+      // Build output with trailing spacing to push prompt/status down
+      const panelOutput = `${content}\n${'\n'.repeat(5)}`
+
+      // Route panels through the scroll region when fixed prompt is active
+      if (terminalOutputManager.isFixedPromptEnabled()) {
+        fixedPromptManager.printToScrollRegion(panelOutput)
+      } else {
+        process.stdout.write(panelOutput)
+      }
     } finally {
       this.endPanelOutput()
     }
@@ -13345,7 +13421,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
 
     const terminalHeight = process.stdout.rows || 24
     const hudExtraLines = planHudLines.length > 0 ? planHudLines.length + 2 : 0
-    const reservedLines = 6 + hudExtraLines + slashMenuHeight
+    const reservedLines = 8 + hudExtraLines + slashMenuHeight // +2 per righe separator sopra e sotto input
     const spacingLines = reservedLines + 1
     terminalOutputManager.setPromptHeight(reservedLines)
     // Reserve logical space for the HUD without emitting blank lines (prevents overlap without flicker)
@@ -13354,7 +13430,11 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     process.stdout.write(`\x1B[${Math.max(1, terminalHeight - reservedLines)};0H`)
 
 
-    if (planHudLines.length > 0) {
+    // Print Plan HUD sopra solo quando:
+    // - assistant NON sta processando
+    // - NON siamo in modalità interactive (es. scelta Yes/No delle task)
+    // Durante processing o interactive mode viene mostrato solo nel render prompt area in basso
+    if (planHudLines.length > 0 && !this.assistantProcessing && !this.isPrintingPanel) {
       process.stdout.write('\n')
       for (const line of planHudLines) {
         process.stdout.write(`${line}\n`)
@@ -13405,34 +13485,126 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       }
     }
 
-    if (!this.isPrintingPanel) {
-      const verticalBar = chalk.blue('█')
-      // Subtle dark background
-      const bgColor = chalk.bgHex('#1a1a1a')
+    // Build prompt area components
+    const verticalBar = chalk.blue('█')
+    const bgColor = chalk.bgHex('#1a1a1a')
+    const emptyPadding = ' '.repeat(Math.max(0, terminalWidth - 2))
 
-      // ZONA 1: Empty line for input with vertical bar
-      const emptyPadding = ' '.repeat(Math.max(0, terminalWidth - 2))
-      process.stdout.write(bgColor(`${verticalBar}${emptyPadding}`) + '\n')
+    const modeDisplay = chalk.cyan(modeText)
+    const modelDisplay = `${chalk.hex('#666666')('Model:')} ${providerIcon} ${modelColor(truncatedModel)}`
+    const leftInfo = ` ${modeDisplay} ${chalk.hex('#666666')('NikCLI')} ${modelDisplay}`
 
-      // ZONA 2: Info Line - Left (Mode + Model) | Right (Statusbar)
-      const modeDisplay = chalk.cyan(modeText)
-      const modelDisplay = `${chalk.hex('#666666')('Model:')} ${providerIcon} ${modelColor(truncatedModel)}`
-      const leftInfo = ` ${modeDisplay} ${chalk.hex('#666666')('NikCLI')} ${modelDisplay}`
+    const visionIcon = this.getVisionStatusIcon()
+    const imgIcon = this.getImageGenStatusIcon()
+    const visionPart = layout.showVisionIcons && visionIcon ? ` ${visionIcon}` : ''
+    const imgPart = layout.showVisionIcons && imgIcon ? ` ${imgIcon}` : ''
 
-      const visionIcon = this.getVisionStatusIcon()
-      const imgIcon = this.getImageGenStatusIcon()
-      const visionPart = layout.showVisionIcons && visionIcon ? ` ${visionIcon}` : ''
-      const imgPart = layout.showVisionIcons && imgIcon ? ` ${imgIcon}` : ''
+    const statusbarContent = `${costDisplay} ${chalk.yellow(`${sessionDuration}m`)} ${contextInfo}${queueCount > 0 ? ` 📥${queueCount}` : ''}${runningAgents > 0 ? ` 🔌${runningAgents}` : ''}${visionPart}${imgPart}`
 
-      const statusbarContent = `${costDisplay} ${chalk.yellow(`${sessionDuration}m`)} ${contextInfo}${queueCount > 0 ? ` 📥${queueCount}` : ''}${runningAgents > 0 ? ` 🔌${runningAgents}` : ''}${visionPart}${imgPart}`
+    const progressBar = this.assistantProcessing ? chalk.blue(this.renderLoadingBar(12)) : ' '.repeat(14)
 
+    let dynamicInfo = ''
+    if (taskInfo) {
+      dynamicInfo = chalk.white(taskInfo)
+    } else if (runningAgents > 0) {
+      try {
+        const activeAgents = agentService.getActiveAgents()
+        const agentNames = activeAgents.slice(0, 2).map(a => a.agentType).join(', ')
+        dynamicInfo = chalk.white(agentNames)
+      } catch { }
+    }
+
+    const escShortcut = chalk.hex('#666666')('Interrupt:Esc')
+    const ctrlpShortcut = chalk.hex('#666666')('Ctrl+B:Commands')
+
+    const controlsLeft = ` ${progressBar}  ${userDisplay}${dynamicInfo ? `  ${dynamicInfo}` : ''}`
+    const controlsCenterPieces = [dateTimeDisplay, providerDisplay]
+    const controlsCenter = controlsCenterPieces.join('   ')
+    const controlsRight = `${escShortcut}   ${ctrlpShortcut}`
+
+    // Check if fixed prompt is enabled
+    if (terminalOutputManager.isFixedPromptEnabled()) {
+      // FIXED PROMPT MODE: Build prompt area as array of lines
+      const promptLines: string[] = []
+
+      // 1. PlanHUD (se attivo)
+      if (planHudLines.length > 0) {
+        promptLines.push('') // empty line separator
+        promptLines.push(...planHudLines)
+        promptLines.push('') // empty line separator
+      }
+
+      // 2. Slash Menu (se attivo)
+      if (slashMenuHeight > 0) {
+        for (const line of slashMenuLines) {
+          const paddedLine = this.padAnsi(line, contentWidth)
+          promptLines.push(bgColor(`${verticalBar}${paddedLine}`))
+        }
+      }
+
+      // 2.5: Empty line SOPRA il prompt input
+      promptLines.push(bgColor(`${verticalBar}${emptyPadding}`))
+
+      // 3. ZONA 1: Empty line for input with prompt symbol + extra space
+      const promptSymbol = chalk.greenBright('❯ ') + ' ' // Spazio extra dopo >
+      const inputPadding = ' '.repeat(Math.max(0, terminalWidth - 2 - this._stripAnsi(promptSymbol).length))
+      promptLines.push(bgColor(`${verticalBar}${promptSymbol}${inputPadding}`))
+
+      // 3b. ZONA 1.5: Empty separator line below input
+      promptLines.push(bgColor(`${verticalBar}${emptyPadding}`))
+
+      // 4. ZONA 2: Info Line (mode + model + statusbar)
       const infoPadding = Math.max(1, terminalWidth - 2 - this._stripAnsi(leftInfo).length - this._stripAnsi(statusbarContent).length)
-      process.stdout.write(bgColor(`${verticalBar}${leftInfo}${' '.repeat(infoPadding)}${chalk.white(statusbarContent)}`) + '\n')
+      promptLines.push(bgColor(`${verticalBar}${leftInfo}${' '.repeat(infoPadding)}${chalk.white(statusbarContent)}`))
 
-      // ZONA 3: Empty line with vertical bar
-      process.stdout.write(bgColor(`${verticalBar}${emptyPadding}`) + '\n')
+      // 5. ZONA 3: Empty line
+      promptLines.push(bgColor(`${verticalBar}${emptyPadding}`))
 
-      // ZONA 3b: Command palette overlay (when active)
+      // 6. ZONA 4: Controls (progress bar, user, shortcuts)
+      const centerPadding = Math.max(1, Math.floor((terminalWidth - 2 - this._stripAnsi(controlsLeft).length - this._stripAnsi(controlsCenter).length - this._stripAnsi(controlsRight).length) / 2))
+      const rightPadding = Math.max(1, terminalWidth - 2 - this._stripAnsi(controlsLeft).length - centerPadding - this._stripAnsi(controlsCenter).length - this._stripAnsi(controlsRight).length)
+      promptLines.push(bgColor(`${verticalBar}${controlsLeft}${' '.repeat(centerPadding)}${controlsCenter}${' '.repeat(rightPadding)}${controlsRight}`))
+
+      // 7. Final separator
+      promptLines.push('') // newline separator
+
+      // Passa righe a FixedPromptManager
+      fixedPromptManager.updatePromptArea(promptLines, reservedLines)
+
+      // Con fixed prompt, readline deve avere prompt vuoto
+      // Il simbolo ❯ è già renderizzato da FixedPromptManager
+      if (this.rl) {
+        this.rl.setPrompt('') // Prompt vuoto - il simbolo è già nel fixed area
+
+        // Posiziona cursor nel prompt area SOLO quando:
+        // 1. Non sta processando (assistantProcessing = false)
+        // 2. Non sta printando panels (isPrintingPanel = false)
+        // 3. Readline è in listening mode (significa che sta aspettando input)
+        const isReadlineListening = this.rl.listenerCount('line') > 0
+        if (!this.assistantProcessing && !this.isPrintingPanel && isReadlineListening) {
+          // Posiziona cursor nella ZONA 1 dopo il simbolo ❯ + spazio extra
+          // +1 perché c'è una riga vuota sopra (ZONA 0.5)
+          // +hudExtraLines per PlanHUD
+          // +slashMenuHeight per Slash Menu
+          const promptRow = fixedPromptManager.getPromptPosition() + 1 + (planHudLines.length > 0 ? planHudLines.length + 2 : 0) + slashMenuHeight
+          const cursorCol = 4 // Dopo █❯ + spazio extra (vertical bar + prompt symbol + space)
+          process.stdout.write(`\x1b[${promptRow};${cursorCol}H`)
+        }
+      }
+
+    } else if (!this.isPrintingPanel) {
+      // NORMAL MODE: Same structure as fixed prompt (without scrolling region)
+
+      // 1. PlanHUD (se attivo)
+      if (planHudLines.length > 0) {
+        process.stdout.write('\n')
+        for (const line of planHudLines) {
+          process.stdout.write(`${line}\n`)
+        }
+        process.stdout.write('\n')
+      }
+
+      // 2. Slash Menu (se attivo)
       if (slashMenuHeight > 0) {
         for (const line of slashMenuLines) {
           const paddedLine = this.padAnsi(line, contentWidth)
@@ -13440,47 +13612,42 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
         }
       }
 
-      // ZONA 4: Controls (Progress Bar + Shortcuts)
-      const progressBar = this.assistantProcessing ? chalk.blue(this.renderLoadingBar(12)) : ' '.repeat(14)
+      // 2.5: ZONA 0.5 - Empty line SOPRA il prompt input
+      process.stdout.write(bgColor(`${verticalBar}${emptyPadding}`) + '\n')
 
-      // Dynamic info (task counter or agents)
-      let dynamicInfo = ''
-      if (taskInfo) {
-        dynamicInfo = chalk.white(taskInfo)
-      } else if (runningAgents > 0) {
-        try {
-          const activeAgents = agentService.getActiveAgents()
-          const agentNames = activeAgents.slice(0, 2).map(a => a.agentType).join(', ')
-          dynamicInfo = chalk.white(agentNames)
-        } catch { }
-      }
+      // 3. ZONA 1: Input line with prompt symbol + extra space
+      const promptSymbol = chalk.greenBright('❯ ') + ' '
+      const inputPadding = ' '.repeat(Math.max(0, terminalWidth - 2 - this._stripAnsi(promptSymbol).length))
+      process.stdout.write(bgColor(`${verticalBar}${promptSymbol}${inputPadding}`) + '\n')
 
-      const escShortcut = chalk.hex('#666666')('Interrupt:Esc')
-      const ctrlpShortcut = chalk.hex('#666666')('Ctrl+B:Commands')
+      // 3b. ZONA 1.5: Empty separator line below input
+      process.stdout.write(bgColor(`${verticalBar}${emptyPadding}`) + '\n')
 
-      const controlsLeft = ` ${progressBar}  ${userDisplay}${dynamicInfo ? `  ${dynamicInfo}` : ''}`
-      const controlsCenterPieces = [dateTimeDisplay, providerDisplay]
-      const controlsCenter = controlsCenterPieces.join('   ')
-      const controlsRight = `${escShortcut}   ${ctrlpShortcut}`
+      // 4. ZONA 2: Info Line (mode + model + statusbar)
+      const infoPadding = Math.max(1, terminalWidth - 2 - this._stripAnsi(leftInfo).length - this._stripAnsi(statusbarContent).length)
+      process.stdout.write(bgColor(`${verticalBar}${leftInfo}${' '.repeat(infoPadding)}${chalk.white(statusbarContent)}`) + '\n')
 
+      // 5. ZONA 3: Empty line
+      process.stdout.write(bgColor(`${verticalBar}${emptyPadding}`) + '\n')
+
+      // 6. ZONA 4: Controls (progress bar, user, shortcuts)
       const centerPadding = Math.max(1, Math.floor((terminalWidth - 2 - this._stripAnsi(controlsLeft).length - this._stripAnsi(controlsCenter).length - this._stripAnsi(controlsRight).length) / 2))
       const rightPadding = Math.max(1, terminalWidth - 2 - this._stripAnsi(controlsLeft).length - centerPadding - this._stripAnsi(controlsCenter).length - this._stripAnsi(controlsRight).length)
-
       process.stdout.write(bgColor(`${verticalBar}${controlsLeft}${' '.repeat(centerPadding)}${controlsCenter}${' '.repeat(rightPadding)}${controlsRight}`) + '\n')
 
-      // Add empty line after prompt area to separate from future output
+      // 7. Final separator
       process.stdout.write('\n')
     }
 
-    if (this.rl) {
-      // Only reset prompt if slash menu is not active to avoid cursor jumping
-      if (!this.isSlashMenuActive) {
-        // Simple clean prompt
-        this.rl.setPrompt(chalk.greenBright('❯ '))
+    if (this.rl && !terminalOutputManager.isFixedPromptEnabled()) {
+      // Only in NORMAL MODE (not fixed prompt)
+      // Il simbolo ❯ è già renderizzato sopra, quindi prompt vuoto (same as fixed/legacy)
+      this.rl.setPrompt('')
+
+      // Posiziona cursor solo quando può accettare input (same as legacy)
+      const isReadlineListening = this.rl.listenerCount('line') > 0
+      if (!this.assistantProcessing && !this.isPrintingPanel && isReadlineListening && !this.isSlashMenuActive) {
         this.rl.prompt()
-      } else {
-        // For slash menu, just ensure the prompt is set without redrawing
-        this.rl.setPrompt(chalk.greenBright('❯ '))
       }
     }
   }

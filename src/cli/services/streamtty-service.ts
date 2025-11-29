@@ -433,12 +433,17 @@ export class StreamttyService {
    */
   private async flushStdout(chunk: string): Promise<void> {
     return new Promise<void>((resolve) => {
+      let output: string = chunk
+
+      // Con fixed prompt, l'output va nella scroll region
+      // (nessuna modifica necessaria al chunk - printToScrollRegion gestisce tutto)
+
       // Force immediate flush for streaming (critical for pkg binaries)
-      const flushed = process.stdout.write(chunk, () => {
+      const flushed = process.stdout.write(output, () => {
         // Callback ensures write is complete - resolve here
         resolve()
       })
-      
+
       // If write returned false, the buffer is full - wait for drain
       // Note: if flushed is true, we still wait for the callback above
       if (!flushed) {

@@ -1159,6 +1159,7 @@ export class AdvancedCliUI {
   /**
    * Show a richer Todo Dashboard panel (grouped + summary + progress),
    * designed to mirror Claude Code/plan-mode style.
+   * @param skipPanel - If true, skips creating the panel (used when todos are shown in prompt area)
    */
   showTodoDashboard(
     todos: Array<{
@@ -1169,7 +1170,8 @@ export class AdvancedCliUI {
       progress?: number
     }>,
     title: string = 'Plan Todos',
-    description?: string
+    description?: string,
+    skipPanel: boolean = false
   ): void {
     const items = (todos || [])
       .map((t) => ({

@@ -208,9 +208,15 @@ export class AdDisplayManager {
   /**
    * Display ad as structured log using advancedUI
    * Less invasive than panel-based display, integrates with other logs
+   * Only displays during assistant processing (toolchains), not during idle
    */
-  displayAdAsStructuredLog(ad: AdCampaign): void {
+  displayAdAsStructuredLog(ad: AdCampaign, isAssistantProcessing: boolean = false): void {
     try {
+      // Only show ads when assistant is processing (during toolchains)
+      if (!isAssistantProcessing) {
+        return
+      }
+
       // Start sponsored function in structured log
       advancedUI.logFunctionCall('sponsored', {
         campaign_id: ad.id,

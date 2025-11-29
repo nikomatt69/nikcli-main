@@ -4,6 +4,8 @@
  * Previene overlap tra componenti, live updates, toolchains e prompt area
  */
 
+import { fixedPromptManager } from './fixed-prompt-manager'
+
 export interface OutputEntry {
   id: string
   componentName: string
@@ -27,6 +29,7 @@ export class TerminalOutputManager {
   private terminalHeight: number = 0
   private promptHeight: number = 3 // altezza default del prompt area
   private reservedHeight: number = 0 // spazio riservato ma non ancora confermato
+  private useFixedPrompt: boolean = false
 
   constructor() {
     this.updateTerminalDimensions()
@@ -34,6 +37,29 @@ export class TerminalOutputManager {
     process.stdout.on('resize', () => {
       this.updateTerminalDimensions()
     })
+  }
+
+  /**
+   * Abilita fixed prompt mode con scrolling region
+   */
+  enableFixedPrompt(): void {
+    this.useFixedPrompt = true
+    fixedPromptManager.initialize()
+  }
+
+  /**
+   * Disabilita fixed prompt mode
+   */
+  disableFixedPrompt(): void {
+    this.useFixedPrompt = false
+    fixedPromptManager.shutdown()
+  }
+
+  /**
+   * Check if fixed prompt is enabled
+   */
+  isFixedPromptEnabled(): boolean {
+    return this.useFixedPrompt && fixedPromptManager.isEnabled()
   }
 
   /**
@@ -92,7 +118,11 @@ export class TerminalOutputManager {
     }
 
     this.outputs.set(id, entry)
-    this.currentLine += actualLines
+
+    // Con fixed prompt, il terminale gestisce lo scroll automaticamente
+    if (!this.useFixedPrompt) {
+      this.currentLine += actualLines
+    }
 
     // Rimuovi la prenotazione: lo spazio riservato torna disponibile dopo la conferma
     this.reservedHeight = Math.max(0, this.reservedHeight - actualLines)
@@ -185,6 +215,10 @@ export class TerminalOutputManager {
    * Calcola l'altezza disponibile per nuovi output
    */
   getAvailableHeight(): number {
+    if (this.useFixedPrompt) {
+      return fixedPromptManager.getScrollRegionHeight()
+    }
+
     const usedHeight = this.currentLine + this.promptHeight + this.reservedHeight
     return Math.max(0, this.terminalHeight - usedHeight)
   }

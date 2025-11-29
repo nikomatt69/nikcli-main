@@ -1978,7 +1978,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
             yield {
               type: 'error',
               error: 'Stream interrupted',
-              content: '⏹️ Streaming stopped by user. You can start a new conversation anytime.',
+              content: '⏹ Streaming stopped by user. You can start a new conversation anytime.',
             }
             break
           }
