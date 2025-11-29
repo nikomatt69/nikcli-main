@@ -70,7 +70,7 @@ SYSTEM_PROMPT.md
 *.tsbuildinfo
 tsconfig.cli.tsbuildinfo
 tsconfig.tsbuildinfo
-
+local-model-finetuning
 # IDE and Editor files
 .vscode/
 .idea/
