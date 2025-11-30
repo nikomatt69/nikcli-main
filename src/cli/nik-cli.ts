@@ -2260,6 +2260,73 @@ export class NikCLI {
     }
   }
 
+  /**
+   * Print shutdown messages to scroll region with proper prompt management
+   */
+  private printShutdownLog(message: string, level: 'info' | 'success' | 'warning' | 'error' = 'info'): void {
+    const shouldSuspend =
+      terminalOutputManager.isFixedPromptEnabled() &&
+      !this.isInquirerActive &&
+      !this.isPrintingPanel
+
+    if (shouldSuspend) {
+      this.suspendPrompt()
+    }
+
+    try {
+      let icon = 'ℹ'
+      let color = chalk.white
+
+      switch (level) {
+        case 'success':
+          icon = '✓'
+          color = chalk.green
+          break
+        case 'warning':
+          icon = '⚠︎'
+          color = chalk.yellow
+          break
+        case 'error':
+          icon = '✖'
+          color = chalk.red
+          break
+        default:
+          icon = 'ℹ'
+          color = chalk.white
+      }
+
+      const formatted = `${chalk.dim('  ⎿  ')}${chalk.dim(icon)} ${color(message)}`
+      this.writeToOutputArea(formatted)
+    } finally {
+      if (shouldSuspend) {
+        this.resumePromptAndRender()
+      }
+    }
+  }
+
+  /**
+   * Print shutdown header with proper routing
+   */
+  private printShutdownHeader(): void {
+    const shouldSuspend =
+      terminalOutputManager.isFixedPromptEnabled() &&
+      !this.isInquirerActive &&
+      !this.isPrintingPanel
+
+    if (shouldSuspend) {
+      this.suspendPrompt()
+    }
+
+    try {
+      const header = `${chalk.green('⏺')} ${chalk.cyan('shutdown()')}`
+      this.writeToOutputArea(header)
+    } finally {
+      if (shouldSuspend) {
+        this.resumePromptAndRender()
+      }
+    }
+  }
+
   private logStatusUpdate(indicator: StatusIndicator): void {
     if (this.cleanChatMode) return
     const statusIcon = this.getStatusIcon(indicator.status)
@@ -2661,6 +2728,9 @@ export class NikCLI {
   }
 
   private async showBetaEntryPanel(): Promise<void> {
+    // Full cleanup so the onboarding panel appears on a blank screen
+    this.clearTerminalForOnboarding()
+
     const lines: string[] = []
     const warningBox = boxen(
       chalk.red.bold('🚨  BETA VERSION WARNING\n\n') +
@@ -2697,6 +2767,25 @@ export class NikCLI {
         }),
         'general'
       )
+  }
+
+  /**
+   * Clear the terminal and scrollback, mimicking the ANSI cleanup used during onboarding.
+   */
+  private clearTerminalForOnboarding(): void {
+    try {
+      // Clear visible screen + scrollback, reset cursor
+      process.stdout.write('\x1b[2J\x1b[3J\x1b[H')
+
+      if (terminalOutputManager.isFixedPromptEnabled()) {
+        // Ensure scroll region and prompt area are blank before drawing the panel
+        fixedPromptManager.clearScrollRegion()
+        fixedPromptManager.clearPromptArea()
+        process.stdout.write('\x1b[1;1H')
+      }
+    } catch {
+      console.clear()
+    }
   }
 
   /**
@@ -13249,9 +13338,35 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
 
   // Inline loading bar for status area (fake progress)
   private renderLoadingBar(width: number = 12): string {
-    const pct = Math.max(0, Math.min(100, this.statusBarStep))
-    const filled = Math.round((pct / 100) * width)
-    return `[${'█'.repeat(filled)}${'░'.repeat(Math.max(0, width - filled))}]`
+    // Calcola posizione del blocco animato (ping-pong)
+    const totalPositions = width - 2 // Posizioni possibili per un blocco di 3 caratteri
+    const cycle = Math.floor(this.statusBarStep / 7) % (totalPositions * 2)
+    const position = cycle < totalPositions ? cycle : (totalPositions * 2 - cycle - 1)
+
+    // Dimensione del blocco animato
+    const blockSize = 3
+
+    // Costruisci la barra con gradient effect
+    let bar = ''
+    for (let i = 0; i < width; i++) {
+      const distance = Math.abs(i - position - 1) // Distanza dal centro del blocco
+
+      if (distance === 0) {
+        // Centro del blocco: massima intensità
+        bar += chalk.cyan('█')
+      } else if (distance === 1 && i >= position && i < position + blockSize) {
+        // Bordi del blocco: media intensità
+        bar += chalk.blue('█')
+      } else if (distance === 2 && (i === position - 1 || i === position + blockSize)) {
+        // Alone/scia: bassa intensità
+        bar += chalk.dim.blue('░')
+      } else {
+        // Spazio vuoto
+        bar += chalk.dim('░')
+      }
+    }
+
+    return `[${bar}]`
   }
 
   // Context progress bar showing token usage with responsive sizing
@@ -13393,23 +13508,17 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     this.lastBarSegments = -1
     this.statusBarTimer = setInterval(() => {
       if (this.isInquirerActive) return // don't animate during interactive
-      if (this.statusBarStep < 100) {
-        this.statusBarStep = Math.min(100, this.statusBarStep + 7)
-        // Redraw only if visible bar segment changed
-        const width = 12
-        const filled = Math.round((this.statusBarStep / 100) * width)
-        if (filled !== this.lastBarSegments) {
-          this.lastBarSegments = filled
-          this.renderPromptAfterOutput()
-        }
-      } else {
-        // Reached 100% – stop the timer to avoid any flashing
-        if (this.statusBarTimer) {
-          clearInterval(this.statusBarTimer)
-          this.statusBarTimer = null
-        }
+      if (this.isPrintingPanel) return
+
+      // Incremento continuo per animazione ping-pong
+      this.statusBarStep = this.statusBarStep + 1
+
+      // Update solo prompt area senza stampare nello scroll
+      if (terminalOutputManager.isFixedPromptEnabled()) {
+        // Chiama direttamente renderPromptArea senza il newline di renderPromptAfterOutput
+        void this.renderPromptArea()
       }
-    }, 120)
+    }, 50)
   }
 
   private stopStatusBar(): void {
@@ -14872,7 +14981,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
   }
 
   private async shutdown(): Promise<void> {
-    advancedUI.logFunctionCall(chalk.blue('\n Shutting down NikCLI...'))
+    this.printShutdownHeader()
 
     // Stop ads timer
     this.stopAdsTimer()
@@ -14881,9 +14990,9 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     if (this.fileWatcher) {
       try {
         this.fileWatcher.close()
-        advancedUI.logFunctionUpdate('info', '⚡︎ File watcher stopped')
+        this.printShutdownLog('⚡︎ File watcher stopped', 'info')
       } catch (error: any) {
-        advancedUI.logFunctionUpdate('info', `File watcher cleanup warning: ${error.message}`)
+        this.printShutdownLog(`File watcher cleanup warning: ${error.message}`, 'warning')
       }
     }
 
@@ -14899,10 +15008,10 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         })
 
         if (running.length > 0) {
-          advancedUI.logFunctionUpdate('info', `📊 Stopped ${running.length} running operations`)
+          this.printShutdownLog(`📊 Stopped ${running.length} running operations`, 'info')
         }
       } catch (error: any) {
-        advancedUI.logFunctionUpdate('info', `Progress tracker cleanup warning: ${error.message}`)
+        this.printShutdownLog(`Progress tracker cleanup warning: ${error.message}`, 'warning')
       }
     }
 
@@ -14910,18 +15019,18 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     try {
       await tokenCache.saveCache()
       await cacheService.emit('saveAll') // Save all managed caches
-      advancedUI.logFunctionUpdate('info', ' All caches saved')
+      this.printShutdownLog('💾 All caches saved', 'success')
     } catch (error: any) {
-      advancedUI.logFunctionUpdate('info', `Cache save warning: ${error.message}`)
+      this.printShutdownLog(`Cache save warning: ${error.message}`, 'warning')
     }
 
     // Clean up sandbox sessions and temporary directories
     try {
       const { commandSandboxExecutor } = await import('./sandbox/command-sandbox-executor')
       await commandSandboxExecutor.cleanupAll()
-      advancedUI.logFunctionUpdate('info', '🧹 Sandbox sessions cleaned up')
+      this.printShutdownLog('🧹 Sandbox sessions cleaned up', 'success')
     } catch (error: any) {
-      advancedUI.logFunctionUpdate('info', `Sandbox cleanup warning: ${error.message}`)
+      this.printShutdownLog(`Sandbox cleanup warning: ${error.message}`, 'warning')
     }
 
     // Clean up UI resources
@@ -14957,8 +15066,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     // Cleanup systems
     this.agentManager.cleanup()
 
-    advancedUI.logFunctionUpdate('info', '✓ All systems cleaned up successfully!')
-    console.log(chalk.green('✓ Goodbye!'))
+    this.printShutdownLog('✓ All systems cleaned up successfully!', 'success')
+    this.writeToOutputArea(chalk.green('✓ Goodbye!'))
     process.exit(0)
   }
 
