@@ -311,7 +311,7 @@ This academic series comprises six comprehensive papers:
 
 | Aspect            | Metric             | Value         |
 | ----------------- | ------------------ | ------------- |
-| **Stability**     | Production Version | 1.4.0         |
+| **Stability**     | Production Version | 1.5.0         |
 | **Code Quality**  | Type Coverage      | 100%          |
 | **Architecture**  | Major Subsystems   | 6             |
 | **Features**      | Built-in Flags     | 20+           |

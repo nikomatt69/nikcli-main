@@ -1,6 +1,6 @@
 {
   "name": "@nicomatt69/nikcli-web-ui",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "Enterprise-grade Web UI for NikCLI Background Agents",
   "private": true,
   "scripts": {

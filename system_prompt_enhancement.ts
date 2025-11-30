@@ -312,7 +312,7 @@ Remember: You have complete autonomy within the NikCLI ecosystem. Always use Tas
  */
 const config: NikCLIPromptConfig = {
   prompt: UPDATED_NIKCLI_PROMPT,
-  version: '1.4.0', // Bumped for fallback enhancement
+  version: '1.5.0', // Bumped for fallback enhancement
   enhancement: 'Added TaskMaster fallback for manual 3-5 step cognitive breakdown on AI failure.'
 };
 

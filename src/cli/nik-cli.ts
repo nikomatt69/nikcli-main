@@ -2730,10 +2730,20 @@ export class NikCLI {
   private async showBetaEntryPanel(): Promise<void> {
     // Full cleanup so the onboarding panel appears on a blank screen
     this.clearTerminalForOnboarding()
-
+    const banner = `
+    ███╗   ██╗██╗██╗  ██╗ ██████╗██╗     ██╗
+    ████╗  ██║██║██║ ██╔╝██╔════╝██║     ██║
+    ██╔██╗ ██║██║█████╔╝ ██║     ██║     ██║
+    ██║╚██╗██║██║██╔═██╗ ██║     ██║     ██║
+    ██║ ╚████║██║██║  ██╗╚██████╗███████╗██║
+    ╚═╝  ╚═══╝╚═╝╚═╝  ╚═╝ ╚═════╝╚══════╝╚═╝
+    `
     const lines: string[] = []
     const warningBox = boxen(
+
+
       chalk.red.bold('🚨  BETA VERSION WARNING\n\n') +
+      chalk.cyan(`${banner}\n`) +
       chalk.cyan('For detailed security information, visit:\n') +
       chalk.blue.underline('https://github.com/nikomatt69/nikcli-main/blob/main/SECURITY.md\n\n') +
       chalk.white('By continuing, you acknowledge these risks.'),

@@ -157,7 +157,7 @@ export class UniversalAgent extends EventEmitter implements Agent {
     'documentation-generation',
   ]
 
-  public readonly version: string = '1.4.0'
+  public readonly version: string = '1.5.0'
   public status: AgentStatus = 'initializing'
   public currentTasks: number = 0
   public readonly maxConcurrentTasks: number = 3
