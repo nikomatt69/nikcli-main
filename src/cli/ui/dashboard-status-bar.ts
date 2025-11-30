@@ -11,7 +11,7 @@ export class DashboardStatusBar {
     RIGHT_CORNER: '┐',
     VERTICAL: '│',
     BOTTOM_LEFT: '└',
-    BOTTOM_RIGHT: '┘'
+    BOTTOM_RIGHT: '┘',
   }
 
   constructor() {
@@ -55,7 +55,7 @@ export class DashboardStatusBar {
       this.formatTaskSegment(metrics.agents.tasks),
       this.formatPerformanceSegment(metrics.performance),
       this.formatAISegment(metrics.ai),
-      this.formatCacheSegment(metrics.ai.cacheHitRate)
+      this.formatCacheSegment(metrics.ai.cacheHitRate),
     ]
 
     const content = segments.join(' ')
@@ -73,7 +73,7 @@ export class DashboardStatusBar {
       this.formatAgentSegmentCompact(metrics.agents),
       this.formatTaskSegmentCompact(metrics.agents.tasks),
       this.formatPerformanceSegmentCompact(metrics.performance),
-      this.formatAISegmentCompact(metrics.ai)
+      this.formatAISegmentCompact(metrics.ai),
     ]
 
     return segments.join(' ').substring(0, maxWidth)
@@ -145,7 +145,11 @@ export class DashboardStatusBar {
     const padding = Math.max(0, this.terminalWidth - content.length - 2)
     const paddedContent = content + ' '.repeat(padding)
 
-    const topBorder = chalk.dim(this.BAR_CHARS.LEFT_CORNER + this.BAR_CHARS.HORIZONTAL.repeat(this.terminalWidth - 2) + this.BAR_CHARS.RIGHT_CORNER)
+    const topBorder = chalk.dim(
+      this.BAR_CHARS.LEFT_CORNER +
+        this.BAR_CHARS.HORIZONTAL.repeat(this.terminalWidth - 2) +
+        this.BAR_CHARS.RIGHT_CORNER
+    )
     const contentLine = chalk.dim(this.BAR_CHARS.VERTICAL) + ' ' + paddedContent + chalk.dim(this.BAR_CHARS.VERTICAL)
 
     process.stdout.write('\n' + topBorder + '\n')

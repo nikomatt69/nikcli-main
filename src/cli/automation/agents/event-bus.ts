@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto'
 import { EventEmitter } from 'node:events'
-import { CliUI } from '../../utils/cli-ui'
 import { advancedUI } from '../../ui/advanced-cli-ui'
+import { CliUI } from '../../utils/cli-ui'
 
 /**
  * Production-ready Event Bus for Multi-Agent Communication

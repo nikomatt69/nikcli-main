@@ -7,30 +7,27 @@
  */
 export interface TaskError {
   /** Error code for programmatic handling */
-  readonly code: string;
+  readonly code: string
   /** Human-readable error message */
-  readonly message: string;
+  readonly message: string
   /** Additional error details and context */
-  readonly details?: Record<string, string | number | boolean>;
+  readonly details?: Record<string, string | number | boolean>
   /** Stack trace for debugging */
-  readonly stack?: string;
+  readonly stack?: string
   /** Timestamp when error occurred */
-  readonly timestamp: Date;
+  readonly timestamp: Date
 }
 
 /**
  * Create a TaskError from a standard Error or string
  */
-export function createTaskError(
-  error: Error | string,
-  code: string = 'UNKNOWN_ERROR',
-): TaskError {
+export function createTaskError(error: Error | string, code: string = 'UNKNOWN_ERROR'): TaskError {
   if (typeof error === 'string') {
     return {
       code,
       message: error,
       timestamp: new Date(),
-    };
+    }
   }
 
   return {
@@ -38,7 +35,7 @@ export function createTaskError(
     message: error.message,
     stack: error.stack,
     timestamp: new Date(),
-  };
+  }
 }
 
 // ============================================================================
@@ -52,9 +49,9 @@ export const AGENT_STATUS = {
   BUSY: 'busy',
   ERROR: 'error',
   OFFLINE: 'offline',
-} as const;
+} as const
 
-export type AgentStatus = (typeof AGENT_STATUS)[keyof typeof AGENT_STATUS];
+export type AgentStatus = (typeof AGENT_STATUS)[keyof typeof AGENT_STATUS]
 
 /** Task execution status values */
 export const TASK_STATUS = {
@@ -63,9 +60,9 @@ export const TASK_STATUS = {
   COMPLETED: 'completed',
   FAILED: 'failed',
   CANCELLED: 'cancelled',
-} as const;
+} as const
 
-export type TaskStatus = (typeof TASK_STATUS)[keyof typeof TASK_STATUS];
+export type TaskStatus = (typeof TASK_STATUS)[keyof typeof TASK_STATUS]
 
 /** Task priority levels */
 export const TASK_PRIORITY = {
@@ -73,9 +70,9 @@ export const TASK_PRIORITY = {
   MEDIUM: 'medium',
   HIGH: 'high',
   CRITICAL: 'critical',
-} as const;
+} as const
 
-export type TaskPriority = (typeof TASK_PRIORITY)[keyof typeof TASK_PRIORITY];
+export type TaskPriority = (typeof TASK_PRIORITY)[keyof typeof TASK_PRIORITY]
 
 // ============================================================================
 // Execution and Context Types
@@ -87,17 +84,17 @@ export type TaskPriority = (typeof TASK_PRIORITY)[keyof typeof TASK_PRIORITY];
  */
 export interface ExecutionContext {
   /** Unique session identifier */
-  readonly sessionId: string;
+  readonly sessionId: string
   /** Working directory for operations */
-  readonly workspacePath: string;
+  readonly workspacePath: string
   /** Current active agent identifier (optional) */
-  readonly currentAgent?: string;
+  readonly currentAgent?: string
   /** Execution mode */
-  readonly mode: 'default' | 'auto' | 'plan';
+  readonly mode: 'default' | 'auto' | 'plan'
   /** User ID for audit logging */
-  readonly userId?: string;
+  readonly userId?: string
   /** Execution start time */
-  readonly startTime: Date;
+  readonly startTime: Date
 }
 
 /**
@@ -105,15 +102,15 @@ export interface ExecutionContext {
  */
 export interface ToolResult<T = unknown> {
   /** Success indicator */
-  readonly success: boolean;
+  readonly success: boolean
   /** Execution result data (type-safe) */
-  readonly output?: T;
+  readonly output?: T
   /** Error information if failed */
-  readonly error?: TaskError;
+  readonly error?: TaskError
   /** Additional execution metadata */
-  readonly metadata?: Record<string, string | number | boolean>;
+  readonly metadata?: Record<string, string | number | boolean>
   /** Execution duration in milliseconds */
-  readonly duration?: number;
+  readonly duration?: number
 }
 
 // ============================================================================
@@ -126,31 +123,31 @@ export interface ToolResult<T = unknown> {
  */
 export interface BaseTask {
   /** Unique task identifier */
-  readonly id: string;
+  readonly id: string
   /** Human-readable task title */
-  readonly title: string;
+  readonly title: string
   /** Detailed task description */
-  readonly description: string;
+  readonly description: string
   /** Current execution status */
-  readonly status: TaskStatus;
+  readonly status: TaskStatus
   /** Task priority level */
-  readonly priority: TaskPriority;
+  readonly priority: TaskPriority
   /** Task creation timestamp */
-  readonly createdAt: Date;
+  readonly createdAt: Date
   /** Task last update timestamp */
-  readonly updatedAt: Date;
+  readonly updatedAt: Date
   /** Task completion timestamp (if completed) */
-  readonly completedAt?: Date;
+  readonly completedAt?: Date
   /** Task progress percentage (0-100) */
-  readonly progress: number; // @min 0 @max 100
+  readonly progress: number // @min 0 @max 100
   /** Estimated duration in milliseconds */
-  readonly estimatedDuration?: number;
+  readonly estimatedDuration?: number
   /** Actual duration in milliseconds (if completed) */
-  readonly actualDuration?: number;
+  readonly actualDuration?: number
   /** Dependencies on other task IDs */
-  readonly dependencies?: readonly string[];
+  readonly dependencies?: readonly string[]
   /** Related metadata */
-  readonly metadata?: Record<string, unknown>;
+  readonly metadata?: Record<string, unknown>
 }
 
 // ============================================================================
@@ -165,9 +162,9 @@ export const SANDBOX_MODE = {
   WORKSPACE_WRITE: 'workspace-write',
   SYSTEM_WRITE: 'system-write',
   DANGER_FULL_ACCESS: 'danger-full-access',
-} as const;
+} as const
 
-export type SandboxMode = (typeof SANDBOX_MODE)[keyof typeof SANDBOX_MODE];
+export type SandboxMode = (typeof SANDBOX_MODE)[keyof typeof SANDBOX_MODE]
 
 /**
  * Logging level configuration
@@ -178,9 +175,9 @@ export const LOG_LEVEL = {
   INFO: 'info',
   DEBUG: 'debug',
   TRACE: 'trace',
-} as const;
+} as const
 
-export type LogLevel = (typeof LOG_LEVEL)[keyof typeof LOG_LEVEL];
+export type LogLevel = (typeof LOG_LEVEL)[keyof typeof LOG_LEVEL]
 
 /**
  * Autonomy level for agent operations
@@ -189,10 +186,9 @@ export const AUTONOMY_LEVEL = {
   SUPERVISED: 'supervised',
   SEMI_AUTONOMOUS: 'semi-autonomous',
   FULLY_AUTONOMOUS: 'fully-autonomous',
-} as const;
+} as const
 
-export type AutonomyLevel =
-  (typeof AUTONOMY_LEVEL)[keyof typeof AUTONOMY_LEVEL];
+export type AutonomyLevel = (typeof AUTONOMY_LEVEL)[keyof typeof AUTONOMY_LEVEL]
 
 // ============================================================================
 // Lifecycle and Disposable Pattern
@@ -203,16 +199,14 @@ export type AutonomyLevel =
  */
 export interface Disposable {
   /** Release all resources held by this object */
-  dispose(): Promise<void> | void;
+  dispose(): Promise<void> | void
 }
 
 /**
  * Type guard for Disposable objects
  */
 export const isDisposable = (value: unknown): value is Disposable =>
-  typeof value === 'object' &&
-  value !== null &&
-  typeof (value as Disposable).dispose === 'function';
+  typeof value === 'object' && value !== null && typeof (value as Disposable).dispose === 'function'
 
 // ============================================================================
 // Generic Constraint Types
@@ -221,20 +215,17 @@ export const isDisposable = (value: unknown): value is Disposable =>
 /**
  * Constrained record type for safer metadata handling
  */
-export type SafeRecord = Record<string, string | number | boolean | null>;
+export type SafeRecord = Record<string, string | number | boolean | null>
 
 /**
  * Generic event type with discriminated union support
  */
-export interface BaseEvent<
-  TType extends string,
-  TData extends SafeRecord = SafeRecord,
-> {
-  readonly id: string;
-  readonly type: TType;
-  readonly timestamp: Date;
-  readonly data: TData;
-  readonly sessionId?: string;
+export interface BaseEvent<TType extends string, TData extends SafeRecord = SafeRecord> {
+  readonly id: string
+  readonly type: TType
+  readonly timestamp: Date
+  readonly data: TData
+  readonly sessionId?: string
 }
 
 // ============================================================================
@@ -244,40 +235,34 @@ export interface BaseEvent<
 /**
  * Validates that a value is within a range (inclusive)
  */
-export function validateRange(
-  value: number,
-  min: number,
-  max: number,
-): boolean {
-  return value >= min && value <= max;
+export function validateRange(value: number, min: number, max: number): boolean {
+  return value >= min && value <= max
 }
 
 /**
  * Validates progress value (0-100)
  */
 export function isValidProgress(value: number): boolean {
-  return validateRange(value, 0, 100);
+  return validateRange(value, 0, 100)
 }
 
 /**
  * Validates that a status is valid
  */
 export function isValidTaskStatus(status: unknown): status is TaskStatus {
-  return Object.values(TASK_STATUS).includes(status as TaskStatus);
+  return Object.values(TASK_STATUS).includes(status as TaskStatus)
 }
 
 /**
  * Validates that a priority is valid
  */
-export function isValidTaskPriority(
-  priority: unknown,
-): priority is TaskPriority {
-  return Object.values(TASK_PRIORITY).includes(priority as TaskPriority);
+export function isValidTaskPriority(priority: unknown): priority is TaskPriority {
+  return Object.values(TASK_PRIORITY).includes(priority as TaskPriority)
 }
 
 /**
  * Validates that an agent status is valid
  */
 export function isValidAgentStatus(status: unknown): status is AgentStatus {
-  return Object.values(AGENT_STATUS).includes(status as AgentStatus);
+  return Object.values(AGENT_STATUS).includes(status as AgentStatus)
 }

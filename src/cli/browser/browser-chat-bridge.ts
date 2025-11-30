@@ -1,8 +1,8 @@
 import { EventEmitter } from 'node:events'
 import { advancedUI } from '../ui/advanced-cli-ui'
 import { browserContainerManager } from './browser-container-manager'
-import { browserSessionManager, type BrowserSession, type BrowserAction } from './browser-session-manager'
-import { createBrowserTools, browserToolDescriptions } from './playwright-automation-tools'
+import { type BrowserAction, type BrowserSession, browserSessionManager } from './browser-session-manager'
+import { browserToolDescriptions, createBrowserTools } from './playwright-automation-tools'
 
 /**
  * BrowserChatBridge - Bridge between chat interface and browser automation
@@ -85,7 +85,6 @@ export class BrowserChatBridge extends EventEmitter {
 
       this.emit('browser:mode:started', result)
       return result
-
     } catch (error: any) {
       this.currentMode = 'error'
       advancedUI.logFunctionUpdate('error', `Failed to start browser mode: ${error.message}`, '✖')
@@ -111,15 +110,11 @@ export class BrowserChatBridge extends EventEmitter {
       }
 
       advancedUI.logFunctionCall('processBrowserChatMessage', {
-        message: message.substring(0, 100) + (message.length > 100 ? '...' : '')
+        message: message.substring(0, 100) + (message.length > 100 ? '...' : ''),
       })
 
       // Send message to session
-      await browserSessionManager.sendMessage(
-        this.activeBrowserSession.sessionId,
-        message,
-        'chat'
-      )
+      await browserSessionManager.sendMessage(this.activeBrowserSession.sessionId, message, 'chat')
 
       // Analyze message and determine actions
       const actions = await this.analyzeMessageForActions(message)
@@ -176,7 +171,6 @@ export class BrowserChatBridge extends EventEmitter {
 
       this.emit('browser:chat:response', response)
       return response
-
     } catch (error: any) {
       advancedUI.logFunctionUpdate('error', `Chat processing failed: ${error.message}`, '✖')
 
@@ -309,24 +303,28 @@ export class BrowserChatBridge extends EventEmitter {
     return {
       mode: this.currentMode,
       hasActiveSession: !!session,
-      session: session ? {
-        id: session.sessionId,
-        containerId: session.containerId,
-        status: session.status,
-        createdAt: session.startTime,
-        lastActivity: session.lastActivity,
-        messageCount: session.messageCount,
-        currentUrl: session.browserState.currentUrl,
-        title: session.browserState.title,
-      } : null,
-      container: container ? {
-        id: container.id,
-        name: container.name,
-        status: container.status,
-        noVncUrl: container.noVncUrl,
-        displayPort: container.displayPort,
-        createdAt: container.createdAt,
-      } : null,
+      session: session
+        ? {
+            id: session.sessionId,
+            containerId: session.containerId,
+            status: session.status,
+            createdAt: session.startTime,
+            lastActivity: session.lastActivity,
+            messageCount: session.messageCount,
+            currentUrl: session.browserState.currentUrl,
+            title: session.browserState.title,
+          }
+        : null,
+      container: container
+        ? {
+            id: container.id,
+            name: container.name,
+            status: container.status,
+            noVncUrl: container.noVncUrl,
+            displayPort: container.displayPort,
+            createdAt: container.createdAt,
+          }
+        : null,
       capabilities: Object.keys(browserToolDescriptions),
     }
   }
@@ -347,15 +345,10 @@ export class BrowserChatBridge extends EventEmitter {
 
       // End active session
       if (this.activeBrowserSession) {
-        await browserSessionManager.endSession(
-          this.activeBrowserSession.sessionId,
-          'user_exit'
-        )
+        await browserSessionManager.endSession(this.activeBrowserSession.sessionId, 'user_exit')
 
         // Stop container
-        await browserContainerManager.stopBrowserContainer(
-          this.activeBrowserSession.containerId
-        )
+        await browserContainerManager.stopBrowserContainer(this.activeBrowserSession.containerId)
 
         this.activeSessions.delete(this.activeBrowserSession.sessionId)
         this.activeBrowserSession = undefined
@@ -365,7 +358,6 @@ export class BrowserChatBridge extends EventEmitter {
 
       advancedUI.logFunctionUpdate('success', 'Browser mode exited successfully', '👋')
       this.emit('browser:mode:exited')
-
     } catch (error: any) {
       this.currentMode = 'error'
       advancedUI.logFunctionUpdate('error', `Failed to exit browser mode: ${error.message}`, '✖')
@@ -473,18 +465,21 @@ export class BrowserChatBridge extends EventEmitter {
   /**
    * Generate response message based on executed actions
    */
-  private generateResponseMessage(userMessage: string, actionResults: Array<{ action: BrowserAction, result: any }>): string {
+  private generateResponseMessage(
+    userMessage: string,
+    actionResults: Array<{ action: BrowserAction; result: any }>
+  ): string {
     if (actionResults.length === 0) {
       return "I understand your request, but I'm not sure what browser action to take. Could you be more specific?"
     }
 
-    const successful = actionResults.filter(ar => ar.result.success)
-    const failed = actionResults.filter(ar => !ar.result.success)
+    const successful = actionResults.filter((ar) => ar.result.success)
+    const failed = actionResults.filter((ar) => !ar.result.success)
 
     let message = ''
 
     if (successful.length > 0) {
-      const actions = successful.map(ar => {
+      const actions = successful.map((ar) => {
         switch (ar.action.type) {
           case 'navigate':
             return `navigated to ${ar.action.params?.url}`

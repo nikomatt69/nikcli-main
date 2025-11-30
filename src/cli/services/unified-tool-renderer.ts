@@ -1,10 +1,10 @@
 import chalk from 'chalk'
 import type { AdvancedCliUI } from '../ui/advanced-cli-ui'
+import { TerminalOutputManager, terminalOutputManager } from '../ui/terminal-output-manager'
 import type { StreamttyService } from './streamtty-service'
 import { StreamProtocol } from './streamtty-service'
-import { terminalOutputManager, TerminalOutputManager } from '../ui/terminal-output-manager'
 
-/** 
+/**
  * Unified Tool Rendering Service
  *
  * Centralizes tool call rendering across all execution modes (default, plan, VM, parallel)
@@ -48,7 +48,7 @@ export class UnifiedToolRenderer {
 
     // Disable ephemeral cleanup during execution
     if (this.advancedUI && typeof (this.advancedUI as any).pauseEphemeralCleanup === 'function') {
-      ; (this.advancedUI as any).pauseEphemeralCleanup()
+      ;(this.advancedUI as any).pauseEphemeralCleanup()
     }
   }
 
@@ -61,7 +61,7 @@ export class UnifiedToolRenderer {
 
     // Resume ephemeral cleanup
     if (this.advancedUI && typeof (this.advancedUI as any).resumeEphemeralCleanup === 'function') {
-      ; (this.advancedUI as any).resumeEphemeralCleanup()
+      ;(this.advancedUI as any).resumeEphemeralCleanup()
     }
   }
 
@@ -78,7 +78,7 @@ export class UnifiedToolRenderer {
       showInRecentUpdates = true,
       streamToTerminal = true,
       persistent = this.toolLogsPersistent,
-      expiryMs = persistent ? undefined : 30000
+      expiryMs = persistent ? undefined : 30000,
     } = options
 
     const toolCallId = metadata.toolCallId || `${toolName}-${Date.now()}`
@@ -89,7 +89,7 @@ export class UnifiedToolRenderer {
     this.activeToolCalls.set(toolCallId, {
       name: toolName,
       startTime: Date.now(),
-      metadata
+      metadata,
     })
 
     // 1. Log to terminal output directly with proper formatting
@@ -102,7 +102,7 @@ export class UnifiedToolRenderer {
     const outputId = terminalOutputManager.reserveSpace('UnifiedToolCall', lines)
     terminalOutputManager.confirmOutput(outputId, 'UnifiedToolCall', lines, {
       persistent,
-      expiryMs
+      expiryMs,
     })
 
     // 2. Log to Recent Updates via advancedUI (for UI panels, not console output)
@@ -112,7 +112,7 @@ export class UnifiedToolRenderer {
       this.advancedUI.addLiveUpdate({
         type: 'info',
         content: `${formattedName}()`,
-        source: metadata.agentName || 'System'
+        source: metadata.agentName || 'System',
       })
     }
 
@@ -120,14 +120,10 @@ export class UnifiedToolRenderer {
     // This is for markdown rendering in compatible terminals
     // Use AI SDK events for better formatting
     if (streamToTerminal) {
-      const toolCallEvent = StreamProtocol.createToolCall(
-        toolName,
-        toolArgs || {},
-        {
-          agentId: metadata.agentName,
-          timestamp: Date.now()
-        }
-      )
+      const toolCallEvent = StreamProtocol.createToolCall(toolName, toolArgs || {}, {
+        agentId: metadata.agentName,
+        timestamp: Date.now(),
+      })
       await this.streamttyService.streamAISDKEvent(toolCallEvent)
     }
   }
@@ -141,11 +137,7 @@ export class UnifiedToolRenderer {
     message: string,
     options: ToolRenderOptions = {}
   ): Promise<void> {
-    const {
-      showInRecentUpdates = true,
-      streamToTerminal = true,
-      persistent = this.toolLogsPersistent
-    } = options
+    const { showInRecentUpdates = true, streamToTerminal = true, persistent = this.toolLogsPersistent } = options
 
     // 1. Log to Recent Updates
     if (showInRecentUpdates) {
@@ -174,11 +166,7 @@ export class UnifiedToolRenderer {
     if (!activeCall) return
 
     const duration = Date.now() - activeCall.startTime
-    const {
-      showInRecentUpdates = true,
-      streamToTerminal = true,
-      persistent = this.toolLogsPersistent
-    } = options
+    const { showInRecentUpdates = true, streamToTerminal = true, persistent = this.toolLogsPersistent } = options
 
     const success = !result?.error
     const level = success ? 'success' : 'error'
@@ -191,15 +179,12 @@ export class UnifiedToolRenderer {
 
     // Stream tool result as AI SDK event
     if (streamToTerminal) {
-      const toolResultEvent = StreamProtocol.createToolResult(
-        result,
-        {
-          toolName: activeCall.name,
-          duration,
-          success,
-          timestamp: Date.now()
-        }
-      )
+      const toolResultEvent = StreamProtocol.createToolResult(result, {
+        toolName: activeCall.name,
+        duration,
+        success,
+        timestamp: Date.now(),
+      })
       await this.streamttyService.streamAISDKEvent(toolResultEvent)
     }
 
@@ -215,11 +200,7 @@ export class UnifiedToolRenderer {
   /**
    * Show detailed tool result (file diffs, content, etc.)
    */
-  private async showToolResultDetails(
-    toolName: string,
-    result: any,
-    options: ToolRenderOptions
-  ): Promise<void> {
+  private async showToolResultDetails(toolName: string, result: any, options: ToolRenderOptions): Promise<void> {
     const { streamToTerminal = true } = options
 
     switch (toolName) {
@@ -310,11 +291,16 @@ export class UnifiedToolRenderer {
    */
   private getIconForLevel(level: 'info' | 'success' | 'warning' | 'error'): string {
     switch (level) {
-      case 'success': return '✓'
-      case 'info': return 'ℹ'
-      case 'warning': return '⚠︎'
-      case 'error': return '✖'
-      default: return '•'
+      case 'success':
+        return '✓'
+      case 'info':
+        return 'ℹ'
+      case 'warning':
+        return '⚠︎'
+      case 'error':
+        return '✖'
+      default:
+        return '•'
     }
   }
 
@@ -323,11 +309,16 @@ export class UnifiedToolRenderer {
    */
   private getColorForLevel(level: 'info' | 'success' | 'warning' | 'error'): (text: string) => string {
     switch (level) {
-      case 'success': return chalk.green
-      case 'info': return chalk.white
-      case 'warning': return chalk.yellow
-      case 'error': return chalk.red
-      default: return chalk.gray
+      case 'success':
+        return chalk.green
+      case 'info':
+        return chalk.white
+      case 'warning':
+        return chalk.yellow
+      case 'error':
+        return chalk.red
+      default:
+        return chalk.gray
     }
   }
 

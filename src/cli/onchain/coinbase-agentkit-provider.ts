@@ -32,7 +32,7 @@ try {
   // Optional providers (may not be present in all versions)
   try {
     defillamaActionProvider = (agentkit as any).defillamaActionProvider
-  } catch { }
+  } catch {}
 } catch {
   // AgentKit not installed
 }

@@ -138,7 +138,7 @@ class ProjectDetector {
       try {
         execSync(`${runner.command} --version`, { stdio: 'ignore', timeout: 5000 })
         return { ...runner, available: true }
-      } catch { }
+      } catch {}
     }
 
     return { type: 'npm', command: 'npm', available: false }
@@ -438,11 +438,11 @@ class DiagnosticParser {
           file: relative(process.cwd(), file),
           range: startCol
             ? {
-              startLine: parseInt(startLine, 10),
-              startCol: parseInt(startCol, 10),
-              endLine: parseInt(startLine, 10),
-              endCol: parseInt(startCol, 10),
-            }
+                startLine: parseInt(startLine, 10),
+                startCol: parseInt(startCol, 10),
+                endLine: parseInt(startLine, 10),
+                endCol: parseInt(startCol, 10),
+              }
             : undefined,
           message: message.trim(),
           source: 'build',

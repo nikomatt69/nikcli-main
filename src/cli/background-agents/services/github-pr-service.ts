@@ -3,10 +3,10 @@
  * Creates pull requests from chat sessions
  */
 
-import { Octokit } from '@octokit/rest'
 import { execSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
+import { Octokit } from '@octokit/rest'
 import type { ChatSession, FileChange } from '../types'
 import { AIChatService } from './ai-chat-service'
 
@@ -65,8 +65,7 @@ export class GitHubPRService {
       }
 
       // Generate PR title and description
-      const prTitle =
-        title || this.generatePRTitle(session)
+      const prTitle = title || this.generatePRTitle(session)
       const prDescription = this.aiChatService.generatePRDescription(session)
 
       // Get the work branch from git
@@ -124,10 +123,7 @@ export class GitHubPRService {
   /**
    * Commit all changes in a session
    */
-  async commitChanges(
-    session: ChatSession,
-    message?: string
-  ): Promise<{ success: boolean; error?: string }> {
+  async commitChanges(session: ChatSession, message?: string): Promise<{ success: boolean; error?: string }> {
     try {
       const workspaceDir = this.getWorkspaceDir(session.jobId)
       if (!existsSync(workspaceDir)) {
@@ -148,8 +144,7 @@ export class GitHubPRService {
       }
 
       // Generate commit message
-      const commitMessage =
-        message || this.generateCommitMessage(session)
+      const commitMessage = message || this.generateCommitMessage(session)
 
       // Commit
       execSync(`git commit -m "${commitMessage}"`, { cwd: workspaceDir })

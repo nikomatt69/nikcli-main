@@ -6,7 +6,6 @@
 import { EventEmitter } from 'node:events'
 import { v4 as uuidv4 } from 'uuid'
 import type { BackgroundAgentService } from '../background-agent-service'
-import { AIChatService } from './ai-chat-service'
 import type {
   ChatMessage,
   ChatSession,
@@ -16,6 +15,7 @@ import type {
   SSEEvent,
   ToolCall,
 } from '../types'
+import { AIChatService } from './ai-chat-service'
 
 export interface CreateChatSessionRequest {
   repo: string
@@ -279,9 +279,7 @@ export class ChatSessionService extends EventEmitter {
     approval.toolCall.status = request.approved ? 'approved' : 'rejected'
 
     // Remove from pending queue
-    job.pendingToolApprovals = job.pendingToolApprovals.filter(
-      (a) => a.id !== request.toolApprovalId
-    )
+    job.pendingToolApprovals = job.pendingToolApprovals.filter((a) => a.id !== request.toolApprovalId)
 
     // Emit result via SSE
     this.emitSSE(request.sessionId, {
@@ -357,10 +355,7 @@ export class ChatSessionService extends EventEmitter {
   /**
    * Add a message to a session
    */
-  private addMessage(
-    sessionId: string,
-    message: Partial<ChatMessage>
-  ): ChatMessage {
+  private addMessage(sessionId: string, message: Partial<ChatMessage>): ChatMessage {
     const session = this.sessions.get(sessionId)
     if (!session) {
       throw new Error(`Session ${sessionId} not found`)

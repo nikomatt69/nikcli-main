@@ -4,10 +4,10 @@ import * as path from 'node:path'
 import chalk from 'chalk'
 import inquirer from 'inquirer'
 import { inputQueue } from '../core/input-queue'
+import { advancedUI } from '../ui/advanced-cli-ui'
 import { CliUI } from '../utils/cli-ui'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
 import { type CommandResult, SecureCommandTool } from './secure-command-tool'
-import { advancedUI } from '../ui/advanced-cli-ui'
 
 export type GitAction = 'status' | 'diff' | 'commit' | 'applyPatch'
 
@@ -160,8 +160,8 @@ export class GitTools extends BaseTool {
     }
 
     try {
-      ; (global as any).__nikCLI?.suspendPrompt?.()
-    } catch { }
+      ;(global as any).__nikCLI?.suspendPrompt?.()
+    } catch {}
     inputQueue.enableBypass()
     try {
       console.log(chalk.blue(`\n📝 Commit message:`))
@@ -188,8 +188,8 @@ export class GitTools extends BaseTool {
     } finally {
       inputQueue.disableBypass()
       try {
-        ; (global as any).__nikCLI?.resumePromptAndRender?.()
-      } catch { }
+        ;(global as any).__nikCLI?.resumePromptAndRender?.()
+      } catch {}
     }
 
     // Optionally add files
@@ -231,8 +231,8 @@ export class GitTools extends BaseTool {
 
       // Confirm application
       try {
-        ; (global as any).__nikCLI?.suspendPrompt?.()
-      } catch { }
+        ;(global as any).__nikCLI?.suspendPrompt?.()
+      } catch {}
       inputQueue.enableBypass()
       try {
         const { confirmed } = await inquirer.prompt([
@@ -261,8 +261,8 @@ export class GitTools extends BaseTool {
       } finally {
         inputQueue.disableBypass()
         try {
-          ; (global as any).__nikCLI?.resumePromptAndRender?.()
-        } catch { }
+          ;(global as any).__nikCLI?.resumePromptAndRender?.()
+        } catch {}
       }
 
       const res = await this.runner.execute(`git apply ${JSON.stringify(tmp)}`, { skipConfirmation: true })
@@ -274,7 +274,7 @@ export class GitTools extends BaseTool {
     } finally {
       try {
         fs.unlinkSync(tmp)
-      } catch { }
+      } catch {}
     }
   }
 

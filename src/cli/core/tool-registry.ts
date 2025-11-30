@@ -249,7 +249,6 @@ export class ToolRegistry {
       this.loadedTools.add(toolMetadata.id)
 
       if (!process.env.NIKCLI_SUPPRESS_TOOL_REGISTER_LOGS && !process.env.NIKCLI_QUIET_STARTUP) {
-
       }
       return toolMetadata.id
     } catch (error: any) {
@@ -266,7 +265,6 @@ export class ToolRegistry {
       try {
         await toolInstance.instance.initialize()
         toolInstance.isInitialized = true
-
       } catch (error: any) {
         advancedUI.logWarning(`⚠︎  Tool initialization failed: ${toolInstance.metadata.name} - ${error.message}`)
       }
@@ -322,7 +320,6 @@ export class ToolRegistry {
       }
 
       // Fallback: wrap result in expected format
-
 
       // Performance monitoring
       const metrics = this.performanceOptimizer.endMonitoring(sessionId, {
@@ -565,8 +562,6 @@ export class ToolRegistry {
           requiresApproval: false,
         },
       })
-
-
     } catch (error: any) {
       advancedUI.logWarning(`⚠︎  Some built-in tools failed to load: ${error.message}`)
     }
@@ -694,7 +689,11 @@ export class ToolRegistry {
       // Type assertion needed due to dynamic import type inference limitation
       const approval = await (approvalSystem as any).requestSandboxApproval(
         toolName,
-        needsApproval.type === 'path' ? 'path-access' : needsApproval.type === 'command' ? 'command-execution' : 'resource-limit',
+        needsApproval.type === 'path'
+          ? 'path-access'
+          : needsApproval.type === 'command'
+            ? 'command-execution'
+            : 'resource-limit',
         needsApproval.target,
         {
           reason: needsApproval.reason,
@@ -713,13 +712,7 @@ export class ToolRegistry {
 
       // Save to persistent config if user chose "remember"
       if (approval.remember && config.sandboxApprovals.rememberChoices) {
-        this.saveApprovalToConfig(
-          config,
-          simpleConfigManager,
-          toolName,
-          needsApproval.type,
-          needsApproval.target
-        )
+        this.saveApprovalToConfig(config, simpleConfigManager, toolName, needsApproval.type, needsApproval.target)
       }
     } catch (error: any) {
       throw new Error(`Permission check failed: ${error.message}`)
@@ -729,9 +722,7 @@ export class ToolRegistry {
   /**
    * Detect dangerous operations that require approval
    */
-  private detectDangerousOperations(
-    permissions: ToolPermission
-  ): {
+  private detectDangerousOperations(permissions: ToolPermission): {
     type: 'none' | 'path' | 'command' | 'resource'
     target: string
     reason: string
@@ -828,13 +819,7 @@ export class ToolRegistry {
   /**
    * Save approval to persistent config
    */
-  private saveApprovalToConfig(
-    config: any,
-    configManager: any,
-    toolName: string,
-    type: string,
-    target: string
-  ): void {
+  private saveApprovalToConfig(config: any, configManager: any, toolName: string, type: string, target: string): void {
     const now = new Date().toISOString()
     const expiryDate = new Date(Date.now() + config.sandboxApprovals.expirationDays * 24 * 60 * 60 * 1000).toISOString()
 
@@ -1035,11 +1020,11 @@ export class ToolRegistry {
     // Cleanup subsystems
     try {
       if (this.contextSystem && typeof this.contextSystem.clearMemory === 'function') {
-        async () => this.contextSystem.clearMemory()
+        ;async () => this.contextSystem.clearMemory()
         return
       }
       if (this.analyticsManager && typeof this.analyticsManager.getSummary === 'function') {
-        async () => this.analyticsManager.getSummary()
+        ;async () => this.analyticsManager.getSummary()
         return
       }
     } catch (error: any) {

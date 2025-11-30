@@ -245,7 +245,11 @@ export class VMChatBridge extends EventEmitter implements VMEventEmitter {
       this.bridgeStats.successfulRequests++
       this.updateAverageResponseTime(responseTime)
 
-      advancedUI.logFunctionUpdate('success', `Successfully streamed response from agent ${agentId} (${responseTime}ms)`, '🌊')
+      advancedUI.logFunctionUpdate(
+        'success',
+        `Successfully streamed response from agent ${agentId} (${responseTime}ms)`,
+        '🌊'
+      )
 
       return {
         success: true,

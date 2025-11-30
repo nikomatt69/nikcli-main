@@ -1,8 +1,8 @@
-import { logger, logInfo, logError } from './error-handler'
+import { AsyncUtils } from './async-utils'
+import { type ConfigType, simpleConfigManager as configManager } from './config-manager'
+import { logError, logger, logInfo } from './error-handler'
 import { resourceManager } from './resource-manager'
 import { cacheRegistry } from './unified-cache'
-import { simpleConfigManager as configManager, ConfigType } from './config-manager'
-import { AsyncUtils } from './async-utils'
 
 export interface InitializationOptions {
   configSource?: 'file' | 'env' | 'mixed'
@@ -28,10 +28,10 @@ export class SystemInitializer {
   private healthCheckInterval: NodeJS.Timeout | null = null
 
   static getInstance(): SystemInitializer {
-    if (!this.instance) {
-      this.instance = new SystemInitializer()
+    if (!SystemInitializer.instance) {
+      SystemInitializer.instance = new SystemInitializer()
     }
-    return this.instance
+    return SystemInitializer.instance
   }
 
   async initialize(options: InitializationOptions = {}): Promise<ConfigType> {
@@ -44,7 +44,7 @@ export class SystemInitializer {
       configSource = 'mixed',
       enableGracefulShutdown = true,
       enablePerformanceMonitoring = true,
-      skipHealthChecks = false
+      skipHealthChecks = false,
     } = options
 
     try {
@@ -55,11 +55,10 @@ export class SystemInitializer {
 
       this.initialized = true
       logInfo('System initialization completed successfully', 'SystemInitializer', {
-        initializationTime: Date.now() - this.startTime
+        initializationTime: Date.now() - this.startTime,
       })
 
       return this.config
-
     } catch (error) {
       logError('System initialization failed', 'SystemInitializer', error as Error)
       throw error
@@ -112,14 +111,14 @@ export class SystemInitializer {
       const activeResources = resourceManager.getResourceCount()
       const cacheStats = cacheRegistry.getAllStats()
 
-      let status: 'healthy' | 'degraded' | 'unhealthy' = 'healthy'
+      const status: 'healthy' | 'degraded' | 'unhealthy' = 'healthy'
 
       return {
         status,
         uptime,
         memoryUsage: memUsage,
         cacheStats,
-        activeResources
+        activeResources,
       }
     } catch (error) {
       return {
@@ -128,7 +127,7 @@ export class SystemInitializer {
         memoryUsage: process.memoryUsage(),
         cacheStats: {},
         activeResources: 0,
-        lastError: error as Error
+        lastError: error as Error,
       }
     }
   }
@@ -149,16 +148,16 @@ export class SystemInitializer {
       () => resourceManager.dispose(),
 
       // Dispose cache registry
-      () => cacheRegistry.dispose()
+      () => cacheRegistry.dispose(),
     ]
 
     // Execute shutdown tasks with timeout
     for (const task of shutdownTasks) {
       try {
-        await AsyncUtils.withTimeout(
-          Promise.resolve(task()),
-          { timeoutMs: 5000, timeoutMessage: 'Shutdown task timeout' }
-        )
+        await AsyncUtils.withTimeout(Promise.resolve(task()), {
+          timeoutMs: 5000,
+          timeoutMessage: 'Shutdown task timeout',
+        })
       } catch (error) {
         logError('Error during shutdown task', 'SystemInitializer', error as Error)
       }

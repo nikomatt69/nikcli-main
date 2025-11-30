@@ -1,9 +1,9 @@
 import { AutonomousOrchestrator } from './automation/agents/autonomous-orchestrator'
 import { CognitiveAgentBase as CognitiveAgentBaseClass } from './automation/agents/cognitive-agent-base'
+import { PolymarketAgent } from './automation/agents/polymarket-agent'
 import { UniversalAgent } from './automation/agents/universal-agent'
 import type { AgentManager } from './core/agent-manager'
 import { SecureVirtualizedAgent } from './virtualized-agents/secure-vm-agent'
-import { PolymarketAgent } from './automation/agents/polymarket-agent'
 export function registerAgents(agentManager: AgentManager): void {
   // Register the unified UniversalAgent for enterprise production use
   agentManager.registerAgentClass(UniversalAgent, {
@@ -274,7 +274,8 @@ export function registerAgents(agentManager: AgentManager): void {
   agentManager.registerAgentClass(PolymarketAgent, {
     id: 'polymarket-agent',
     name: 'Polymarket Trading Agent',
-    description: 'Specialized agent for Polymarket prediction market operations with order placement, market analysis, and risk assessment',
+    description:
+      'Specialized agent for Polymarket prediction market operations with order placement, market analysis, and risk assessment',
     specialization: 'prediction-market-trading',
     version: '1.0.0',
     capabilities: [
@@ -338,12 +339,7 @@ export function registerAgents(agentManager: AgentManager): void {
         canModifyConfig: false,
         canAccessSecrets: true, // Needs access to private key and builder credentials
       },
-      sandboxRestrictions: [
-        'network-api-only',
-        'no-file-system',
-        'no-command-execution',
-        'credential-isolation',
-      ],
+      sandboxRestrictions: ['network-api-only', 'no-file-system', 'no-command-execution', 'credential-isolation'],
     },
   })
 }

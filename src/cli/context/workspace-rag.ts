@@ -1,8 +1,7 @@
 import { execSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import path, { join } from 'node:path'
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
-import { extname, relative, resolve } from 'node:path'
+import path, { extname, join, relative, resolve } from 'node:path'
 import chalk from 'chalk'
 
 export interface FileEmbedding {
@@ -104,7 +103,7 @@ export class WorkspaceRAG {
       try {
         const pkg = JSON.parse(readFileSync(packageJsonPath, 'utf-8'))
         return pkg.name || 'unnamed-project'
-      } catch { }
+      } catch {}
     }
     return require('node:path').basename(path)
   }

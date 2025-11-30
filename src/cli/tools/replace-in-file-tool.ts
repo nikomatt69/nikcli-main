@@ -1,10 +1,10 @@
 import { readFile, writeFile } from 'node:fs/promises'
+import { advancedUI } from '../ui/advanced-cli-ui'
 import { diffManager } from '../ui/diff-manager'
 import { DiffViewer, type FileDiff } from '../ui/diff-viewer'
 import { CliUI } from '../utils/cli-ui'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
 import { sanitizePath, validateIsFile } from './secure-file-tools'
-import { advancedUI } from '../ui/advanced-cli-ui'
 
 /**
  * Production-ready Replace In File Tool
@@ -110,7 +110,12 @@ export class ReplaceInFileTool extends BaseTool {
         metadata: {
           executionTime: duration,
           toolName: this.name,
-          parameters: { filePath, searchPattern: searchPattern ? searchPattern.toString() : 'undefined', replacement, options },
+          parameters: {
+            filePath,
+            searchPattern: searchPattern ? searchPattern.toString() : 'undefined',
+            replacement,
+            options,
+          },
         },
       }
     } catch (error: any) {
@@ -149,7 +154,12 @@ export class ReplaceInFileTool extends BaseTool {
         metadata: {
           executionTime: duration,
           toolName: this.name,
-          parameters: { filePath, searchPattern: searchPattern ? searchPattern.toString() : 'undefined', replacement, options },
+          parameters: {
+            filePath,
+            searchPattern: searchPattern ? searchPattern.toString() : 'undefined',
+            replacement,
+            options,
+          },
         },
       }
     }

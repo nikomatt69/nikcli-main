@@ -2,11 +2,11 @@ import { existsSync, mkdirSync, statSync } from 'node:fs'
 import { readFile, writeFile } from 'node:fs/promises'
 import { dirname, join, relative } from 'node:path'
 import { PromptManager } from '../prompts/prompt-manager'
+import { advancedUI } from '../ui/advanced-cli-ui'
 import { diffManager } from '../ui/diff-manager'
 import { DiffViewer, type FileDiff } from '../ui/diff-viewer'
 import { CliUI } from '../utils/cli-ui'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
-import { advancedUI } from '../ui/advanced-cli-ui'
 
 /**
  * Enhanced EditTool - Editor avanzato con diff, patch e validation
@@ -339,11 +339,7 @@ export class EditTool extends BaseTool {
   /**
    * Scrive file con validazione
    */
-  private async writeFileWithValidation(
-    filePath: string,
-    newContent: string,
-    params: EditToolParams
-  ): Promise<void> {
+  private async writeFileWithValidation(filePath: string, newContent: string, params: EditToolParams): Promise<void> {
     // Crea directory se non esiste
     const dir = dirname(filePath)
     if (!existsSync(dir)) {

@@ -339,8 +339,9 @@ export class GrepTool extends BaseTool {
 
         if (pattern.endsWith('/')) {
           // Pattern come 'node_modules/' - ignora solo se il path INIZIA con questo
-          return pathLower.startsWith(patternLower.slice(0, -1)) ||
-            pathLower.includes('/' + patternLower.slice(0, -1) + '/')
+          return (
+            pathLower.startsWith(patternLower.slice(0, -1)) || pathLower.includes('/' + patternLower.slice(0, -1) + '/')
+          )
         }
         if (pattern.includes('*')) {
           // Pattern globby come '*.log'

@@ -8,15 +8,15 @@
  * Uses centralized secrets config for consistent provider handling
  */
 
-import { EmbeddedSecrets } from './embedded-secrets'
 import { QuotaManager } from '../services/quota-manager'
+import { EmbeddedSecrets } from './embedded-secrets'
 import {
-  getProviderConfig,
-  getSecretId,
-  getEnvironmentVarNames,
   getAllConfiguredProviders,
+  getEnvironmentVarNames,
   getOptionalProviders,
+  getProviderConfig,
   getRequiredProviders,
+  getSecretId,
   type ProviderSecretConfig,
 } from './secrets-config'
 
@@ -92,9 +92,7 @@ export class SecretsManager {
     const providerConfig = getProviderConfig(normalizedProvider)
 
     // 1. Check user-provided environment variables (multiple fallback options)
-    const envVarNames = environmentVarName
-      ? [environmentVarName]
-      : providerConfig?.environmentVars || []
+    const envVarNames = environmentVarName ? [environmentVarName] : providerConfig?.environmentVars || []
 
     for (const envVar of envVarNames) {
       const envValue = process.env[envVar]
@@ -160,11 +158,7 @@ export class SecretsManager {
   /**
    * Record API usage
    */
-  static recordUsage(
-    provider: string,
-    endpoint: string,
-    options: { tokens?: number; cost?: number } = {}
-  ): void {
+  static recordUsage(provider: string, endpoint: string, options: { tokens?: number; cost?: number } = {}): void {
     if (!SecretsManager.initialized) {
       return
     }
@@ -191,7 +185,13 @@ export class SecretsManager {
    * List available secrets for all configured providers
    * Uses centralized secrets config
    */
-  static listAvailableSecrets(): Array<{ id: string; provider: string; description: string; hasEmbedded: boolean; hasUser: boolean }> {
+  static listAvailableSecrets(): Array<{
+    id: string
+    provider: string
+    description: string
+    hasEmbedded: boolean
+    hasUser: boolean
+  }> {
     if (!SecretsManager.initialized) {
       return []
     }

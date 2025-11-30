@@ -287,8 +287,7 @@ export class AiSdkEmbeddingProvider {
       try {
         const result = await this.generateWithModel(uncachedTexts, candidate.config)
 
-        const perVectorCost =
-          result.embeddings.length > 0 ? result.cost / result.embeddings.length : 0
+        const perVectorCost = result.embeddings.length > 0 ? result.cost / result.embeddings.length : 0
         await this.cacheEmbeddings(uncachedTexts, result.embeddings, candidate, perVectorCost)
 
         const finalResults = this.mergeResults(texts.length, cachedResults, result.embeddings, uncachedIndices)
@@ -326,7 +325,6 @@ export class AiSdkEmbeddingProvider {
    * Generate embeddings with a specific provider using concurrent processing
    */
   private async generateWithModel(texts: string[], config: ResolvedEmbeddingModel['config']): Promise<EmbeddingResult> {
-
     // Truncate texts to fit within token limits with safety margin
     const processedTexts = texts.map((text) => {
       const truncated = this.truncateText(text, config.maxTokens)
@@ -395,11 +393,7 @@ export class AiSdkEmbeddingProvider {
   /**
    * Calculate optimal batch size based on text characteristics and success rate
    */
-  private _calculateOptimalBatchSize(
-    texts: string[],
-    base: number,
-    recentSuccessRate: number = 1.0
-  ): number {
+  private _calculateOptimalBatchSize(texts: string[], base: number, recentSuccessRate: number = 1.0): number {
     const adaptiveEnabled = process.env.EMBED_ADAPTIVE_BATCHING !== 'false'
 
     if (!adaptiveEnabled) return base
@@ -428,7 +422,6 @@ export class AiSdkEmbeddingProvider {
    * Generate embeddings for a batch of texts
    */
   private async generateBatch(texts: string[], config: ResolvedEmbeddingModel['config']): Promise<EmbeddingResult> {
-
     try {
       // Configure AI SDK provider and generate embeddings
       let embeddings: number[][]
@@ -440,12 +433,12 @@ export class AiSdkEmbeddingProvider {
             // Configure OpenAI with API key from config or environment
             const modelKey = configManager.getApiKey(config.model)
             const apiKey = config.baseURL?.includes('openrouter.ai')
-              ? (configManager.getApiKey('openrouter') ||
+              ? configManager.getApiKey('openrouter') ||
                 modelKey ||
                 process.env.OPENROUTER_API_KEY ||
                 configManager.getApiKey('openai') ||
-                process.env.OPENAI_API_KEY)
-              : (modelKey || configManager.getApiKey('openai') || process.env.OPENAI_API_KEY)
+                process.env.OPENAI_API_KEY
+              : modelKey || configManager.getApiKey('openai') || process.env.OPENAI_API_KEY
 
             if (!apiKey) {
               throw new Error('OpenAI API key not found')
@@ -471,8 +464,8 @@ export class AiSdkEmbeddingProvider {
                   if (attempt === retries) throw error
 
                   // Wait before retry (exponential backoff)
-                  const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000)
-                  await new Promise(resolve => setTimeout(resolve, delay))
+                  const delay = Math.min(1000 * 2 ** (attempt - 1), 5000)
+                  await new Promise((resolve) => setTimeout(resolve, delay))
                 }
               }
               throw new Error('Max retries exceeded')
@@ -480,9 +473,7 @@ export class AiSdkEmbeddingProvider {
 
             // For multiple texts, use embedMany with retry
             if (texts.length > 1) {
-              const results = await Promise.all(
-                texts.map(async (text) => embedWithRetry(text))
-              )
+              const results = await Promise.all(texts.map(async (text) => embedWithRetry(text)))
               embeddings = results
             } else {
               embeddings = [await embedWithRetry(texts[0])]
@@ -553,8 +544,8 @@ export class AiSdkEmbeddingProvider {
                 return result.embedding
               } catch (error) {
                 if (attempt === retries) throw error
-                const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000)
-                await new Promise(resolve => setTimeout(resolve, delay))
+                const delay = Math.min(1000 * 2 ** (attempt - 1), 5000)
+                await new Promise((resolve) => setTimeout(resolve, delay))
               }
             }
             throw new Error('Max retries exceeded')

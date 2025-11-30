@@ -10,9 +10,9 @@
  * - Error handling and retry logic
  */
 
-import axios, { type AxiosInstance } from 'axios'
 import http from 'node:http'
 import https from 'node:https'
+import axios, { type AxiosInstance } from 'axios'
 import chalk from 'chalk'
 
 // ==================== TYPES & INTERFACES ====================

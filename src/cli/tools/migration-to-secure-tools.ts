@@ -1,7 +1,7 @@
 import chalk from 'chalk'
+import { advancedUI } from '../ui/advanced-cli-ui'
 import { secureTools } from './secure-tools-registry'
 import { ToolsManager } from './tools-manager'
-import { advancedUI } from '../ui/advanced-cli-ui'
 
 /**
  * Migration script to safely transition from unsafe ToolsManager to SecureToolsRegistry
@@ -23,7 +23,10 @@ export class ToolsMigration {
 
     if (!this.migrationWarnings.includes(warning)) {
       advancedUI.logFunctionUpdate('info', chalk.yellow(warning))
-      advancedUI.logFunctionUpdate('info', chalk.gray('   This operation lacks security controls and will be removed in future versions.'))
+      advancedUI.logFunctionUpdate(
+        'info',
+        chalk.gray('   This operation lacks security controls and will be removed in future versions.')
+      )
       this.migrationWarnings.push(warning)
     }
   }
@@ -64,7 +67,10 @@ export class ToolsMigration {
    */
   async runCommand(command: string, args: string[] = [], _options: any = {}) {
     advancedUI.logFunctionUpdate('info', chalk.red('🚫 BLOCKED: Direct command execution is not allowed'))
-    advancedUI.logFunctionUpdate('info', chalk.yellow('Use secureTools.executeCommand() instead for safe command execution'))
+    advancedUI.logFunctionUpdate(
+      'info',
+      chalk.yellow('Use secureTools.executeCommand() instead for safe command execution')
+    )
     advancedUI.logFunctionUpdate('info', chalk.gray(`Attempted command: ${command} ${args.join(' ')}`))
 
     throw new Error(
@@ -77,7 +83,10 @@ export class ToolsMigration {
    */
   async runCommandStream(_command: string, _options: any = {}) {
     advancedUI.logFunctionUpdate('info', chalk.red('🚫 BLOCKED: Direct command streaming is not allowed'))
-    advancedUI.logFunctionUpdate('info', chalk.yellow('Use secureTools.executeCommand() instead for safe command execution'))
+    advancedUI.logFunctionUpdate(
+      'info',
+      chalk.yellow('Use secureTools.executeCommand() instead for safe command execution')
+    )
 
     throw new Error(
       'Direct command streaming blocked for security. Use secureTools.executeCommand() with proper confirmation.'
@@ -89,7 +98,10 @@ export class ToolsMigration {
    */
   async installPackage(packageName: string, _options: any = {}) {
     advancedUI.logFunctionUpdate('info', chalk.red('🚫 BLOCKED: Automatic package installation is not allowed'))
-    advancedUI.logFunctionUpdate('info', chalk.yellow('Use secureTools.executeCommand() with npm/yarn commands and user confirmation'))
+    advancedUI.logFunctionUpdate(
+      'info',
+      chalk.yellow('Use secureTools.executeCommand() with npm/yarn commands and user confirmation')
+    )
     advancedUI.logFunctionUpdate('info', chalk.gray(`Attempted package: ${packageName}`))
 
     throw new Error(
@@ -122,7 +134,10 @@ export class ToolsMigration {
    */
   async build(framework?: string): Promise<{ success: boolean; output: string; errors?: any[] }> {
     advancedUI.logFunctionUpdate('info', chalk.red('🚫 BLOCKED: Direct build operations are not allowed'))
-    advancedUI.logFunctionUpdate('info', chalk.yellow('Use secureTools.executeCommand() with build commands and user confirmation'))
+    advancedUI.logFunctionUpdate(
+      'info',
+      chalk.yellow('Use secureTools.executeCommand() with build commands and user confirmation')
+    )
     advancedUI.logFunctionUpdate('info', chalk.gray(`Attempted framework: ${framework || 'auto-detect'}`))
 
     return {
@@ -144,7 +159,10 @@ export class ToolsMigration {
    */
   async runTests(testPattern?: string): Promise<{ success: boolean; output: string; errors?: any[] }> {
     advancedUI.logFunctionUpdate('info', chalk.red('🚫 BLOCKED: Direct test execution is not allowed'))
-    advancedUI.logFunctionUpdate('info', chalk.yellow('Use secureTools.executeCommand() with test commands and user confirmation'))
+    advancedUI.logFunctionUpdate(
+      'info',
+      chalk.yellow('Use secureTools.executeCommand() with test commands and user confirmation')
+    )
     advancedUI.logFunctionUpdate('info', chalk.gray(`Attempted pattern: ${testPattern || 'all tests'}`))
 
     return {
@@ -165,7 +183,10 @@ export class ToolsMigration {
    */
   async lint(filePath?: string): Promise<{ success: boolean; output: string; errors?: any[] }> {
     advancedUI.logFunctionUpdate('info', chalk.red('🚫 BLOCKED: Direct lint operations are not allowed'))
-    advancedUI.logFunctionUpdate('info', chalk.yellow('Use secureTools.executeCommand() with lint commands and user confirmation'))
+    advancedUI.logFunctionUpdate(
+      'info',
+      chalk.yellow('Use secureTools.executeCommand() with lint commands and user confirmation')
+    )
     advancedUI.logFunctionUpdate('info', chalk.gray(`Attempted file: ${filePath || 'all files'}`))
 
     return {
@@ -186,7 +207,10 @@ export class ToolsMigration {
    */
   async typeCheck(): Promise<{ success: boolean; output: string; errors?: any[] }> {
     advancedUI.logFunctionUpdate('info', chalk.red('🚫 BLOCKED: Direct type checking is not allowed'))
-    advancedUI.logFunctionUpdate('info', chalk.yellow('Use secureTools.executeCommand() with TypeScript commands and user confirmation'))
+    advancedUI.logFunctionUpdate(
+      'info',
+      chalk.yellow('Use secureTools.executeCommand() with TypeScript commands and user confirmation')
+    )
 
     return {
       success: false,
@@ -211,7 +235,10 @@ export class ToolsMigration {
     if (this.migrationWarnings.length === 0) {
       advancedUI.logFunctionUpdate('info', chalk.green('✓ No deprecated operations used'))
     } else {
-      advancedUI.logFunctionUpdate('info', chalk.yellow(`⚠︎  ${this.migrationWarnings.length} deprecated operations detected:`))
+      advancedUI.logFunctionUpdate(
+        'info',
+        chalk.yellow(`⚠︎  ${this.migrationWarnings.length} deprecated operations detected:`)
+      )
       this.migrationWarnings.forEach((warning) => {
         advancedUI.logFunctionUpdate('info', chalk.gray(`  • ${warning.replace('⚠︎  DEPRECATED: ', '')}`))
       })

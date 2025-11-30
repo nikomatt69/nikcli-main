@@ -3,27 +3,30 @@ import { statSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { basename, dirname, extname, join, relative, resolve } from 'node:path'
+import { createOpenAI } from '@ai-sdk/openai'
+import { embed } from 'ai'
 import chalk from 'chalk'
+// Import ultra-fast RAG inference layer
+import { getRAGInference, type RAGSearchResult as RAGInferenceResult } from '../ai/rag-inference-layer'
 import { TOKEN_LIMITS } from '../config/token-limits'
 import { type CacheProvider, globalCacheManager } from '../core/cache-provider'
+import { configManager } from '../core/config-manager'
 import { advancedUI } from '../ui/advanced-cli-ui'
 import { createFileFilter, type FileFilterSystem } from './file-filter-system'
 // Import semantic search engine and file filtering
 import { type QueryAnalysis, type ScoringContext, semanticSearchEngine } from './semantic-search-engine'
-
 // Import unified embedding and vector store infrastructure
 import { unifiedEmbeddingInterface } from './unified-embedding-interface'
-import { createVectorStoreManager, type VectorDocument, type VectorStoreManager, type VectorStoreStats } from './vector-store-abstraction'
-import { unifiedRerankingInterface, type RerankingDocument } from './unified-reranking-interface'
-
-// Import ultra-fast RAG inference layer
-import { getRAGInference, type RAGSearchResult as RAGInferenceResult } from '../ai/rag-inference-layer'
+import { type RerankingDocument, unifiedRerankingInterface } from './unified-reranking-interface'
+import {
+  createVectorStoreManager,
+  type VectorDocument,
+  type VectorStoreManager,
+  type VectorStoreStats,
+} from './vector-store-abstraction'
 // Import workspace analysis types for integration
 import type { FileEmbedding, WorkspaceContext } from './workspace-rag'
 import { WorkspaceRAG } from './workspace-rag'
-import { embed } from 'ai'
-import { createOpenAI } from '@ai-sdk/openai'
-import { configManager } from '../core/config-manager'
 
 // Unified RAG interfaces
 export interface UnifiedRAGConfig {
@@ -345,7 +348,6 @@ export class UnifiedRAGSystem {
         .then(() => {
           // Show completion log ONLY if chat is already open (NIKCLI_QUIET_STARTUP cleared)
           if (!process.env.NIKCLI_QUIET_STARTUP) {
-
           }
         })
         .catch((err) => {
@@ -415,7 +417,6 @@ export class UnifiedRAGSystem {
 
       this.initialized = true
     } catch (error: any) {
-
       this.initialized = true // Set true even on error to prevent blocking
     }
   }
@@ -438,7 +439,6 @@ export class UnifiedRAGSystem {
     }
 
     if (!this.initialized) {
-
       this.initialized = true // Set true to avoid infinite wait, RAG will work in fallback mode
     }
   }
@@ -457,7 +457,6 @@ export class UnifiedRAGSystem {
     const cacheKey = `analysis - ${projectPath}`
     const cached = await this.analysisCache.get<RAGAnalysisResult>(cacheKey)
     if (cached) {
-
       return cached
     }
 
@@ -468,10 +467,8 @@ export class UnifiedRAGSystem {
 
     // 1. Workspace Analysis (always run)
     if (this.config.enableWorkspaceAnalysis && this.workspaceRAG) {
-
       workspaceContext = await this.workspaceRAG.analyzeWorkspace()
       indexedFiles = workspaceContext?.files?.size || indexedFiles
-
     } else {
       // Fallback minimal analysis
       workspaceContext = this.createMinimalWorkspaceContext(projectPath)
@@ -486,7 +483,6 @@ export class UnifiedRAGSystem {
         embeddingsCost = indexResult.cost
         indexedFiles = indexResult.indexedFiles
       } catch (_error) {
-
         vectorDBStatus = 'error'
       }
     }
@@ -533,7 +529,6 @@ export class UnifiedRAGSystem {
       // Use semantic search engine for query analysis
       const queryAnalysis = await semanticSearchEngine.analyzeQuery(query)
 
-
       // Use the enhanced search with semantic analysis
       return await this.searchEnhanced(query, {
         limit,
@@ -542,7 +537,6 @@ export class UnifiedRAGSystem {
         queryAnalysis,
       })
     } catch (_error) {
-
       return await this.search(query, { limit })
     }
   }
@@ -568,14 +562,11 @@ export class UnifiedRAGSystem {
     this.searchMetrics.totalSearches++
     const searchTypes: string[] = []
 
-
-
     try {
       // Apply query optimization pipeline
       const optimizedQuery = this.optimizeQuery(query)
       if (optimizedQuery !== query) {
         this.searchMetrics.queryOptimizations++
-
       }
 
       // Run hybrid searches concurrently (vector, workspace, and BM25)
@@ -587,7 +578,6 @@ export class UnifiedRAGSystem {
         this.searchMetrics.vectorSearches++
         searchPromises.push(
           this.searchVectorStore(optimizedQuery, Math.ceil(limit * 0.5)).catch(() => {
-
             this.searchMetrics.errors++
             return []
           })
@@ -600,7 +590,6 @@ export class UnifiedRAGSystem {
         this.searchMetrics.workspaceSearches++
         searchPromises.push(
           this.searchWorkspace(optimizedQuery, Math.ceil(limit * 0.3)).catch(() => {
-
             this.searchMetrics.errors++
             return []
           })
@@ -613,7 +602,6 @@ export class UnifiedRAGSystem {
         this.searchMetrics.bm25Searches++
         searchPromises.push(
           this.bm25Search(optimizedQuery, Math.ceil(limit * 0.2)).catch(() => {
-
             this.searchMetrics.errors++
             return []
           })
@@ -644,8 +632,6 @@ export class UnifiedRAGSystem {
       this.searchMetrics.totalLatency += duration
       this.searchMetrics.averageLatency = this.searchMetrics.totalLatency / this.searchMetrics.totalSearches
 
-
-
       const rerankingInfo =
         this.searchMetrics.reranks > 0
           ? `, reranked (${this.searchMetrics.rerankingModel || 'model'})`
@@ -665,7 +651,6 @@ export class UnifiedRAGSystem {
       const duration = Date.now() - startTime
       this.searchMetrics.totalLatency += duration
       this.searchMetrics.averageLatency = this.searchMetrics.totalLatency / this.searchMetrics.totalSearches
-
 
       throw error
     }
@@ -720,8 +705,6 @@ export class UnifiedRAGSystem {
         },
       }))
 
-
-
       return results
     } catch (error) {
       const duration = Date.now() - startTime
@@ -745,10 +728,8 @@ export class UnifiedRAGSystem {
         throw new Error('Vector store manager or file filter not initialized')
       }
 
-
       // Use intelligent file filtering to get indexable files
       const filesToIndex = this.fileFilter.getFilesToIndex(projectPath)
-
 
       // Show filtering statistics
       this.fileFilter.logStats()
@@ -768,7 +749,6 @@ export class UnifiedRAGSystem {
           // Estimate cost before processing
           const estimatedCost = estimateCost([content])
           if (totalCost + estimatedCost > this.config.costThreshold) {
-
             break
           }
 
@@ -817,18 +797,13 @@ export class UnifiedRAGSystem {
 
             // Progress feedback for large indexing operations
             if (indexedCount % 100 === 0) {
-
             }
           }
-        } catch (fileError) {
-
-        }
+        } catch (fileError) {}
       }
 
       // Batch index documents with progress tracking
       if (documentsToIndex.length > 0) {
-
-
         // ChromaDB free tier has quota limits (typically 300-1000 records)
         // Upstash free tier: 10,000 vectors
         const MAX_UPSTASH_BATCH_SIZE = 1000
@@ -840,8 +815,6 @@ export class UnifiedRAGSystem {
         const MAX_TOTAL_DOCUMENTS = isChromaDB ? 300 : 10000 // ChromaDB vs Upstash limits
 
         if (documentsToIndex.length > MAX_TOTAL_DOCUMENTS) {
-
-
           // Sort by priority (files with more code content first)
           documentsToIndex = documentsToIndex
             .sort((a, b) => b.content.length - a.content.length)
@@ -870,9 +843,7 @@ export class UnifiedRAGSystem {
                 )
               }
             }
-          } catch (error) {
-
-          }
+          } catch (error) {}
         }
 
         let successfulBatches = 0
@@ -882,13 +853,11 @@ export class UnifiedRAGSystem {
           const batchNumber = Math.floor(i / batchSize) + 1
           const totalBatches = Math.ceil(documentsToIndex.length / batchSize)
 
-
           const success = await this.vectorStoreManager.addDocuments(batch)
 
           if (success) {
             successfulBatches++
           } else {
-
           }
         }
 
@@ -896,7 +865,6 @@ export class UnifiedRAGSystem {
 
         advancedUI.logFunctionCall('unifiedraganalysis')
         advancedUI.logFunctionUpdate('success', `Indexing complete!`)
-
       }
 
       return { success: true, cost: totalCost, indexedFiles: indexedCount }
@@ -1291,7 +1259,6 @@ export class UnifiedRAGSystem {
         .filter((r) => r.score > 40) // Higher threshold for semantic results
         .sort((a, b) => b.score - a.score)
     } catch (error: any) {
-
       throw error
     }
   }
@@ -1399,7 +1366,6 @@ export class UnifiedRAGSystem {
 
       return searchResults.filter((r) => r.score > 30) // Filter low confidence results
     } catch (error: any) {
-
       throw error
     }
   }
@@ -1442,7 +1408,7 @@ export class UnifiedRAGSystem {
       }
     }
 
-    let uniqueResults = Array.from(pathMap.values())
+    const uniqueResults = Array.from(pathMap.values())
 
     // Apply reranking if enabled and conditions are met
     if (this.config.enableReranking && this.shouldUseReranking(query, uniqueResults.length)) {
@@ -1477,11 +1443,7 @@ export class UnifiedRAGSystem {
   /**
    * Apply ML-based reranking using OpenRouter
    */
-  private async applyReranking(
-    query: string,
-    results: RAGSearchResult[],
-    limit: number
-  ): Promise<RAGSearchResult[]> {
+  private async applyReranking(query: string, results: RAGSearchResult[], limit: number): Promise<RAGSearchResult[]> {
     if (!this.config.enableReranking || !this.config.rerankingModel) {
       return results
     }
@@ -1662,11 +1624,7 @@ export class UnifiedRAGSystem {
   /**
    * Apply heuristic reranking (fallback)
    */
-  private applyHeuristicReranking(
-    results: RAGSearchResult[],
-    query: string,
-    queryWords: string[]
-  ): RAGSearchResult[] {
+  private applyHeuristicReranking(results: RAGSearchResult[], query: string, queryWords: string[]): RAGSearchResult[] {
     return results.map((result) => {
       let enhancedScore = result.score
 
@@ -1702,7 +1660,6 @@ export class UnifiedRAGSystem {
       process.env.RERANKING_ENABLED === 'true' // Force enable
     )
   }
-
 
   /**
    * Determine if intelligent re-ranking should be applied
@@ -2289,16 +2246,16 @@ export class UnifiedRAGSystem {
     advancedUI.logFunctionUpdate(
       'info',
       `🎯 Optimized results: ${results.length} → ${truncatedResults.length} contexts, ` +
-      `~${estimateTokensFromChars(truncatedResults.reduce((sum, r) => sum + r.content.length, 0))} tokens`
+        `~${estimateTokensFromChars(truncatedResults.reduce((sum, r) => sum + r.content.length, 0))} tokens`
     )
     advancedUI.logFunctionUpdate(
       'info',
       `🎯 Optimized results: ${results.length} → ${truncatedResults.length} contexts, ` +
-      `~${estimateTokensFromChars(truncatedResults.reduce((sum, r) => sum + r.content.length, 0))} tokens`
+        `~${estimateTokensFromChars(truncatedResults.reduce((sum, r) => sum + r.content.length, 0))} tokens`
     )
     chalk.blue(
       `🎯 Optimized results: ${results.length} → ${truncatedResults.length} contexts, ` +
-      `~${estimateTokensFromChars(truncatedResults.reduce((sum, r) => sum + r.content.length, 0))} tokens`
+        `~${estimateTokensFromChars(truncatedResults.reduce((sum, r) => sum + r.content.length, 0))} tokens`
     )
 
     return truncatedResults

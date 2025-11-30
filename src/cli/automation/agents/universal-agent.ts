@@ -304,11 +304,17 @@ export class UniversalAgent extends EventEmitter implements Agent {
 
       // Step 1: Normalize and preprocess
       const normalizedTask = this.normalizeTask(trimmedDescription)
-      await structuredLogger.info('Cognitive parsing: normalized task', JSON.stringify({ length: normalizedTask.length }))
+      await structuredLogger.info(
+        'Cognitive parsing: normalized task',
+        JSON.stringify({ length: normalizedTask.length })
+      )
 
       // Step 2: Extract intent with confidence scoring
       const intent = this.identifyIntent(normalizedTask)
-      await structuredLogger.info('Cognitive parsing: identified intent', JSON.stringify({ primary: intent.primary, confidence: intent.confidence }))
+      await structuredLogger.info(
+        'Cognitive parsing: identified intent',
+        JSON.stringify({ primary: intent.primary, confidence: intent.confidence })
+      )
 
       // Step 3: Extract entities with NER
       const entities = this.extractEntities(normalizedTask, intent)
@@ -316,7 +322,10 @@ export class UniversalAgent extends EventEmitter implements Agent {
 
       // Step 4: Analyze dependencies
       const dependencies = this.analyzeDependencies(normalizedTask, entities)
-      await structuredLogger.info('Cognitive parsing: analyzed dependencies', JSON.stringify({ count: dependencies.length }))
+      await structuredLogger.info(
+        'Cognitive parsing: analyzed dependencies',
+        JSON.stringify({ count: dependencies.length })
+      )
 
       // Step 5: Determine contexts
       const contexts = this.determineContexts(normalizedTask, entities, intent)
@@ -324,12 +333,18 @@ export class UniversalAgent extends EventEmitter implements Agent {
 
       // Step 6: Estimate complexity
       const estimatedComplexity = this.estimateComplexity(intent, entities, dependencies)
-      await structuredLogger.info('Cognitive parsing: estimated complexity', JSON.stringify({ complexity: estimatedComplexity }))
+      await structuredLogger.info(
+        'Cognitive parsing: estimated complexity',
+        JSON.stringify({ complexity: estimatedComplexity })
+      )
 
       // Step 7: Suggest capabilities and agents
       const requiredCapabilities = this.inferRequiredCapabilities(intent, entities)
       const suggestedAgents = this.suggestOptimalAgents(intent, entities, requiredCapabilities)
-      await structuredLogger.info('Cognitive parsing: inferred requirements', JSON.stringify({ capabilities: requiredCapabilities.length, agents: suggestedAgents.length }))
+      await structuredLogger.info(
+        'Cognitive parsing: inferred requirements',
+        JSON.stringify({ capabilities: requiredCapabilities.length, agents: suggestedAgents.length })
+      )
 
       // Step 8: Assess risk level
       const riskLevel = this.assessRiskLevel(intent, entities, dependencies)
@@ -511,10 +526,7 @@ export class UniversalAgent extends EventEmitter implements Agent {
 
       this.emit('task_execution_error', { task, error: error.message })
 
-      await structuredLogger.error(
-        'Task execution failed with context',
-        JSON.stringify(errorContext)
-      )
+      await structuredLogger.error('Task execution failed with context', JSON.stringify(errorContext))
 
       return errorResult
     } finally {
@@ -796,7 +808,12 @@ export class UniversalAgent extends EventEmitter implements Agent {
     }
 
     // FIXED: Added missing task categories (ERR-020)
-    if (combined.includes('test') || combined.includes('spec') || combined.includes('jest') || combined.includes('vitest')) {
+    if (
+      combined.includes('test') ||
+      combined.includes('spec') ||
+      combined.includes('jest') ||
+      combined.includes('vitest')
+    ) {
       return { category: 'testing', confidence: 0.85, reasoning: 'Contains testing-related keywords' }
     }
 
@@ -862,7 +879,7 @@ export class UniversalAgent extends EventEmitter implements Agent {
         completedAt: task.completedAt,
       }
 
-      const result = await codingAgent.executeTask(fullTask as any) as any
+      const result = (await codingAgent.executeTask(fullTask as any)) as any
 
       return {
         output: result?.output || 'Code analysis completed',
@@ -874,7 +891,10 @@ export class UniversalAgent extends EventEmitter implements Agent {
         filesModified: result?.filesModified || [],
       }
     } catch (error: any) {
-      await structuredLogger.error(`[UniversalAgent] Code analysis delegation failed: ${error.message}`, 'UniversalAgent')
+      await structuredLogger.error(
+        `[UniversalAgent] Code analysis delegation failed: ${error.message}`,
+        'UniversalAgent'
+      )
 
       // Return failure result instead of mock data
       return {
@@ -892,7 +912,10 @@ export class UniversalAgent extends EventEmitter implements Agent {
       const { CodeGeneratorAgent } = await import('./code-generator-agent')
       const generatorAgent = new CodeGeneratorAgent(this.workingDirectory)
 
-      await structuredLogger.info('Delegating code generation to CodeGeneratorAgent', JSON.stringify({ taskId: task.id }))
+      await structuredLogger.info(
+        'Delegating code generation to CodeGeneratorAgent',
+        JSON.stringify({ taskId: task.id })
+      )
 
       // Create complete task object with all properties
       const fullTask = {
@@ -909,7 +932,7 @@ export class UniversalAgent extends EventEmitter implements Agent {
         completedAt: task.completedAt,
       }
 
-      const result = await generatorAgent.executeTask(fullTask as any) as any
+      const result = (await generatorAgent.executeTask(fullTask as any)) as any
 
       return {
         output: result?.output || 'Code generation completed',
@@ -921,7 +944,10 @@ export class UniversalAgent extends EventEmitter implements Agent {
         filesModified: result?.filesModified || [],
       }
     } catch (error: any) {
-      await structuredLogger.error(`[UniversalAgent] Code generation delegation failed: ${error.message}`, 'UniversalAgent')
+      await structuredLogger.error(
+        `[UniversalAgent] Code generation delegation failed: ${error.message}`,
+        'UniversalAgent'
+      )
 
       return {
         output: `Code generation failed: ${error.message}`,
@@ -955,7 +981,7 @@ export class UniversalAgent extends EventEmitter implements Agent {
         completedAt: task.completedAt,
       }
 
-      const result = await reviewAgent.executeTask(fullTask as any) as any
+      const result = (await reviewAgent.executeTask(fullTask as any)) as any
 
       return {
         output: result?.output || 'Code review completed',
@@ -1001,7 +1027,7 @@ export class UniversalAgent extends EventEmitter implements Agent {
         completedAt: task.completedAt,
       }
 
-      const result = await optimizationAgent.executeTask(fullTask as any) as any
+      const result = (await optimizationAgent.executeTask(fullTask as any)) as any
 
       return {
         output: result?.output || 'Optimization completed',
@@ -1013,7 +1039,10 @@ export class UniversalAgent extends EventEmitter implements Agent {
         filesModified: result?.filesModified || [],
       }
     } catch (error: any) {
-      await structuredLogger.error(`[UniversalAgent] Optimization delegation failed: ${error.message}`, 'UniversalAgent')
+      await structuredLogger.error(
+        `[UniversalAgent] Optimization delegation failed: ${error.message}`,
+        'UniversalAgent'
+      )
 
       return {
         output: `Optimization failed: ${error.message}`,
@@ -1047,7 +1076,7 @@ export class UniversalAgent extends EventEmitter implements Agent {
         completedAt: task.completedAt,
       }
 
-      const result = await reactAgent.executeTask(fullTask as any) as any
+      const result = (await reactAgent.executeTask(fullTask as any)) as any
 
       return {
         output: result?.output || 'React development completed',
@@ -1059,7 +1088,10 @@ export class UniversalAgent extends EventEmitter implements Agent {
         filesModified: result?.filesModified || [],
       }
     } catch (error: any) {
-      await structuredLogger.error(`[UniversalAgent] React development delegation failed: ${error.message}`, 'UniversalAgent')
+      await structuredLogger.error(
+        `[UniversalAgent] React development delegation failed: ${error.message}`,
+        'UniversalAgent'
+      )
 
       return {
         output: `React development failed: ${error.message}`,
@@ -1093,7 +1125,7 @@ export class UniversalAgent extends EventEmitter implements Agent {
         completedAt: task.completedAt,
       }
 
-      const result = await backendAgent.executeTask(fullTask as any) as any
+      const result = (await backendAgent.executeTask(fullTask as any)) as any
 
       return {
         output: result?.output || 'Backend development completed',
@@ -1105,7 +1137,10 @@ export class UniversalAgent extends EventEmitter implements Agent {
         filesModified: result?.filesModified || [],
       }
     } catch (error: any) {
-      await structuredLogger.error(`[UniversalAgent] Backend development delegation failed: ${error.message}`, 'UniversalAgent')
+      await structuredLogger.error(
+        `[UniversalAgent] Backend development delegation failed: ${error.message}`,
+        'UniversalAgent'
+      )
 
       return {
         output: `Backend development failed: ${error.message}`,
@@ -1139,7 +1174,7 @@ export class UniversalAgent extends EventEmitter implements Agent {
         completedAt: task.completedAt,
       }
 
-      const result = await devopsAgent.executeTask(fullTask as any) as any
+      const result = (await devopsAgent.executeTask(fullTask as any)) as any
 
       return {
         output: result?.output || 'DevOps operations completed',
@@ -1151,7 +1186,10 @@ export class UniversalAgent extends EventEmitter implements Agent {
         filesModified: result?.filesModified || [],
       }
     } catch (error: any) {
-      await structuredLogger.error(`[UniversalAgent] DevOps operations delegation failed: ${error.message}`, 'UniversalAgent')
+      await structuredLogger.error(
+        `[UniversalAgent] DevOps operations delegation failed: ${error.message}`,
+        'UniversalAgent'
+      )
 
       return {
         output: `DevOps operations failed: ${error.message}`,
@@ -1328,10 +1366,7 @@ export class UniversalAgent extends EventEmitter implements Agent {
       const sharedContext = await sharedGuidanceManager.getGuidanceForTask(this.currentTaskType)
       this.guidance = sharedContext
     } catch (error: any) {
-      await structuredLogger.warning(
-        `Failed to load guidance files: ${error.message}`,
-        'Universal Agent'
-      )
+      await structuredLogger.warning(`Failed to load guidance files: ${error.message}`, 'Universal Agent')
       // Set empty guidance as fallback
       this.guidance = ''
     }
@@ -1671,9 +1706,7 @@ export class UniversalAgent extends EventEmitter implements Agent {
     // FIXED: Prevent learningDatabase unbounded growth
     if (this.learningDatabase.size > 1000) {
       // Keep top 500 most frequent patterns
-      const sorted = [...this.learningDatabase.entries()]
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 500)
+      const sorted = [...this.learningDatabase.entries()].sort((a, b) => b[1] - a[1]).slice(0, 500)
       this.learningDatabase.clear()
       sorted.forEach(([k, v]) => this.learningDatabase.set(k, v))
     }
@@ -1968,10 +2001,7 @@ export class UniversalAgent extends EventEmitter implements Agent {
       const routingResult = await this.baseAgentRouter.routeTask(task)
 
       if (routingResult.success) {
-        await structuredLogger.info(
-          `Task delegated successfully to ${routingResult.assignedAgent}`,
-          'Universal Agent'
-        )
+        await structuredLogger.info(`Task delegated successfully to ${routingResult.assignedAgent}`, 'Universal Agent')
 
         return {
           taskId: task.id,
@@ -1985,10 +2015,7 @@ export class UniversalAgent extends EventEmitter implements Agent {
       }
 
       // Delegation was attempted but no suitable agent found
-      await structuredLogger.info(
-        'No suitable specialized agent found, will use standard execution',
-        'Universal Agent'
-      )
+      await structuredLogger.info('No suitable specialized agent found, will use standard execution', 'Universal Agent')
 
       return {
         taskId: task.id,

@@ -4,8 +4,8 @@ import { readFile, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import chalk from 'chalk'
-import { AiSdkEmbeddingProvider, aiSdkEmbeddingProvider } from './ai-sdk-embedding-provider'
 import { configManager } from '../core/config-manager'
+import { AiSdkEmbeddingProvider, aiSdkEmbeddingProvider } from './ai-sdk-embedding-provider'
 
 export interface EmbeddingConfig {
   provider: 'openai' | 'google' | 'anthropic' | 'openrouter'
@@ -204,11 +204,7 @@ export class UnifiedEmbeddingInterface {
               })
             }
           } else {
-            console.warn(
-              chalk.yellow(
-                `⚠︎ No embedding vector generated for query index ${i}`
-              )
-            )
+            console.warn(chalk.yellow(`⚠︎ No embedding vector generated for query index ${i}`))
           }
         }
       } catch (error) {
@@ -359,7 +355,7 @@ export class UnifiedEmbeddingInterface {
     this.stats.cacheHitRate =
       this.stats.totalQueries > 0
         ? (this.stats.totalQueries - Object.values(this.stats.byProvider).reduce((sum, p) => sum + p.count, 0)) /
-        this.stats.totalQueries
+          this.stats.totalQueries
         : 0
 
     return { ...this.stats }
@@ -481,10 +477,7 @@ export class UnifiedEmbeddingInterface {
 
   private shouldWarnDimensions(expected: number, actual: number): boolean {
     if (!this.lastDimensionWarning) return true
-    return (
-      this.lastDimensionWarning.expected !== expected ||
-      this.lastDimensionWarning.actual !== actual
-    )
+    return this.lastDimensionWarning.expected !== expected || this.lastDimensionWarning.actual !== actual
   }
 
   private updateStats(result: EmbeddingResult, latency: number): void {

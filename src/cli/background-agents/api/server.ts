@@ -2,24 +2,24 @@
 
 import cors from 'cors'
 import express from 'express'
-import { rateLimit, ipKeyGenerator } from 'express-rate-limit'
+import { ipKeyGenerator, rateLimit } from 'express-rate-limit'
 import helmet from 'helmet'
 import { LRUCache } from 'lru-cache'
+import { simpleConfigManager } from '../../core/config-manager'
+import { type HealthChecker, prometheusExporter } from '../../monitoring'
 import { backgroundAgentService } from '../background-agent-service'
+import { getEnvironmentConfig } from '../config/env-validator'
 import { GitHubIntegration } from '../github/github-integration'
+import { SlackNotifier } from '../integrations/slack-notifier'
+import { errorHandler, notFoundHandler } from '../middleware/error-handler'
 import { JobQueue } from '../queue/job-queue'
 import { securityPolicy } from '../security/security-policy'
-import type { BackgroundJob, CreateBackgroundJobRequest, JobStatus } from '../types'
-import { setupWebRoutes } from './web-routes'
-import { slackRouter } from './slack-routes'
-import { BackgroundAgentsWebSocketServer } from './websocket-server'
-import { prometheusExporter, type HealthChecker } from '../../monitoring'
-import { simpleConfigManager } from '../../core/config-manager'
-import { SlackNotifier } from '../integrations/slack-notifier'
 import { ChatSessionService } from '../services/chat-session-service'
+import type { BackgroundJob, CreateBackgroundJobRequest, JobStatus } from '../types'
 import { createChatRouter } from './chat-routes'
-import { getEnvironmentConfig } from '../config/env-validator'
-import { errorHandler, notFoundHandler } from '../middleware/error-handler'
+import { slackRouter } from './slack-routes'
+import { setupWebRoutes } from './web-routes'
+import { BackgroundAgentsWebSocketServer } from './websocket-server'
 
 export interface APIServerConfig {
   port: number
@@ -164,9 +164,7 @@ export class BackgroundAgentsAPIServer {
       for (const pattern of allowedOrigins) {
         // Support wildcard pattern like 'https://*.vercel.app'
         if (pattern.includes('*')) {
-          const regexPattern = pattern
-            .replace(/\./g, '\\.')
-            .replace(/\*/g, '.*')
+          const regexPattern = pattern.replace(/\./g, '\\.').replace(/\*/g, '.*')
           const regex = new RegExp(`^${regexPattern}$`)
           if (regex.test(origin)) {
             return true
@@ -222,7 +220,10 @@ export class BackgroundAgentsAPIServer {
             res.header('Access-Control-Allow-Credentials', 'true')
           }
           res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH')
-          res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, X-AI-Provider, X-AI-Model, X-AI-Key')
+          res.header(
+            'Access-Control-Allow-Headers',
+            'Content-Type, Authorization, X-Requested-With, X-AI-Provider, X-AI-Model, X-AI-Key'
+          )
           res.header('Access-Control-Max-Age', '86400') // 24 hours
           console.log(`[CORS] ✓ OPTIONS preflight allowed for: ${req.path}`)
         } else {
@@ -375,7 +376,7 @@ export class BackgroundAgentsAPIServer {
           limit: '10mb',
           verify: (req: any, _res, buf, encoding) => {
             req.rawBody = buf.toString((encoding as BufferEncoding) || 'utf8')
-          }
+          },
         })(req, res, next)
       } else {
         // For other endpoints, use standard JSON parsing
@@ -625,7 +626,8 @@ export class BackgroundAgentsAPIServer {
         } else {
           res.status(400).json({
             error: 'Bad Request',
-            message: 'Missing AI provider credentials. Provide x-ai-provider and x-ai-key headers, or set OPENROUTER_API_KEY environment variable.',
+            message:
+              'Missing AI provider credentials. Provide x-ai-provider and x-ai-key headers, or set OPENROUTER_API_KEY environment variable.',
           })
           return
         }
@@ -673,7 +675,9 @@ export class BackgroundAgentsAPIServer {
       }
 
       // Create job
-      console.log(`[API] POST /v1/jobs - Creating job for repo: ${request.repo}, task: ${request.task.substring(0, 50)}...`)
+      console.log(
+        `[API] POST /v1/jobs - Creating job for repo: ${request.repo}, task: ${request.task.substring(0, 50)}...`
+      )
       const jobId = await backgroundAgentService.createJob(request)
       console.log(`[API] Job created with ID: ${jobId}`)
 
@@ -777,7 +781,7 @@ export class BackgroundAgentsAPIServer {
         throw new Error(`OpenRouter API error: ${response.status} ${response.statusText}`)
       }
 
-      const data = await response.json() as { data?: any[] }
+      const data = (await response.json()) as { data?: any[] }
       const models = Array.isArray(data.data) ? data.data : []
 
       // Filter and format models

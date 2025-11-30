@@ -3,7 +3,7 @@
  * Handles all errors in a consistent, production-ready way
  */
 
-import type { Request, Response, NextFunction } from 'express'
+import type { NextFunction, Request, Response } from 'express'
 
 /**
  * Custom error class with additional context
@@ -13,12 +13,7 @@ export class APIError extends Error {
   isOperational: boolean
   context?: Record<string, any>
 
-  constructor(
-    message: string,
-    statusCode: number = 500,
-    isOperational: boolean = true,
-    context?: Record<string, any>
-  ) {
+  constructor(message: string, statusCode: number = 500, isOperational: boolean = true, context?: Record<string, any>) {
     super(message)
     this.name = this.constructor.name
     this.statusCode = statusCode
@@ -172,12 +167,7 @@ function logError(error: Error | APIError, req: Request): void {
 /**
  * Express error handler middleware
  */
-export function errorHandler(
-  error: Error | APIError,
-  req: Request,
-  res: Response,
-  next: NextFunction
-): void {
+export function errorHandler(error: Error | APIError, req: Request, res: Response, next: NextFunction): void {
   // Log the error
   logError(error, req)
 
@@ -186,7 +176,7 @@ export function errorHandler(
   const includeStack = isDevelopment
 
   // Get request ID if available
-  const requestId = (req as any).id || req.headers['x-request-id'] as string
+  const requestId = (req as any).id || (req.headers['x-request-id'] as string)
 
   // Format error response
   const errorResponse = formatErrorResponse(error, requestId, includeStack)
@@ -207,9 +197,7 @@ export function errorHandler(
 /**
  * Async handler wrapper to catch errors in async route handlers
  */
-export function asyncHandler<T = any>(
-  fn: (req: Request, res: Response, next: NextFunction) => Promise<T>
-) {
+export function asyncHandler<T = any>(fn: (req: Request, res: Response, next: NextFunction) => Promise<T>) {
   return (req: Request, res: Response, next: NextFunction): void => {
     Promise.resolve(fn(req, res, next)).catch(next)
   }
@@ -250,7 +238,7 @@ export async function retryOperation<T>(
       }
 
       // Calculate delay with exponential backoff
-      const delay = delayMs * Math.pow(backoffMultiplier, attempt)
+      const delay = delayMs * backoffMultiplier ** attempt
       console.log(`[Retry] Attempt ${attempt + 1}/${maxRetries} failed. Retrying in ${delay}ms...`)
 
       await new Promise((resolve) => setTimeout(resolve, delay))
@@ -270,8 +258,6 @@ export async function withTimeout<T>(
 ): Promise<T> {
   return Promise.race([
     promise,
-    new Promise<T>((_, reject) =>
-      setTimeout(() => reject(new APIError(timeoutMessage, 408)), timeoutMs)
-    ),
+    new Promise<T>((_, reject) => setTimeout(() => reject(new APIError(timeoutMessage, 408)), timeoutMs)),
   ])
 }

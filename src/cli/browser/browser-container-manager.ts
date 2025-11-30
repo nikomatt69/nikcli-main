@@ -1,7 +1,7 @@
 import { EventEmitter } from 'node:events'
 import chalk from 'chalk'
-import { ContainerManager, type ContainerConfig, type ContainerStats } from '../virtualized-agents/container-manager'
 import { advancedUI } from '../ui/advanced-cli-ui'
+import { type ContainerConfig, ContainerManager, type ContainerStats } from '../virtualized-agents/container-manager'
 
 /**
  * BrowserContainerManager - Specialized container manager for browser automation
@@ -16,9 +16,9 @@ export class BrowserContainerManager extends ContainerManager {
   private activeBrowserContainers: Map<string, BrowserContainer> = new Map()
   // Production-ready image fallback strategy
   private readonly browserImages = [
-    'kasmweb/chrome:1.15.0',                        // Primary: Lightweight with VNC
-    'mcr.microsoft.com/playwright:v1.45.0-focal',   // Fallback: Official Playwright
-    'selenoid/vnc:chrome_131.0'                     // Emergency: Basic browser
+    'kasmweb/chrome:1.15.0', // Primary: Lightweight with VNC
+    'mcr.microsoft.com/playwright:v1.45.0-focal', // Fallback: Official Playwright
+    'selenoid/vnc:chrome_131.0', // Emergency: Basic browser
   ] as const
 
   private readonly baseNoVNCPort = 6080
@@ -111,7 +111,6 @@ export class BrowserContainerManager extends ContainerManager {
 
       this.emit('browser:created', browserContainer)
       return browserContainer
-
     } catch (error: any) {
       advancedUI.logFunctionUpdate('error', `Failed to create browser container: ${error.message}`, '✖')
       throw new Error(`Browser container creation failed: ${error.message}`)
@@ -134,7 +133,6 @@ export class BrowserContainerManager extends ContainerManager {
         container.lastActivity = new Date()
 
         advancedUI.logFunctionUpdate('success', 'Kasmweb browser environment ready', '✓')
-
       } else {
         // For other images, use manual initialization
         await this.initializeCustomBrowserEnvironment(container)
@@ -142,7 +140,6 @@ export class BrowserContainerManager extends ContainerManager {
 
       // Verify services are running
       await this.verifyBrowserServices(container)
-
     } catch (error: any) {
       container.status = 'error'
       advancedUI.logFunctionUpdate('error', `Browser initialization failed: ${error.message}`, '✖')
@@ -161,14 +158,20 @@ export class BrowserContainerManager extends ContainerManager {
     await this.delay(2000)
 
     // Start VNC server
-    await this.executeCommand(containerId, 'x11vnc -display :99 -nopw -listen localhost -xkb -rfbport 5900 > /dev/null 2>&1 &')
+    await this.executeCommand(
+      containerId,
+      'x11vnc -display :99 -nopw -listen localhost -xkb -rfbport 5900 > /dev/null 2>&1 &'
+    )
 
     // Start noVNC websocket proxy
     await this.executeCommand(containerId, 'websockify --web /usr/share/novnc 6080 localhost:5900 > /dev/null 2>&1 &')
     await this.delay(3000)
 
     // Start browser in headed mode
-    await this.executeCommand(containerId, 'DISPLAY=:99 google-chrome-stable --no-sandbox --disable-setuid-sandbox --disable-dev-shm-usage --remote-debugging-port=9222 --user-data-dir=/tmp/chrome-user-data > /dev/null 2>&1 &')
+    await this.executeCommand(
+      containerId,
+      'DISPLAY=:99 google-chrome-stable --no-sandbox --disable-setuid-sandbox --disable-dev-shm-usage --remote-debugging-port=9222 --user-data-dir=/tmp/chrome-user-data > /dev/null 2>&1 &'
+    )
     await this.delay(5000)
 
     container.status = 'ready'
@@ -196,7 +199,7 @@ export class BrowserContainerManager extends ContainerManager {
 
         const response = await fetch(checkUrl, {
           method: 'HEAD',
-          signal: AbortSignal.timeout(5000)
+          signal: AbortSignal.timeout(5000),
         })
 
         if (response.ok) {
@@ -205,10 +208,13 @@ export class BrowserContainerManager extends ContainerManager {
         } else {
           throw new Error(`Service returned status ${response.status}`)
         }
-
       } catch (error: any) {
         if (attempt === maxRetries) {
-          advancedUI.logFunctionUpdate('warning', `Service verification failed after ${maxRetries} attempts: ${error.message}`, '⚠︎')
+          advancedUI.logFunctionUpdate(
+            'warning',
+            `Service verification failed after ${maxRetries} attempts: ${error.message}`,
+            '⚠︎'
+          )
           // Don't throw - services might still work even if verification fails
         } else {
           advancedUI.logFunctionUpdate('info', `Retry ${attempt} failed, waiting...`, '⏳︎')
@@ -247,7 +253,6 @@ export class BrowserContainerManager extends ContainerManager {
 
       advancedUI.logFunctionUpdate('success', `Browser container stopped: ${container.name}`, '🛑')
       this.emit('browser:stopped', { containerId, name: container.name })
-
     } catch (error: any) {
       advancedUI.logFunctionUpdate('error', `Failed to stop browser container: ${error.message}`, '✖')
       throw error
@@ -337,7 +342,11 @@ export class BrowserContainerManager extends ContainerManager {
           await this.stopBrowserContainer(container.id)
           cleanedCount++
         } catch (error: any) {
-          advancedUI.logFunctionUpdate('warning', `Failed to cleanup inactive container ${container.name}: ${error.message}`, '⚠︎')
+          advancedUI.logFunctionUpdate(
+            'warning',
+            `Failed to cleanup inactive container ${container.name}: ${error.message}`,
+            '⚠︎'
+          )
         }
       }
     }
@@ -373,7 +382,6 @@ export class BrowserContainerManager extends ContainerManager {
       // Check available disk space (minimum 2GB for browser images)
       execSync('docker system df', { timeout: 3000, stdio: 'ignore' })
       advancedUI.logFunctionUpdate('info', 'Docker disk space checked', '💾')
-
     } catch (error: any) {
       if (error.message.includes('Cannot connect')) {
         throw new Error('Docker daemon is not running. Please start Docker Desktop or Docker service.')
@@ -408,23 +416,19 @@ export class BrowserContainerManager extends ContainerManager {
             // Use docker pull with progress and retry logic
             execSync(`docker pull ${image}`, {
               timeout: 300000, // 5 minutes for large images
-              stdio: 'pipe'
+              stdio: 'pipe',
             })
 
             // Verify the pull was successful
             execSync(`docker inspect ${image}`, { timeout: 3000, stdio: 'ignore' })
             advancedUI.logFunctionUpdate('success', `Image pulled successfully: ${image}`, '✓')
             return image
-
           } catch (pullError: any) {
             advancedUI.logFunctionUpdate('warning', `Failed to pull ${image}: ${pullError.message}`, '⚠︎')
-            continue
           }
         }
-
       } catch (error: any) {
         advancedUI.logFunctionUpdate('warning', `Image ${image} failed: ${error.message}`, '⚠︎')
-        continue
       }
     }
 
@@ -445,7 +449,11 @@ export class BrowserContainerManager extends ContainerManager {
   /**
    * Build environment variables for container
    */
-  private buildEnvironment(image: string, _ports: BrowserPorts, options: BrowserContainerOptions): Record<string, string> {
+  private buildEnvironment(
+    image: string,
+    _ports: BrowserPorts,
+    options: BrowserContainerOptions
+  ): Record<string, string> {
     const environment: Record<string, string> = {
       DISPLAY: ':99',
       SCREEN_WIDTH: (options.screenWidth || 1920).toString(),
@@ -470,9 +478,9 @@ export class BrowserContainerManager extends ContainerManager {
    */
   private buildPortMappings(ports: BrowserPorts): string[] {
     return [
-      `${ports.noVnc}:6901`,  // noVNC web interface (kasmweb default)
-      `${ports.vnc}:5901`,    // VNC server (kasmweb default)
-      `${ports.api}:9222`,    // Chrome DevTools API
+      `${ports.noVnc}:6901`, // noVNC web interface (kasmweb default)
+      `${ports.vnc}:5901`, // VNC server (kasmweb default)
+      `${ports.api}:9222`, // Chrome DevTools API
     ]
   }
 
@@ -511,7 +519,9 @@ export class BrowserContainerManager extends ContainerManager {
       server.on('error', () => {
         // Port is in use, try next one
         if (startPort < startPort + 100) {
-          this.findAvailablePortAsync(startPort + 1).then(resolve).catch(reject)
+          this.findAvailablePortAsync(startPort + 1)
+            .then(resolve)
+            .catch(reject)
         } else {
           reject(new Error(`No available ports found in range ${startPort}-${startPort + 100}`))
         }
@@ -520,7 +530,7 @@ export class BrowserContainerManager extends ContainerManager {
   }
 
   private delay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms))
+    return new Promise((resolve) => setTimeout(resolve, ms))
   }
 
   private setupEventHandlers(): void {

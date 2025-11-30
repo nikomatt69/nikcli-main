@@ -4,9 +4,9 @@
  * This prevents "No exports main defined" errors during dynamic imports
  */
 
-import { readFileSync, existsSync, writeFileSync } from 'node:fs'
-import { join, dirname, resolve, isAbsolute } from 'node:path'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
+import { dirname, isAbsolute, join, resolve } from 'node:path'
 
 interface PackageInfo {
   name: string
@@ -103,7 +103,7 @@ export function fixESMPackagesInNodeModules(nodeModulesPath: string): number {
   for (const pkgInfo of ESM_PACKAGES_TO_FIX) {
     // Try standard location first
     let packageJsonPath = join(nodeModulesPath, pkgInfo.name, 'package.json')
-    
+
     // If not found, try pnpm structure
     if (!existsSync(packageJsonPath)) {
       const pnpmPath = findPackageInPnpm(nodeModulesPath, pkgInfo.name)
@@ -123,13 +123,13 @@ export function fixESMPackagesInNodeModules(nodeModulesPath: string): number {
 /**
  * Auto-fix ESM packages when module resolution fails
  * This can be called before imports to proactively fix packages
- * 
+ *
  * @param basePath - Base path to search for node_modules (default: process.cwd())
  * @param silent - If true, don't log messages (default: false)
  */
 export function autoFixESMPackages(basePath: string = process.cwd(), silent: boolean = false): void {
   const nodeModulesPath = join(basePath, 'node_modules')
-  
+
   if (!existsSync(nodeModulesPath)) {
     if (!silent) {
       console.log(`ℹ️  No node_modules found at ${basePath}, skipping ESM fix`)
@@ -147,7 +147,7 @@ export function autoFixESMPackages(basePath: string = process.cwd(), silent: boo
  * Safe dynamic import wrapper that automatically fixes ESM errors
  * Use this for node modules or when you need ESM error handling
  * For relative imports, use direct import() from the calling file instead
- * 
+ *
  * @param modulePath - Module path (node module name or absolute path)
  * @param basePath - Base path for fixing ESM packages (default: process.cwd())
  * @param retries - Number of retry attempts (default: 2)
@@ -168,7 +168,7 @@ export async function safeDynamicImport<T = any>(
       if (attempt > 0) {
         autoFixESMPackages(basePath)
         // Small delay to ensure file system writes are flushed
-        await new Promise(resolve => setTimeout(resolve, 100))
+        await new Promise((resolve) => setTimeout(resolve, 100))
       }
 
       // Use direct import - it will resolve correctly for node modules
@@ -187,7 +187,7 @@ export async function safeDynamicImport<T = any>(
       if (isESMError && attempt < retries) {
         // Try to fix packages and retry
         autoFixESMPackages(basePath)
-        await new Promise(resolve => setTimeout(resolve, 100))
+        await new Promise((resolve) => setTimeout(resolve, 100))
         continue
       }
 
@@ -198,4 +198,3 @@ export async function safeDynamicImport<T = any>(
 
   throw lastError
 }
-

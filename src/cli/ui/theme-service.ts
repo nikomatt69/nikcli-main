@@ -1,5 +1,5 @@
-import chalk from 'chalk'
 import type { ChalkInstance } from 'chalk'
+import chalk from 'chalk'
 
 export interface UITheme {
   name: string
@@ -190,12 +190,3 @@ export class ThemeService {
 
 // Export singleton instance
 export const themeService = new ThemeService()
-
-
-
-
-
-
-
-
-

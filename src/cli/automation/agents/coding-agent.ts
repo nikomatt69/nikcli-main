@@ -2,12 +2,12 @@ import chalk from 'chalk'
 import { nanoid } from 'nanoid'
 import { z } from 'zod'
 import { type ChatMessage, modelProvider } from '../../ai/model-provider'
+import { advancedUI } from '../../ui/advanced-cli-ui'
 import { CliUI } from '../../utils/cli-ui'
 import type { AgentTask } from './agent-router'
 import type { AgentTaskResult } from './base-agent'
 import { CognitiveAgentBase } from './cognitive-agent-base'
 import type { CodingCognition, OrchestrationPlan, TaskCognition } from './cognitive-interfaces'
-import { advancedUI } from '../../ui/advanced-cli-ui'
 
 const CodeAnalysisSchema = z.object({
   language: z.string(),

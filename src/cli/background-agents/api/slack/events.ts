@@ -1,6 +1,7 @@
 // api/slack/events.ts
-import { Router, Request, Response } from 'express'
+
 import crypto from 'node:crypto'
+import { type Request, type Response, Router } from 'express'
 import { EnhancedSlackService } from '../../../integrations/slack/slack-service'
 
 /**
@@ -51,7 +52,7 @@ export default async function handler(req: Request, res: Response) {
       // Handle app_mention event
       if (event.type === 'app_mention') {
         // Process asynchronously to avoid Slack timeout
-        processAppMention(event).catch(error => {
+        processAppMention(event).catch((error) => {
           console.error('✖ Error processing app_mention:', error)
         })
 

@@ -1,6 +1,6 @@
-import { Command } from 'commander'
-import chalk from 'chalk'
 import boxen from 'boxen'
+import chalk from 'chalk'
+import { Command } from 'commander'
 import { browseGPTService } from '../services/browsegpt-service'
 import { advancedUI } from '../ui/advanced-cli-ui'
 
@@ -11,9 +11,7 @@ import { advancedUI } from '../ui/advanced-cli-ui'
  */
 
 export function createBrowseCommands(): Command {
-  const browse = new Command('browse')
-    .description('AI-powered web browsing with Browserbase')
-    .alias('web')
+  const browse = new Command('browse').description('AI-powered web browsing with Browserbase').alias('web')
 
   // Create session command
   browse
@@ -29,18 +27,20 @@ export function createBrowseCommands(): Command {
 
         advancedUI.stopSpinner(spinnerId, true, 'Session created')
 
-        console.log(boxen(
-          chalk.green('✓ Browsing Session Created') + '\n\n' +
-          chalk.white(`Session ID: ${chalk.cyan(sessionId)}\n`) +
-          chalk.gray('Use this session ID for all browse commands'),
-          {
-            padding: 1,
-            margin: 1,
-            borderStyle: 'round',
-            borderColor: 'green'
-          }
-        ))
-
+        console.log(
+          boxen(
+            chalk.green('✓ Browsing Session Created') +
+              '\n\n' +
+              chalk.white(`Session ID: ${chalk.cyan(sessionId)}\n`) +
+              chalk.gray('Use this session ID for all browse commands'),
+            {
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'green',
+            }
+          )
+        )
       } catch (error: any) {
         console.error(chalk.red('✖ Failed to create session:'), error.message)
         process.exit(1)
@@ -62,17 +62,20 @@ export function createBrowseCommands(): Command {
 
         advancedUI.stopSpinner(spinnerId, true, 'Search complete')
 
-        console.log(boxen(
-          chalk.blue('🔍 Search Results') + '\n\n' +
-          chalk.white(`Query: ${chalk.cyan(query)}\n`) +
-          chalk.white(`Found: ${chalk.green(results.results.length)} results`),
-          {
-            padding: 1,
-            margin: 1,
-            borderStyle: 'round',
-            borderColor: 'blue'
-          }
-        ))
+        console.log(
+          boxen(
+            chalk.blue('🔍 Search Results') +
+              '\n\n' +
+              chalk.white(`Query: ${chalk.cyan(query)}\n`) +
+              chalk.white(`Found: ${chalk.green(results.results.length)} results`),
+            {
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'blue',
+            }
+          )
+        )
 
         if (options.showResults && results.results.length > 0) {
           console.log('\n' + chalk.bold('Top Results:'))
@@ -84,7 +87,6 @@ export function createBrowseCommands(): Command {
             }
           })
         }
-
       } catch (error: any) {
         console.error(chalk.red('✖ Search failed:'), error.message)
         process.exit(1)
@@ -103,26 +105,25 @@ export function createBrowseCommands(): Command {
         const spinnerId = advancedUI.createIndicator('browse-visit', 'Visiting page').id
         advancedUI.startSpinner(spinnerId, `Visiting: ${url}`)
 
-        const content = await browseGPTService.getPageContent(
-          options.session,
-          url,
-          options.prompt
-        )
+        const content = await browseGPTService.getPageContent(options.session, url, options.prompt)
 
         advancedUI.stopSpinner(spinnerId, true, 'Page loaded')
 
-        console.log(boxen(
-          chalk.green('📄 Page Content Extracted') + '\n\n' +
-          chalk.white(`Title: ${chalk.cyan(content.title)}\n`) +
-          chalk.white(`URL: ${chalk.gray(content.url)}\n`) +
-          chalk.white(`Text Length: ${chalk.yellow(content.text.length)} characters`),
-          {
-            padding: 1,
-            margin: 1,
-            borderStyle: 'round',
-            borderColor: 'green'
-          }
-        ))
+        console.log(
+          boxen(
+            chalk.green('📄 Page Content Extracted') +
+              '\n\n' +
+              chalk.white(`Title: ${chalk.cyan(content.title)}\n`) +
+              chalk.white(`URL: ${chalk.gray(content.url)}\n`) +
+              chalk.white(`Text Length: ${chalk.yellow(content.text.length)} characters`),
+            {
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'green',
+            }
+          )
+        )
 
         if (content.summary) {
           console.log('\n' + chalk.bold('AI Summary:'))
@@ -133,7 +134,6 @@ export function createBrowseCommands(): Command {
           console.log('\n' + chalk.bold('Extracted Content:'))
           console.log(chalk.dim(content.text.slice(0, 500) + '...'))
         }
-
       } catch (error: any) {
         console.error(chalk.red('✖ Failed to visit page:'), error.message)
         process.exit(1)
@@ -154,17 +154,14 @@ export function createBrowseCommands(): Command {
 
         advancedUI.stopSpinner(spinnerId, true, 'Response received')
 
-        console.log(boxen(
-          chalk.blue('🤖 AI Response') + '\n\n' +
-          chalk.white(response),
-          {
+        console.log(
+          boxen(chalk.blue('🤖 AI Response') + '\n\n' + chalk.white(response), {
             padding: 1,
             margin: 1,
             borderStyle: 'round',
-            borderColor: 'blue'
-          }
-        ))
-
+            borderColor: 'blue',
+          })
+        )
       } catch (error: any) {
         console.error(chalk.red('✖ Chat failed:'), error.message)
         process.exit(1)
@@ -184,24 +181,29 @@ export function createBrowseCommands(): Command {
           return
         }
 
-        console.log(boxen(
-          chalk.blue('🌐 Active Browsing Sessions') + '\n\n' +
-          sessions.map(session =>
-            `${chalk.cyan(session.id)}\n` +
-            `  Browser: ${chalk.gray(session.browserId.slice(0, 12))}...\n` +
-            `  Created: ${chalk.yellow(session.created.toLocaleString())}\n` +
-            `  Activity: ${chalk.yellow(session.lastActivity.toLocaleString())}\n` +
-            `  History: ${chalk.green(session.historyCount)} items\n` +
-            `  Status: ${session.active ? chalk.green('Active') : chalk.red('Inactive')}`
-          ).join('\n\n'),
-          {
-            padding: 1,
-            margin: 1,
-            borderStyle: 'round',
-            borderColor: 'blue'
-          }
-        ))
-
+        console.log(
+          boxen(
+            chalk.blue('🌐 Active Browsing Sessions') +
+              '\n\n' +
+              sessions
+                .map(
+                  (session) =>
+                    `${chalk.cyan(session.id)}\n` +
+                    `  Browser: ${chalk.gray(session.browserId.slice(0, 12))}...\n` +
+                    `  Created: ${chalk.yellow(session.created.toLocaleString())}\n` +
+                    `  Activity: ${chalk.yellow(session.lastActivity.toLocaleString())}\n` +
+                    `  History: ${chalk.green(session.historyCount)} items\n` +
+                    `  Status: ${session.active ? chalk.green('Active') : chalk.red('Inactive')}`
+                )
+                .join('\n\n'),
+            {
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'blue',
+            }
+          )
+        )
       } catch (error: any) {
         console.error(chalk.red('✖ Failed to list sessions:'), error.message)
         process.exit(1)
@@ -221,21 +223,23 @@ export function createBrowseCommands(): Command {
           return
         }
 
-        console.log(boxen(
-          chalk.blue(`📊 Session Info: ${sessionId}`) + '\n\n' +
-          chalk.white(`Browser ID: ${chalk.gray(info.browserId)}\n`) +
-          chalk.white(`Created: ${chalk.yellow(info.created.toLocaleString())}\n`) +
-          chalk.white(`Last Activity: ${chalk.yellow(info.lastActivity.toLocaleString())}\n`) +
-          chalk.white(`History Items: ${chalk.green(info.historyCount)}\n`) +
-          chalk.white(`Status: ${info.active ? chalk.green('Active') : chalk.red('Inactive')}`),
-          {
-            padding: 1,
-            margin: 1,
-            borderStyle: 'round',
-            borderColor: 'blue'
-          }
-        ))
-
+        console.log(
+          boxen(
+            chalk.blue(`📊 Session Info: ${sessionId}`) +
+              '\n\n' +
+              chalk.white(`Browser ID: ${chalk.gray(info.browserId)}\n`) +
+              chalk.white(`Created: ${chalk.yellow(info.created.toLocaleString())}\n`) +
+              chalk.white(`Last Activity: ${chalk.yellow(info.lastActivity.toLocaleString())}\n`) +
+              chalk.white(`History Items: ${chalk.green(info.historyCount)}\n`) +
+              chalk.white(`Status: ${info.active ? chalk.green('Active') : chalk.red('Inactive')}`),
+            {
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'blue',
+            }
+          )
+        )
       } catch (error: any) {
         console.error(chalk.red('✖ Failed to get session info:'), error.message)
         process.exit(1)
@@ -255,17 +259,17 @@ export function createBrowseCommands(): Command {
 
         advancedUI.stopSpinner(spinnerId, true, 'Session closed')
 
-        console.log(boxen(
-          chalk.green(`✓ Session Closed`) + '\n\n' +
-          chalk.white(`Session ${chalk.cyan(sessionId)} has been closed`),
-          {
-            padding: 1,
-            margin: 1,
-            borderStyle: 'round',
-            borderColor: 'green'
-          }
-        ))
-
+        console.log(
+          boxen(
+            chalk.green(`✓ Session Closed`) + '\n\n' + chalk.white(`Session ${chalk.cyan(sessionId)} has been closed`),
+            {
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'green',
+            }
+          )
+        )
       } catch (error: any) {
         console.error(chalk.red('✖ Failed to close session:'), error.message)
         process.exit(1)
@@ -285,17 +289,19 @@ export function createBrowseCommands(): Command {
 
         advancedUI.stopSpinner(spinnerId, true, 'Cleanup complete')
 
-        console.log(boxen(
-          chalk.green(`🧹 Cleanup Complete`) + '\n\n' +
-          chalk.white(`Cleaned up ${chalk.yellow(cleaned)} inactive sessions`),
-          {
-            padding: 1,
-            margin: 1,
-            borderStyle: 'round',
-            borderColor: 'green'
-          }
-        ))
-
+        console.log(
+          boxen(
+            chalk.green(`🧹 Cleanup Complete`) +
+              '\n\n' +
+              chalk.white(`Cleaned up ${chalk.yellow(cleaned)} inactive sessions`),
+            {
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'green',
+            }
+          )
+        )
       } catch (error: any) {
         console.error(chalk.red('✖ Cleanup failed:'), error.message)
         process.exit(1)
@@ -326,11 +332,7 @@ export function createBrowseCommands(): Command {
 
         // Visit first result
         const firstResult = searchResults.results[0]
-        const content = await browseGPTService.getPageContent(
-          sessionId,
-          firstResult.url,
-          options.prompt
-        )
+        const content = await browseGPTService.getPageContent(sessionId, firstResult.url, options.prompt)
 
         // Chat about it
         const chatResponse = await browseGPTService.chatWithWeb(
@@ -340,24 +342,26 @@ export function createBrowseCommands(): Command {
 
         advancedUI.stopSpinner(spinnerId, true, 'Quick browse complete')
 
-        console.log(boxen(
-          chalk.blue('⚡ Quick Browse Results') + '\n\n' +
-          chalk.white(`Query: ${chalk.cyan(query)}\n`) +
-          chalk.white(`Visited: ${chalk.yellow(content.title)}\n`) +
-          chalk.white(`URL: ${chalk.gray(firstResult.url)}\n\n`) +
-          chalk.bold('AI Analysis:\n') +
-          chalk.white(chatResponse),
-          {
-            padding: 1,
-            margin: 1,
-            borderStyle: 'round',
-            borderColor: 'blue'
-          }
-        ))
+        console.log(
+          boxen(
+            chalk.blue('⚡ Quick Browse Results') +
+              '\n\n' +
+              chalk.white(`Query: ${chalk.cyan(query)}\n`) +
+              chalk.white(`Visited: ${chalk.yellow(content.title)}\n`) +
+              chalk.white(`URL: ${chalk.gray(firstResult.url)}\n\n`) +
+              chalk.bold('AI Analysis:\n') +
+              chalk.white(chatResponse),
+            {
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'blue',
+            }
+          )
+        )
 
         // Close session
         await browseGPTService.closeSession(sessionId)
-
       } catch (error: any) {
         console.error(chalk.red('✖ Quick browse failed:'), error.message)
         process.exit(1)

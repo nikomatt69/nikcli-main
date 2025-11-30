@@ -177,10 +177,7 @@ export class ToolsManager {
             })
           }
         })
-      } catch (_error) {
-        // Skip files that can't be read
-        continue
-      }
+      } catch (_error) {}
     }
 
     return results
@@ -309,7 +306,7 @@ export class ToolsManager {
     options: { global?: boolean; dev?: boolean; manager?: 'npm' | 'yarn' | 'pnpm' } = {}
   ): Promise<boolean> {
     const manager = options.manager || 'npm'
-    let command = manager
+    const command = manager
     let args: string[] = []
 
     switch (manager) {
@@ -538,17 +535,17 @@ export class ToolsManager {
     try {
       const npmResult = await this.runCommand('npm', ['--version'])
       npmVersion = npmResult.stdout.trim()
-    } catch { }
+    } catch {}
 
     try {
       const gitResult = await this.runCommand('git', ['--version'])
       gitVersion = gitResult.stdout.match(/git version ([\d.]+)/)?.[1]
-    } catch { }
+    } catch {}
 
     try {
       const dockerResult = await this.runCommand('docker', ['--version'])
       dockerVersion = dockerResult.stdout.match(/Docker version ([\d.]+)/)?.[1]
-    } catch { }
+    } catch {}
 
     return {
       platform,
@@ -608,7 +605,7 @@ export class ToolsManager {
       if (!options.file) {
         try {
           fs.unlinkSync(tempFile)
-        } catch { }
+        } catch {}
       }
 
       return {
@@ -769,7 +766,7 @@ export class ToolsManager {
 
     let packageInfo
     let framework
-    let technologies: string[] = []
+    const technologies: string[] = []
 
     try {
       const pkg = await this.readFile('package.json')

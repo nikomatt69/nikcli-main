@@ -4,8 +4,8 @@
  * This must be imported at the very beginning of the CLI
  */
 
-import { SecretsManager } from './config/secrets-manager'
 import { getProviderConfig } from './config/secrets-config'
+import { SecretsManager } from './config/secrets-manager'
 
 /**
  * Initialize embedded secrets synchronously

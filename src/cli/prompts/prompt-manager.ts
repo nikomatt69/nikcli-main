@@ -2,8 +2,8 @@ import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { type TokenOptimizationConfig, TokenOptimizer } from '../core/performance-optimizer'
 import type { OutputStyle } from '../types/output-styles'
-import { CliUI } from '../utils/cli-ui'
 import { advancedUI } from '../ui/advanced-cli-ui'
+import { CliUI } from '../utils/cli-ui'
 
 /**
  * PromptManager - Sistema per gestire e caricare system prompts specifici

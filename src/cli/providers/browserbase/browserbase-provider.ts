@@ -379,8 +379,7 @@ export class BrowserbaseProvider extends EventEmitter {
    * Analyze content with Claude
    */
   private async analyzeWithClaude(content: BrowserbaseContentResult, options: any): Promise<BrowserbaseAIAnalysis> {
-    const apiKey =
-      simpleConfigManager.getApiKey('openrouter') || simpleConfigManager.getApiKey('@preset/nikcli')
+    const apiKey = simpleConfigManager.getApiKey('openrouter') || simpleConfigManager.getApiKey('@preset/nikcli')
 
     if (!apiKey) {
       throw new Error('Anthropic API key not configured')
@@ -637,26 +636,26 @@ export class BrowserbaseProvider extends EventEmitter {
       const anthropicKey =
         simpleConfigManager.getApiKey('claude-3-5-sonnet-latest') || simpleConfigManager.getApiKey('anthropic')
       if (anthropicKey) providers.push('claude')
-    } catch { }
+    } catch {}
 
     // Check OpenAI
     try {
       const openaiKey = simpleConfigManager.getApiKey('gpt-4o') || simpleConfigManager.getApiKey('openai')
       if (openaiKey) providers.push('openai')
-    } catch { }
+    } catch {}
 
     // Check Google
     try {
       const googleKey = simpleConfigManager.getApiKey('gemini-1.5-pro') || simpleConfigManager.getApiKey('google')
       if (googleKey) providers.push('google')
-    } catch { }
+    } catch {}
 
     // Check OpenRouter
     try {
       const openrouterKey =
         simpleConfigManager.getApiKey('openrouter') || simpleConfigManager.getApiKey('OPENROUTER_API_KEY')
       if (openrouterKey) providers.push('openrouter')
-    } catch { }
+    } catch {}
 
     return providers
   }

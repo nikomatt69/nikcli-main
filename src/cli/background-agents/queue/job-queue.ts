@@ -1,8 +1,8 @@
 // src/cli/background-agents/queue/job-queue.ts
 
 import { EventEmitter } from 'node:events'
-import IORedis from 'ioredis'
 import { Redis as UpstashRedis } from '@upstash/redis'
+import IORedis from 'ioredis'
 import type { QueueStats } from '../types'
 
 export interface QueueConfig {
@@ -268,7 +268,7 @@ export class JobQueue extends EventEmitter {
         // Gracefully degrade to local queue if Redis disconnects/errors
         try {
           this.redis?.disconnect()
-        } catch { }
+        } catch {}
         this.redis = undefined
         this.config.type = 'local'
         console.warn('⚠︎  Background agents: Falling back to local queue')

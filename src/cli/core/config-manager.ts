@@ -187,9 +187,7 @@ const ConfigSchema = z.object({
   embeddingProvider: z
     .object({
       default: z.enum(['openai', 'google', 'anthropic', 'openrouter']).default('openai'),
-      fallbackChain: z
-        .array(z.enum(['openai', 'google', 'anthropic', 'openrouter']))
-        .default(['openai', 'openrouter']),
+      fallbackChain: z.array(z.enum(['openai', 'google', 'anthropic', 'openrouter'])).default(['openai', 'openrouter']),
       costOptimization: z.boolean().default(true),
       autoSwitchOnFailure: z.boolean().default(true),
     })
@@ -452,23 +450,27 @@ const ConfigSchema = z.object({
   // Sandbox Approvals - Persistent user approvals for dangerous operations
   sandboxApprovals: z
     .object({
-      approvedPaths: z.array(
-        z.object({
-          path: z.string().describe('File or directory path'),
-          operation: z.enum(['read', 'write', 'delete']).describe('Operation type'),
-          toolName: z.string().describe('Tool that requested approval'),
-          timestamp: z.string().describe('When approval was granted'),
-          expiresAt: z.string().optional().describe('Optional expiration date'),
-        })
-      ).default([]),
-      approvedCommands: z.array(
-        z.object({
-          command: z.string().describe('Command pattern (supports wildcards)'),
-          toolName: z.string().describe('Tool that requested approval'),
-          timestamp: z.string().describe('When approval was granted'),
-          expiresAt: z.string().optional().describe('Optional expiration date'),
-        })
-      ).default([]),
+      approvedPaths: z
+        .array(
+          z.object({
+            path: z.string().describe('File or directory path'),
+            operation: z.enum(['read', 'write', 'delete']).describe('Operation type'),
+            toolName: z.string().describe('Tool that requested approval'),
+            timestamp: z.string().describe('When approval was granted'),
+            expiresAt: z.string().optional().describe('Optional expiration date'),
+          })
+        )
+        .default([]),
+      approvedCommands: z
+        .array(
+          z.object({
+            command: z.string().describe('Command pattern (supports wildcards)'),
+            toolName: z.string().describe('Tool that requested approval'),
+            timestamp: z.string().describe('When approval was granted'),
+            expiresAt: z.string().optional().describe('Optional expiration date'),
+          })
+        )
+        .default([]),
       rememberChoices: z.boolean().default(true).describe('Save user approvals to config'),
       expirationDays: z.number().min(1).max(365).default(30).describe('Days until approval expires'),
     })
@@ -796,14 +798,20 @@ const ConfigSchema = z.object({
                 .object({
                   enabled: z.boolean().default(false).describe('Enable Slack alerts'),
                   webhookUrl: z.string().optional().describe('Slack webhook URL'),
-                  minSeverity: z.enum(['low', 'medium', 'high', 'critical']).default('high').describe('Minimum severity'),
+                  minSeverity: z
+                    .enum(['low', 'medium', 'high', 'critical'])
+                    .default('high')
+                    .describe('Minimum severity'),
                 })
                 .optional(),
               discord: z
                 .object({
                   enabled: z.boolean().default(false).describe('Enable Discord alerts'),
                   webhookUrl: z.string().optional().describe('Discord webhook URL'),
-                  minSeverity: z.enum(['low', 'medium', 'high', 'critical']).default('high').describe('Minimum severity'),
+                  minSeverity: z
+                    .enum(['low', 'medium', 'high', 'critical'])
+                    .default('high')
+                    .describe('Minimum severity'),
                 })
                 .optional(),
             })
@@ -1675,7 +1683,6 @@ export class SimpleConfigManager {
         enabled: true,
         checkIntervalMs: 30000,
       },
-
     },
 
     apiKeys: {},
@@ -1743,7 +1750,6 @@ export class SimpleConfigManager {
         'registry-1.docker.io',
         'docker.io',
         'hub.docker.com',
-
       ],
     },
     sandboxApprovals: {
@@ -2042,7 +2048,6 @@ export class SimpleConfigManager {
 
       // Handle secrets that need user confirmation
       if (secretsToOverwrite.length > 0) {
-
         changed = true
       }
 
@@ -2058,8 +2063,6 @@ export class SimpleConfigManager {
       }
     }
   }
-
-
 
   private saveConfig(): void {
     try {
@@ -2080,6 +2083,10 @@ export class SimpleConfigManager {
 
   getAll(): ConfigType {
     return { ...this.config }
+  }
+
+  getAllModels(): Record<string, ModelConfig> {
+    return this.config.models
   }
 
   setAll(newConfig: ConfigType): void {
@@ -2242,15 +2249,17 @@ export class SimpleConfigManager {
 
     // Validate against OpenRouter API asynchronously (non-blocking)
     if (this.isOpenRouterModelId(model)) {
-      void this.validateOpenRouterModelExists(model).then((ok) => {
-        if (!ok) {
-          console.warn(
-            chalk.yellow(
-              `Warning: OpenRouter API did not return model '${model}'. It may be new, private, or unavailable.`,
-            ),
-          )
-        }
-      }).catch(() => { })
+      void this.validateOpenRouterModelExists(model)
+        .then((ok) => {
+          if (!ok) {
+            console.warn(
+              chalk.yellow(
+                `Warning: OpenRouter API did not return model '${model}'. It may be new, private, or unavailable.`
+              )
+            )
+          }
+        })
+        .catch(() => {})
     }
   }
 
@@ -2268,9 +2277,7 @@ export class SimpleConfigManager {
     return this.config.currentRerankingModel || 'sentence-transformers/paraphrase-minilm-l6-v2'
   }
 
-  getEmbeddingModelConfig(
-    model: string
-  ): z.infer<typeof EmbeddingModelConfigSchema> | undefined {
+  getEmbeddingModelConfig(model: string): z.infer<typeof EmbeddingModelConfigSchema> | undefined {
     const existing = this.config.embeddingModels?.[model]
     if (existing) return existing
 
@@ -2293,9 +2300,7 @@ export class SimpleConfigManager {
     return undefined
   }
 
-  getRerankingModelConfig(
-    model: string
-  ): z.infer<typeof RerankingModelConfigSchema> | undefined {
+  getRerankingModelConfig(model: string): z.infer<typeof RerankingModelConfigSchema> | undefined {
     const existing = this.config.rerankingModels?.[model]
     if (existing) return existing
 
@@ -2316,12 +2321,8 @@ export class SimpleConfigManager {
     return undefined
   }
 
-  setEmbeddingModelConfig(
-    model: string,
-    config: Partial<z.infer<typeof EmbeddingModelConfigSchema>>
-  ): void {
-    const baseConfig =
-      this.config.embeddingModels?.[model] ||
+  setEmbeddingModelConfig(model: string, config: Partial<z.infer<typeof EmbeddingModelConfigSchema>>): void {
+    const baseConfig = this.config.embeddingModels?.[model] ||
       this.getEmbeddingModelConfig(model) || {
         provider: this.inferEmbeddingProvider(model),
         model,
@@ -2336,7 +2337,8 @@ export class SimpleConfigManager {
         model,
         baseURL: config.baseURL || baseConfig.baseURL,
         headers: config.headers || baseConfig.headers,
-        dimensions: config.dimensions ?? baseConfig.dimensions ?? this.getDefaultEmbeddingDimensions(baseConfig.provider),
+        dimensions:
+          config.dimensions ?? baseConfig.dimensions ?? this.getDefaultEmbeddingDimensions(baseConfig.provider),
         maxTokens: config.maxTokens ?? baseConfig.maxTokens ?? 8191,
         batchSize: config.batchSize ?? baseConfig.batchSize ?? 256,
         costPer1KTokens: config.costPer1KTokens ?? baseConfig.costPer1KTokens ?? 0,
@@ -2345,15 +2347,11 @@ export class SimpleConfigManager {
     this.saveConfig()
   }
 
-  setRerankingModelConfig(
-    model: string,
-    config: Partial<z.infer<typeof RerankingModelConfigSchema>>
-  ): void {
-    const baseConfig =
-      this.config.rerankingModels?.[model] || {
-        provider: 'openrouter',
-        model,
-      }
+  setRerankingModelConfig(model: string, config: Partial<z.infer<typeof RerankingModelConfigSchema>>): void {
+    const baseConfig = this.config.rerankingModels?.[model] || {
+      provider: 'openrouter',
+      model,
+    }
 
     this.config.rerankingModels = {
       ...this.config.rerankingModels,
@@ -2479,10 +2477,7 @@ export class SimpleConfigManager {
     }
   }
 
-  private ensureEmbeddingModel(
-    model: string,
-    config?: Partial<z.infer<typeof EmbeddingModelConfigSchema>>
-  ): void {
+  private ensureEmbeddingModel(model: string, config?: Partial<z.infer<typeof EmbeddingModelConfigSchema>>): void {
     if (!this.config.embeddingModels) {
       this.config.embeddingModels = { ...this.defaultEmbeddingModels }
     }
@@ -2495,10 +2490,7 @@ export class SimpleConfigManager {
     }
   }
 
-  private ensureRerankingModel(
-    model: string,
-    config?: Partial<z.infer<typeof RerankingModelConfigSchema>>
-  ): void {
+  private ensureRerankingModel(model: string, config?: Partial<z.infer<typeof RerankingModelConfigSchema>>): void {
     if (!this.config.rerankingModels) {
       this.config.rerankingModels = {}
     }
@@ -2636,7 +2628,8 @@ export class SimpleConfigManager {
     const nikdriveConfig = this.config.nikdrive
 
     return {
-      endpoint: nikdriveConfig.endpoint || process.env.NIKDRIVE_ENDPOINT || 'https://nikcli-drive-production.up.railway.app',
+      endpoint:
+        nikdriveConfig.endpoint || process.env.NIKDRIVE_ENDPOINT || 'https://nikcli-drive-production.up.railway.app',
       apiKey: nikdriveConfig.apiKey || process.env.NIKDRIVE_API_KEY,
     }
   }
@@ -2880,7 +2873,7 @@ export class SimpleConfigManager {
       })
 
       if (!res.ok) return new Set()
-      const data = await res.json() as { data?: Array<{ id?: string }> }
+      const data = (await res.json()) as { data?: Array<{ id?: string }> }
       const ids = new Set<string>()
       const list = Array.isArray(data?.data) ? data.data : []
       for (const item of list) {
@@ -2974,11 +2967,7 @@ export function getMermaidRenderingPreferences() {
 export async function loadUserAdsConfigFromDatabase(userId: string, supabase: any): Promise<void> {
   try {
     const config = simpleConfigManager.getSupabaseConfig()
-    const { data } = await supabase
-      .from(config.tables.userAdsConfig)
-      .select('*')
-      .eq('user_id', userId)
-      .single()
+    const { data } = await supabase.from(config.tables.userAdsConfig).select('*').eq('user_id', userId).single()
 
     if (data) {
       const config = simpleConfigManager.getAll()

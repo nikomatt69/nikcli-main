@@ -61,16 +61,12 @@ export class AgentManager extends EventEmitter {
         this.onGuidanceUpdated(context)
       })
     }
-
-
   }
 
   /**
    * Register an agent in the system
    */
   async registerAgent(agent: Agent): Promise<void> {
-
-
     // Initialize agent with context
     const context = await this.buildAgentContext(agent)
     await agent.initialize(context)
@@ -87,8 +83,6 @@ export class AgentManager extends EventEmitter {
       timestamp: new Date(),
       data: { agent: this.getAgentInfo(agent) },
     } as AgentEvent)
-
-
   }
 
   /**
@@ -100,8 +94,6 @@ export class AgentManager extends EventEmitter {
       metadata,
       isEnabled: true,
     })
-
-
   }
 
   /**
@@ -227,8 +219,6 @@ export class AgentManager extends EventEmitter {
    * Schedule a task for execution
    */
   async scheduleTask(task: AgentTask, preferredAgentId?: string): Promise<string> {
-
-
     let agent: Agent | null = null
 
     // Use preferred agent if specified
@@ -249,9 +239,6 @@ export class AgentManager extends EventEmitter {
     const queue = this.taskQueues.get(agent.id) || []
     queue.push(task)
     this.taskQueues.set(agent.id, queue)
-
-
-
 
     // FIXED: Added error handling to async setImmediate (ERR-034)
     // Start execution if agent is available
@@ -314,7 +301,6 @@ export class AgentManager extends EventEmitter {
 
       // Store result
       this.taskHistory.set(task.id, result)
-
 
       return result
     } catch (error: any) {
@@ -720,7 +706,7 @@ export class AgentManager extends EventEmitter {
       activeAgents: Array.from(this.agents.values()),
       activeTaskCount: this.activeTaskCount,
       queueSizes: new Map(this.taskQueues),
-      taskHistory: new Map(this.taskHistory)
+      taskHistory: new Map(this.taskHistory),
     }
   }
 }

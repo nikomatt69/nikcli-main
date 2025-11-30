@@ -1,9 +1,9 @@
-import * as readline from 'readline'
-import { Buffer } from 'buffer'
 import { Writable } from 'node:stream'
-import { AnsiStripper } from '../utils/ansi-strip'
+import { Buffer } from 'buffer'
+import * as readline from 'readline'
 import { fixedPromptManager } from '../ui/fixed-prompt-manager'
 import { terminalOutputManager } from '../ui/terminal-output-manager'
+import { AnsiStripper } from '../utils/ansi-strip'
 
 /**
  * Singleton readline manager to prevent multiple instances
@@ -17,7 +17,7 @@ export class ReadlineManager {
   private eventListeners: Map<string, Set<Function>> = new Map()
   private isInitialized = false
 
-  private constructor() { }
+  private constructor() {}
 
   static getInstance(): ReadlineManager {
     if (!ReadlineManager.instance) {
@@ -30,9 +30,7 @@ export class ReadlineManager {
    * Create or return existing readline interface
    * Automatically cleans up previous instance if exists
    */
-  createInterface(
-    options: readline.ReadLineOptions
-  ): readline.Interface {
+  createInterface(options: readline.ReadLineOptions): readline.Interface {
     // If interface exists, close it first
     if (this.rl) {
       this.cleanup()
@@ -124,7 +122,7 @@ export class ReadlineManager {
       // ALWAYS restore raw mode to original state
       if (process.stdin.isTTY) {
         try {
-          (process.stdin as any).setRawMode(this.originalRawMode)
+          ;(process.stdin as any).setRawMode(this.originalRawMode)
         } catch (e) {
           // Ignore errors in raw mode restoration
         }

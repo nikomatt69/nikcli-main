@@ -1,4 +1,5 @@
 import chalk from 'chalk'
+import { prometheusExporter, tracerService } from '../monitoring'
 import { logger } from '../utils/logger'
 import {
   BaseMiddleware,
@@ -8,7 +9,6 @@ import {
   type MiddlewareRequest,
   type MiddlewareResponse,
 } from './types'
-import { tracerService, prometheusExporter } from '../monitoring'
 
 interface PerformanceMetrics {
   executionTime: number
@@ -145,8 +145,8 @@ export class PerformanceMiddleware extends BaseMiddleware {
         ) {
           this.reportSlowOperation(request.operation, metrics)
           tracerService.addEvent('performance.slow_operation', {
-            'operation': request.operation,
-            'execution_time_ms': metrics.executionTime,
+            operation: request.operation,
+            execution_time_ms: metrics.executionTime,
           })
         }
 

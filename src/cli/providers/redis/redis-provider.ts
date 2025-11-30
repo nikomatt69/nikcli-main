@@ -1,7 +1,7 @@
 import { EventEmitter } from 'node:events'
 import { Redis as UpstashRedis } from '@upstash/redis'
-import IORedis from 'ioredis'
 import chalk from 'chalk'
+import IORedis from 'ioredis'
 import { type ConfigType, simpleConfigManager } from '../../core/config-manager'
 
 export interface RedisProviderOptions {
@@ -112,8 +112,7 @@ export class RedisProvider extends EventEmitter {
           token: this.config.token,
         })
         console.log(chalk.blue(`🔗 Connecting to Upstash Redis...`))
-      }
-      else {
+      } else {
         throw new Error(
           'Redis configuration missing. Please provide host/port for local Redis or url/token for Upstash Redis.'
         )
@@ -325,7 +324,7 @@ export class RedisProvider extends EventEmitter {
       if (this.mode === 'local' && this.ioredisClient) {
         serializedValue = await this.ioredisClient.get(finalKey)
       } else if (this.mode === 'upstash' && this.upstashClient) {
-        serializedValue = await this.upstashClient.get(finalKey) as string | null
+        serializedValue = (await this.upstashClient.get(finalKey)) as string | null
       } else {
         throw new Error('No Redis client available')
       }
@@ -340,7 +339,7 @@ export class RedisProvider extends EventEmitter {
       } catch (parseError) {
         // Corrupted data detected - auto-clean and return null
         console.log(chalk.yellow(`⚠︎ Corrupted cache data for key ${key}, auto-cleaning...`))
-        await this.del(key).catch(() => { }) // Silent cleanup failure
+        await this.del(key).catch(() => {}) // Silent cleanup failure
         return null
       }
 
@@ -656,7 +655,7 @@ export class RedisProvider extends EventEmitter {
       if (this.mode === 'local' && this.ioredisClient) {
         serializedValue = await this.ioredisClient.get(finalKey)
       } else if (this.mode === 'upstash' && this.upstashClient) {
-        serializedValue = await this.upstashClient.get(finalKey) as string | null
+        serializedValue = (await this.upstashClient.get(finalKey)) as string | null
       } else {
         return null
       }
@@ -670,7 +669,7 @@ export class RedisProvider extends EventEmitter {
         vectorEntry = JSON.parse(serializedValue as string)
       } catch (parseError) {
         // Corrupted vector cache data - auto-clean and return null
-        await this.del(cacheKey).catch(() => { })
+        await this.del(cacheKey).catch(() => {})
         return null
       }
 

@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events'
-import { DashboardMetricsCollector, type DashboardMetrics, type MetricsProvider } from '../core/dashboard-metrics'
+import { type DashboardMetrics, DashboardMetricsCollector, type MetricsProvider } from '../core/dashboard-metrics'
 import { DashboardUI } from '../ui/dashboard-ui'
 
 export type DashboardMode = 'off' | 'expanded'
@@ -29,14 +29,10 @@ export class DashboardService extends EventEmitter {
     this.config = {
       refreshInterval: 5000,
       expandedRefreshInterval: 5000,
-      ...config
+      ...config,
     }
 
-    this.metricsCollector = new DashboardMetricsCollector(
-      agentManager,
-      analyticsManager,
-      aiProvider
-    )
+    this.metricsCollector = new DashboardMetricsCollector(agentManager, analyticsManager, aiProvider)
   }
 
   public getMode(): DashboardMode {
@@ -50,7 +46,6 @@ export class DashboardService extends EventEmitter {
   public getCurrentMetrics(): DashboardMetrics | undefined {
     return this.currentMetrics
   }
-
 
   public async start(): Promise<void> {
     if (this.mode === 'expanded') {
@@ -66,7 +61,6 @@ export class DashboardService extends EventEmitter {
 
     this.emit('modeChanged', 'expanded')
   }
-
 
   public stop(): void {
     if (this.mode === 'off') {
@@ -102,7 +96,6 @@ export class DashboardService extends EventEmitter {
     }
   }
 
-
   private async renderExpanded(): Promise<void> {
     if (this.mode !== 'expanded' || !this.dashboardUI || !this.currentMetrics) {
       return
@@ -136,15 +129,14 @@ export class DashboardService extends EventEmitter {
     try {
       // Reset cursor e cancella schermo
       process.stdout.write('\x1b[?1049l') // Exit alternate screen if used
-      process.stdout.write('\x1b[2J')     // Clear entire screen
-      process.stdout.write('\x1b[H')      // Move cursor to home
-      process.stdout.write('\x1b[?25h')   // Show cursor
-      process.stdout.write('\x1b[0m')     // Reset all attributes
+      process.stdout.write('\x1b[2J') // Clear entire screen
+      process.stdout.write('\x1b[H') // Move cursor to home
+      process.stdout.write('\x1b[?25h') // Show cursor
+      process.stdout.write('\x1b[0m') // Reset all attributes
     } catch (error) {
       // Ignora errori di cleanup
     }
   }
-
 
   private hideExpanded(): void {
     if (this.dashboardUI) {

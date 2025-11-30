@@ -1,7 +1,7 @@
 import chalk from 'chalk'
-import { BaseTool, ToolExecutionResult } from './base-tool'
-import { nikdriveProvider, type NikDriveSyncStats } from '../providers/nikdrive'
 import { simpleConfigManager } from '../core/config-manager'
+import { type NikDriveSyncStats, nikdriveProvider } from '../providers/nikdrive'
+import { BaseTool, type ToolExecutionResult } from './base-tool'
 
 export interface NikDriveToolOptions {
   verbose?: boolean
@@ -11,10 +11,7 @@ export interface NikDriveToolOptions {
 export class NikDriveTool extends BaseTool {
   private options: NikDriveToolOptions
 
-  constructor(
-    workingDirectory: string,
-    options?: NikDriveToolOptions
-  ) {
+  constructor(workingDirectory: string, options?: NikDriveToolOptions) {
     super('nikdrive-tool', workingDirectory)
     this.options = options || {}
   }

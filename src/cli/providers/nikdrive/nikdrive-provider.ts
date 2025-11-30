@@ -1,7 +1,7 @@
 import { EventEmitter } from 'node:events'
 import axios, { AxiosInstance } from 'axios'
 import chalk from 'chalk'
-import { type ConfigType, KeyEncryption, configManager } from '../../core/config-manager'
+import { type ConfigType, configManager, KeyEncryption } from '../../core/config-manager'
 
 export interface NikDriveProviderOptions {
   endpoint?: string
@@ -92,7 +92,6 @@ export interface NikDriveSyncStats {
 }
 
 export class NikDriveProvider extends EventEmitter {
-
   private defaultClient = axios.create({
     baseURL: 'https://nikcli-drive-production.up.railway.app',
     timeout: 30000,
@@ -138,12 +137,16 @@ export class NikDriveProvider extends EventEmitter {
               apiKey = decrypted
             } else {
               // Decryption failed or returned wrong format
-              console.warn(chalk.yellow('Warning: Failed to decrypt NikDrive API key. The encryption key may have changed.'))
+              console.warn(
+                chalk.yellow('Warning: Failed to decrypt NikDrive API key. The encryption key may have changed.')
+              )
               apiKey = ''
             }
           } catch (e) {
             // Decryption threw an error
-            console.warn(chalk.yellow('Warning: Failed to decrypt NikDrive API key. Please run: /set-key nikdrive <YOUR_API_KEY>'))
+            console.warn(
+              chalk.yellow('Warning: Failed to decrypt NikDrive API key. Please run: /set-key nikdrive <YOUR_API_KEY>')
+            )
             apiKey = ''
           }
         }
@@ -637,10 +640,7 @@ export class NikDriveProvider extends EventEmitter {
    * Handle errors consistently
    */
   private handleError(method: string, error: any): Error {
-    const message =
-      error instanceof Error
-        ? error.message
-        : error.response?.data?.message || String(error)
+    const message = error instanceof Error ? error.message : error.response?.data?.message || String(error)
 
     const err = new Error(`NikDrive ${method} failed: ${message}`)
     this.emit('error', { method, error: err })

@@ -511,9 +511,9 @@ export class APIKeyProxy extends EventEmitter {
       const token = authHeader.slice(7)
       const tokenData = await this.tokenManager.verifyToken(token)
 
-        // Add token data to request
-        ; (req as any).agentId = tokenData.agentId
-        ; (req as any).tokenData = tokenData
+      // Add token data to request
+      ;(req as any).agentId = tokenData.agentId
+      ;(req as any).tokenData = tokenData
 
       next()
     } catch (_error: any) {
@@ -588,7 +588,7 @@ export class APIKeyProxy extends EventEmitter {
 
           // Flush buffer for real-time streaming
           if ((res as any).flush) {
-            ; (res as any).flush()
+            ;(res as any).flush()
           }
         }
 

@@ -150,11 +150,11 @@ export class VMOrchestrator extends EventEmitter {
     const initCommands = [
       // Install base tooling using the available package manager (apk/apt/dnf/yum)
       'if command -v apk >/dev/null 2>&1; then apk add --no-cache git curl build-base python3 bash; ' +
-      'elif command -v apt-get >/dev/null 2>&1; then ' +
-      'export DEBIAN_FRONTEND=noninteractive; apt-get update && apt-get install -y git curl build-essential python3 python3-pip ca-certificates gnupg && update-ca-certificates || true; ' +
-      'elif command -v dnf >/dev/null 2>&1; then dnf install -y git curl python3 gcc gcc-c++ make bash; ' +
-      'elif command -v yum >/dev/null 2>&1; then yum install -y git curl python3 gcc gcc-c++ make bash; ' +
-      'else echo "No supported package manager found"; fi',
+        'elif command -v apt-get >/dev/null 2>&1; then ' +
+        'export DEBIAN_FRONTEND=noninteractive; apt-get update && apt-get install -y git curl build-essential python3 python3-pip ca-certificates gnupg && update-ca-certificates || true; ' +
+        'elif command -v dnf >/dev/null 2>&1; then dnf install -y git curl python3 gcc gcc-c++ make bash; ' +
+        'elif command -v yum >/dev/null 2>&1; then yum install -y git curl python3 gcc gcc-c++ make bash; ' +
+        'else echo "No supported package manager found"; fi',
 
       // Verify installations
       'node --version && npm --version',
@@ -216,46 +216,48 @@ export class VMOrchestrator extends EventEmitter {
 
       const setupCommands = useLocalPath
         ? [
-          // Ensure mounted path exists inside container
-          'if [ ! -d /workspace/repo ]; then echo "Mounted repository not accessible" >&2; exit 1; fi',
+            // Ensure mounted path exists inside container
+            'if [ ! -d /workspace/repo ]; then echo "Mounted repository not accessible" >&2; exit 1; fi',
 
-          // Initialize git repository if not already a git repo
-          'cd /workspace/repo && if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then echo "Initializing git repository..."; git init; git remote add origin ' + repositoryUrl + ' || true; fi',
+            // Initialize git repository if not already a git repo
+            'cd /workspace/repo && if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then echo "Initializing git repository..."; git init; git remote add origin ' +
+              repositoryUrl +
+              ' || true; fi',
 
-          // Print git status when available
-          'cd /workspace/repo && git status',
+            // Print git status when available
+            'cd /workspace/repo && git status',
 
-          // Install dependencies if package.json exists (npm preferred)
-          'cd /workspace/repo && if [ -f package.json ]; then (npm install || npm ci || true); fi',
+            // Install dependencies if package.json exists (npm preferred)
+            'cd /workspace/repo && if [ -f package.json ]; then (npm install || npm ci || true); fi',
 
-          // Install Python dependencies if requirements.txt exists and pip3 is available
-          'if command -v pip3 >/dev/null 2>&1; then cd /workspace/repo && if [ -f requirements.txt ]; then pip3 install -r requirements.txt; fi; else echo "pip3 not found, skipping python deps"; fi',
-        ]
+            // Install Python dependencies if requirements.txt exists and pip3 is available
+            'if command -v pip3 >/dev/null 2>&1; then cd /workspace/repo && if [ -f requirements.txt ]; then pip3 install -r requirements.txt; fi; else echo "pip3 not found, skipping python deps"; fi',
+          ]
         : [
-          // Ensure workspace directory exists
-          'mkdir -p /workspace',
+            // Ensure workspace directory exists
+            'mkdir -p /workspace',
 
-          // Configure git to skip SSL verification for this clone (temporary workaround)
-          'git config --global http.sslverify false',
+            // Configure git to skip SSL verification for this clone (temporary workaround)
+            'git config --global http.sslverify false',
 
-          // Clone repository to workspace
-          `cd /workspace && git clone ${repositoryUrl} repo`,
+            // Clone repository to workspace
+            `cd /workspace && git clone ${repositoryUrl} repo`,
 
-          // Re-enable SSL verification
-          'git config --global http.sslverify true',
+            // Re-enable SSL verification
+            'git config --global http.sslverify true',
 
-          // Ensure we're in the repo directory and set up git properly
-          'cd /workspace/repo && git status',
+            // Ensure we're in the repo directory and set up git properly
+            'cd /workspace/repo && git status',
 
-          // Install dependencies if package.json exists (npm preferred)
-          'cd /workspace/repo && if [ -f package.json ]; then npm install; fi',
+            // Install dependencies if package.json exists (npm preferred)
+            'cd /workspace/repo && if [ -f package.json ]; then npm install; fi',
 
-          // Install Python dependencies if requirements.txt exists and pip3 is available
-          'if command -v pip3 >/dev/null 2>&1; then cd /workspace/repo && if [ -f requirements.txt ]; then pip3 install -r requirements.txt; fi; else echo "pip3 not found, skipping python deps"; fi',
+            // Install Python dependencies if requirements.txt exists and pip3 is available
+            'if command -v pip3 >/dev/null 2>&1; then cd /workspace/repo && if [ -f requirements.txt ]; then pip3 install -r requirements.txt; fi; else echo "pip3 not found, skipping python deps"; fi',
 
-          // Make directory accessible
-          'chmod -R 755 /workspace',
-        ]
+            // Make directory accessible
+            'chmod -R 755 /workspace',
+          ]
 
       for (const command of setupCommands) {
         await this.executeCommand(containerId, command, { useRepoWorkdir: false })
@@ -346,7 +348,8 @@ export class VMOrchestrator extends EventEmitter {
     try {
       const containerInfo = this.activeContainers.get(containerId)
       const shouldUseRepo = options.useRepoWorkdir !== false
-      const workdir = options.workdir || (shouldUseRepo && containerInfo?.repositoryReady ? containerInfo.repositoryPath : '')
+      const workdir =
+        options.workdir || (shouldUseRepo && containerInfo?.repositoryReady ? containerInfo.repositoryPath : '')
       const commandWithCwd = workdir ? `cd ${workdir} && ${command}` : command
 
       const result = await this.containerManager.executeCommand(containerId, commandWithCwd)
@@ -389,7 +392,8 @@ export class VMOrchestrator extends EventEmitter {
     try {
       const containerInfo = this.activeContainers.get(containerId)
       const shouldUseRepo = options.useRepoWorkdir !== false
-      const workdir = options.workdir || (shouldUseRepo && containerInfo?.repositoryReady ? containerInfo.repositoryPath : '')
+      const workdir =
+        options.workdir || (shouldUseRepo && containerInfo?.repositoryReady ? containerInfo.repositoryPath : '')
       const commandWithCwd = workdir ? `cd ${workdir} && ${command}` : command
 
       advancedUI.logInfo(`🌊 Streaming command in ${containerId.slice(0, 8)}: ${command}`)
@@ -480,18 +484,20 @@ export class VMOrchestrator extends EventEmitter {
 
         // Only proceed if there are changes
         'if ! git diff --staged --quiet; then ' +
-        // Configure git user if not set
-        'git config user.email || git config user.email "nikcli-agent@localhost"; ' +
-        'git config user.name || git config user.name "NikCLI Agent"; ' +
-        // Commit changes
-        `git commit -m "${prConfig.title || 'Automated changes from NikCLI'}"; ` +
-        // Create new branch
-        `git checkout -b ${branchName}; ` +
-        // Set up remote if not exists
-        'git remote get-url origin >/dev/null 2>&1 || git remote add origin ' + (this.activeContainers.get(containerId)?.repositoryUrl || '') + '; ' +
-        // Push branch
-        `git push -u origin ${branchName}; ` +
-        'else echo "No changes to create PR for"; fi',
+          // Configure git user if not set
+          'git config user.email || git config user.email "nikcli-agent@localhost"; ' +
+          'git config user.name || git config user.name "NikCLI Agent"; ' +
+          // Commit changes
+          `git commit -m "${prConfig.title || 'Automated changes from NikCLI'}"; ` +
+          // Create new branch
+          `git checkout -b ${branchName}; ` +
+          // Set up remote if not exists
+          'git remote get-url origin >/dev/null 2>&1 || git remote add origin ' +
+          (this.activeContainers.get(containerId)?.repositoryUrl || '') +
+          '; ' +
+          // Push branch
+          `git push -u origin ${branchName}; ` +
+          'else echo "No changes to create PR for"; fi',
       ]
 
       let hasChanges = false

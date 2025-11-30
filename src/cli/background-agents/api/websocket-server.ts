@@ -1,18 +1,18 @@
 // WebSocket server for real-time updates in Background Agents web interface
 import type { Server as HTTPServer, IncomingMessage, OutgoingHttpHeaders } from 'node:http'
-import { WebSocket, WebSocketServer, type VerifyClientCallbackAsync } from 'ws'
+import { type VerifyClientCallbackAsync, WebSocket, WebSocketServer } from 'ws'
 import { backgroundAgentService } from '../background-agent-service'
 import type { BackgroundJob } from '../types'
 
 export interface WebSocketMessage {
   type:
-  | 'job:created'
-  | 'job:started'
-  | 'job:completed'
-  | 'job:failed'
-  | 'job:log'
-  | 'heartbeat'
-  | 'connection:established'
+    | 'job:created'
+    | 'job:started'
+    | 'job:completed'
+    | 'job:failed'
+    | 'job:log'
+    | 'heartbeat'
+    | 'connection:established'
   data: any
   timestamp: Date
   clientId?: string
@@ -29,7 +29,15 @@ export class BackgroundAgentsWebSocketServer {
       server,
       path: '/ws',
       // WebSocket doesn't use CORS headers directly, but we can verify origin
-      verifyClient: async (info: { origin: string; secure: boolean; req: IncomingMessage }, callback: (res: boolean, code?: number | undefined, message?: string | undefined, headers?: OutgoingHttpHeaders | undefined) => void) => {
+      verifyClient: async (
+        info: { origin: string; secure: boolean; req: IncomingMessage },
+        callback: (
+          res: boolean,
+          code?: number | undefined,
+          message?: string | undefined,
+          headers?: OutgoingHttpHeaders | undefined
+        ) => void
+      ) => {
         const origin = info.origin
         // Allow connections from any origin in production (handled by Railway OPTIONS Allowlist)
         // In development, check against allowed origins
@@ -37,8 +45,10 @@ export class BackgroundAgentsWebSocketServer {
           return true // Railway handles origin verification via OPTIONS Allowlist
         }
         // Development: check against allowed origins
-        const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',').map(o => o.trim()) ||
-          ['http://localhost:3000', 'http://localhost:3001']
+        const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',').map((o) => o.trim()) || [
+          'http://localhost:3000',
+          'http://localhost:3001',
+        ]
         return !origin || allowedOrigins.includes(origin) || allowedOrigins.includes('*')
       },
     })

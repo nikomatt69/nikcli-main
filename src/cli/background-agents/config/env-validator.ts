@@ -207,9 +207,7 @@ class EnvironmentValidator {
     if (!origins) {
       const nodeEnv = process.env.NODE_ENV || 'development'
       if (nodeEnv === 'production') {
-        this.warnings.push(
-          'ALLOWED_ORIGINS not set in production, defaulting to restrictive policy'
-        )
+        this.warnings.push('ALLOWED_ORIGINS not set in production, defaulting to restrictive policy')
         return []
       }
       return ['http://localhost:3000', 'http://localhost:3001']

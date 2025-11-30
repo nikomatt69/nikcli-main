@@ -35,7 +35,7 @@ export class RawModeManager {
     this.rawModeStack.push(currentState)
 
     try {
-      (process.stdin as any).setRawMode(enabled)
+      ;(process.stdin as any).setRawMode(enabled)
       return currentState
     } catch (error) {
       this.rawModeStack.pop()
@@ -58,7 +58,7 @@ export class RawModeManager {
     }
 
     try {
-      (process.stdin as any).setRawMode(previousState)
+      ;(process.stdin as any).setRawMode(previousState)
     } catch (error) {
       // Force restoration on error
       this.restoreOriginal()
@@ -72,7 +72,7 @@ export class RawModeManager {
     if (!this.isInitialized) return
 
     try {
-      (process.stdin as any).setRawMode(this.originalMode)
+      ;(process.stdin as any).setRawMode(this.originalMode)
       this.rawModeStack = []
     } catch (error) {
       // Ignore - best effort

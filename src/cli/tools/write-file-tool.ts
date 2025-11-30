@@ -13,12 +13,12 @@ import {
   WriteFileResultSchema,
   type WriteMultipleResult,
 } from '../schemas/tool-schemas'
+import { advancedUI } from '../ui/advanced-cli-ui'
 import { diffManager } from '../ui/diff-manager'
 import { DiffViewer, type FileDiff } from '../ui/diff-viewer'
 import { CliUI } from '../utils/cli-ui'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
-import { sanitizePath, isDirectory } from './secure-file-tools'
-import { advancedUI } from '../ui/advanced-cli-ui'
+import { isDirectory, sanitizePath } from './secure-file-tools'
 
 /**
  * Production-ready Write File Tool
@@ -603,7 +603,7 @@ export class ContentValidators {
         }
 
         // Clean up temp file
-        await unlink(tempFilePath).catch(() => { })
+        await unlink(tempFilePath).catch(() => {})
       } catch (lspError: any) {
         warnings.push(`LSP validation unavailable: ${lspError.message}`)
 

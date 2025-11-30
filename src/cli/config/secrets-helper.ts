@@ -4,13 +4,13 @@
  * Simplifies the API for getting secrets and managing quotas
  */
 
-import { SecretsManager } from './secrets-manager'
 import {
-  getProviderConfig,
   getAllConfiguredProviders,
-  getRequiredProviders,
   getOptionalProviders,
+  getProviderConfig,
+  getRequiredProviders,
 } from './secrets-config'
+import { SecretsManager } from './secrets-manager'
 
 /**
  * Provider secret resolver
@@ -32,9 +32,7 @@ export async function resolveSecret(provider: string): Promise<ResolvedSecret> {
   if (!secret) {
     const config = getProviderConfig(provider)
     const envVars = config?.environmentVars || []
-    throw new Error(
-      `No API key configured for ${provider}. Set one of: ${envVars.join(', ')}`
-    )
+    throw new Error(`No API key configured for ${provider}. Set one of: ${envVars.join(', ')}`)
   }
 
   return {
@@ -107,9 +105,7 @@ export function getProviderStatus(provider: string): ProviderStatus {
  * Get status for all providers
  */
 export function getAllProvidersStatus(): ProviderStatus[] {
-  return getAllConfiguredProviders().map((provider) =>
-    getProviderStatus(provider)
-  )
+  return getAllConfiguredProviders().map((provider) => getProviderStatus(provider))
 }
 
 /**
@@ -147,9 +143,7 @@ export function suggestMissingProviderSetup(): string[] {
   for (const provider of missing) {
     const config = getProviderConfig(provider)
     if (config) {
-      suggestions.push(
-        `Set ${config.environmentVars[0]}=your-${provider}-key`
-      )
+      suggestions.push(`Set ${config.environmentVars[0]}=your-${provider}-key`)
     }
   }
 

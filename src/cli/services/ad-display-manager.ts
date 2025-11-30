@@ -6,13 +6,8 @@
 
 import { simpleConfigManager } from '../core/config-manager'
 import { enhancedSupabaseProvider } from '../providers/supabase/enhanced-supabase-provider'
+import { type AdCampaign, type AdRotationResult, DEFAULT_AD_FREQUENCY_MINUTES, DEFAULT_CPM_RATE } from '../types/ads'
 import { advancedUI } from '../ui/advanced-cli-ui'
-import {
-  AdCampaign,
-  AdRotationResult,
-  DEFAULT_CPM_RATE,
-  DEFAULT_AD_FREQUENCY_MINUTES,
-} from '../types/ads'
 
 export class AdDisplayManager {
   private activeCampaigns: Map<string, AdCampaign> = new Map()
@@ -252,9 +247,12 @@ export class AdDisplayManager {
     }
 
     // Refresh active campaigns every 5 minutes
-    this.updateInterval = setInterval(() => {
-      void this.loadActiveCampaigns()
-    }, 5 * 60 * 1000)
+    this.updateInterval = setInterval(
+      () => {
+        void this.loadActiveCampaigns()
+      },
+      5 * 60 * 1000
+    )
   }
 
   /**
@@ -338,9 +336,7 @@ export class AdDisplayManager {
         return { totalImpressions: 0, totalRevenue: 0, activeCampaigns: 0 }
       }
 
-      const { count: impressionCount } = await supabase
-        .from(this.adImpressionsTable)
-        .select('*', { count: 'exact' })
+      const { count: impressionCount } = await supabase.from(this.adImpressionsTable).select('*', { count: 'exact' })
 
       const totalImpressions = impressionCount || 0
 

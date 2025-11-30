@@ -196,8 +196,8 @@ ${results.suggestions.length > 0 ? `\n💡 Related topics: ${results.suggestions
 
 Available documentation:
 ${[...results.localResults, ...results.sharedResults]
-            .map((doc, i) => `${i + 1}. ${doc.title} (${doc.category}) - ${doc.score} match`)
-            .join('\n')}`
+  .map((doc, i) => `${i + 1}. ${doc.title} (${doc.category}) - ${doc.score} match`)
+  .join('\n')}`
       }
 
       return {
@@ -277,8 +277,8 @@ Categories: ${result.contextStats.categories.join(', ')}
 
 Loaded documents:
 ${result.loadedDocs
-          .map((doc, i) => `${i + 1}. ${doc.title} (${doc.category}) - ${doc.wordCount.toLocaleString()} words`)
-          .join('\n')}`
+  .map((doc, i) => `${i + 1}. ${doc.title} (${doc.category}) - ${doc.wordCount.toLocaleString()} words`)
+  .join('\n')}`
 
       return {
         ...result,
@@ -329,8 +329,8 @@ export const smartDocsContextTool: CoreTool = tool({
           summary: doc.summary || '',
           ...(includeContent
             ? {
-              contentPreview: `${doc.content.substring(0, 500)}...`,
-            }
+                contentPreview: `${doc.content.substring(0, 500)}...`,
+              }
             : {}),
         })),
         suggestions: [] as string[],
@@ -355,8 +355,8 @@ export const smartDocsContextTool: CoreTool = tool({
 
 Current documents:
 ${result.documents
-            .map((doc, i) => `${i + 1}. ${doc.title} (${doc.category}) - ${doc.wordCount.toLocaleString()} words`)
-            .join('\n')}
+  .map((doc, i) => `${i + 1}. ${doc.title} (${doc.category}) - ${doc.wordCount.toLocaleString()} words`)
+  .join('\n')}
 
 Categories: ${result.stats.categories.join(', ')}
 Sources: Local: ${result.stats.sources.local}, Cloud: ${result.stats.sources.shared}`

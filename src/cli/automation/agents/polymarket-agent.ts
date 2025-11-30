@@ -6,10 +6,10 @@
  * Integrates with native Polymarket APIs and builder program
  */
 
-import { EventBus, EventTypes } from './event-bus'
-import { BaseAgent } from './base-agent'
-import type { AgentTask, AgentInstance, AgentStatus } from './agent-router'
+import type { AgentInstance, AgentStatus, AgentTask } from './agent-router'
 import type { AgentMetrics } from './base-agent'
+import { BaseAgent } from './base-agent'
+import { EventBus, EventTypes } from './event-bus'
 
 // ============================================================
 // POLYMARKET AGENT TYPES
@@ -68,7 +68,7 @@ export class PolymarketAgent extends BaseAgent implements AgentInstance {
     'market-monitoring',
     'sentiment-analysis',
     'order-optimization',
-    'builder-attribution'
+    'builder-attribution',
   ]
   specialization = 'Prediction Market Trading (Polymarket)'
   status: AgentStatus = 'offline'
@@ -86,7 +86,6 @@ export class PolymarketAgent extends BaseAgent implements AgentInstance {
     averageExecutionTime: 0,
     totalExecutionTime: 0,
     lastActive: new Date(),
-
   }
 
   constructor(goatProvider: any, workingDirectory: string = process.cwd()) {
@@ -186,7 +185,7 @@ export class PolymarketAgent extends BaseAgent implements AgentInstance {
         ...task.metadata,
         actualDuration: duration,
         status: 'completed',
-        result
+        result,
       }
 
       return result
@@ -197,7 +196,7 @@ export class PolymarketAgent extends BaseAgent implements AgentInstance {
         ...task.metadata,
         status: 'failed',
         error: error.message,
-        actualDuration: duration
+        actualDuration: duration,
       }
 
       throw error
@@ -242,7 +241,7 @@ export class PolymarketAgent extends BaseAgent implements AgentInstance {
               volume24h: 0, // Would fetch from historical data
               liquidity: spread < 0.02 ? 'high' : spread < 0.05 ? 'medium' : 'low',
               sentiment: midpoint > 0.55 ? 'bullish' : midpoint < 0.45 ? 'bearish' : 'neutral',
-              recommendation: this.getRecommendation(midpoint, spread)
+              recommendation: this.getRecommendation(midpoint, spread),
             }
 
             analyses.push(analysis)
@@ -270,7 +269,9 @@ export class PolymarketAgent extends BaseAgent implements AgentInstance {
 
     // Validate token ID is available
     if (orderIntent.tokenId === 'MARKET_LOOKUP_REQUIRED') {
-      throw new Error('Could not identify market from description. Please specify market token ID or market name explicitly.')
+      throw new Error(
+        'Could not identify market from description. Please specify market token ID or market name explicitly.'
+      )
     }
 
     // Risk assessment before execution
@@ -294,7 +295,7 @@ export class PolymarketAgent extends BaseAgent implements AgentInstance {
         price: orderIntent.price,
         size: orderIntent.size,
         side: orderIntent.action,
-        orderType: orderIntent.orderType
+        orderType: orderIntent.orderType,
       })
 
       if (result.success && orderIntent.builderAttribution) {
@@ -303,7 +304,7 @@ export class PolymarketAgent extends BaseAgent implements AgentInstance {
         if (signingService) {
           await signingService.signOrder({
             signedOrder: result,
-            orderType: orderIntent.orderType
+            orderType: orderIntent.orderType,
           })
         }
       }
@@ -331,9 +332,10 @@ export class PolymarketAgent extends BaseAgent implements AgentInstance {
       potentialLoss: assessment.potentialLoss,
       potentialGain: assessment.potentialGain,
       riskRewardRatio: assessment.riskRewardRatio,
-      recommendation: assessment.riskLevel === 'high'
-        ? 'Consider reducing position size or waiting for better entry'
-        : 'Order parameters acceptable'
+      recommendation:
+        assessment.riskLevel === 'high'
+          ? 'Consider reducing position size or waiting for better entry'
+          : 'Order parameters acceptable',
     }
   }
 
@@ -370,7 +372,7 @@ export class PolymarketAgent extends BaseAgent implements AgentInstance {
       return {
         connected: true,
         subscriptions: stats.subscriptions,
-        uptime: stats.uptime
+        uptime: stats.uptime,
       }
     } catch (error) {
       throw new Error(`Market monitoring failed: ${error}`)
@@ -384,7 +386,7 @@ export class PolymarketAgent extends BaseAgent implements AgentInstance {
     return {
       taskId: task.id,
       status: 'processing',
-      message: `Polymarket agent processing: ${task.description}`
+      message: `Polymarket agent processing: ${task.description}`,
     }
   }
 
@@ -443,10 +445,10 @@ export class PolymarketAgent extends BaseAgent implements AgentInstance {
         riskLevel: 'low',
         potentialLoss: 0,
         potentialGain: 0,
-        riskRewardRatio: 1
+        riskRewardRatio: 1,
       },
       orderType: 'GTC',
-      builderAttribution: true
+      builderAttribution: true,
     }
   }
 
@@ -469,7 +471,7 @@ export class PolymarketAgent extends BaseAgent implements AgentInstance {
       riskLevel,
       potentialLoss,
       potentialGain,
-      riskRewardRatio
+      riskRewardRatio,
     }
   }
 
@@ -520,7 +522,7 @@ export class PolymarketAgent extends BaseAgent implements AgentInstance {
       ...this.metrics,
       totalTasks: this.metrics.tasksSucceeded + this.metrics.tasksFailed,
       tasksCompleted: this.metrics.tasksSucceeded,
-      lastExecutionTime: this.metrics.lastActive
+      lastExecutionTime: this.metrics.lastActive,
     }
   }
 

@@ -3,6 +3,7 @@ import { inputQueue } from '../core/input-queue'
 import { type AgentTask, agentService } from '../services/agent-service'
 import { streamttyService } from '../services/streamtty-service'
 import { getUnifiedToolRenderer, initializeUnifiedToolRenderer } from '../services/unified-tool-renderer'
+import type { CommandOptions } from '../tools/secure-command-tool'
 import { secureTools } from '../tools/secure-tools-registry'
 import type { ToolRegistry } from '../tools/tool-registry'
 import { advancedUI } from '../ui/advanced-cli-ui'
@@ -17,7 +18,6 @@ import type {
   PlannerConfig,
   StepExecutionResult,
 } from './types'
-import { CommandOptions } from '../tools/secure-command-tool'
 
 /**
  * Production-ready Plan Executor
@@ -84,11 +84,16 @@ export class PlanExecutor {
 
     // Log plan execution start with direct console.log (like default mode)
     // This ensures it appears prominently in the terminal, separate from AI streaming
-    await unifiedRenderer.logToolCall('plan_execution', { title: plan.title }, { mode: 'plan' }, {
-      showInRecentUpdates: true,
-      streamToTerminal: true,  // Changed from false to true for visibility
-      persistent: true
-    })
+    await unifiedRenderer.logToolCall(
+      'plan_execution',
+      { title: plan.title },
+      { mode: 'plan' },
+      {
+        showInRecentUpdates: true,
+        streamToTerminal: true, // Changed from false to true for visibility
+        persistent: true,
+      }
+    )
 
     // Stream plan markdown AFTER tool call is visible
     await streamttyService.renderBlock(`## Executing Plan: ${plan.title}\n`, 'system')
@@ -120,16 +125,16 @@ export class PlanExecutor {
           status: result.status,
           startTime: result.startTime,
           endTime: result.endTime,
-          stepResults: result.stepResults.map(step => ({
+          stepResults: result.stepResults.map((step) => ({
             stepId: step.stepId,
             status: step.status,
             output: step.output,
             error: step.error,
             duration: step.duration,
             timestamp: step.timestamp,
-            logs: step.logs ? [...step.logs] : undefined
+            logs: step.logs ? [...step.logs] : undefined,
           })),
-          summary: { ...result.summary }
+          summary: { ...result.summary },
         }
       }
 
@@ -167,7 +172,7 @@ export class PlanExecutor {
           error: stepResult.error,
           duration: stepResult.duration,
           timestamp: stepResult.timestamp,
-          logs: stepResult.logs ? [...stepResult.logs] : undefined
+          logs: stepResult.logs ? [...stepResult.logs] : undefined,
         })
 
         // Update summary
@@ -230,16 +235,16 @@ export class PlanExecutor {
         status: result.status,
         startTime: result.startTime,
         endTime: result.endTime,
-        stepResults: result.stepResults.map(step => ({
+        stepResults: result.stepResults.map((step) => ({
           stepId: step.stepId,
           status: step.status,
           output: step.output,
           error: step.error,
           duration: step.duration,
           timestamp: step.timestamp,
-          logs: step.logs ? [...step.logs] : undefined
+          logs: step.logs ? [...step.logs] : undefined,
         })),
-        summary: { ...result.summary }
+        summary: { ...result.summary },
       }
     } catch (error: any) {
       result.status = 'failed'
@@ -259,16 +264,16 @@ export class PlanExecutor {
         status: result.status,
         startTime: result.startTime,
         endTime: result.endTime,
-        stepResults: result.stepResults.map(step => ({
+        stepResults: result.stepResults.map((step) => ({
           stepId: step.stepId,
           status: step.status,
           output: step.output,
           error: step.error,
           duration: step.duration,
           timestamp: step.timestamp,
-          logs: step.logs ? [...step.logs] : undefined
+          logs: step.logs ? [...step.logs] : undefined,
         })),
-        summary: { ...result.summary }
+        summary: { ...result.summary },
       }
     }
   }
@@ -292,8 +297,8 @@ export class PlanExecutor {
 
     // Enable bypass for approval inputs and suspend main prompt
     try {
-      ; (global as any).__nikCLI?.suspendPrompt?.()
-    } catch { }
+      ;(global as any).__nikCLI?.suspendPrompt?.()
+    } catch {}
     inputQueue.enableBypass()
 
     try {
@@ -338,8 +343,8 @@ export class PlanExecutor {
       // Always disable bypass after approval and resume prompt cleanly
       inputQueue.disableBypass()
       try {
-        ; (global as any).__nikCLI?.resumePromptAndRender?.()
-      } catch { }
+        ;(global as any).__nikCLI?.resumePromptAndRender?.()
+      } catch {}
     }
   }
 
@@ -409,7 +414,7 @@ export class PlanExecutor {
       error: result.error,
       duration: result.duration,
       timestamp: result.timestamp,
-      logs: result.logs ? [...result.logs] : undefined
+      logs: result.logs ? [...result.logs] : undefined,
     }
   }
 
@@ -447,7 +452,7 @@ export class PlanExecutor {
     await unifiedRenderer.logToolUpdate(toolCallId, 'info', `Starting ${finalAgentType} agent task`, {
       showInRecentUpdates: true,
       streamToTerminal: true,
-      persistent: true
+      persistent: true,
     })
 
     // Live progress hookup
@@ -467,16 +472,21 @@ export class PlanExecutor {
         const description = update?.description || ''
 
         // Use unified renderer for tool use logging
-        await unifiedRenderer.logToolCall(toolName, {}, { mode: 'plan' }, {
-          showInRecentUpdates: true,
-          streamToTerminal: true,
-          persistent: true
-        })
+        await unifiedRenderer.logToolCall(
+          toolName,
+          {},
+          { mode: 'plan' },
+          {
+            showInRecentUpdates: true,
+            streamToTerminal: true,
+            persistent: true,
+          }
+        )
         if (description) {
           await unifiedRenderer.logToolUpdate(toolName, 'info', description, {
             showInRecentUpdates: true,
             streamToTerminal: true,
-            persistent: true
+            persistent: true,
           })
         }
       } catch {
@@ -608,14 +618,21 @@ export class PlanExecutor {
         case 'status':
           return { routed: true, result: await secureTools.gitStatus() }
         case 'diff':
-          return { routed: true, result: await secureTools.gitDiff(args.args as unknown as { staged?: boolean | undefined; pathspec?: string[] | undefined; } | undefined) }
+          return {
+            routed: true,
+            result: await secureTools.gitDiff(
+              args.args as unknown as { staged?: boolean | undefined; pathspec?: string[] | undefined } | undefined
+            ),
+          }
         case 'commit': {
           if (!args || typeof args.message !== 'string') {
             throw new Error("git commit requires 'message' in args")
           }
           return {
             routed: true,
-            result: await secureTools.gitCommit(args as unknown as { message: string; add?: string[]; allowEmpty?: boolean }),
+            result: await secureTools.gitCommit(
+              args as unknown as { message: string; add?: string[]; allowEmpty?: boolean }
+            ),
           }
         }
         case 'applypatch':
@@ -643,7 +660,13 @@ export class PlanExecutor {
       }
       // Sequence
       if (Array.isArray(args.commands) && args.commands.length > 0) {
-        return { routed: true, result: await secureTools.executeCommandSequence(args.commands, args.options as unknown as CommandOptions | undefined) }
+        return {
+          routed: true,
+          result: await secureTools.executeCommandSequence(
+            args.commands,
+            args.options as unknown as CommandOptions | undefined
+          ),
+        }
       }
       return { routed: false }
     }
@@ -671,8 +694,8 @@ export class PlanExecutor {
     CliUI.stopSpinner()
 
     try {
-      ; (global as any).__nikCLI?.suspendPrompt?.()
-    } catch { }
+      ;(global as any).__nikCLI?.suspendPrompt?.()
+    } catch {}
     inputQueue.enableBypass()
     try {
       const answers = await inquirer.prompt([
@@ -692,8 +715,8 @@ export class PlanExecutor {
     } finally {
       inputQueue.disableBypass()
       try {
-        ; (global as any).__nikCLI?.resumePromptAndRender?.()
-      } catch { }
+        ;(global as any).__nikCLI?.resumePromptAndRender?.()
+      } catch {}
     }
   }
 
@@ -721,8 +744,8 @@ export class PlanExecutor {
     advancedUI.logError(`Step "${step.title}" failed: ${result.error?.message}`)
 
     try {
-      ; (global as any).__nikCLI?.suspendPrompt?.()
-    } catch { }
+      ;(global as any).__nikCLI?.suspendPrompt?.()
+    } catch {}
     inputQueue.enableBypass()
     try {
       // For non-critical steps, offer to continue
@@ -774,8 +797,8 @@ export class PlanExecutor {
     } finally {
       inputQueue.disableBypass()
       try {
-        ; (global as any).__nikCLI?.resumePromptAndRender?.()
-      } catch { }
+        ;(global as any).__nikCLI?.resumePromptAndRender?.()
+      } catch {}
     }
   }
 

@@ -114,7 +114,6 @@ export class CloudDocsProvider {
 
       this.supabase = createClient(this.config.apiUrl, this.config.apiKey)
       this.isInitialized = true
-
     } catch (error: any) {
       structuredLogger.error('Docs Cloud', `✖ Failed to initialize Supabase: ${error.message}`)
     }
@@ -129,8 +128,6 @@ export class CloudDocsProvider {
     if (!this.isInitialized || !this.supabase) {
       throw new Error('Cloud docs provider not initialized')
     }
-
-
 
     try {
       // Download nuovi docs dal cloud

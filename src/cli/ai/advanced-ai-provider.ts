@@ -23,7 +23,6 @@ import { ContextEnhancer } from '../core/context-enhancer'
 import { docLibrary } from '../core/documentation-library'
 import { documentationTools } from '../core/documentation-tool'
 import { IDEContextEnricher } from '../core/ide-context-enricher'
-import { streamttyService } from '../services/streamtty-service'
 import {
   PerformanceOptimizer,
   QuietCacheLogger,
@@ -35,16 +34,17 @@ import { smartCache } from '../core/smart-cache-manager'
 import { ToolRouter } from '../core/tool-router'
 import { type ValidationContext, validatorManager } from '../core/validator-manager'
 import { WebSearchProvider } from '../core/web-search-provider'
-import { ToolRegistry } from '../tools/tool-registry'
 import { PromptManager } from '../prompts/prompt-manager'
+import { streamttyService } from '../services/streamtty-service'
 import { aiDocsTools } from '../tools/docs-request-tool'
 import { aiMemoryTools } from '../tools/memory-search-tool'
 import { smartDocsTools } from '../tools/smart-docs-tool'
+import { ToolRegistry } from '../tools/tool-registry'
 import { advancedUI } from '../ui/advanced-cli-ui'
 import { diffManager } from '../ui/diff-manager'
 import { DiffViewer, type FileDiff } from '../ui/diff-viewer'
-import { CliUI } from '../utils/cli-ui'
 import { compactAnalysis, safeStringifyContext } from '../utils/analysis-utils'
+import { CliUI } from '../utils/cli-ui'
 import { adaptiveModelRouter, type ModelScope } from './adaptive-model-router'
 
 const cognitiveColor = chalk.hex('#3a3a3a')
@@ -806,10 +806,10 @@ Respond in a helpful, professional manner with clear explanations and actionable
               formatter: validationResult?.formatter,
               validation: validationResult
                 ? {
-                  isValid: validationResult.isValid,
-                  errors: validationResult.errors,
-                  warnings: validationResult.warnings,
-                }
+                    isValid: validationResult.isValid,
+                    errors: validationResult.errors,
+                    warnings: validationResult.warnings,
+                  }
                 : null,
               reasoning: reasoning || `File ${backedUp ? 'updated' : 'created'} by agent`,
             }
@@ -955,7 +955,11 @@ Respond in a helpful, professional manner with clear explanations and actionable
         execute: async ({ includeMetrics, analyzeDependencies, securityScan }) => {
           try {
             // Load tool-specific prompt for context
-            const toolPrompt = await this.getToolPrompt('analyze_project', { includeMetrics, analyzeDependencies, securityScan })
+            const toolPrompt = await this.getToolPrompt('analyze_project', {
+              includeMetrics,
+              analyzeDependencies,
+              securityScan,
+            })
             CliUI.logDebug(`Using system prompt: ${toolPrompt.substring(0, 100)}...`)
 
             advancedUI.logFunctionUpdate('info', 'Starting comprehensive project analysis...', 'ℹ')
@@ -1093,8 +1097,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
       }),
 
       // Web search capabilities (native OpenAI web_search_preview when available)
-      web_search_preview:
-        this.webSearchProvider.getNativeWebSearchTool() || this.webSearchProvider.getWebSearchTool(),
+      web_search_preview: this.webSearchProvider.getNativeWebSearchTool() || this.webSearchProvider.getWebSearchTool(),
       web_search: this.webSearchProvider.getWebSearchTool(),
 
       // IDE context enrichment
@@ -1120,7 +1123,6 @@ Respond in a helpful, professional manner with clear explanations and actionable
       docs_request: aiDocsTools.request,
       docs_gap_report: aiDocsTools.gapReport,
 
-
       // AI memory search tools
       memory_search: aiMemoryTools.search,
       memory_get_context: aiMemoryTools.getContext,
@@ -1129,7 +1131,8 @@ Respond in a helpful, professional manner with clear explanations and actionable
 
       // 1. MULTI-READ: Batch file reading con search/context (Priority 8)
       multi_read: tool({
-        description: 'Read multiple files safely with optional content search and context - preferred for batch operations',
+        description:
+          'Read multiple files safely with optional content search and context - preferred for batch operations',
         parameters: z.object({
           files: z.array(z.string()).optional().describe('Explicit file paths to read'),
           globs: z.array(z.string()).optional().describe('Glob patterns (e.g., src/**/*.ts)'),
@@ -1145,21 +1148,48 @@ Respond in a helpful, professional manner with clear explanations and actionable
           if (!multiReadTool) return { error: 'Multi-read tool not available' }
           const result = await multiReadTool.execute(params)
           return result.success ? result.data : { error: result.error }
-        }
+        },
       }),
 
       // 2. GREP: Advanced pattern search (Priority 9 - HIGHEST)
       grep: tool({
-        description: 'Search for text patterns in codebase - ripgrep-like search for finding specific strings, function names, TODOs, imports, etc. Always preferred over web_search for local code search. Examples: "search for TODO comments", "find all imports of React", "locate function definitions"',
+        description:
+          'Search for text patterns in codebase - ripgrep-like search for finding specific strings, function names, TODOs, imports, etc. Always preferred over web_search for local code search. Examples: "search for TODO comments", "find all imports of React", "locate function definitions"',
         parameters: z.object({
-          pattern: z.string().describe('The text or string to search for (literal string by default, use useRegex:true for regex patterns). Examples: "TODO", "export function", "import React"'),
-          path: z.string().optional().describe('Search directory (defaults to current working directory). Examples: "src", "src/components", "." for all'),
-          include: z.string().optional().describe('File pattern to include (glob pattern like "*.ts", "*.tsx", "*.js"). Leave empty to search all files'),
-          exclude: z.array(z.string()).optional().describe('Array of patterns to exclude. Examples: ["node_modules", "dist", "*.test.ts"]'),
-          caseSensitive: z.boolean().default(false).describe('Case sensitive search - default false (case insensitive)'),
+          pattern: z
+            .string()
+            .describe(
+              'The text or string to search for (literal string by default, use useRegex:true for regex patterns). Examples: "TODO", "export function", "import React"'
+            ),
+          path: z
+            .string()
+            .optional()
+            .describe(
+              'Search directory (defaults to current working directory). Examples: "src", "src/components", "." for all'
+            ),
+          include: z
+            .string()
+            .optional()
+            .describe(
+              'File pattern to include (glob pattern like "*.ts", "*.tsx", "*.js"). Leave empty to search all files'
+            ),
+          exclude: z
+            .array(z.string())
+            .optional()
+            .describe('Array of patterns to exclude. Examples: ["node_modules", "dist", "*.test.ts"]'),
+          caseSensitive: z
+            .boolean()
+            .default(false)
+            .describe('Case sensitive search - default false (case insensitive)'),
           wholeWord: z.boolean().default(false).describe('Match whole words only - prevents partial matches'),
-          useRegex: z.boolean().default(false).describe('Treat pattern as regex - set true for regex patterns like "^export"'),
-          contextLines: z.number().default(0).describe('Number of lines to show before/after match for context (0 = just the line)'),
+          useRegex: z
+            .boolean()
+            .default(false)
+            .describe('Treat pattern as regex - set true for regex patterns like "^export"'),
+          contextLines: z
+            .number()
+            .default(0)
+            .describe('Number of lines to show before/after match for context (0 = just the line)'),
           maxResults: z.number().default(100).describe('Maximum number of results to return (default 100)'),
         }),
         execute: async (params) => {
@@ -1167,18 +1197,22 @@ Respond in a helpful, professional manner with clear explanations and actionable
           if (!grepTool) return { error: 'Grep tool not available' }
           const result = await grepTool.execute(params)
           return result.success ? result.data : { error: result.error }
-        }
+        },
       }),
 
       // 3. MULTI-EDIT: Atomic batch edits (Priority 8)
       multi_edit: tool({
         description: 'Apply multiple edits atomically with rollback - preferred for batch modifications',
         parameters: z.object({
-          edits: z.array(z.object({
-            file: z.string().describe('File path to edit'),
-            search: z.string().describe('Text to search for'),
-            replace: z.string().describe('Replacement text'),
-          })).describe('Array of edit operations'),
+          edits: z
+            .array(
+              z.object({
+                file: z.string().describe('File path to edit'),
+                search: z.string().describe('Text to search for'),
+                replace: z.string().describe('Replacement text'),
+              })
+            )
+            .describe('Array of edit operations'),
           dryRun: z.boolean().default(false).describe('Preview changes without applying'),
         }),
         execute: async (params) => {
@@ -1208,7 +1242,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
             createBackup: true,
           })
           return result.success ? result.data : { error: result.error }
-        }
+        },
       }),
 
       // 4. FIND-FILES: Glob pattern matching (Priority 5)
@@ -1225,7 +1259,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
           if (!findTool) return { error: 'Find files tool not available' }
           const result = await findTool.execute(params)
           return result.success ? result.data : { error: result.error }
-        }
+        },
       }),
 
       // 5. EDIT-FILE: Edit with diff preview (Priority 6)
@@ -1253,7 +1287,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
             createBackup: params.backup,
           })
           return result.success ? result.data : { error: result.error }
-        }
+        },
       }),
 
       // 6. REPLACE-IN-FILE: Regex replace with validation (Priority 6)
@@ -1280,7 +1314,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
             requireMatch: true,
           })
           return result.success ? result.data : { error: result.error }
-        }
+        },
       }),
 
       // 7. LIST: Advanced directory listing (Priority 4)
@@ -1297,16 +1331,19 @@ Respond in a helpful, professional manner with clear explanations and actionable
           if (!listTool) return { error: 'List tool not available' }
           const result = await listTool.execute(params)
           return result.success ? result.data : { error: result.error }
-        }
+        },
       }),
 
       // ==================== SEARCH & ANALYSIS TOOLS ====================
 
       // 8. RAG_SEARCH: Semantic search in RAG system (Priority 8)
       rag_search: tool({
-        description: 'Perform semantic search in the RAG system to find relevant code and documentation using embeddings',
+        description:
+          'Perform semantic search in the RAG system to find relevant code and documentation using embeddings',
         parameters: z.object({
-          query: z.string().describe('What to search for semantically (e.g., "authentication logic", "error handling patterns")'),
+          query: z
+            .string()
+            .describe('What to search for semantically (e.g., "authentication logic", "error handling patterns")'),
           limit: z.number().min(1).max(50).default(10).describe('Maximum number of results'),
           semanticOnly: z.boolean().default(false).describe('Use pure semantic search (embedding-based) vs hybrid'),
           threshold: z.number().min(0).max(1).default(0.3).describe('Minimum similarity score (0-1)'),
@@ -1318,14 +1355,16 @@ Respond in a helpful, professional manner with clear explanations and actionable
           if (!ragSearchTool) return { error: 'RAG search tool not available' }
           const result = await ragSearchTool.execute(params)
           return result.success ? result.data : { error: result.error }
-        }
+        },
       }),
 
       // 9. GLOB: Fast glob pattern matching (Priority 6)
       glob: tool({
         description: 'Fast file pattern matching with glob support, sorting, and filtering',
         parameters: z.object({
-          pattern: z.union([z.string(), z.array(z.string())]).describe('Glob pattern(s) (e.g., "**/*.ts", ["*.ts", "*.tsx"])'),
+          pattern: z
+            .union([z.string(), z.array(z.string())])
+            .describe('Glob pattern(s) (e.g., "**/*.ts", ["*.ts", "*.tsx"])'),
           path: z.string().optional().describe('Base path for search'),
           ignorePatterns: z.array(z.string()).optional().describe('Patterns to ignore'),
           onlyFiles: z.boolean().optional().describe('Return only files'),
@@ -1346,7 +1385,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
           if (!globTool) return { error: 'Glob tool not available' }
           const result = await globTool.execute(params)
           return result.success ? result.data : { error: result.error }
-        }
+        },
       }),
 
       // 10. DIFF: File comparison tool (Priority 5)
@@ -1368,7 +1407,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
           if (!diffTool) return { error: 'Diff tool not available' }
           const result = await diffTool.execute(params)
           return result.success ? result.data : { error: result.error }
-        }
+        },
       }),
 
       // 11. TREE: Directory tree visualization (Priority 4)
@@ -1390,14 +1429,17 @@ Respond in a helpful, professional manner with clear explanations and actionable
           if (!treeTool) return { error: 'Tree tool not available' }
           const result = await treeTool.execute(params)
           return result.success ? result.data : { error: result.error }
-        }
+        },
       }),
 
       // 12. WATCH: File system monitoring (Priority 3)
       watch: tool({
         description: 'Monitor file system changes in real-time with pattern filtering',
         parameters: z.object({
-          path: z.union([z.string(), z.array(z.string())]).optional().describe('Path(s) to watch'),
+          path: z
+            .union([z.string(), z.array(z.string())])
+            .optional()
+            .describe('Path(s) to watch'),
           patterns: z.array(z.string()).optional().describe('File patterns to watch'),
           ignorePatterns: z.array(z.string()).optional().describe('Patterns to ignore'),
           ignoreInitial: z.boolean().default(true).describe('Ignore initial file scan'),
@@ -1405,7 +1447,10 @@ Respond in a helpful, professional manner with clear explanations and actionable
           depth: z.number().optional().describe('Maximum directory depth'),
           awaitWriteFinish: z.boolean().default(false).describe('Wait for write operations to finish'),
           debounceDelay: z.number().optional().describe('Debounce delay in milliseconds'),
-          events: z.array(z.enum(['add', 'change', 'unlink', 'addDir', 'unlinkDir'])).optional().describe('Event types to watch'),
+          events: z
+            .array(z.enum(['add', 'change', 'unlink', 'addDir', 'unlinkDir']))
+            .optional()
+            .describe('Event types to watch'),
           maxEvents: z.number().optional().describe('Maximum number of events to collect'),
         }),
         execute: async (params) => {
@@ -1413,7 +1458,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
           if (!watchTool) return { error: 'Watch tool not available' }
           const result = await watchTool.execute(params)
           return result.success ? result.data : { error: result.error }
-        }
+        },
       }),
 
       // ==================== AI & VISION TOOLS ====================
@@ -1437,7 +1482,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
             cache: params.cache,
           })
           return result.success ? result.data : { error: result.error }
-        }
+        },
       }),
 
       // 14. IMAGE_GENERATION: AI image generation (Priority 6)
@@ -1445,8 +1490,21 @@ Respond in a helpful, professional manner with clear explanations and actionable
         description: 'Generate images from text prompts using DALL-E 3, GPT-Image-1, or other AI models',
         parameters: z.object({
           prompt: z.string().min(1).describe('Text description of image to generate'),
-          model: z.enum(['dall-e-3', 'dall-e-2', 'gpt-image-1', 'google/gemini-2.5-flash-image', 'openai/gpt-5-image-mini', 'openai/gpt-5-image']).optional().describe('Image generation model'),
-          size: z.enum(['1024x1024', '1792x1024', '1024x1792', '512x512', '256x256']).optional().describe('Image dimensions'),
+          model: z
+            .enum([
+              'dall-e-3',
+              'dall-e-2',
+              'gpt-image-1',
+              'google/gemini-2.5-flash-image',
+              'openai/gpt-5-image-mini',
+              'openai/gpt-5-image',
+            ])
+            .optional()
+            .describe('Image generation model'),
+          size: z
+            .enum(['1024x1024', '1792x1024', '1024x1792', '512x512', '256x256'])
+            .optional()
+            .describe('Image dimensions'),
           quality: z.enum(['standard', 'hd']).optional().describe('Image quality'),
           style: z.enum(['vivid', 'natural']).optional().describe('Image style'),
           n: z.number().min(1).max(10).optional().describe('Number of images to generate'),
@@ -1458,14 +1516,15 @@ Respond in a helpful, professional manner with clear explanations and actionable
           if (!imageGenTool) return { error: 'Image generation tool not available' }
           const result = await imageGenTool.execute(params)
           return result.success ? result.data : { error: result.error }
-        }
+        },
       }),
 
       // ==================== BLOCKCHAIN TOOLS ====================
 
       // 15. COINBASE_AGENTKIT: Coinbase blockchain operations (Priority 7)
       coinbase_agentkit: tool({
-        description: 'Execute blockchain operations using official Coinbase AgentKit (WETH, Pyth, ERC20, CDP Smart Wallet)',
+        description:
+          'Execute blockchain operations using official Coinbase AgentKit (WETH, Pyth, ERC20, CDP Smart Wallet)',
         parameters: z.object({
           action: z.string().describe('Action: init, chat, wallet-info, transfer, balance, status, reset'),
           params: z.record(z.any()).optional().describe('Action-specific parameters'),
@@ -1476,7 +1535,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
           // Coinbase tool takes action as first param, params as second
           const result = await coinbaseTool.execute(params.action, params.params || {})
           return result.success ? result.data : { error: result.error }
-        }
+        },
       }),
 
       // 16. GOAT_TOOL: GOAT SDK blockchain operations (Priority 7)
@@ -1492,7 +1551,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
           // GOAT tool takes action as first param, params as second
           const result = await goatTool.execute(params.action, params.params || {})
           return result.success ? result.data : { error: result.error }
-        }
+        },
       }),
 
       // ==================== BROWSER AUTOMATION TOOLS ====================
@@ -1510,7 +1569,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
           // Browserbase tool takes action as first param, params as second
           const result = await browserbaseTool.execute(params.action, params.params || {})
           return result.success ? result.data : { error: result.error }
-        }
+        },
       }),
 
       // 18. BROWSER_NAVIGATE: Navigate to URL (Priority 5)
@@ -1527,7 +1586,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
           if (!browserNavTool) return { error: 'Browser navigate tool not available' }
           const result = await browserNavTool.execute(params)
           return result.success ? result.data : { error: result.error }
-        }
+        },
       }),
 
       // 19. BROWSER_CLICK: Click elements (Priority 5)
@@ -1546,7 +1605,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
           if (!browserClickTool) return { error: 'Browser click tool not available' }
           const result = await browserClickTool.execute(params)
           return result.success ? result.data : { error: result.error }
-        }
+        },
       }),
 
       // 20. BROWSER_TYPE: Type text (Priority 5)
@@ -1564,7 +1623,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
           if (!browserTypeTool) return { error: 'Browser type tool not available' }
           const result = await browserTypeTool.execute(params)
           return result.success ? result.data : { error: result.error }
-        }
+        },
       }),
 
       // 21. BROWSER_SCREENSHOT: Take screenshots (Priority 4)
@@ -1581,7 +1640,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
           if (!browserScreenshotTool) return { error: 'Browser screenshot tool not available' }
           const result = await browserScreenshotTool.execute(params)
           return result.success ? result.data : { error: result.error }
-        }
+        },
       }),
 
       // 22. BROWSER_EXTRACT_TEXT: Extract text content (Priority 4)
@@ -1597,7 +1656,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
           if (!browserExtractTool) return { error: 'Browser extract text tool not available' }
           const result = await browserExtractTool.execute(params)
           return result.success ? result.data : { error: result.error }
-        }
+        },
       }),
 
       // 23. BROWSER_WAIT_FOR_ELEMENT: Wait for elements (Priority 4)
@@ -1614,7 +1673,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
           if (!browserWaitTool) return { error: 'Browser wait for element tool not available' }
           const result = await browserWaitTool.execute(params)
           return result.success ? result.data : { error: result.error }
-        }
+        },
       }),
 
       // 24. BROWSER_SCROLL: Scroll page (Priority 3)
@@ -1631,7 +1690,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
           if (!browserScrollTool) return { error: 'Browser scroll tool not available' }
           const result = await browserScrollTool.execute(params)
           return result.success ? result.data : { error: result.error }
-        }
+        },
       }),
 
       // 25. BROWSER_EXECUTE_SCRIPT: Execute JavaScript (Priority 5)
@@ -1647,7 +1706,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
           if (!browserScriptTool) return { error: 'Browser execute script tool not available' }
           const result = await browserScriptTool.execute(params)
           return result.success ? result.data : { error: result.error }
-        }
+        },
       }),
 
       // 26. BROWSER_GET_PAGE_INFO: Get page information (Priority 3)
@@ -1661,7 +1720,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
           if (!browserInfoTool) return { error: 'Browser get page info tool not available' }
           const result = await browserInfoTool.execute(params)
           return result.success ? result.data : { error: result.error }
-        }
+        },
       }),
 
       // ==================== MANUFACTURING TOOLS ====================
@@ -1681,7 +1740,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
           if (!cadTool) return { error: 'Text to CAD tool not available' }
           const result = await cadTool.execute(params)
           return result.success ? result.data : { error: result.error }
-        }
+        },
       }),
 
       // 28. TEXT_TO_GCODE: Text to G-code conversion (Priority 5)
@@ -1695,7 +1754,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
           if (!gcodeTool) return { error: 'Text to G-code tool not available' }
           const result = await gcodeTool.execute(params)
           return result.success ? result.data : { error: result.error }
-        }
+        },
       }),
 
       // ==================== SYSTEM TOOLS ====================
@@ -1717,7 +1776,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
           if (!bashTool) return { error: 'Bash tool not available' }
           const result = await bashTool.execute(params)
           return result.success ? result.data : { error: result.error }
-        }
+        },
       }),
 
       // 30. JSON_PATCH: JSON patch operations (Priority 6)
@@ -1725,11 +1784,15 @@ Respond in a helpful, professional manner with clear explanations and actionable
         description: 'Apply RFC6902-like JSON patches with diff/backup to configuration files',
         parameters: z.object({
           filePath: z.string().describe('Path to JSON/YAML file to patch'),
-          operations: z.array(z.object({
-            op: z.enum(['add', 'replace', 'remove']).describe('Operation type'),
-            path: z.string().describe('JSON path (e.g., "/scripts/build")'),
-            value: z.any().optional().describe('Value for add/replace operations'),
-          })).describe('Array of patch operations'),
+          operations: z
+            .array(
+              z.object({
+                op: z.enum(['add', 'replace', 'remove']).describe('Operation type'),
+                path: z.string().describe('JSON path (e.g., "/scripts/build")'),
+                value: z.any().optional().describe('Value for add/replace operations'),
+              })
+            )
+            .describe('Array of patch operations'),
           createBackup: z.boolean().default(true).describe('Create backup before patching'),
           previewOnly: z.boolean().default(false).describe('Preview changes without applying'),
           allowMissing: z.boolean().default(false).describe('Allow patching non-existent files'),
@@ -1740,7 +1803,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
           if (!jsonPatchTool) return { error: 'JSON patch tool not available' }
           const result = await jsonPatchTool.execute(params)
           return result.success ? result.data : { error: result.error }
-        }
+        },
       }),
 
       // 31. GIT_TOOLS: Git operations (Priority 6)
@@ -1755,7 +1818,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
           if (!gitTools) return { error: 'Git tools not available' }
           const result = await gitTools.execute(params)
           return result.success ? result.data : { error: result.error }
-        }
+        },
       }),
     }
   }
@@ -1802,8 +1865,8 @@ Respond in a helpful, professional manner with clear explanations and actionable
             ? lastUserMessage.content
             : Array.isArray(lastUserMessage.content)
               ? lastUserMessage.content
-                .map((part) => (typeof part === 'string' ? part : part.experimental_providerMetadata?.content || ''))
-                .join('')
+                  .map((part) => (typeof part === 'string' ? part : part.experimental_providerMetadata?.content || ''))
+                  .join('')
               : String(lastUserMessage.content)
 
         // Use ToolRouter for intelligent tool analysis
@@ -1928,10 +1991,8 @@ Respond in a helpful, professional manner with clear explanations and actionable
         maxToolRoundtrips: isAnalysisRequest ? 20 : 30, // Reduced to prevent token overflow
         temperature: params.temperature,
         abortSignal,
-        onStepFinish: (_evt: any) => { },
+        onStepFinish: (_evt: any) => {},
       }
-
-
 
       // OpenRouter and Anthropic models REQUIRE maxTokens
       if (provider !== 'openai') {
@@ -2174,10 +2235,10 @@ Respond in a helpful, professional manner with clear explanations and actionable
                     ? lastUserMessage.content
                     : Array.isArray(lastUserMessage.content)
                       ? lastUserMessage.content
-                        .map((part) =>
-                          typeof part === 'string' ? part : part.experimental_providerMetadata?.content || ''
-                        )
-                        .join('')
+                          .map((part) =>
+                            typeof part === 'string' ? part : part.experimental_providerMetadata?.content || ''
+                          )
+                          .join('')
                       : String(lastUserMessage.content)
 
                 // Salva nella cache intelligente
@@ -2247,7 +2308,6 @@ Respond in a helpful, professional manner with clear explanations and actionable
 
       // Show only essential info: tokens used and context remaining
       if (truncatedTokens > 0) {
-
       }
     } catch (error: any) {
       console.error(`Provider error (${this.getCurrentModelInfo().config.provider}):`, error)
@@ -2929,8 +2989,8 @@ Requirements:
       const routingCfg = configManager.get('modelRouting')
       const resolved = routingCfg?.enabled
         ? await this.resolveAdaptiveModel('code_gen', [
-          { role: 'user', content: `${type}: ${description} (${language})` } as any,
-        ])
+            { role: 'user', content: `${type}: ${description} (${language})` } as any,
+          ])
         : undefined
       const model = this.getModel(resolved) as any
       const params = this.getProviderParams()
@@ -3004,7 +3064,7 @@ Requirements:
         const msg = `[Router] ${info.name} → ${decision.selectedModel} (${decision.tier}, ~${decision.estimatedTokens} tok)`
         if (nik?.advancedUI) nik.advancedUI.logInfo('model router', msg)
         else console.log(chalk.dim(msg))
-      } catch { }
+      } catch {}
 
       // The router returns a provider model id. Our config keys match these ids in default models.
       // If key is missing, fallback to current model name in config.
@@ -3512,7 +3572,6 @@ Requirements:
 
     return this.truncateForPrompt(`${question}\n💡 Tell me how to continue.`, 150)
   }
-
 
   // ====================== ⚡︎ COGNITIVE ENHANCEMENT METHODS ======================
 
@@ -4425,7 +4484,7 @@ Use this cognitive understanding to provide more targeted and effective response
       totalTokens: this.totalTokensUsed,
       totalCost: this.estimatedCost,
       requestCount: this.requestCount,
-      cacheHits: this.cacheHits
+      cacheHits: this.cacheHits,
     }
   }
 

@@ -4,8 +4,8 @@ import chalk from 'chalk'
 import { semanticSearchEngine } from '../context/semantic-search-engine'
 import { unifiedEmbeddingInterface } from '../context/unified-embedding-interface'
 import { type MemoryEntry, type MemorySearchOptions, type MemorySearchResult, mem0Provider } from '../providers/memory'
-import { structuredLogger } from '../utils/structured-logger'
 import { authProvider } from '../providers/supabase/auth-provider'
+import { structuredLogger } from '../utils/structured-logger'
 
 export interface ConversationContext {
   sessionId: string

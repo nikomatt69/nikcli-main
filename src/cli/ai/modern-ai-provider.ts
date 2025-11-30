@@ -303,11 +303,10 @@ export class ModernAIProvider {
             .describe('The GOAT plugin to use: polymarket for prediction markets, erc20 for token operations'),
           action: z
             .string()
-            .describe('The action to perform: init, chat, wallet-info, markets, bet, transfer, balance, approve, status, tools, reset'),
-          chain: z
-            .enum(['polygon', 'base'])
-            .optional()
-            .describe('The blockchain network to use (defaults to base)'),
+            .describe(
+              'The action to perform: init, chat, wallet-info, markets, bet, transfer, balance, approve, status, tools, reset'
+            ),
+          chain: z.enum(['polygon', 'base']).optional().describe('The blockchain network to use (defaults to base)'),
           params: z
             .any()
             .optional()
@@ -324,7 +323,7 @@ export class ModernAIProvider {
             const enhancedParams = {
               ...params,
               plugin,
-              chain: chain || 'base'
+              chain: chain || 'base',
             }
 
             const result = await secureTools.executeGoat(fullAction, enhancedParams)
@@ -372,7 +371,13 @@ export class ModernAIProvider {
 
   private async analyzeWorkspaceStructure(rootPath: string, maxDepth: number): Promise<any> {
     const packageJsonPath = join(rootPath, 'package.json')
-    let packageInfo: { name?: string; version?: string; description?: string; dependencies?: Record<string, string>; devDependencies?: Record<string, string> } | null = null
+    let packageInfo: {
+      name?: string
+      version?: string
+      description?: string
+      dependencies?: Record<string, string>
+      devDependencies?: Record<string, string>
+    } | null = null
 
     if (existsSync(packageJsonPath)) {
       try {
@@ -688,7 +693,8 @@ export class ModernAIProvider {
         messages,
         tools,
         temperature: 1,
-        maxTokens: 4000,
+        maxTokens: 8000,
+        maxSteps: 10,
         // Spread middleware if available
       }
 
@@ -811,7 +817,7 @@ export class ModernAIProvider {
         tools,
         maxSteps: 10,
         temperature: 1,
-        maxTokens: 4000,
+        maxTokens: 8000,
         // Spread middleware if available
       }
 

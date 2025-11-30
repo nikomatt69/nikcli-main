@@ -112,9 +112,9 @@ export class WatchTool extends BaseTool {
         depth: params.depth,
         awaitWriteFinish: params.awaitWriteFinish
           ? {
-            stabilityThreshold: debounceDelay,
-            pollInterval: 100,
-          }
+              stabilityThreshold: debounceDelay,
+              pollInterval: 100,
+            }
           : false,
       }
 

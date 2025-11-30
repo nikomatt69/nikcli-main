@@ -72,19 +72,20 @@ export class AutonomousCoder extends BaseAgent {
 Framework: ${analysis.framework || 'Unknown'}
 Technologies: ${analysis.technologies.join(', ')}
 Structure: ${JSON.stringify(analysis.structure, null, 2)}
-Package Info: ${analysis.packageInfo
+Package Info: ${
+          analysis.packageInfo
             ? JSON.stringify(
-              {
-                name: analysis.packageInfo.name,
-                version: analysis.packageInfo.version,
-                scripts: Object.keys(analysis.packageInfo.scripts || {}),
-                dependencies: Object.keys(analysis.packageInfo.dependencies || {}),
-              },
-              null,
-              2
-            )
+                {
+                  name: analysis.packageInfo.name,
+                  version: analysis.packageInfo.version,
+                  scripts: Object.keys(analysis.packageInfo.scripts || {}),
+                  dependencies: Object.keys(analysis.packageInfo.dependencies || {}),
+                },
+                null,
+                2
+              )
             : 'No package.json found'
-          }`,
+        }`,
       },
     ]
 

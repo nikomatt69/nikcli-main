@@ -141,8 +141,12 @@ export class BlueprintStorage {
       // Coerce fields for robustness (id/name/createdAt)
       const coerced: AgentBlueprint = {
         ...raw,
-        id: (raw && typeof raw.id === 'string' && raw.id.length > 0) ? raw.id : filename.replace('.json', ''),
-        name: raw?.name || (typeof raw?.specialization === 'string' ? raw.specialization.toLowerCase().replace(/\s+/g, '-') : (filename.replace('.json', ''))),
+        id: raw && typeof raw.id === 'string' && raw.id.length > 0 ? raw.id : filename.replace('.json', ''),
+        name:
+          raw?.name ||
+          (typeof raw?.specialization === 'string'
+            ? raw.specialization.toLowerCase().replace(/\s+/g, '-')
+            : filename.replace('.json', '')),
         createdAt: raw?.createdAt ? new Date(raw.createdAt) : new Date(),
       }
 
@@ -178,8 +182,12 @@ export class BlueprintStorage {
           // Coerce fields for robustness (id/name/createdAt)
           const coerced: AgentBlueprint = {
             ...raw,
-            id: (raw && typeof raw.id === 'string' && raw.id.length > 0) ? raw.id : file.replace('.json', ''),
-            name: raw?.name || (typeof raw?.specialization === 'string' ? raw.specialization.toLowerCase().replace(/\s+/g, '-') : (file.replace('.json', ''))),
+            id: raw && typeof raw.id === 'string' && raw.id.length > 0 ? raw.id : file.replace('.json', ''),
+            name:
+              raw?.name ||
+              (typeof raw?.specialization === 'string'
+                ? raw.specialization.toLowerCase().replace(/\s+/g, '-')
+                : file.replace('.json', '')),
             createdAt: raw?.createdAt ? new Date(raw.createdAt) : new Date(),
           }
 

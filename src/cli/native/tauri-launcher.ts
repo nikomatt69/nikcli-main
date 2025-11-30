@@ -1,4 +1,4 @@
-import { spawn, type ChildProcess } from 'node:child_process'
+import { type ChildProcess, spawn } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -160,7 +160,8 @@ export class TauriMenubarLauncher {
     if (!binary) {
       return {
         running: false,
-        message: 'Menubar binary not found. Build it with "bun run menubar:build" or set NIKCLI_MENUBAR_BIN to the compiled app.',
+        message:
+          'Menubar binary not found. Build it with "bun run menubar:build" or set NIKCLI_MENUBAR_BIN to the compiled app.',
       }
     }
 

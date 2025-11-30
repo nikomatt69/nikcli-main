@@ -31,13 +31,13 @@ export class GitHubWebhookHandler {
 
     // Initialize Slack if configured
     if (process.env.SLACK_BOT_TOKEN) {
-      this.initializeSlackService().catch(err => {
+      this.initializeSlackService().catch((err) => {
         console.error('⚠︎ Failed to initialize Slack service:', err)
       })
     }
 
     // Initialize cache service if available
-    this.initializeCacheService().catch(err => {
+    this.initializeCacheService().catch((err) => {
       console.error('⚠︎ Failed to initialize cache service:', err)
     })
   }
@@ -198,16 +198,13 @@ export class GitHubWebhookHandler {
     let slackThreadTs: string | undefined
     if (this.slackService && process.env.SLACK_DEFAULT_CHANNEL) {
       try {
-        slackThreadTs = await this.slackService.notifyGitHubMention(
-          process.env.SLACK_DEFAULT_CHANNEL,
-          {
-            repository: repository.full_name,
-            issueNumber: issue.number,
-            commentUrl: comment.html_url,
-            author: comment.user.login,
-            command: `${mention.command} ${mention.args.join(' ')}`.trim(),
-          },
-        )
+        slackThreadTs = await this.slackService.notifyGitHubMention(process.env.SLACK_DEFAULT_CHANNEL, {
+          repository: repository.full_name,
+          issueNumber: issue.number,
+          commentUrl: comment.html_url,
+          author: comment.user.login,
+          command: `${mention.command} ${mention.args.join(' ')}`.trim(),
+        })
         console.log(`✓ Notified Slack about GitHub mention (thread: ${slackThreadTs})`)
       } catch (error) {
         console.error('⚠︎ Failed to notify Slack:', error)
@@ -559,10 +556,11 @@ ${error instanceof Error ? error.message : 'Unknown error'}
 Please check your request and try again. If the issue persists, please create an issue in the [NikCLI repository](https://github.com/nikomatt69/nikcli-main).
 
 ---
-*Processing time: ${job.startedAt && job.completedAt
+*Processing time: ${
+        job.startedAt && job.completedAt
           ? `${((job.completedAt.getTime() - job.startedAt.getTime()) / 1000).toFixed(2)}s`
           : 'N/A'
-        }*`
+      }*`
 
       await this.octokit.rest.issues.createComment({
         owner,

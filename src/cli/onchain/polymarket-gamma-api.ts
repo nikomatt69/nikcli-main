@@ -336,11 +336,7 @@ export class PolymarketGammaAPI extends EventEmitter {
   /**
    * Make HTTP request with caching
    */
-  private async makeRequest(
-    method: string,
-    path: string,
-    options: any = {}
-  ): Promise<any> {
+  private async makeRequest(method: string, path: string, options: any = {}): Promise<any> {
     const cacheKey = `${method}:${path}`
 
     // Check cache
@@ -358,7 +354,7 @@ export class PolymarketGammaAPI extends EventEmitter {
         method,
         headers: {
           'Content-Type': 'application/json',
-          'Accept': 'application/json',
+          Accept: 'application/json',
         },
         timeout: 30000,
       })

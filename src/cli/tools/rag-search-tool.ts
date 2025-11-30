@@ -1,7 +1,7 @@
+import { type RAGSearchResult, unifiedRAGSystem } from '../context/rag-system'
 import { PromptManager } from '../prompts/prompt-manager'
 import { advancedUI } from '../ui/advanced-cli-ui'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
-import { unifiedRAGSystem, type RAGSearchResult } from '../context/rag-system'
 
 export interface RAGSearchParams {
   query: string
@@ -189,9 +189,7 @@ export class RAGSearchTool extends BaseTool {
 
       // Generate summary
       const executionTime = Date.now() - startTime
-      const sourcesUsed = Array.from(
-        new Set(results.map((r) => r.metadata.source).filter((s): s is string => !!s))
-      )
+      const sourcesUsed = Array.from(new Set(results.map((r) => r.metadata.source).filter((s): s is string => !!s)))
 
       const summary = this.generateSummary(query, results, searchMode, executionTime, sourcesUsed)
 
@@ -311,4 +309,3 @@ export class RAGSearchTool extends BaseTool {
 }
 
 export default RAGSearchTool
-

@@ -93,7 +93,7 @@ export class CacheService extends EventEmitter {
     this.setupEventHandlers()
     // Persist stats periodically (best-effort)
     setInterval(() => {
-      void this.persistStats().catch(() => { })
+      void this.persistStats().catch(() => {})
     }, 60000)
   }
 
@@ -119,10 +119,7 @@ export class CacheService extends EventEmitter {
       structuredLogger.info('Semantic Cache initialized successfully', JSON.stringify({}))
       this.emit('semantic_cache_ready')
     } catch (error: any) {
-      structuredLogger.error(
-        'Failed to initialize Semantic Cache',
-        JSON.stringify({ error: error.message })
-      )
+      structuredLogger.error('Failed to initialize Semantic Cache', JSON.stringify({ error: error.message }))
       this.semanticCache = null
     }
   }
@@ -194,10 +191,10 @@ export class CacheService extends EventEmitter {
               : Promise.resolve(false),
             this.shouldUseFallback(chosenStrategy, false)
               ? this.smartCache.setCachedResponse(key, JSON.stringify(value), context, {
-                tokensSaved: this.estimateTokensSaved(value),
-                responseTime: metadata?.responseTime || 0,
-                ...metadata,
-              })
+                  tokensSaved: this.estimateTokensSaved(value),
+                  responseTime: metadata?.responseTime || 0,
+                  ...metadata,
+                })
               : Promise.resolve(false),
           ])
 
@@ -579,7 +576,7 @@ export class CacheService extends EventEmitter {
         errors: this.stats.errors,
       }
       await this.redis.set('stats:cache', payload, 3600, { type: 'stats' })
-    } catch (_e) { }
+    } catch (_e) {}
   }
 
   /**
@@ -632,17 +629,13 @@ export class CacheService extends EventEmitter {
   /**
    * Cache ML inference result with TTL
    */
-  async cacheMLInference(
-    key: string,
-    prediction: Record<string, any>,
-    ttl: number = 3600
-  ): Promise<void> {
+  async cacheMLInference(key: string, prediction: Record<string, any>, ttl: number = 3600): Promise<void> {
     try {
       const cacheKey = `ml:inference:${key}`
       await this.set(cacheKey, prediction, 'ml-inference', { ttl })
     } catch (error) {
       // Silent failure - inference still usable without cache
-      (structuredLogger as any).debug('Failed to cache ML inference', { error })
+      ;(structuredLogger as any).debug('Failed to cache ML inference', { error })
     }
   }
 

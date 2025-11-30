@@ -4,12 +4,12 @@
  * Uses LemonSqueezy instead of Stripe (same infrastructure as subscription system)
  */
 
-import { enhancedSupabaseProvider } from '../providers/supabase/enhanced-supabase-provider'
 import { simpleConfigManager } from '../core/config-manager'
+import { enhancedSupabaseProvider } from '../providers/supabase/enhanced-supabase-provider'
 import {
-  AdCreationInput,
-  AdCheckoutSession,
-  AdCampaign,
+  type AdCampaign,
+  type AdCheckoutSession,
+  type AdCreationInput,
   DEFAULT_CPM_RATE,
   MIN_IMPRESSIONS_PURCHASE,
 } from '../types/ads'
@@ -46,11 +46,7 @@ export class StripeService {
       }
 
       // First, try to get existing advertiser by email
-      const { data: existing } = await supabase
-        .from(this.userTableName)
-        .select('id')
-        .eq('email', email)
-        .limit(1)
+      const { data: existing } = await supabase.from(this.userTableName).select('id').eq('email', email).limit(1)
 
       if (existing && existing.length > 0) {
         return existing[0].id
@@ -167,10 +163,7 @@ export class StripeService {
       }
 
       // Store checkout URL in campaign for reference
-      await supabase
-        .from(this.adCampaignsTable)
-        .update({ stripe_session_id: checkoutUrl })
-        .eq('id', campaignId)
+      await supabase.from(this.adCampaignsTable).update({ stripe_session_id: checkoutUrl }).eq('id', campaignId)
 
       return checkoutSession
     } catch (error) {

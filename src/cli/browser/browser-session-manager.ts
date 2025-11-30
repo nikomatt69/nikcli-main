@@ -1,7 +1,7 @@
 import { EventEmitter } from 'node:events'
 import chalk from 'chalk'
 import { advancedUI } from '../ui/advanced-cli-ui'
-import { browserContainerManager, type BrowserContainer } from './browser-container-manager'
+import { type BrowserContainer, browserContainerManager } from './browser-container-manager'
 
 /**
  * BrowserSessionManager - Manages individual browser conversation sessions
@@ -26,10 +26,7 @@ export class BrowserSessionManager extends EventEmitter {
   /**
    * Create new browser session
    */
-  async createSession(
-    containerId: string,
-    browserConfig?: BrowserSessionOptions
-  ): Promise<BrowserSession> {
+  async createSession(containerId: string, browserConfig?: BrowserSessionOptions): Promise<BrowserSession> {
     const sessionId = this.generateSessionId()
     const sessionConfig = { ...this.config, ...browserConfig }
 
@@ -139,11 +136,7 @@ export class BrowserSessionManager extends EventEmitter {
   /**
    * Send message to browser session
    */
-  async sendMessage(
-    sessionId: string,
-    content: string,
-    messageType: BrowserMessageType = 'chat'
-  ): Promise<boolean> {
+  async sendMessage(sessionId: string, content: string, messageType: BrowserMessageType = 'chat'): Promise<boolean> {
     const session = this.sessions.get(sessionId)
     if (!session || !session.isActive) {
       throw new Error(`Browser session ${sessionId} not found or inactive`)
@@ -164,7 +157,6 @@ export class BrowserSessionManager extends EventEmitter {
 
       this.emit('message:sent', sessionId, message)
       return true
-
     } catch (error: any) {
       advancedUI.logFunctionUpdate('error', `Failed to send message to session ${sessionId}: ${error.message}`, '✖')
       throw error
@@ -174,10 +166,7 @@ export class BrowserSessionManager extends EventEmitter {
   /**
    * Execute browser action
    */
-  async executeBrowserAction(
-    sessionId: string,
-    action: BrowserAction
-  ): Promise<BrowserActionResult> {
+  async executeBrowserAction(sessionId: string, action: BrowserAction): Promise<BrowserActionResult> {
     const session = this.sessions.get(sessionId)
     if (!session || !session.isActive) {
       throw new Error(`Browser session ${sessionId} not found or inactive`)
@@ -204,7 +193,6 @@ export class BrowserSessionManager extends EventEmitter {
 
       this.emit('action:executed', sessionId, action, result)
       return result
-
     } catch (error: any) {
       advancedUI.logFunctionUpdate('error', `Browser action failed: ${error.message}`, '✖')
       throw error
@@ -245,7 +233,6 @@ export class BrowserSessionManager extends EventEmitter {
       }
 
       throw new Error('Screenshot capture failed')
-
     } catch (error: any) {
       advancedUI.logFunctionUpdate('error', `Screenshot failed: ${error.message}`, '📸')
       throw error
@@ -263,11 +250,7 @@ export class BrowserSessionManager extends EventEmitter {
   /**
    * Update browser state
    */
-  async updateBrowserState(
-    session: BrowserSession,
-    action: BrowserAction,
-    result: BrowserActionResult
-  ): Promise<void> {
+  async updateBrowserState(session: BrowserSession, action: BrowserAction, result: BrowserActionResult): Promise<void> {
     const state = session.browserState
 
     switch (action.type) {
@@ -330,7 +313,6 @@ export class BrowserSessionManager extends EventEmitter {
       advancedUI.logFunctionUpdate('warning', `Ended browser session ${sessionId}: ${reason}`, '🛑')
 
       this.emit('session:ended', sessionId, reason)
-
     } catch (error: any) {
       advancedUI.logFunctionUpdate('error', `Error ending session ${sessionId}: ${error.message}`, '✖')
     }
@@ -403,7 +385,6 @@ export class BrowserSessionManager extends EventEmitter {
       }
 
       advancedUI.logFunctionUpdate('success', `Initialized browser session ${session.sessionId}`, '✓')
-
     } catch (error: any) {
       session.status = 'error'
       session.isActive = false
@@ -421,7 +402,6 @@ export class BrowserSessionManager extends EventEmitter {
       }
 
       await this.executeBrowserAction(session.sessionId, pageInfoAction)
-
     } catch (error: any) {
       // Non-critical error
       advancedUI.logFunctionUpdate('warning', `Could not get initial page state: ${error.message}`, '⚠︎')
@@ -445,13 +425,10 @@ export class BrowserSessionManager extends EventEmitter {
     }, interval) as NodeJS.Timeout
 
     // Store interval ID for cleanup
-    (session as any)._autoScreenshotInterval = autoScreenshot
+    ;(session as any)._autoScreenshotInterval = autoScreenshot
   }
 
-  private async performBrowserAction(
-    session: BrowserSession,
-    action: BrowserAction
-  ): Promise<BrowserActionResult> {
+  private async performBrowserAction(session: BrowserSession, action: BrowserAction): Promise<BrowserActionResult> {
     // This is a placeholder - actual implementation would use Playwright tools
     // The real implementation will be in the Playwright automation tools
 
@@ -546,7 +523,7 @@ export class BrowserSessionManager extends EventEmitter {
   }
 
   private delay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms))
+    return new Promise((resolve) => setTimeout(resolve, ms))
   }
 
   private setupEventHandlers(): void {

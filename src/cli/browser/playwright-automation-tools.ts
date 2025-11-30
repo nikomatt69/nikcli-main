@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { BaseTool, type ToolExecutionResult } from '../tools/base-tool'
 import { advancedUI } from '../ui/advanced-cli-ui'
-import { browserSessionManager, type BrowserAction, type BrowserActionResult } from './browser-session-manager'
+import { type BrowserAction, type BrowserActionResult, browserSessionManager } from './browser-session-manager'
 
 /**
  * Playwright Automation Tools - AI-controllable browser automation
@@ -232,7 +232,7 @@ export class BrowserTypeTool extends BaseTool {
 
       advancedUI.logFunctionCall('browserType', {
         selector: validated.selector,
-        text: validated.text.substring(0, 50) + (validated.text.length > 50 ? '...' : '')
+        text: validated.text.substring(0, 50) + (validated.text.length > 50 ? '...' : ''),
       })
 
       const action: BrowserAction = {
@@ -422,7 +422,7 @@ export class BrowserWaitForElementTool extends BaseTool {
 
       advancedUI.logFunctionCall('browserWaitForElement', {
         selector: validated.selector,
-        state: validated.state || 'visible'
+        state: validated.state || 'visible',
       })
 
       const action: BrowserAction = {
@@ -487,7 +487,7 @@ export class BrowserScrollTool extends BaseTool {
 
       advancedUI.logFunctionCall('browserScroll', {
         direction: validated.direction,
-        amount: validated.amount || 500
+        amount: validated.amount || 500,
       })
 
       const action: BrowserAction = {
@@ -551,7 +551,7 @@ export class BrowserExecuteScriptTool extends BaseTool {
       const validated = ExecuteScriptSchema.parse(params)
 
       advancedUI.logFunctionCall('browserExecuteScript', {
-        script: validated.script.substring(0, 100) + (validated.script.length > 100 ? '...' : '')
+        script: validated.script.substring(0, 100) + (validated.script.length > 100 ? '...' : ''),
       })
 
       const action: BrowserAction = {

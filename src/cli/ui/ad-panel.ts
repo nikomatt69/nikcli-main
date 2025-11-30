@@ -1,6 +1,6 @@
 import boxen from 'boxen'
 import chalk from 'chalk'
-import { AdCampaign } from '../types/ads'
+import type { AdCampaign } from '../types/ads'
 
 export interface AdPanelOptions {
   maxWidth?: number
@@ -56,7 +56,16 @@ export function renderAdPanel(ad: AdCampaign, format: string = 'full', options: 
   }
 
   const content = lines.join('\n')
-  return boxen(content, { title: 'Ad', titleAlignment: 'left', padding: 1, borderStyle: 'round', borderColor, width: maxWidth, margin, dimBorder: true })
+  return boxen(content, {
+    title: 'Ad',
+    titleAlignment: 'left',
+    padding: 1,
+    borderStyle: 'round',
+    borderColor,
+    width: maxWidth,
+    margin,
+    dimBorder: true,
+  })
 }
 
 export function renderAdIndicator(ad: AdCampaign): string {
@@ -65,17 +74,27 @@ export function renderAdIndicator(ad: AdCampaign): string {
 }
 
 export function renderAdListItem(ad: AdCampaign, index: number): string {
-  const statusColor = { pending: chalk.yellow, active: chalk.green, paused: chalk.gray, completed: chalk.cyan }[ad.status] || chalk.white
+  const statusColor =
+    { pending: chalk.yellow, active: chalk.green, paused: chalk.gray, completed: chalk.cyan }[ad.status] || chalk.white
   const progressPercent = Math.round((ad.impressionsServed / ad.budgetImpressions) * 100)
   const progressBar = createProgressBar(progressPercent, 15)
   const lines: string[] = []
-  lines.push(`${index + 1}. ${statusColor(ad.status.toUpperCase())} - ${ad.content.slice(0, 45)}${ad.content.length > 45 ? '...' : ''}`)
-  lines.push(`   ${progressBar} ${ad.impressionsServed}/${ad.budgetImpressions} impressions ($${ad.totalCost.toFixed(2)})`)
+  lines.push(
+    `${index + 1}. ${statusColor(ad.status.toUpperCase())} - ${ad.content.slice(0, 45)}${ad.content.length > 45 ? '...' : ''}`
+  )
+  lines.push(
+    `   ${progressBar} ${ad.impressionsServed}/${ad.budgetImpressions} impressions ($${ad.totalCost.toFixed(2)})`
+  )
   if (ad.ctaText) lines.push(`   CTA: ${chalk.cyan(ad.ctaText)}`)
   return lines.join('\n')
 }
 
-export function renderAdsSummaryPanel(stats: { totalCampaigns: number; activeCampaigns: number; totalImpressions: number; totalCost: number }): string {
+export function renderAdsSummaryPanel(stats: {
+  totalCampaigns: number
+  activeCampaigns: number
+  totalImpressions: number
+  totalCost: number
+}): string {
   const lines: string[] = []
   lines.push(chalk.bold('Ads Overview'))
   lines.push('')
@@ -83,7 +102,15 @@ export function renderAdsSummaryPanel(stats: { totalCampaigns: number; activeCam
   lines.push(`${chalk.green('[+] Active')}: ${chalk.bold(stats.activeCampaigns.toString())}`)
   lines.push(`${chalk.yellow('[~] Impressions')}: ${chalk.bold(stats.totalImpressions.toLocaleString())}`)
   lines.push(`${chalk.blue('[$] Total Spend')}: ${chalk.bold(`$${stats.totalCost.toFixed(2)}`)}`)
-  return boxen(lines.join('\n'), { title: 'Analytics', titleAlignment: 'left', padding: 1, borderStyle: 'round', borderColor: 'blue', width: 50, margin: { top: 1, bottom: 1, left: 0, right: 0 } })
+  return boxen(lines.join('\n'), {
+    title: 'Analytics',
+    titleAlignment: 'left',
+    padding: 1,
+    borderStyle: 'round',
+    borderColor: 'blue',
+    width: 50,
+    margin: { top: 1, bottom: 1, left: 0, right: 0 },
+  })
 }
 
 export function renderUserAdEarnings(earnings: { impressions: number }): string {
@@ -91,7 +118,15 @@ export function renderUserAdEarnings(earnings: { impressions: number }): string 
   lines.push(chalk.bold('Ad Impressions'))
   lines.push('')
   lines.push(`${chalk.cyan('[o] Impressions')}: ${chalk.bold(earnings.impressions.toString())}`)
-  return boxen(lines.join('\n'), { title: 'Stats', titleAlignment: 'left', padding: 1, borderStyle: 'round', borderColor: 'green', width: 45, margin: { top: 1, bottom: 1, left: 0, right: 0 } })
+  return boxen(lines.join('\n'), {
+    title: 'Stats',
+    titleAlignment: 'left',
+    padding: 1,
+    borderStyle: 'round',
+    borderColor: 'green',
+    width: 45,
+    margin: { top: 1, bottom: 1, left: 0, right: 0 },
+  })
 }
 
 export function validateAdContent(content: string): { valid: boolean; error?: string } {

@@ -4,9 +4,9 @@
  * Prevents abuse of embedded API keys
  */
 
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
-import { join } from 'node:path'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
+import { join } from 'node:path'
 
 interface UsageRecord {
   timestamp: number
@@ -124,11 +124,7 @@ export class QuotaManager {
   /**
    * Record API usage
    */
-  static recordUsage(
-    provider: string,
-    endpoint: string,
-    options: { tokens?: number; cost?: number } = {}
-  ): void {
+  static recordUsage(provider: string, endpoint: string, options: { tokens?: number; cost?: number } = {}): void {
     if (!QuotaManager.initialized) {
       console.warn('QuotaManager not initialized')
       return

@@ -94,7 +94,7 @@ export class ChunkValidator {
 
     const estimatedLines = ChunkValidator.estimateLines(sanitized)
 
-    const isValid = errors.every(e => e.severity !== 'critical')
+    const isValid = errors.every((e) => e.severity !== 'critical')
 
     return {
       isValid,
@@ -189,14 +189,14 @@ export class ChunkValidator {
       return 'Validation passed'
     }
 
-    const criticalErrors = errors.filter(e => e.severity === 'critical')
+    const criticalErrors = errors.filter((e) => e.severity === 'critical')
     if (criticalErrors.length > 0) {
-      return `Critical: ${criticalErrors.map(e => e.message).join('; ')}`
+      return `Critical: ${criticalErrors.map((e) => e.message).join('; ')}`
     }
 
-    const warnings = errors.filter(e => e.severity === 'warning')
+    const warnings = errors.filter((e) => e.severity === 'warning')
     if (warnings.length > 0) {
-      return `Warnings: ${warnings.map(e => e.message).join('; ')}`
+      return `Warnings: ${warnings.map((e) => e.message).join('; ')}`
     }
 
     return 'Validation issues found'

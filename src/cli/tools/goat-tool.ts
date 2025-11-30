@@ -4,21 +4,21 @@ import { generateText } from 'ai'
 import chalk from 'chalk'
 import { configManager } from '../core/config-manager'
 import { GoatProvider } from '../onchain/goat-provider'
+import { BaseTool, type ToolExecutionResult } from './base-tool'
 import {
+  checksumAddress,
+  isValidEVMAddress,
+  isZeroAddress,
+  normalizeEVMAddress,
+  sanitizeAddress,
+  validateERC20Approve,
   validateERC20Balance,
   validateERC20Transfer,
-  validateERC20Approve,
+  validateGoatChatMessage,
   validatePolymarketBet,
   validatePolymarketSearch,
   validateWalletInfo,
-  validateGoatChatMessage,
-  checksumAddress,
-  normalizeEVMAddress,
-  isZeroAddress,
-  sanitizeAddress,
-  isValidEVMAddress,
 } from './goat-validation-schemas'
-import { BaseTool, type ToolExecutionResult } from './base-tool'
 
 /**
  * GoatTool - Official GOAT SDK Integration as NikCLI Tool
@@ -293,7 +293,7 @@ export class GoatTool extends BaseTool {
           const baseRpc = configManager.getApiKey('base_rpc_url')
           if (baseRpc) process.env.BASE_RPC_URL = baseRpc
         }
-      } catch { }
+      } catch {}
 
       // Check if dependencies are installed
       const isInstalled = await GoatProvider.isInstalled()
@@ -363,14 +363,14 @@ export class GoatTool extends BaseTool {
 
       console.log(chalk.green('✓ GOAT SDK initialized successfully'))
       console.log(chalk.cyan(`📍 Wallet: ${walletInfo.address}`))
-      console.log(chalk.cyan(`⛓️ Chains: ${chains.map(c => c.name).join(', ')}`))
+      console.log(chalk.cyan(`⛓️ Chains: ${chains.map((c) => c.name).join(', ')}`))
       console.log(chalk.cyan(`🔌 Plugins: ${plugins.join(', ')}`))
 
       return {
         success: true,
         data: {
           wallet: walletInfo,
-          chains: chains.map(c => ({ name: c.name, chainId: c.chainId })),
+          chains: chains.map((c) => ({ name: c.name, chainId: c.chainId })),
           plugins,
           toolsCount: Object.keys(tools).length,
         },
@@ -421,7 +421,9 @@ export class GoatTool extends BaseTool {
           role: 'system',
           content: `You have access to GOAT SDK tools for blockchain operations.
 Available plugins: ${this.goatProvider!.getEnabledPlugins().join(', ')}
-Available chains: ${this.goatProvider!.getSupportedChains().map(c => c.name).join(', ')}
+Available chains: ${this.goatProvider!.getSupportedChains()
+            .map((c) => c.name)
+            .join(', ')}
 
 IMPORTANT INSTRUCTIONS FOR ETHEREUM ADDRESSES:
 - ALWAYS generate valid Ethereum addresses in format: 0x followed by 40 hexadecimal characters (0-9, a-f)
@@ -481,7 +483,7 @@ ALWAYS confirm with user before executing any blockchain transaction.`,
         success: true,
         data: {
           response: response.text,
-          toolCalls: response.steps?.filter(step => step.toolCalls?.length > 0) || [],
+          toolCalls: response.steps?.filter((step) => step.toolCalls?.length > 0) || [],
           usage: response.usage,
         },
         metadata: {
@@ -533,7 +535,7 @@ ALWAYS confirm with user before executing any blockchain transaction.`,
         success: true,
         data: {
           wallet: walletInfo,
-          chains: chains.map(c => ({ name: c.name, chainId: c.chainId, rpcUrl: c.rpcUrl })),
+          chains: chains.map((c) => ({ name: c.name, chainId: c.chainId, rpcUrl: c.rpcUrl })),
           plugins,
         },
         metadata: {
@@ -584,7 +586,7 @@ ALWAYS confirm with user before executing any blockchain transaction.`,
             toolHintInjected: this.toolHintInjected,
           },
           plugins: this.goatProvider?.getEnabledPlugins() || [],
-          chains: this.goatProvider?.getSupportedChains().map(c => c.name) || [],
+          chains: this.goatProvider?.getSupportedChains().map((c) => c.name) || [],
         },
         metadata: {
           executionTime: Date.now() - startTime,
@@ -1645,11 +1647,7 @@ ALWAYS confirm with user before executing any blockchain transaction.`,
           configured: hasFunder,
           funderAddress: funderAddress || 'Not set',
           status: hasFunder ? 'Active' : 'Not configured',
-          actions: [
-            'Use set-funder to configure',
-            'Use get-funder to retrieve current',
-            'Use clear-funder to remove'
-          ]
+          actions: ['Use set-funder to configure', 'Use get-funder to retrieve current', 'Use clear-funder to remove'],
         },
         metadata: {
           executionTime: Date.now() - startTime,
@@ -1717,7 +1715,7 @@ ALWAYS confirm with user before executing any blockchain transaction.`,
           walletAddress: safeWallet.address,
           chainId: safeWallet.chainId,
           status: 'Deployed',
-          safeWallet: safeWallet
+          safeWallet: safeWallet,
         },
         metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
       }
@@ -1784,7 +1782,7 @@ ALWAYS confirm with user before executing any blockchain transaction.`,
         data: {
           transactionHash: result.transactionHash,
           status: result.status,
-          result: result
+          result: result,
         },
         metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
       }
@@ -1831,7 +1829,7 @@ ALWAYS confirm with user before executing any blockchain transaction.`,
         data: {
           status: isHealthy ? 'Healthy' : 'Unhealthy',
           healthy: isHealthy,
-          service: 'Polymarket Relayer'
+          service: 'Polymarket Relayer',
         },
         metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
       }
@@ -1879,7 +1877,7 @@ ALWAYS confirm with user before executing any blockchain transaction.`,
         data: {
           count: markets.length,
           markets: markets,
-          limit: limit
+          limit: limit,
         },
         metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
       }
@@ -1937,7 +1935,7 @@ ALWAYS confirm with user before executing any blockchain transaction.`,
         data: {
           searchTerm: searchTerm,
           count: markets.length,
-          markets: markets
+          markets: markets,
         },
         metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
       }
@@ -1993,7 +1991,7 @@ ALWAYS confirm with user before executing any blockchain transaction.`,
         success: true,
         data: {
           marketId: marketId,
-          details: details
+          details: details,
         },
         metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
       }
@@ -2051,7 +2049,7 @@ ALWAYS confirm with user before executing any blockchain transaction.`,
         data: {
           category: category,
           count: markets.length,
-          markets: markets
+          markets: markets,
         },
         metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
       }
@@ -2098,7 +2096,7 @@ ALWAYS confirm with user before executing any blockchain transaction.`,
         data: {
           status: 'Connected',
           connected: true,
-          message: 'RTDS WebSocket connected successfully'
+          message: 'RTDS WebSocket connected successfully',
         },
         metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
       }
@@ -2145,7 +2143,7 @@ ALWAYS confirm with user before executing any blockchain transaction.`,
         data: {
           status: 'Disconnected',
           connected: false,
-          message: 'RTDS WebSocket disconnected'
+          message: 'RTDS WebSocket disconnected',
         },
         metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
       }
@@ -2185,7 +2183,8 @@ ALWAYS confirm with user before executing any blockchain transaction.`,
         }
       }
 
-      const symbols = params.symbols || params.symbol ? (Array.isArray(params.symbol) ? params.symbol : [params.symbol]) : []
+      const symbols =
+        params.symbols || params.symbol ? (Array.isArray(params.symbol) ? params.symbol : [params.symbol]) : []
       if (symbols.length === 0) {
         return {
           success: false,
@@ -2202,7 +2201,7 @@ ALWAYS confirm with user before executing any blockchain transaction.`,
         data: {
           status: 'Subscribed',
           symbols: symbols,
-          message: `Subscribed to prices for: ${symbols.join(', ')}`
+          message: `Subscribed to prices for: ${symbols.join(', ')}`,
         },
         metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
       }
@@ -2259,7 +2258,7 @@ ALWAYS confirm with user before executing any blockchain transaction.`,
         data: {
           status: 'Subscribed',
           marketId: marketId,
-          message: `Subscribed to comments for market: ${marketId}`
+          message: `Subscribed to comments for market: ${marketId}`,
         },
         metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
       }
@@ -2308,7 +2307,7 @@ ALWAYS confirm with user before executing any blockchain transaction.`,
           connected: stats.connected,
           uptime: stats.uptime,
           messageCount: stats.messageCount,
-          subscriptions: Array.from(stats.subscriptions)
+          subscriptions: Array.from(stats.subscriptions),
         },
         metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
       }
@@ -2367,7 +2366,7 @@ ALWAYS confirm with user before executing any blockchain transaction.`,
           conditionId: condition.conditionId,
           questionId: condition.questionId,
           oracle: condition.oracle,
-          condition: condition
+          condition: condition,
         },
         metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
       }
@@ -2430,7 +2429,7 @@ ALWAYS confirm with user before executing any blockchain transaction.`,
           amount: amount,
           conditionId: conditionId,
           positions: positions,
-          message: 'Split successful - created YES and NO positions'
+          message: 'Split successful - created YES and NO positions',
         },
         metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
       }
@@ -2492,7 +2491,7 @@ ALWAYS confirm with user before executing any blockchain transaction.`,
           userAddress: userAddress,
           mergedAmount: mergedAmount,
           conditionId: conditionId,
-          message: 'Merge successful - positions converted back to collateral'
+          message: 'Merge successful - positions converted back to collateral',
         },
         metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
       }
@@ -2556,7 +2555,7 @@ ALWAYS confirm with user before executing any blockchain transaction.`,
           userAddress: userAddress,
           positionId: positionId,
           redeemAmount: redeemAmount,
-          message: 'Redemption successful'
+          message: 'Redemption successful',
         },
         metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
       }
@@ -2617,7 +2616,7 @@ ALWAYS confirm with user before executing any blockchain transaction.`,
           userAddress: userAddress,
           conditionId: conditionId,
           count: positions.length,
-          positions: positions
+          positions: positions,
         },
         metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
       }
@@ -2653,12 +2652,12 @@ ALWAYS confirm with user before executing any blockchain transaction.`,
 
     if (category) {
       console.log(chalk.bold.yellow(`📚 ${category.toUpperCase()}\n`))
-      const section = helpData.sections.find(s => s.name.toLowerCase() === category.toLowerCase())
+      const section = helpData.sections.find((s) => s.name.toLowerCase() === category.toLowerCase())
       if (section) {
         this.printSection(section)
       } else {
         console.log(chalk.red(`✖ Category not found: ${category}`))
-        console.log(chalk.yellow(`\nAvailable categories: ${helpData.sections.map(s => s.name).join(', ')}\n`))
+        console.log(chalk.yellow(`\nAvailable categories: ${helpData.sections.map((s) => s.name).join(', ')}\n`))
       }
     } else {
       // Print all sections
@@ -2674,8 +2673,8 @@ ALWAYS confirm with user before executing any blockchain transaction.`,
       success: true,
       data: {
         message: 'Help displayed',
-        sections: helpData.sections.map(s => s.name),
-        category: category || 'all'
+        sections: helpData.sections.map((s) => s.name),
+        category: category || 'all',
       },
       metadata: {
         executionTime: Date.now() - startTime,
@@ -2697,19 +2696,19 @@ ALWAYS confirm with user before executing any blockchain transaction.`,
           {
             cmd: 'nikcli goat init',
             desc: 'Initialize GOAT SDK with Polymarket and ERC20 plugins',
-            example: 'Sets up wallet, chains, and blockchain plugins'
+            example: 'Sets up wallet, chains, and blockchain plugins',
           },
           {
             cmd: 'nikcli goat wallet-info',
             desc: 'Display current wallet address and configuration',
-            example: 'Shows address, chains, and enabled plugins'
+            example: 'Shows address, chains, and enabled plugins',
           },
           {
             cmd: 'nikcli goat status',
             desc: 'Check GOAT SDK initialization status',
-            example: 'Reports if GOAT is ready for operations'
+            example: 'Reports if GOAT is ready for operations',
           },
-        ]
+        ],
       },
       {
         name: 'MARKET_DISCOVERY',
@@ -2718,24 +2717,24 @@ ALWAYS confirm with user before executing any blockchain transaction.`,
           {
             cmd: 'nikcli goat gamma-trending [--limit 20]',
             desc: 'Get top trending prediction markets',
-            example: 'nikcli goat gamma-trending --limit 10'
+            example: 'nikcli goat gamma-trending --limit 10',
           },
           {
             cmd: 'nikcli goat gamma-search --query <term> [--limit 20]',
             desc: 'Search markets by keyword',
-            example: 'nikcli goat gamma-search --query "Trump election"'
+            example: 'nikcli goat gamma-search --query "Trump election"',
           },
           {
             cmd: 'nikcli goat gamma-details --marketId <id>',
             desc: 'Get detailed market information',
-            example: 'nikcli goat gamma-details --marketId 0x123abc'
+            example: 'nikcli goat gamma-details --marketId 0x123abc',
           },
           {
             cmd: 'nikcli goat gamma-category --category <name> [--limit 20]',
             desc: 'Get markets by category (elections, crypto, sports, etc)',
-            example: 'nikcli goat gamma-category --category elections'
+            example: 'nikcli goat gamma-category --category elections',
           },
-        ]
+        ],
       },
       {
         name: 'REAL_TIME_DATA',
@@ -2744,29 +2743,29 @@ ALWAYS confirm with user before executing any blockchain transaction.`,
           {
             cmd: 'nikcli goat rtds-connect',
             desc: 'Connect to real-time data WebSocket',
-            example: 'Establishes live price and comment feeds'
+            example: 'Establishes live price and comment feeds',
           },
           {
             cmd: 'nikcli goat rtds-subscribe-prices --symbols BTC,ETH,SOL',
             desc: 'Subscribe to crypto price updates',
-            example: 'nikcli goat rtds-subscribe-prices --symbols BTC,ETH'
+            example: 'nikcli goat rtds-subscribe-prices --symbols BTC,ETH',
           },
           {
             cmd: 'nikcli goat rtds-subscribe-comments --marketId <id>',
             desc: 'Subscribe to market comment stream',
-            example: 'nikcli goat rtds-subscribe-comments --marketId 0x123'
+            example: 'nikcli goat rtds-subscribe-comments --marketId 0x123',
           },
           {
             cmd: 'nikcli goat rtds-stats',
             desc: 'Get connection statistics and subscription info',
-            example: 'Shows uptime, message count, active subscriptions'
+            example: 'Shows uptime, message count, active subscriptions',
           },
           {
             cmd: 'nikcli goat rtds-disconnect',
             desc: 'Disconnect from real-time data stream',
-            example: 'Closes WebSocket and cleans up'
+            example: 'Closes WebSocket and cleans up',
           },
-        ]
+        ],
       },
       {
         name: 'TRADING',
@@ -2775,29 +2774,29 @@ ALWAYS confirm with user before executing any blockchain transaction.`,
           {
             cmd: 'nikcli goat place-order --tokenId <id> --price <0-1> --size <num> --side BUY|SELL',
             desc: 'Place limit order on Polymarket CLOB',
-            example: 'nikcli goat place-order --tokenId TRUMP --price 0.55 --size 100 --side BUY'
+            example: 'nikcli goat place-order --tokenId TRUMP --price 0.55 --size 100 --side BUY',
           },
           {
             cmd: 'nikcli goat cancel-order --orderId <id>',
             desc: 'Cancel an existing order',
-            example: 'nikcli goat cancel-order --orderId 0x123abc'
+            example: 'nikcli goat cancel-order --orderId 0x123abc',
           },
           {
             cmd: 'nikcli goat set-funder --address 0x...',
             desc: 'Set funder address for order attribution',
-            example: 'Enables builder program benefits and gas coverage'
+            example: 'Enables builder program benefits and gas coverage',
           },
           {
             cmd: 'nikcli goat get-funder',
             desc: 'Get current funder address',
-            example: 'Returns configured funder or "Not set"'
+            example: 'Returns configured funder or "Not set"',
           },
           {
             cmd: 'nikcli goat funder-status',
             desc: 'Check funder configuration status',
-            example: 'Shows if funder is active and configured'
+            example: 'Shows if funder is active and configured',
           },
-        ]
+        ],
       },
       {
         name: 'GASLESS_TRANSACTIONS',
@@ -2806,19 +2805,19 @@ ALWAYS confirm with user before executing any blockchain transaction.`,
           {
             cmd: 'nikcli goat relayer-deploy --address 0x...',
             desc: 'Deploy Safe wallet for gasless operations',
-            example: 'Creates Safe on Polygon for transaction batching'
+            example: 'Creates Safe on Polygon for transaction batching',
           },
           {
             cmd: 'nikcli goat relayer-execute --transactions <json>',
             desc: 'Execute transactions without paying gas',
-            example: 'Executes Safe transaction batches'
+            example: 'Executes Safe transaction batches',
           },
           {
             cmd: 'nikcli goat relayer-status',
             desc: 'Check relayer service health',
-            example: 'Verifies relayer infrastructure status'
+            example: 'Verifies relayer infrastructure status',
           },
-        ]
+        ],
       },
       {
         name: 'TOKEN_OPERATIONS',
@@ -2827,29 +2826,29 @@ ALWAYS confirm with user before executing any blockchain transaction.`,
           {
             cmd: 'nikcli goat ctf-create-condition --questionId <id>',
             desc: 'Create market condition for token operations',
-            example: 'Creates condition for YES/NO token split'
+            example: 'Creates condition for YES/NO token split',
           },
           {
             cmd: 'nikcli goat ctf-split --amount 1000 --conditionId <id>',
             desc: 'Split collateral into YES and NO outcome tokens',
-            example: 'Converts 1000 USDC into 1000 YES + 1000 NO tokens'
+            example: 'Converts 1000 USDC into 1000 YES + 1000 NO tokens',
           },
           {
             cmd: 'nikcli goat ctf-merge --amount 1000 --conditionId <id>',
             desc: 'Merge outcome tokens back to collateral',
-            example: 'Converts YES/NO tokens back to USDC'
+            example: 'Converts YES/NO tokens back to USDC',
           },
           {
             cmd: 'nikcli goat ctf-redeem --positionId <id> --amount 1000 --conditionId <id>',
             desc: 'Redeem position after market resolution',
-            example: 'Claims payout based on market outcome'
+            example: 'Claims payout based on market outcome',
           },
           {
             cmd: 'nikcli goat ctf-positions --conditionId <id>',
             desc: 'Get all user positions for condition',
-            example: 'Lists YES/NO token holdings'
+            example: 'Lists YES/NO token holdings',
           },
-        ]
+        ],
       },
       {
         name: 'BUILDER_PROGRAM',
@@ -2858,24 +2857,24 @@ ALWAYS confirm with user before executing any blockchain transaction.`,
           {
             cmd: 'nikcli goat builder-status',
             desc: 'Check builder program configuration',
-            example: 'Shows API key and builder credentials status'
+            example: 'Shows API key and builder credentials status',
           },
           {
             cmd: 'nikcli goat builder-sign-order --signedOrder <json>',
             desc: 'Add builder attribution to order',
-            example: 'Signs order with builder credentials for gas coverage'
+            example: 'Signs order with builder credentials for gas coverage',
           },
           {
             cmd: 'nikcli goat builder-metrics',
             desc: 'Get builder program metrics',
-            example: 'Shows orders, volume, gas fees saved'
+            example: 'Shows orders, volume, gas fees saved',
           },
           {
             cmd: 'nikcli goat builder-attribution',
             desc: 'Get attribution log and revenue details',
-            example: 'Lists all attributed orders and earnings'
+            example: 'Lists all attributed orders and earnings',
           },
-        ]
+        ],
       },
       {
         name: 'WEBSOCKET',
@@ -2884,24 +2883,24 @@ ALWAYS confirm with user before executing any blockchain transaction.`,
           {
             cmd: 'nikcli goat ws-connect',
             desc: 'Connect to Polymarket orderbook WebSocket',
-            example: 'Establishes real-time order book stream'
+            example: 'Establishes real-time order book stream',
           },
           {
             cmd: 'nikcli goat ws-subscribe --topic <topic>',
             desc: 'Subscribe to specific orderbook topic',
-            example: 'nikcli goat ws-subscribe --topic TRUMP'
+            example: 'nikcli goat ws-subscribe --topic TRUMP',
           },
           {
             cmd: 'nikcli goat ws-stats',
             desc: 'Get WebSocket connection statistics',
-            example: 'Shows message count, uptime, subscriptions'
+            example: 'Shows message count, uptime, subscriptions',
           },
           {
             cmd: 'nikcli goat ws-disconnect',
             desc: 'Disconnect from WebSocket',
-            example: 'Closes connection and cleans up'
+            example: 'Closes connection and cleans up',
           },
-        ]
+        ],
       },
       {
         name: 'AI_AGENT',
@@ -2910,14 +2909,14 @@ ALWAYS confirm with user before executing any blockchain transaction.`,
           {
             cmd: 'nikcli goat chat "<natural language task>"',
             desc: 'Execute task using AI agent with reasoning',
-            example: 'nikcli goat chat "Buy 100 shares at 0.55 on TRUMP"'
+            example: 'nikcli goat chat "Buy 100 shares at 0.55 on TRUMP"',
           },
           {
             cmd: 'nikcli goat register-agent polymarket',
             desc: 'Register PolymarketAgent for autonomous operations',
-            example: 'Makes agent available system-wide'
+            example: 'Makes agent available system-wide',
           },
-        ]
+        ],
       },
       {
         name: 'ERC20',
@@ -2926,19 +2925,19 @@ ALWAYS confirm with user before executing any blockchain transaction.`,
           {
             cmd: 'nikcli goat balance --token USDC',
             desc: 'Check ERC20 token balance',
-            example: 'nikcli goat balance --token USDC'
+            example: 'nikcli goat balance --token USDC',
           },
           {
             cmd: 'nikcli goat transfer --to 0x... --amount 100 --token USDC',
             desc: 'Transfer ERC20 tokens',
-            example: 'nikcli goat transfer --to 0x123 --amount 100 --token USDC'
+            example: 'nikcli goat transfer --to 0x123 --amount 100 --token USDC',
           },
           {
             cmd: 'nikcli goat approve --spender 0x... --amount 100 --token USDC',
             desc: 'Approve token spending',
-            example: 'nikcli goat approve --spender 0xCLOB --amount 1000 --token USDC'
+            example: 'nikcli goat approve --spender 0xCLOB --amount 1000 --token USDC',
           },
-        ]
+        ],
       },
       {
         name: 'CONVERSATION',
@@ -2947,19 +2946,19 @@ ALWAYS confirm with user before executing any blockchain transaction.`,
           {
             cmd: 'nikcli goat chat "<message>"',
             desc: 'Continue AI conversation about blockchain',
-            example: 'Maintains context across multiple messages'
+            example: 'Maintains context across multiple messages',
           },
           {
             cmd: 'nikcli goat reset',
             desc: 'Reset conversation history',
-            example: 'Clears previous messages and context'
+            example: 'Clears previous messages and context',
           },
           {
             cmd: 'nikcli goat tools',
             desc: 'List all available GOAT tools',
-            example: 'Shows tool registry and capabilities'
+            example: 'Shows tool registry and capabilities',
           },
-        ]
+        ],
       },
       {
         name: 'EXAMPLES',
@@ -2968,29 +2967,29 @@ ALWAYS confirm with user before executing any blockchain transaction.`,
           {
             cmd: 'Discovery & Trade',
             desc: 'nikcli goat gamma-trending | find market | nikcli goat place-order',
-            example: 'Find trending market and place order'
+            example: 'Find trending market and place order',
           },
           {
             cmd: 'Real-Time Monitoring',
             desc: 'nikcli goat rtds-connect && nikcli goat rtds-subscribe-prices --symbols BTC,ETH',
-            example: 'Stream live crypto prices'
+            example: 'Stream live crypto prices',
           },
           {
             cmd: 'AI-Powered Trading',
             desc: 'nikcli goat chat "Buy low in trending markets, sell high"',
-            example: 'AI agent analyzes and executes trades'
+            example: 'AI agent analyzes and executes trades',
           },
           {
             cmd: 'Token Position Management',
             desc: 'nikcli goat ctf-split | monitor | nikcli goat ctf-redeem',
-            example: 'Create positions, monitor, redeem after resolution'
+            example: 'Create positions, monitor, redeem after resolution',
           },
           {
             cmd: 'Gasless Execution',
             desc: 'nikcli goat relayer-deploy && nikcli goat relayer-execute',
-            example: 'Deploy Safe and execute without gas costs'
+            example: 'Deploy Safe and execute without gas costs',
           },
-        ]
+        ],
       },
     ]
   }

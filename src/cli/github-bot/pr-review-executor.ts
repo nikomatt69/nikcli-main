@@ -4,13 +4,7 @@ import { execSync } from 'node:child_process'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { Octokit } from '@octokit/rest'
-import type {
-  GitHubBotConfig,
-  GitHubPullRequest,
-  ProcessingJob,
-  RepositoryContext,
-  TaskResult,
-} from './types'
+import type { GitHubBotConfig, GitHubPullRequest, ProcessingJob, RepositoryContext, TaskResult } from './types'
 
 /**
  * Advanced PR Review Executor
@@ -338,9 +332,7 @@ export class PRReviewExecutor {
     const lines = content.split('\n')
 
     // Build context for AI
-    const issueContext = issues
-      .map((issue) => `Line ${issue.line || '?'}: ${issue.message}`)
-      .join('\n')
+    const issueContext = issues.map((issue) => `Line ${issue.line || '?'}: ${issue.message}`).join('\n')
 
     console.log(`🤖 Fixing ${issues.length} issues in ${file}`)
 
@@ -402,11 +394,7 @@ export class PRReviewExecutor {
   /**
    * Create fix branch
    */
-  private async createFixBranch(
-    workingDir: string,
-    pr: GitHubPullRequest,
-    job: ProcessingJob
-  ): Promise<string> {
+  private async createFixBranch(workingDir: string, pr: GitHubPullRequest, job: ProcessingJob): Promise<string> {
     const timestamp = Date.now()
     const branchName = `nikcli/fix-pr-${pr.number}-${timestamp}`
 

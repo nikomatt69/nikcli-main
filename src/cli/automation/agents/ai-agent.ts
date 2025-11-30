@@ -1,5 +1,5 @@
-import { configManager } from '../../core/config-manager'
 import { type ChatMessage, modelProvider } from '../../ai/model-provider'
+import { configManager } from '../../core/config-manager'
 import { BaseAgent } from './base-agent'
 
 export class AIAnalysisAgent extends BaseAgent {

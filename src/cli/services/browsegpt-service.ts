@@ -1,10 +1,10 @@
-import { chromium } from 'playwright'
-import { JSDOM } from 'jsdom'
-import { Readability } from '@mozilla/readability'
-import { generateText } from 'ai'
-import { createOpenRouter } from '@openrouter/ai-sdk-provider'
-import { advancedUI } from '../ui/advanced-cli-ui'
 import { openai } from '@ai-sdk/openai'
+import { Readability } from '@mozilla/readability'
+import { createOpenRouter } from '@openrouter/ai-sdk-provider'
+import { generateText } from 'ai'
+import { JSDOM } from 'jsdom'
+import { chromium } from 'playwright'
+import { advancedUI } from '../ui/advanced-cli-ui'
 
 /**
  * BrowseGPT Service - AI-powered web browsing for CLI
@@ -23,7 +23,7 @@ export class BrowseGPTService {
       anthropicApiKey: process.env.ANTHROPIC_API_KEY || '',
       maxSessions: 5,
       sessionTimeout: 300000, // 5 minutes
-      ...config
+      ...config,
     }
 
     this.validateConfig()
@@ -55,7 +55,7 @@ export class BrowseGPTService {
         },
         body: JSON.stringify({
           projectId: this.config.projectId,
-          region: 'us-east-1'
+          region: 'us-east-1',
         }),
       })
 
@@ -73,19 +73,14 @@ export class BrowseGPTService {
         browser: null,
         page: null,
         active: true,
-        history: []
+        history: [],
       }
 
       this.sessions.set(id, session)
 
-      advancedUI.logFunctionUpdate(
-        'success',
-        `Created Browserbase session: ${browserId.slice(0, 12)}...`,
-        '🌐'
-      )
+      advancedUI.logFunctionUpdate('success', `Created Browserbase session: ${browserId.slice(0, 12)}...`, '🌐')
 
       return id
-
     } catch (error: any) {
       advancedUI.logFunctionUpdate('error', `Session creation failed: ${error.message}`, '✖')
       throw error
@@ -113,7 +108,6 @@ export class BrowseGPTService {
       session.lastActivity = new Date()
 
       advancedUI.logFunctionUpdate('success', `Connected to browser session`, '🔌')
-
     } catch (error: any) {
       advancedUI.logFunctionUpdate('error', `Failed to connect: ${error.message}`, '✖')
       throw error
@@ -148,7 +142,7 @@ export class BrowseGPTService {
         query,
         url: searchUrl,
         timestamp: new Date(),
-        results
+        results,
       })
 
       session.lastActivity = new Date()
@@ -158,9 +152,8 @@ export class BrowseGPTService {
       return {
         query,
         results,
-        url: searchUrl
+        url: searchUrl,
       }
-
     } catch (error: any) {
       advancedUI.logFunctionUpdate('error', `Search failed: ${error.message}`, '✖')
       throw error
@@ -198,7 +191,7 @@ export class BrowseGPTService {
         title: extractedContent.title,
         text: extractedContent.text,
         summary,
-        timestamp: new Date()
+        timestamp: new Date(),
       }
 
       session.history.push({
@@ -207,19 +200,14 @@ export class BrowseGPTService {
         title: extractedContent.title,
         timestamp: new Date(),
         prompt,
-        summary
+        summary,
       })
 
       session.lastActivity = new Date()
 
-      advancedUI.logFunctionUpdate(
-        'success',
-        `Extracted ${extractedContent.text.length} characters`,
-        '📝'
-      )
+      advancedUI.logFunctionUpdate('success', `Extracted ${extractedContent.text.length} characters`, '📝')
 
       return result
-
     } catch (error: any) {
       advancedUI.logFunctionUpdate('error', `Content extraction failed: ${error.message}`, '✖')
       throw error
@@ -259,7 +247,7 @@ When responding:
         model: openai('gpt-5') as any,
         messages: [
           { role: 'system', content: systemPrompt },
-          { role: 'user', content: message }
+          { role: 'user', content: message },
         ],
         maxTokens: 2000,
       })
@@ -267,7 +255,6 @@ When responding:
       session.lastActivity = new Date()
 
       return response.text
-
     } catch (error: any) {
       advancedUI.logFunctionUpdate('error', `Chat failed: ${error.message}`, '✖')
       throw error
@@ -290,7 +277,6 @@ When responding:
       this.sessions.delete(sessionId)
 
       advancedUI.logFunctionUpdate('info', `Closed session ${sessionId}`, '🔒')
-
     } catch (error: any) {
       advancedUI.logFunctionUpdate('warning', `Error closing session: ${error.message}`, '⚠︎')
     }
@@ -309,7 +295,7 @@ When responding:
       created: session.created,
       lastActivity: session.lastActivity,
       active: session.active,
-      historyCount: session.history.length
+      historyCount: session.history.length,
     }
   }
 
@@ -317,13 +303,13 @@ When responding:
    * List all sessions
    */
   listSessions(): BrowseSessionInfo[] {
-    return Array.from(this.sessions.values()).map(session => ({
+    return Array.from(this.sessions.values()).map((session) => ({
       id: session.id,
       browserId: session.browserId,
       created: session.created,
       lastActivity: session.lastActivity,
       active: session.active,
-      historyCount: session.history.length
+      historyCount: session.history.length,
     }))
   }
 
@@ -415,7 +401,7 @@ When responding:
       title: article?.title || '',
       text: article?.textContent || '',
       excerpt: article?.excerpt || '',
-      url
+      url,
     }
   }
 
@@ -426,18 +412,17 @@ When responding:
         messages: [
           {
             role: 'system',
-            content: 'You are a helpful assistant that summarizes web content based on user requests.'
+            content: 'You are a helpful assistant that summarizes web content based on user requests.',
           },
           {
             role: 'user',
-            content: `Content: ${content.slice(0, 8000)}\n\nRequest: ${prompt}`
-          }
+            content: `Content: ${content.slice(0, 8000)}\n\nRequest: ${prompt}`,
+          },
         ],
         maxTokens: 1000,
       })
 
       return response.text
-
     } catch (error: any) {
       advancedUI.logFunctionUpdate('warning', `AI summarization failed: ${error.message}`, '⚠︎')
       return ''
@@ -447,16 +432,19 @@ When responding:
   private buildContextFromHistory(session: BrowseSession): string {
     const recentHistory = session.history.slice(-3) // Last 3 actions
 
-    return recentHistory.map(item => {
-      switch (item.type) {
-        case 'search':
-          return `Search: "${item.query}" - Found ${item.results?.length || 0} results`
-        case 'page':
-          return `Visited: ${item.title} (${item.url})\n${item.summary ? `Summary: ${item.summary}` : ''}`
-        default:
-          return ''
-      }
-    }).filter(Boolean).join('\n\n')
+    return recentHistory
+      .map((item) => {
+        switch (item.type) {
+          case 'search':
+            return `Search: "${item.query}" - Found ${item.results?.length || 0} results`
+          case 'page':
+            return `Visited: ${item.title} (${item.url})\n${item.summary ? `Summary: ${item.summary}` : ''}`
+          default:
+            return ''
+        }
+      })
+      .filter(Boolean)
+      .join('\n\n')
   }
 }
 

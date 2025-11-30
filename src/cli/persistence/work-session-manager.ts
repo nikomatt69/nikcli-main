@@ -304,13 +304,13 @@ export class WorkSessionManager extends EventEmitter {
         if (existsSync(backupPath)) {
           try {
             await fs.unlink(backupPath)
-          } catch { }
+          } catch {}
         }
         this.emit('session_saved', session)
       } catch (renameError) {
         try {
           if (existsSync(tempPath)) await fs.unlink(tempPath)
-        } catch { }
+        } catch {}
         throw renameError
       }
     } catch (error: any) {
@@ -320,7 +320,7 @@ export class WorkSessionManager extends EventEmitter {
       const tempPath = `${sessionPath}.tmp`
       try {
         if (existsSync(tempPath)) await fs.unlink(tempPath)
-      } catch { }
+      } catch {}
       if (existsSync(backupPath)) {
         try {
           await fs.copyFile(backupPath, sessionPath)

@@ -1,16 +1,16 @@
-import chalk from 'chalk'
 import {
   applySyntaxHighlight,
   colorizeBlock,
-  syntaxColors,
-  StreamEvent,
-  StreamProtocol,
   type EnhancedFeaturesConfig,
-  type MermaidTTYConfig,
   type MathRenderConfig,
-  type SecurityConfig
+  type MermaidTTYConfig,
+  type SecurityConfig,
+  type StreamEvent,
+  StreamProtocol,
+  syntaxColors,
 } from '@nicomatt69/streamtty'
-import { terminalOutputManager, TerminalOutputManager } from '../ui/terminal-output-manager'
+import chalk from 'chalk'
+import { TerminalOutputManager, terminalOutputManager } from '../ui/terminal-output-manager'
 
 export type ChunkType = 'ai' | 'tool' | 'thinking' | 'system' | 'error' | 'user' | 'vm' | 'agent'
 
@@ -55,8 +55,7 @@ export class StreamttyService {
   private static enhancedTableRenderer: any = null
   private static mermaidRenderer: any = null
   // Debug flag for noisy table conversion logs
-  private static readonly DEBUG_TABLES =
-    process.env.NIKCLI_DEBUG_TABLES === '1' || process.env.STREAMTTY_DEBUG === '1'
+  private static readonly DEBUG_TABLES = process.env.NIKCLI_DEBUG_TABLES === '1' || process.env.STREAMTTY_DEBUG === '1'
   // Streaming table state (to handle chunked arrivals)
   private streamingBuffer = ''
   private streamingInFence = false
@@ -166,19 +165,21 @@ export class StreamttyService {
     const lines = ascii.replace(/\s+$/g, '').split('\n')
     const first = (lines[0] || '').trim()
     const last = (lines[lines.length - 1] || '').trim()
-    const alreadyFramed = (/^[┌╔╭].*[┐╗╮]$/.test(first) && /^[└╚╰].*[┘╝╯]$/.test(last))
+    const alreadyFramed = /^[┌╔╭].*[┐╗╮]$/.test(first) && /^[└╚╰].*[┘╝╯]$/.test(last)
     if (alreadyFramed) return ascii
     const padX = 1
     const stripAnsi = (s: string) => s.replace(/\x1b\[[\d;]*m/g, '')
-    const innerWidth = Math.max(...lines.map(l => stripAnsi(l).length), 1)
+    const innerWidth = Math.max(...lines.map((l) => stripAnsi(l).length), 1)
     const top = chars.tl + chars.h.repeat(innerWidth + 2 * padX) + chars.tr
     const bottom = chars.bl + chars.h.repeat(innerWidth + 2 * padX) + chars.br
-    const framed = [top,
-      ...lines.map(l => {
+    const framed = [
+      top,
+      ...lines.map((l) => {
         const pad = Math.max(0, innerWidth - stripAnsi(l).length)
         return chars.v + ' '.repeat(padX) + l + ' '.repeat(pad) + ' '.repeat(padX) + chars.v
       }),
-      bottom].join('\n')
+      bottom,
+    ].join('\n')
     return framed
   }
 
@@ -194,7 +195,10 @@ export class StreamttyService {
     const BOX_CHARS = /[┌┐└┘─│┬┴├┤┼╭╮╰╯╔╗╚╝═║╦╩╠╣╬]/
     const isFence = (line: string) => /^```/.test(line.trim())
     const isMermaidStart = (line: string) => /^```\s*mermaid\b/i.test(line.trim())
-    const isLooseMermaidStart = (line: string) => /^(graph\s+(TD|LR|BT|RL)\b|sequenceDiagram\b|classDiagram\b|stateDiagram(?:-v2)?\b|erDiagram\b|gantt\b|journey\b|pie\b)/i.test(line.trim())
+    const isLooseMermaidStart = (line: string) =>
+      /^(graph\s+(TD|LR|BT|RL)\b|sequenceDiagram\b|classDiagram\b|stateDiagram(?:-v2)?\b|erDiagram\b|gantt\b|journey\b|pie\b)/i.test(
+        line.trim()
+      )
     const isSeparator = (line: string) => /^\|?[\s\-:|]+\|?$/.test(line.trim()) && line.includes('|')
     const hasPipes = (line: string) => line.includes('|')
     const isAsciiBorderLine = (line: string) => BOX_CHARS.test(line)
@@ -237,7 +241,7 @@ export class StreamttyService {
     const out: string[] = []
 
     for (let idx = 0; idx < lines.length; idx++) {
-      let line = lines[idx]
+      const line = lines[idx]
       const trimmed = line.trim()
 
       // Mermaid block start handling (stream-aware)
@@ -283,7 +287,7 @@ export class StreamttyService {
           } catch (err) {
             // Fallback to raw code block
             out.push('```mermaid')
-            for (const l of (this.streamingMermaidLines || [])) out.push(l)
+            for (const l of this.streamingMermaidLines || []) out.push(l)
             out.push('```')
             this.debugTable('[DEBUG] Streaming mermaid conversion error:', String(err))
           }
@@ -322,13 +326,13 @@ export class StreamttyService {
             out.push('')
             this.debugTable('[DEBUG] Streaming loose mermaid converted')
           } catch (err) {
-            for (const l of (this.streamingMermaidLines || [])) out.push(l)
+            for (const l of this.streamingMermaidLines || []) out.push(l)
           }
           this.streamingMermaidActive = false
           this.streamingMermaidLines = null
           // Now process current line normally (do not continue)
         } else {
-          (this.streamingMermaidLines as string[]).push(line)
+          ;(this.streamingMermaidLines as string[]).push(line)
           continue
         }
       }
@@ -433,7 +437,7 @@ export class StreamttyService {
    */
   private async flushStdout(chunk: string): Promise<void> {
     return new Promise<void>((resolve) => {
-      let output: string = chunk
+      const output: string = chunk
 
       // Con fixed prompt, l'output va nella scroll region
       // (nessuna modifica necessaria al chunk - printToScrollRegion gestisce tutto)
@@ -463,7 +467,8 @@ export class StreamttyService {
     const isMarkdownTable: (s: string) => boolean = (asciiMod as any).isMarkdownTable
     const renderMarkdownTableToASCII: (s: string, opts?: any) => string = (asciiMod as any).renderMarkdownTableToASCII
     const mermaidMod = await import('@nicomatt69/streamtty/dist/utils/mermaid-ascii')
-    const convertMermaidToASCII: (code: string, cfg?: any) => Promise<string> = (mermaidMod as any).convertMermaidToASCII
+    const convertMermaidToASCII: (code: string, cfg?: any) => Promise<string> = (mermaidMod as any)
+      .convertMermaidToASCII
 
     // Flush ASCII block if present
     if (this.streamingAsciiBlock && this.streamingAsciiBlock.length) {
@@ -525,13 +530,25 @@ export class StreamttyService {
   }
 
   private static readonly EMOJI_REPLACEMENTS = new Map([
-    ['✓', '✓'], ['✖', '✗'], ['⚠︎', '⚡'], ['⚠', '⚡'], ['⏺', '●'],
-    ['⎿', '└─'], ['🚀', '»'], ['💡', '○'], ['🔍', '◎'], ['📝', '∙'],
-    ['🎯', '◉'], ['🔧', '⚙'], ['📊', '▤'], ['🌐', '◈']
+    ['✓', '✓'],
+    ['✖', '✗'],
+    ['⚠︎', '⚡'],
+    ['⚠', '⚡'],
+    ['⏺', '●'],
+    ['⎿', '└─'],
+    ['🚀', '»'],
+    ['💡', '○'],
+    ['🔍', '◎'],
+    ['📝', '∙'],
+    ['🎯', '◉'],
+    ['🔧', '⚙'],
+    ['📊', '▤'],
+    ['🌐', '◈'],
   ])
 
   // Include common emoji planes plus 2300–23FF (hourglass, timers, control pictures)
-  private static readonly EMOJI_REGEX = /[\u{2300}-\u{23FF}\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F900}-\u{1F9FF}\u{FE00}-\u{FE0F}\u{1F1E0}-\u{1F1FF}]/gu
+  private static readonly EMOJI_REGEX =
+    /[\u{2300}-\u{23FF}\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F900}-\u{1F9FF}\u{FE00}-\u{FE0F}\u{1F1E0}-\u{1F1FF}]/gu
 
   private stripEmojiFromText(text: string): string {
     if (!this.options.stripEmoji) return text
@@ -561,7 +578,8 @@ export class StreamttyService {
     // Ratings: stars → asterisks
     out = out.replace(/⭐/g, '*')
     // Status/indicators → width-1 symbols
-    out = out.replace(/✓|✔️|✔|✓/g, '✓')
+    out = out
+      .replace(/✓|✔️|✔|✓/g, '✓')
       .replace(/✖|✖️|✖|✕|✗/g, '×')
       .replace(/⚠︎|⚠/g, '!')
       .replace(/🔴|🟠|🟡|🟢|🔵|🟣|⚫️|⚫/g, '●')
@@ -580,7 +598,10 @@ export class StreamttyService {
    * Check if content looks like it's starting a table (has header + separator)
    */
   private isStartingTable(content: string): boolean {
-    const lines = content.split('\n').map(line => line.trim()).filter(Boolean)
+    const lines = content
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean)
     let headerFound = false
 
     for (const line of lines) {
@@ -683,9 +704,7 @@ export class StreamttyService {
     // Apply syntax highlighting based on chunk type (except tools which stay raw)
     // Check if chunk already contains ANSI codes (to avoid double-processing)
     const hasAnsiCodes = /\x1b\[[\d;]*m/.test(processedChunk)
-    const shouldHighlight = type !== 'tool' &&
-      !this.stats.fallbackUsed &&
-      !hasAnsiCodes // Don't highlight if already has ANSI codes
+    const shouldHighlight = type !== 'tool' && !this.stats.fallbackUsed && !hasAnsiCodes // Don't highlight if already has ANSI codes
 
     if (shouldHighlight) {
       // Apply ANSI syntax highlighting for stdout mode only
@@ -791,13 +810,22 @@ export class StreamttyService {
     // Salvage helper: convert pipe-only blocks without a valid GFM separator
     const salvageLoosePipeBlock = (block: string[]): string | null => {
       if (!block || block.length < 2) return null
-      const rows = block.map(l => l.slice(1, -1).split('|').map(c => c.trim()))
-      const colCount = Math.max(...rows.map(r => r.length))
+      const rows = block.map((l) =>
+        l
+          .slice(1, -1)
+          .split('|')
+          .map((c) => c.trim())
+      )
+      const colCount = Math.max(...rows.map((r) => r.length))
       if (!Number.isFinite(colCount) || colCount < 2) return null
-      const norm = rows.map(r => r.concat(Array(colCount - r.length).fill('')))
-      const header = (colCount === 2) ? ['Key', 'Value'] : Array.from({ length: colCount }, (_v, idx) => `Col ${idx + 1}`)
+      const norm = rows.map((r) => r.concat(Array(colCount - r.length).fill('')))
+      const header = colCount === 2 ? ['Key', 'Value'] : Array.from({ length: colCount }, (_v, idx) => `Col ${idx + 1}`)
       const sep = Array.from({ length: colCount }, () => '---')
-      const md = ['|' + header.join('|') + '|', '|' + sep.join('|') + '|', ...norm.map(r => '|' + r.join('|') + '|')].join('\n')
+      const md = [
+        '|' + header.join('|') + '|',
+        '|' + sep.join('|') + '|',
+        ...norm.map((r) => '|' + r.join('|') + '|'),
+      ].join('\n')
       try {
         const rendered = renderMarkdownTableToASCII(this.sanitizeTableEmojis(md), {
           maxWidth: this.options.maxWidth || 80,
@@ -928,7 +956,6 @@ export class StreamttyService {
     return converted
   }
 
-
   /**
    * Process markdown tables and render them with enhanced table renderer
    */
@@ -959,7 +986,7 @@ export class StreamttyService {
           const asciiDiagram = await convertMermaidToASCII(mermaidCode, {
             paddingX: 3,
             paddingY: 2,
-            borderPadding: 1
+            borderPadding: 1,
           })
           processedContent = processedContent.replace(match[0], '\n' + this.frameDiagram(asciiDiagram) + '\n')
         }
@@ -971,7 +998,10 @@ export class StreamttyService {
     // Also handle loose mermaid blocks (without fences) outside other code fences
     const lines = processedContent.split('\n')
     const isFence = (l: string) => /^```/.test(l.trim())
-    const isLooseMermaidStart = (l: string) => /^(graph\s+(TD|LR|BT|RL)\b|sequenceDiagram\b|classDiagram\b|stateDiagram(?:-v2)?\b|erDiagram\b|gantt\b|journey\b|pie\b)/i.test(l.trim())
+    const isLooseMermaidStart = (l: string) =>
+      /^(graph\s+(TD|LR|BT|RL)\b|sequenceDiagram\b|classDiagram\b|stateDiagram(?:-v2)?\b|erDiagram\b|gantt\b|journey\b|pie\b)/i.test(
+        l.trim()
+      )
 
     let inFence = false
     let i = 0
@@ -1049,52 +1079,60 @@ export class StreamttyService {
     const hasAnsiCodes = /\x1b\[[\d;]*m/.test(content)
 
     switch (type) {
-      case 'error':
+      case 'error': {
         // Red for errors with unicode symbol
         const highlighted = hasAnsiCodes ? content : applySyntaxHighlight(content)
         const errorPrefix = `${syntaxColors.error}▸ ERROR${syntaxColors.reset}\n`
         return errorPrefix + colorizeBlock(highlighted, syntaxColors.error)
+      }
 
-      case 'thinking':
+      case 'thinking': {
         // Dark gray for thinking/cognitive blocks with unicode symbol
         const highlightedThinking = hasAnsiCodes ? content : applySyntaxHighlight(content)
         const thinkingPrefix = `${syntaxColors.comment}▸ ${syntaxColors.reset}`
         return thinkingPrefix + colorizeBlock(highlightedThinking, syntaxColors.comment)
+      }
 
-      case 'tool':
+      case 'tool': {
         // Tool output without formatting (raw content)
         const toolPrefix = `${syntaxColors.path}▸ TOOL${syntaxColors.reset}\n`
         return toolPrefix + content
+      }
 
-      case 'system':
+      case 'system': {
         // Light gray for system messages with unicode symbol
         const highlightedSystem = hasAnsiCodes ? content : applySyntaxHighlight(content)
         const systemPrefix = `${syntaxColors.reset}▸ ${syntaxColors.reset}`
         return systemPrefix + highlightedSystem
+      }
 
-      case 'user':
+      case 'user': {
         // Bright cyan for user messages with unicode symbol
         const highlightedUser = hasAnsiCodes ? content : applySyntaxHighlight(content)
         const userPrefix = `${syntaxColors.title}▸ USER${syntaxColors.reset}\n`
         return userPrefix + colorizeBlock(highlightedUser, syntaxColors.title)
+      }
 
-      case 'vm':
+      case 'vm': {
         // Bright blue for VM messages with unicode symbol
         const highlightedVm = hasAnsiCodes ? content : applySyntaxHighlight(content)
         const vmPrefix = `${syntaxColors.title}▸ VM${syntaxColors.reset}\n`
         return vmPrefix + highlightedVm
+      }
 
-      case 'agent':
+      case 'agent': {
         // Magenta for agent messages with unicode symbol
         const highlightedAgent = hasAnsiCodes ? content : applySyntaxHighlight(content)
         const agentPrefix = `${syntaxColors.keyword}▸ AGENT${syntaxColors.reset}\n`
         return agentPrefix + colorizeBlock(highlightedAgent, syntaxColors.keyword)
+      }
 
       case 'ai':
-      default:
+      default: {
         // AI content with syntax highlighting applied
         const highlightedAi = hasAnsiCodes ? content : applySyntaxHighlight(content)
         return highlightedAi
+      }
     }
   }
 
@@ -1226,18 +1264,17 @@ export class StreamttyService {
       case 'text_delta':
         return event.content || ''
 
-      case 'tool_call':
+      case 'tool_call': {
         const toolArgs = JSON.stringify(event.toolArgs, null, 2)
         return `\n🔧 ${chalk.bold(event.toolName)}\n${chalk.gray('```json')}\n${toolArgs}\n${chalk.gray('```')}\n\n`
+      }
 
-      case 'tool_result':
-        const resultPreview = typeof event.toolResult === 'string'
-          ? event.toolResult
-          : JSON.stringify(event.toolResult, null, 2)
-        const truncated = resultPreview.length > 200
-          ? resultPreview.slice(0, 200) + '...'
-          : resultPreview
+      case 'tool_result': {
+        const resultPreview =
+          typeof event.toolResult === 'string' ? event.toolResult : JSON.stringify(event.toolResult, null, 2)
+        const truncated = resultPreview.length > 200 ? resultPreview.slice(0, 200) + '...' : resultPreview
         return `\n✓ ${chalk.bold('Result')}: ${truncated}\n\n`
+      }
 
       case 'thinking':
         return `\n${chalk.gray('> 💭')} ${chalk.italic(event.content)}\n\n`
@@ -1246,9 +1283,10 @@ export class StreamttyService {
         return `\n${chalk.gray('> ⚡')} ${chalk.italic(event.content)}\n\n`
 
       case 'status':
-      case 'step':
+      case 'step': {
         const statusIcon = this.getStatusIcon(event.metadata?.status)
         return `\n${statusIcon} ${chalk.bold(event.content)}\n\n`
+      }
 
       case 'error':
         return `\n✖ ${chalk.red.bold('Error')}: ${event.content}\n\n`
@@ -1269,11 +1307,11 @@ export class StreamttyService {
    */
   private getStatusIcon(status?: string): string {
     const iconMap: Record<string, string> = {
-      'pending': '⏳︎',
-      'running': '🔄',
-      'completed': '✓',
-      'failed': '✖',
-      'info': 'ℹ️',
+      pending: '⏳︎',
+      running: '🔄',
+      completed: '✓',
+      failed: '✖',
+      info: 'ℹ️',
     }
     return iconMap[status || 'info'] || 'ℹ️'
   }
@@ -1281,9 +1319,7 @@ export class StreamttyService {
   /**
    * Handle an AI SDK stream with full event processing
    */
-  async *handleAIStream(
-    stream: AsyncGenerator<StreamEvent>
-  ): AsyncGenerator<string> {
+  async *handleAIStream(stream: AsyncGenerator<StreamEvent>): AsyncGenerator<string> {
     let accumulated = ''
 
     for await (const event of stream) {
@@ -1370,7 +1406,7 @@ export class StreamttyService {
   setSecurityConfig(security: Partial<SecurityConfig>): void {
     this.options.security = {
       ...this.options.security,
-      ...security
+      ...security,
     }
     // Enhanced inline mode - security changes are applied dynamically
   }
@@ -1379,8 +1415,9 @@ export class StreamttyService {
    * Check if enhanced features are enabled
    */
   areEnhancedFeaturesEnabled(): boolean {
-    return this.isEnhancedInlineModeActive() &&
-      Object.values(this.options.enhancedFeatures || {}).some(v => v === true)
+    return (
+      this.isEnhancedInlineModeActive() && Object.values(this.options.enhancedFeatures || {}).some((v) => v === true)
+    )
   }
 
   /**
@@ -1405,7 +1442,7 @@ export const streamttyService = new StreamttyService({
   parseIncompleteMarkdown: true,
   syntaxHighlight: true,
   autoScroll: true,
-  maxWidth: Math.min(140, Math.max(60, (process.stdout && process.stdout.columns) ? process.stdout.columns : 80)),
+  maxWidth: Math.min(140, Math.max(60, process.stdout && process.stdout.columns ? process.stdout.columns : 80)),
   gfm: true,
 
   useBlessedMode: false, // Enable blessed mode for enhanced features (tables, mermaid, etc.)
@@ -1426,8 +1463,18 @@ export const streamttyService = new StreamttyService({
     allowedImagePrefixes: ['http://', 'https://'],
   },
   shikiLanguages: [
-    'typescript', 'javascript', 'python', 'bash', 'json',
-    'markdown', 'yaml', 'sql', 'html', 'css', 'go', 'rust'
+    'typescript',
+    'javascript',
+    'python',
+    'bash',
+    'json',
+    'markdown',
+    'yaml',
+    'sql',
+    'html',
+    'css',
+    'go',
+    'rust',
   ],
 })
 

@@ -145,10 +145,7 @@ export class LightweightInferenceEngineImpl implements LightweightInferenceEngin
         categoryScore = 20
       } else if ((queryWords.has('code') || queryWords.has('analyze')) && tool.metadata.category === 'code-analysis') {
         categoryScore = 20
-      } else if (
-        (queryWords.has('execute') || queryWords.has('command')) &&
-        tool.metadata.category === 'system'
-      ) {
+      } else if ((queryWords.has('execute') || queryWords.has('command')) && tool.metadata.category === 'system') {
         categoryScore = 20
       }
 
@@ -207,7 +204,7 @@ export class LightweightInferenceEngineImpl implements LightweightInferenceEngin
     if (toolId.includes('execute') || toolId.includes('command')) {
       // Look for common command patterns
       const cmdPatterns = [
-        /(?:run|execute|use|call)\s+['"`]?([a-z\s\-]+)['"`]?/,
+        /(?:run|execute|use|call)\s+['"`]?([a-z\s-]+)['"`]?/,
         /^(npm|yarn|pnpm|npm run|node|python|ruby|go run)\s+(.+)/,
       ]
 
@@ -290,10 +287,7 @@ export class LightweightInferenceEngineImpl implements LightweightInferenceEngin
     // If embedding service available, use it
     if (this.embeddingService && this.embeddingService.embed) {
       try {
-        const [emb1, emb2] = await Promise.all([
-          this.embeddingService.embed(text1),
-          this.embeddingService.embed(text2),
-        ])
+        const [emb1, emb2] = await Promise.all([this.embeddingService.embed(text1), this.embeddingService.embed(text2)])
 
         return this.cosineSimilarity(emb1, emb2)
       } catch {

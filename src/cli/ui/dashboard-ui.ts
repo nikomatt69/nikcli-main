@@ -14,7 +14,7 @@ class ASCIIChart {
 
     // Create horizontal bars
     for (let i = height - 1; i >= 0; i--) {
-      const threshold = min + (range * i / (height - 1))
+      const threshold = min + (range * i) / (height - 1)
       let line = ''
 
       for (let j = 0; j < Math.min(data.length, width); j++) {
@@ -37,7 +37,9 @@ class ASCIIChart {
     const min = Math.min(...data)
     const range = max - min || 1
 
-    const chart: string[][] = Array(height).fill(null).map(() => Array(width).fill(' '))
+    const chart: string[][] = Array(height)
+      .fill(null)
+      .map(() => Array(width).fill(' '))
 
     // Plot data points
     for (let i = 0; i < Math.min(data.length - 1, width); i++) {
@@ -49,24 +51,29 @@ class ASCIIChart {
       // Simple line drawing
       const steps = Math.abs(x2 - x1) + Math.abs(y2 - y1)
       for (let step = 0; step <= steps; step++) {
-        const x = Math.round(x1 + (x2 - x1) * step / steps)
-        const y = Math.round(y1 + (y2 - y1) * step / steps)
+        const x = Math.round(x1 + ((x2 - x1) * step) / steps)
+        const y = Math.round(y1 + ((y2 - y1) * step) / steps)
         if (x >= 0 && x < width && y >= 0 && y < height) {
           chart[y][x] = '●'
         }
       }
     }
 
-    return chart.map(row => row.join('')).join('\n')
+    return chart.map((row) => row.join('')).join('\n')
   }
 
-  static createProgressBar(value: number, max: number, width: number = 30, style: 'filled' | 'gradient' | 'blocks' = 'filled'): string {
+  static createProgressBar(
+    value: number,
+    max: number,
+    width: number = 30,
+    style: 'filled' | 'gradient' | 'blocks' = 'filled'
+  ): string {
     const percentage = Math.min(value / max, 1)
     const filled = Math.round(width * percentage)
     const empty = width - filled
 
     switch (style) {
-      case 'gradient':
+      case 'gradient': {
         const chars = ['░', '▒', '▓', '█']
         let bar = ''
         for (let i = 0; i < width; i++) {
@@ -79,6 +86,7 @@ class ASCIIChart {
           }
         }
         return bar
+      }
 
       case 'blocks':
         return '█'.repeat(filled) + '▒'.repeat(empty)
@@ -97,11 +105,14 @@ class ASCIIChart {
 
     const sparks = ['▁', '▂', '▃', '▄', '▅', '▆', '▇', '█']
 
-    return data.slice(-width).map(value => {
-      const normalized = (value - min) / range
-      const index = Math.floor(normalized * (sparks.length - 1))
-      return sparks[Math.max(0, Math.min(index, sparks.length - 1))]
-    }).join('')
+    return data
+      .slice(-width)
+      .map((value) => {
+        const normalized = (value - min) / range
+        const index = Math.floor(normalized * (sparks.length - 1))
+        return sparks[Math.max(0, Math.min(index, sparks.length - 1))]
+      })
+      .join('')
   }
 }
 
@@ -137,7 +148,7 @@ export class DashboardUI {
       terminal: 'xterm-256color',
       fullUnicode: false,
       dockBorders: true,
-      ignoreDockContrast: true
+      ignoreDockContrast: true,
     })
 
     // Store original stdin state
@@ -162,15 +173,15 @@ export class DashboardUI {
       height: 3,
       content: this.getHeaderContent(),
       border: {
-        type: 'line'
+        type: 'line',
       },
       style: {
         fg: 'white',
         bg: 'blue',
         border: {
-          fg: 'cyan'
-        }
-      }
+          fg: 'cyan',
+        },
+      },
     })
 
     this.tabBar = blessed.box({
@@ -180,13 +191,13 @@ export class DashboardUI {
       width: '100%',
       height: 3,
       border: {
-        type: 'line'
+        type: 'line',
       },
       style: {
         border: {
-          fg: 'cyan'
-        }
-      }
+          fg: 'cyan',
+        },
+      },
     })
 
     this.contentBox = blessed.box({
@@ -196,7 +207,7 @@ export class DashboardUI {
       width: '100%',
       height: '100%-9',
       border: {
-        type: 'line'
+        type: 'line',
       },
       scrollable: true,
       alwaysScroll: true,
@@ -204,9 +215,9 @@ export class DashboardUI {
       vi: true,
       style: {
         border: {
-          fg: 'cyan'
-        }
-      }
+          fg: 'cyan',
+        },
+      },
     })
 
     this.footerBox = blessed.box({
@@ -217,15 +228,15 @@ export class DashboardUI {
       height: 3,
       content: this.getFooterContent(),
       border: {
-        type: 'line'
+        type: 'line',
       },
       style: {
         fg: 'white',
         bg: 'black',
         border: {
-          fg: 'cyan'
-        }
-      }
+          fg: 'cyan',
+        },
+      },
     })
   }
 
@@ -256,7 +267,6 @@ export class DashboardUI {
       this.showHelp()
     })
   }
-
 
   private switchTab(index: number): void {
     if (index >= 0 && index < this.tabs.length) {
@@ -333,7 +343,8 @@ export class DashboardUI {
 
     // Create sparklines for trends
     const cpuSparkline = this.cpuHistory.length > 1 ? ASCIIChart.createSparkline(this.cpuHistory, 30) : '─'.repeat(30)
-    const memSparkline = this.memoryHistory.length > 1 ? ASCIIChart.createSparkline(this.memoryHistory, 30) : '─'.repeat(30)
+    const memSparkline =
+      this.memoryHistory.length > 1 ? ASCIIChart.createSparkline(this.memoryHistory, 30) : '─'.repeat(30)
 
     return `
  ┌─ SYSTEM OVERVIEW ─────────────────────────────────────────────────────────┐
@@ -366,7 +377,7 @@ export class DashboardUI {
  │ ✓ Success Rate: ${metrics.tools.successRate}%                                               │
  │                                                                           │
  │ 🔧 Most Used Tools:                                                       │
-${metrics.tools.mostUsed.map(tool => ` │  • ${tool.name.padEnd(25)} ${ASCIIChart.createProgressBar(tool.count, Math.max(...metrics.tools.mostUsed.map(t => t.count)), 20, 'blocks')} ${tool.count}`).join('\n')}
+${metrics.tools.mostUsed.map((tool) => ` │  • ${tool.name.padEnd(25)} ${ASCIIChart.createProgressBar(tool.count, Math.max(...metrics.tools.mostUsed.map((t) => t.count)), 20, 'blocks')} ${tool.count}`).join('\n')}
  └───────────────────────────────────────────────────────────────────────────┘
     `
   }
@@ -384,13 +395,14 @@ ${metrics.tools.mostUsed.map(tool => ` │  • ${tool.name.padEnd(25)} ${ASCIIC
   }
 
   private renderAgentsTab(metrics: DashboardMetrics): string {
-    const header = ' ACTIVE AGENTS\n ═══════════════════════════════════════════════════════════════════════════════\n\n'
+    const header =
+      ' ACTIVE AGENTS\n ═══════════════════════════════════════════════════════════════════════════════\n\n'
 
     if (metrics.agents.active.length === 0) {
       return header + ' No active agents\n'
     }
 
-    const agentRows = metrics.agents.active.map(agent => {
+    const agentRows = metrics.agents.active.map((agent) => {
       const status = agent.status === 'busy' ? '🟢' : agent.status === 'error' ? '🔴' : '⚫'
       const uptime = this.formatUptime(agent.uptime)
       const task = agent.currentTask ? agent.currentTask.substring(0, 30) + '...' : 'idle'
@@ -401,39 +413,60 @@ ${metrics.tools.mostUsed.map(tool => ` │  • ${tool.name.padEnd(25)} ${ASCIIC
     const tableHeader = ' St Name                 Status   Uptime       Current Task\n'
     const separator = ' ─────────────────────────────────────────────────────────────────────────────\n'
 
-    return header + tableHeader + separator + agentRows.join('\n') + '\n\n' +
+    return (
+      header +
+      tableHeader +
+      separator +
+      agentRows.join('\n') +
+      '\n\n' +
       ` Total: ${metrics.agents.total} | Active: ${metrics.agents.busyCount} | Completed Tasks: ${metrics.agents.tasks.completed}`
+    )
   }
 
   private renderPerformanceTab(metrics: DashboardMetrics): string {
     const memUsagePercent = (metrics.performance.memory.used / metrics.performance.memory.total) * 100
-    const avgResponseTime = metrics.performance.responseTimes.length > 0
-      ? metrics.performance.responseTimes.reduce((a, b) => a + b, 0) / metrics.performance.responseTimes.length
-      : 0
+    const avgResponseTime =
+      metrics.performance.responseTimes.length > 0
+        ? metrics.performance.responseTimes.reduce((a, b) => a + b, 0) / metrics.performance.responseTimes.length
+        : 0
 
     // Create detailed charts
-    const cpuChart = this.cpuHistory.length > 2 ? ASCIIChart.createLineChart(this.cpuHistory, 60, 8) : 'Collecting data...'
-    const memoryChart = this.memoryHistory.length > 2 ? ASCIIChart.createLineChart(this.memoryHistory, 60, 8) : 'Collecting data...'
-    const responseChart = this.responseTimeHistory.length > 2 ? ASCIIChart.createLineChart(this.responseTimeHistory, 60, 8) : 'Collecting data...'
+    const cpuChart =
+      this.cpuHistory.length > 2 ? ASCIIChart.createLineChart(this.cpuHistory, 60, 8) : 'Collecting data...'
+    const memoryChart =
+      this.memoryHistory.length > 2 ? ASCIIChart.createLineChart(this.memoryHistory, 60, 8) : 'Collecting data...'
+    const responseChart =
+      this.responseTimeHistory.length > 2
+        ? ASCIIChart.createLineChart(this.responseTimeHistory, 60, 8)
+        : 'Collecting data...'
 
     return `
  ┌─ PERFORMANCE ANALYTICS ───────────────────────────────────────────────────┐
  │                                                                           │
  │ 🚀 CPU USAGE OVER TIME                                                   │
  │ ┌─────────────────────────────────────────────────────────────────────┐   │
- │ │${cpuChart.split('\n').map(line => line.padEnd(61)).join('│\n │ │')}│   │
+ │ │${cpuChart
+   .split('\n')
+   .map((line) => line.padEnd(61))
+   .join('│\n │ │')}│   │
  │ └─────────────────────────────────────────────────────────────────────┘   │
  │ Current: ${metrics.performance.cpu}%    Min: ${Math.min(...this.cpuHistory).toFixed(1)}%    Max: ${Math.max(...this.cpuHistory).toFixed(1)}%    Avg: ${(this.cpuHistory.reduce((a, b) => a + b, 0) / this.cpuHistory.length || 0).toFixed(1)}%      │
  │                                                                           │
  │ 💾 MEMORY USAGE OVER TIME                                                │
  │ ┌─────────────────────────────────────────────────────────────────────┐   │
- │ │${memoryChart.split('\n').map(line => line.padEnd(61)).join('│\n │ │')}│   │
+ │ │${memoryChart
+   .split('\n')
+   .map((line) => line.padEnd(61))
+   .join('│\n │ │')}│   │
  │ └─────────────────────────────────────────────────────────────────────┘   │
  │ Current: ${memUsagePercent.toFixed(1)}%  Available: ${(metrics.performance.memory.total - metrics.performance.memory.used).toFixed(1)}GB  Total: ${metrics.performance.memory.total}GB     │
  │                                                                           │
  │ ⚡ RESPONSE TIMES OVER TIME                                               │
  │ ┌─────────────────────────────────────────────────────────────────────┐   │
- │ │${responseChart.split('\n').map(line => line.padEnd(61)).join('│\n │ │')}│   │
+ │ │${responseChart
+   .split('\n')
+   .map((line) => line.padEnd(61))
+   .join('│\n │ │')}│   │
  │ └─────────────────────────────────────────────────────────────────────┘   │
  │ Current: ${avgResponseTime.toFixed(0)}ms  Recent samples: ${metrics.performance.responseTimes.length}               │
  │                                                                           │
@@ -449,18 +482,22 @@ ${this.renderEnhancedResponseTimeChart(metrics.performance.responseTimes)}
   }
 
   private renderEnhancedResponseTimeChart(responseTimes: number[]): string {
-    if (responseTimes.length === 0) return ' │ No response time data available                                           │'
+    if (responseTimes.length === 0)
+      return ' │ No response time data available                                           │'
 
     const maxTime = Math.max(...responseTimes)
     const minTime = Math.min(...responseTimes)
     const avgTime = responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length
 
-    const chart = responseTimes.slice(-15).map((time, index) => {
-      const barLength = Math.max(1, Math.round((time / (maxTime || 1)) * 40))
-      const bar = '█'.repeat(barLength)
-      const timeStr = time.toString().padStart(4)
-      return ` │ ${(index + 1).toString().padStart(2)}: ${bar.padEnd(40)} ${timeStr}ms                   │`
-    }).join('\n')
+    const chart = responseTimes
+      .slice(-15)
+      .map((time, index) => {
+        const barLength = Math.max(1, Math.round((time / (maxTime || 1)) * 40))
+        const bar = '█'.repeat(barLength)
+        const timeStr = time.toString().padStart(4)
+        return ` │ ${(index + 1).toString().padStart(2)}: ${bar.padEnd(40)} ${timeStr}ms                   │`
+      })
+      .join('\n')
 
     return ` │ Stats: Min ${minTime}ms | Max ${maxTime}ms | Avg ${avgTime.toFixed(0)}ms | Samples ${responseTimes.length}          │\n │                                                                           │\n${chart}`
   }
@@ -478,12 +515,16 @@ ${this.renderEnhancedResponseTimeChart(metrics.performance.responseTimes)}
  🔤 Tokens Used: ${this.formatNumber(metrics.ai.totalTokens)}
 
  Tool Usage Summary:
-${metrics.tools.mostUsed.map(tool => ` • ${tool.name}: ${tool.count} uses`).join('\n')}
+${metrics.tools.mostUsed.map((tool) => ` • ${tool.name}: ${tool.count} uses`).join('\n')}
 
  Performance Trends:
- • Average Response Time: ${metrics.performance.responseTimes.length > 0
-        ? (metrics.performance.responseTimes.reduce((a, b) => a + b, 0) / metrics.performance.responseTimes.length).toFixed(0) + 'ms'
-        : 'N/A'}
+ • Average Response Time: ${
+   metrics.performance.responseTimes.length > 0
+     ? (
+         metrics.performance.responseTimes.reduce((a, b) => a + b, 0) / metrics.performance.responseTimes.length
+       ).toFixed(0) + 'ms'
+     : 'N/A'
+ }
  • Memory Usage: ${((metrics.performance.memory.used / metrics.performance.memory.total) * 100).toFixed(1)}%
  • CPU Usage: ${metrics.performance.cpu}%
     `
@@ -503,11 +544,14 @@ ${metrics.tools.mostUsed.map(tool => ` • ${tool.name}: ${tool.count} uses`).jo
     const maxTime = Math.max(...responseTimes)
     const scale = 20 / (maxTime || 1)
 
-    return responseTimes.slice(-10).map((time, index) => {
-      const barLength = Math.max(1, Math.round(time * scale))
-      const bar = '█'.repeat(barLength)
-      return ` ${index.toString().padStart(2)}: ${bar} ${time}ms`
-    }).join('\n')
+    return responseTimes
+      .slice(-10)
+      .map((time, index) => {
+        const barLength = Math.max(1, Math.round(time * scale))
+        const bar = '█'.repeat(barLength)
+        return ` ${index.toString().padStart(2)}: ${bar} ${time}ms`
+      })
+      .join('\n')
   }
 
   private formatUptime(uptime: number): string {
@@ -580,15 +624,15 @@ ${metrics.tools.mostUsed.map(tool => ` • ${tool.name}: ${tool.count} uses`).jo
       height: '80%',
       content: helpText,
       border: {
-        type: 'line'
+        type: 'line',
       },
       style: {
         fg: 'white',
         bg: 'black',
         border: {
-          fg: 'yellow'
-        }
-      }
+          fg: 'yellow',
+        },
+      },
     })
 
     helpBox.focus()
@@ -624,9 +668,10 @@ ${metrics.tools.mostUsed.map(tool => ` • ${tool.name}: ${tool.count} uses`).jo
     }
 
     // Update response time history (average)
-    const avgResponseTime = metrics.performance.responseTimes.length > 0
-      ? metrics.performance.responseTimes.reduce((a, b) => a + b, 0) / metrics.performance.responseTimes.length
-      : 0
+    const avgResponseTime =
+      metrics.performance.responseTimes.length > 0
+        ? metrics.performance.responseTimes.reduce((a, b) => a + b, 0) / metrics.performance.responseTimes.length
+        : 0
     this.responseTimeHistory.push(avgResponseTime)
     if (this.responseTimeHistory.length > this.maxHistoryPoints) {
       this.responseTimeHistory.shift()

@@ -163,9 +163,7 @@ export class UserQuotaService {
     // Calculate remaining
     const remaining = {
       aiCalls:
-        limits.aiCallsPerHour !== undefined
-          ? Math.max(0, limits.aiCallsPerHour - current.hour.aiCalls)
-          : undefined,
+        limits.aiCallsPerHour !== undefined ? Math.max(0, limits.aiCallsPerHour - current.hour.aiCalls) : undefined,
       tokens:
         limits.tokenUsagePerHour !== undefined
           ? Math.max(0, limits.tokenUsagePerHour - current.hour.tokenUsage.total)
@@ -293,6 +291,3 @@ export function getUserQuotaService(): UserQuotaService {
   }
   return userQuotaServiceInstance
 }
-
-
-

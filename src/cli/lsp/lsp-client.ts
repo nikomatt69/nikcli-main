@@ -473,10 +473,10 @@ export class LSPClient {
       // Terminate server process
       try {
         this.server.process.kill()
-      } catch { }
+      } catch {}
       try {
         this.connection.end()
-      } catch { }
+      } catch {}
 
       console.log(chalk.green(`🛑 ${this.serverInfo.name} shutdown`))
     } catch (error: any) {

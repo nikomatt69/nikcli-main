@@ -1,5 +1,5 @@
-import { advancedUI } from '../../ui/advanced-cli-ui'
 import { ToolRegistry } from '../../tools/tool-registry'
+import { advancedUI } from '../../ui/advanced-cli-ui'
 import { CliUI } from '../../utils/cli-ui'
 import type { AgentInstance, AgentStatus, AgentTask } from './agent-router'
 import { type AgentEvent, EventBus, EventTypes } from './event-bus'

@@ -482,28 +482,7 @@ export class TaskMasterService extends EventEmitter {
       )
     } else {
       // Fallback for other requests
-      todos.push({
-        id: nanoid(),
-        title: 'Task Execution',
-        description: userRequest,
-        status: 'pending',
-        priority: 'medium',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        estimatedDuration: 20,
-        progress: 0,
-        tools: availableTools,
-        reasoning: 'Execute the task using the available tools',
-        metadata: {
-          suggestedTools: [
-            'analyze_project',
-            'rag-search-tool',
-            'write_file',
-            'execute_command',
-            'multi-edit-tool',
-          ],
-        },
-      },
+      todos.push(
         {
           id: nanoid(),
           title: 'Task Execution',
@@ -517,15 +496,26 @@ export class TaskMasterService extends EventEmitter {
           tools: availableTools,
           reasoning: 'Execute the task using the available tools',
           metadata: {
-            suggestedTools: [
-              'analyze_project',
-              'rag-search-tool',
-              'write_file',
-              'execute_command',
-              'multi-edit-tool',
-            ],
+            suggestedTools: ['analyze_project', 'rag-search-tool', 'write_file', 'execute_command', 'multi-edit-tool'],
           },
-        })
+        },
+        {
+          id: nanoid(),
+          title: 'Task Execution',
+          description: userRequest,
+          status: 'pending',
+          priority: 'medium',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          estimatedDuration: 20,
+          progress: 0,
+          tools: availableTools,
+          reasoning: 'Execute the task using the available tools',
+          metadata: {
+            suggestedTools: ['analyze_project', 'rag-search-tool', 'write_file', 'execute_command', 'multi-edit-tool'],
+          },
+        }
+      )
     }
 
     return todos
@@ -677,10 +667,7 @@ Generate tasks NOW (JSON only):`
               ? Math.min(task.estimatedDuration, 120)
               : 15,
           progress: 0,
-          tools:
-            availableTools.length > 0
-              ? availableTools
-              : ['analyze_project', 'read_file'],
+          tools: availableTools.length > 0 ? availableTools : ['analyze_project', 'read_file'],
           metadata:
             Array.isArray(task.tools) && task.tools.length > 0
               ? { suggestedTools: task.tools.filter((tool: any) => typeof tool === 'string') }
@@ -1031,7 +1018,7 @@ Generate tasks NOW (JSON only):`
     // Convert to mutable version for internal use
     const mutablePlan: MutableTaskMasterPlan = {
       ...plan,
-      todos: plan.todos.map(todo => ({
+      todos: plan.todos.map((todo) => ({
         ...todo,
         status: todo.status,
         progress: todo.progress,
@@ -1041,21 +1028,25 @@ Generate tasks NOW (JSON only):`
         dependencies: todo.dependencies ? [...todo.dependencies] : undefined,
         tags: todo.tools ? [...todo.tools] : undefined,
         metadata: todo.metadata ? { ...todo.metadata } : undefined,
-        tools: todo.tools ? [...todo.tools] : undefined
-      }))
+        tools: todo.tools ? [...todo.tools] : undefined,
+      })),
     }
     const startTime = new Date()
     const results: TaskMasterStepResult[] = []
 
     // Notify plan started
-    try { await this.sendPlanLifecycleNotification(plan, true, true) } catch { }
+    try {
+      await this.sendPlanLifecycleNotification(plan, true, true)
+    } catch {}
 
     for (const todo of mutablePlan.todos) {
       todo.status = 'in_progress'
       this.emit('stepStart', { planId: plan.id, taskId: todo.id })
 
       // Notify task started
-      try { await this.sendTaskStartedNotification(plan, todo) } catch { }
+      try {
+        await this.sendTaskStartedNotification(plan, todo)
+      } catch {}
 
       try {
         // Simulate task execution
@@ -1097,7 +1088,7 @@ Generate tasks NOW (JSON only):`
     try {
       const failedCount = plan.todos.filter((t) => t.status === 'failed').length
       await this.sendPlanLifecycleNotification(plan, failedCount === 0, false)
-    } catch { }
+    } catch {}
 
     return {
       planId: plan.id,
@@ -1357,17 +1348,13 @@ Generate tasks NOW (JSON only):`
         planTitle: plan.title,
       }
       await this.notificationService.sendTaskStarted(payload)
-    } catch { }
+    } catch {}
   }
 
   /**
    * Send plan lifecycle notifications (start/complete)
    */
-  private async sendPlanLifecycleNotification(
-    plan: TaskMasterPlan,
-    success: boolean,
-    started: boolean
-  ): Promise<void> {
+  private async sendPlanLifecycleNotification(plan: TaskMasterPlan, success: boolean, started: boolean): Promise<void> {
     if (!this.notificationService) return
     try {
       const { NotificationType, NotificationSeverity } = require('../types/notifications')
@@ -1402,7 +1389,7 @@ Generate tasks NOW (JSON only):`
         }
         await this.notificationService.sendPlanCompletion(payload)
       }
-    } catch { }
+    } catch {}
   }
 }
 

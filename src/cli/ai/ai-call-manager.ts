@@ -119,10 +119,7 @@ export class AICallManager {
   /**
    * Group tools into phases for parallel execution
    */
-  private groupIndependentTools(
-    toolCalls: ToolCall[],
-    dependencies: ToolDependencyMap
-  ): ToolCall[][] {
+  private groupIndependentTools(toolCalls: ToolCall[], dependencies: ToolDependencyMap): ToolCall[][] {
     const groups: ToolCall[][] = []
     const executed = new Set<string>()
 
@@ -284,21 +281,23 @@ Security Guidelines:
 - Use batch sessions for multiple related commands
 - Prefer safe, read-only operations when possible
 
-${ragContextText
-          ? `RELEVANT CODE CONTEXT:
+${
+  ragContextText
+    ? `RELEVANT CODE CONTEXT:
 ${ragContextText}
 
 `
-          : ''
-        }Context:
-${context
-          ? `
+    : ''
+}Context:
+${
+  context
+    ? `
 Working Directory: ${context.workingDirectory || 'current directory'}
 Available Files: ${context.availableFiles?.slice(0, 10).join(', ') || 'none listed'}${context.availableFiles && context.availableFiles.length > 10 ? ` (and ${context.availableFiles.length - 10} more)` : ''}
 Project Info: ${context.projectInfo ? JSON.stringify(context.projectInfo, null, 2) : 'none'}
 `
-          : 'No additional context provided'
-        }
+    : 'No additional context provided'
+}
 
 User Request: ${userRequest}
 
@@ -450,7 +449,11 @@ Estimate realistic durations and assess risk levels accurately.`
         const isParallel = groupSize > 1
 
         if (isParallel) {
-          console.log(chalk.cyan(`\n⚡️ Executing group ${currentGroupIndex}/${executionGroups.length} (${groupSize} tools in parallel)`))
+          console.log(
+            chalk.cyan(
+              `\n⚡️ Executing group ${currentGroupIndex}/${executionGroups.length} (${groupSize} tools in parallel)`
+            )
+          )
         }
 
         // Execute all tools in group in parallel

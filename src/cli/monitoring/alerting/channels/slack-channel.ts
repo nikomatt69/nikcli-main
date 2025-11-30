@@ -1,19 +1,19 @@
-import { IncomingWebhook } from '@slack/webhook';
-import { BaseAlertChannel } from './base-channel';
-import type { Alert, AlertSeverity } from '../types';
+import { IncomingWebhook } from '@slack/webhook'
+import type { Alert, AlertSeverity } from '../types'
+import { BaseAlertChannel } from './base-channel'
 
 export class SlackChannel extends BaseAlertChannel {
-  private readonly webhook: IncomingWebhook;
+  private readonly webhook: IncomingWebhook
 
   constructor(webhookUrl: string, minSeverity: AlertSeverity) {
-    super('slack', minSeverity);
-    this.webhook = new IncomingWebhook(webhookUrl);
+    super('slack', minSeverity)
+    this.webhook = new IncomingWebhook(webhookUrl)
   }
 
   async send(alert: Alert): Promise<void> {
     try {
-      const color = this.getSeverityColor(alert.severity);
-      const emoji = this.getSeverityEmoji(alert.severity);
+      const color = this.getSeverityColor(alert.severity)
+      const emoji = this.getSeverityEmoji(alert.severity)
 
       await this.webhook.send({
         text: `${emoji} *${alert.title}*`,
@@ -46,10 +46,10 @@ export class SlackChannel extends BaseAlertChannel {
             ts: Math.floor(alert.timestamp.getTime() / 1000).toString(),
           },
         ],
-      });
+      })
     } catch (error) {
-      console.error('[SlackChannel] Failed to send alert:', error);
-      throw error;
+      console.error('[SlackChannel] Failed to send alert:', error)
+      throw error
     }
   }
 }

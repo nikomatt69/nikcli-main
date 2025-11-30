@@ -1,25 +1,22 @@
-import { OpenTelemetryProvider } from './telemetry/opentelemetry-provider';
-import { initializeSentry } from './errors/sentry-provider';
-import { AlertManager } from './alerting/alert-manager';
-import { HealthChecker } from './health/health-checker';
-import type { RedisProvider } from '../providers/redis/redis-provider';
-import type { ConfigType } from '../core/config-manager';
+import type { ConfigType } from '../core/config-manager'
+import type { RedisProvider } from '../providers/redis/redis-provider'
+import { AlertManager } from './alerting/alert-manager'
+import { initializeSentry } from './errors/sentry-provider'
+import { HealthChecker } from './health/health-checker'
+import { OpenTelemetryProvider } from './telemetry/opentelemetry-provider'
 
 export interface MonitoringServices {
-  openTelemetry?: OpenTelemetryProvider;
-  alertManager?: AlertManager;
-  healthChecker?: HealthChecker;
+  openTelemetry?: OpenTelemetryProvider
+  alertManager?: AlertManager
+  healthChecker?: HealthChecker
 }
 
-export async function initializeMonitoring(
-  config: ConfigType,
-  redis: RedisProvider
-): Promise<MonitoringServices> {
-  const services: MonitoringServices = {};
+export async function initializeMonitoring(config: ConfigType, redis: RedisProvider): Promise<MonitoringServices> {
+  const services: MonitoringServices = {}
 
   if (!config.monitoring.enabled) {
-    console.log('[Monitoring] Disabled by configuration');
-    return services;
+    console.log('[Monitoring] Disabled by configuration')
+    return services
   }
 
   try {
@@ -31,10 +28,10 @@ export async function initializeMonitoring(
         enabled: config.monitoring.opentelemetry.enabled,
         sampleRate: config.monitoring.opentelemetry.sampleRate,
         exportIntervalMs: config.monitoring.opentelemetry.exportIntervalMs,
-      });
+      })
 
-      await openTelemetry.initialize();
-      services.openTelemetry = openTelemetry;
+      await openTelemetry.initialize()
+      services.openTelemetry = openTelemetry
     }
 
     if (config.monitoring.sentry.enabled && config.monitoring.sentry.dsn) {
@@ -47,39 +44,39 @@ export async function initializeMonitoring(
         tracesSampleRate: config.monitoring.sentry.tracesSampleRate,
         profilesSampleRate: config.monitoring.sentry.profilesSampleRate,
         debug: config.monitoring.sentry.debug,
-      });
+      })
     }
 
     if (config.monitoring.alerting.enabled) {
-      const channels: any = {};
+      const channels: any = {}
 
       if (config.monitoring.alerting.channels.slack?.enabled && config.monitoring.alerting.channels.slack?.webhookUrl) {
         channels.slack = {
           webhookUrl: config.monitoring.alerting.channels.slack.webhookUrl,
           minSeverity: config.monitoring.alerting.channels.slack.minSeverity,
-        };
+        }
       }
 
-      if (config.monitoring.alerting.channels.discord?.enabled && config.monitoring.alerting.channels.discord?.webhookUrl) {
+      if (
+        config.monitoring.alerting.channels.discord?.enabled &&
+        config.monitoring.alerting.channels.discord?.webhookUrl
+      ) {
         channels.discord = {
           webhookUrl: config.monitoring.alerting.channels.discord.webhookUrl,
           minSeverity: config.monitoring.alerting.channels.discord.minSeverity,
-        };
+        }
       }
 
       services.alertManager = new AlertManager({
         channels,
         deduplication: config.monitoring.alerting.deduplication,
         throttling: config.monitoring.alerting.throttling,
-      });
+      })
     }
 
     if (config.monitoring.health.enabled) {
-      services.healthChecker = new HealthChecker(
-        redis,
-        config.monitoring.health.checkIntervalMs
-      );
-      services.healthChecker.startPeriodicChecks();
+      services.healthChecker = new HealthChecker(redis, config.monitoring.health.checkIntervalMs)
+      services.healthChecker.startPeriodicChecks()
     }
 
     console.log('[Monitoring] Initialized successfully', {
@@ -87,25 +84,25 @@ export async function initializeMonitoring(
       sentry: config.monitoring.sentry.enabled,
       alertManager: !!services.alertManager,
       healthChecker: !!services.healthChecker,
-    });
+    })
 
-    return services;
+    return services
   } catch (error) {
-    console.error('[Monitoring] Failed to initialize:', error);
-    return services;
+    console.error('[Monitoring] Failed to initialize:', error)
+    return services
   }
 }
 
 export async function shutdownMonitoring(services: MonitoringServices): Promise<void> {
-  console.log('[Monitoring] Shutting down...');
+  console.log('[Monitoring] Shutting down...')
 
   if (services.openTelemetry) {
-    await services.openTelemetry.shutdown();
+    await services.openTelemetry.shutdown()
   }
 
   if (services.healthChecker) {
-    services.healthChecker.stopPeriodicChecks();
+    services.healthChecker.stopPeriodicChecks()
   }
 
-  console.log('[Monitoring] Shutdown complete');
+  console.log('[Monitoring] Shutdown complete')
 }

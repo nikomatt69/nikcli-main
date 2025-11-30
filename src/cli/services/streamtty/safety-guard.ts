@@ -3,8 +3,8 @@
  * Implements timeout protection, circuit breaker, and overflow detection
  */
 
-import type { StreamMetadata } from './stream-coordinator'
 import type { CircularBuffer, StreamChunk } from './circular-buffer'
+import type { StreamMetadata } from './stream-coordinator'
 
 export interface SafetyConfig {
   chunkTimeoutMs: number
@@ -143,7 +143,11 @@ export class SafetyGuard {
     }
   }
 
-  canProcessChunk(stream: StreamMetadata, buffer: CircularBuffer | null, usedBytes: number): {
+  canProcessChunk(
+    stream: StreamMetadata,
+    buffer: CircularBuffer | null,
+    usedBytes: number
+  ): {
     allowed: boolean
     reason?: string
   } {

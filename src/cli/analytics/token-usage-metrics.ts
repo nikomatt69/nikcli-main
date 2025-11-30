@@ -1,6 +1,6 @@
+import type { MessageTokenInfo, SessionContext } from '../core/context-token-manager'
 import { authProvider } from '../providers/supabase/auth-provider'
 import { enhancedSupabaseProvider } from '../providers/supabase/enhanced-supabase-provider'
-import type { MessageTokenInfo, SessionContext } from '../core/context-token-manager'
 
 /**
  * Record per-user token usage metrics for the current authenticated user.
@@ -23,8 +23,7 @@ export async function recordTokenUsageForCurrentUser(
     }
 
     // Determine whether this is input or output tokens from the user's perspective
-    const direction: 'input' | 'output' =
-      messageInfo.role === 'assistant' ? 'output' : 'input'
+    const direction: 'input' | 'output' = messageInfo.role === 'assistant' ? 'output' : 'input'
 
     const eventData = {
       provider: session.provider,
@@ -62,5 +61,3 @@ export async function recordTokenUsageForCurrentUser(
     return
   }
 }
-
-

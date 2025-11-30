@@ -58,9 +58,7 @@ export class CommandSandboxExecutor {
       })
 
       // Determine command execution
-      const [cmd, args] = options.shell
-        ? ['/bin/sh', ['-c', options.command]]
-        : [options.command, options.args || []]
+      const [cmd, args] = options.shell ? ['/bin/sh', ['-c', options.command]] : [options.command, options.args || []]
 
       // Spawn child process in sandbox directory
       const child = spawn(cmd, args, {
@@ -122,8 +120,7 @@ export class CommandSandboxExecutor {
           signal = sig
 
           // Stream final status
-          const status =
-            code === 0 ? '✓ Success' : code ? `✖ Failed (code: ${code})` : `⚠︎  Terminated (signal: ${sig})`
+          const status = code === 0 ? '✓ Success' : code ? `✖ Failed (code: ${code})` : `⚠︎  Terminated (signal: ${sig})`
           advancedUI.addLiveUpdate({
             type: code === 0 ? 'success' : 'error',
             content: `${status}`,

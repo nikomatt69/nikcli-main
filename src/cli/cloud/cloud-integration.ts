@@ -120,9 +120,7 @@ export class CloudIntegration {
     // Background Agents API
     if (s.services.backgroundAgents.available) {
       const latency = s.services.backgroundAgents.latency
-      console.log(
-        `✓ Background Agents API: ${chalk.green('Connected')} ${latency ? chalk.gray(`(${latency}ms)`) : ''}`
-      )
+      console.log(`✓ Background Agents API: ${chalk.green('Connected')} ${latency ? chalk.gray(`(${latency}ms)`) : ''}`)
     } else {
       console.log(`✖ Background Agents API: ${chalk.red('Unavailable')} ${chalk.gray('(using local mode)')}`)
     }

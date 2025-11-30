@@ -43,14 +43,17 @@ function parseCorsOrigins(): string[] {
   }
 
   // Parse and trim origins
-  let parsedOrigins = origins.split(',').map((o) => o.trim()).filter(o => o.length > 0)
+  const parsedOrigins = origins
+    .split(',')
+    .map((o) => o.trim())
+    .filter((o) => o.length > 0)
 
   // ALWAYS add wildcard support in production, even if ALLOWED_ORIGINS is set
   // This ensures all Vercel preview deployments work without manual configuration
   if (process.env.NODE_ENV === 'production') {
     // Check if we need to add wildcard patterns
     const hasWildcard = parsedOrigins.includes('*')
-    const hasVercelWildcard = parsedOrigins.some(o => o.includes('*.vercel.app'))
+    const hasVercelWildcard = parsedOrigins.some((o) => o.includes('*.vercel.app'))
 
     // Always add Vercel wildcard pattern if not present
     if (!hasVercelWildcard) {
@@ -74,14 +77,14 @@ function parseCorsOrigins(): string[] {
  */
 function parseRedisConfig():
   | {
-    host: string
-    port: number
-    password?: string
-    upstash?: {
-      url: string
-      token: string
+      host: string
+      port: number
+      password?: string
+      upstash?: {
+        url: string
+        token: string
+      }
     }
-  }
   | undefined {
   // ALWAYS check for Upstash REST API first for background agents
   const upstashUrl = process.env.UPSTASH_REDIS_REST_URL
@@ -136,12 +139,12 @@ function parseRedisConfig():
  */
 function parseGitHubConfig():
   | {
-    appId: string
-    privateKey: string
-    installationId: string
-    webhookSecret: string
-    githubToken?: string
-  }
+      appId: string
+      privateKey: string
+      installationId: string
+      webhookSecret: string
+      githubToken?: string
+    }
   | undefined {
   const appId = process.env.GITHUB_APP_ID
   const installationId = process.env.GITHUB_INSTALLATION_ID
@@ -186,10 +189,7 @@ function parseGitHubConfig():
   }
 
   // Normalize the private key (remove extra whitespace, ensure proper line breaks)
-  const normalizedPrivateKey = privateKey
-    .replace(/\\n/g, '\n')
-    .replace(/\r\n/g, '\n')
-    .trim()
+  const normalizedPrivateKey = privateKey.replace(/\\n/g, '\n').replace(/\r\n/g, '\n').trim()
 
   return {
     appId,
@@ -265,7 +265,9 @@ async function startServer() {
 
   if (configuredProviders.length === 0) {
     console.error('✖ No AI provider API keys configured. At least one is required.')
-    console.error('   Set one of: ANTHROPIC_API_KEY, OPENAI_API_KEY, GOOGLE_GENERATIVE_AI_API_KEY, or OPENROUTER_API_KEY')
+    console.error(
+      '   Set one of: ANTHROPIC_API_KEY, OPENAI_API_KEY, GOOGLE_GENERATIVE_AI_API_KEY, or OPENROUTER_API_KEY'
+    )
     process.exit(1)
   }
 

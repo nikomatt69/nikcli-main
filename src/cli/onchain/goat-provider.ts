@@ -42,7 +42,7 @@ try {
     USDC: erc20Module.USDC,
     WETH: erc20Module.WETH,
     PEPE: erc20Module.PEPE,
-    MODE: erc20Module.MODE
+    MODE: erc20Module.MODE,
   }
 } catch (e) {
   console.warn('⚠︎ ERC20 plugin import failed:', e)
@@ -51,8 +51,8 @@ try {
 import * as fs from 'node:fs'
 import type { CoreTool } from 'ai'
 import type { Hex } from 'viem'
-import { privateKeyToAccount } from 'viem/accounts'
 import { createWalletClient, http } from 'viem'
+import { privateKeyToAccount } from 'viem/accounts'
 import { base, polygon } from 'viem/chains'
 
 // Configure file to persist wallet data
@@ -128,7 +128,9 @@ export class GoatProvider {
     // Check if dependencies are installed
     const isInstalled = await GoatProvider.isInstalled()
     if (!isInstalled) {
-      throw new Error('GOAT SDK dependencies not installed. Run: bun add @goat-sdk/adapter-vercel-ai @goat-sdk/wallet-viem @goat-sdk/plugin-polymarket @goat-sdk/plugin-erc20')
+      throw new Error(
+        'GOAT SDK dependencies not installed. Run: bun add @goat-sdk/adapter-vercel-ai @goat-sdk/wallet-viem @goat-sdk/plugin-polymarket @goat-sdk/plugin-erc20'
+      )
     }
 
     // Setup chains
@@ -144,7 +146,7 @@ export class GoatProvider {
     await this.generateTools()
 
     console.log('✓ GOAT SDK initialized successfully')
-    console.log(`✓ Chains: ${this.supportedChains.map(c => c.name).join(', ')}`)
+    console.log(`✓ Chains: ${this.supportedChains.map((c) => c.name).join(', ')}`)
     console.log(`✓ Plugins: ${this.enabledPlugins.join(', ')}`)
   }
 
@@ -163,24 +165,23 @@ export class GoatProvider {
           chainConfig = {
             name: 'polygon',
             rpcUrl: rpcUrls.polygon || process.env.POLYGON_RPC_URL || 'https://polygon-rpc.com',
-            chainId: 137
+            chainId: 137,
           }
           break
         case 'base':
           chainConfig = {
             name: 'base',
             rpcUrl: rpcUrls.base || process.env.BASE_RPC_URL || 'https://mainnet.base.org',
-            chainId: 8453
+            chainId: 8453,
           }
           break
         default:
           chainConfig = {
             name: 'polygon',
             rpcUrl: rpcUrls.polygon || process.env.POLYGON_RPC_URL || 'https://polygon-rpc.com',
-            chainId: 137
+            chainId: 137,
           }
           break
-
       }
 
       this.supportedChains.push(chainConfig)
@@ -209,7 +210,7 @@ export class GoatProvider {
     const walletClient = createWalletClient({
       account,
       chain: viemChain,
-      transport: http(primaryChain.rpcUrl)
+      transport: http(primaryChain.rpcUrl),
     })
 
     // Initialize GOAT wallet provider - viem() takes WalletClient directly
@@ -286,18 +287,22 @@ export class GoatProvider {
           if (erc20Plugin && erc20Plugin.tokens) {
             // Use standard tokens for the primary chain
             const tokens = [
-              erc20Plugin.tokens.USDC,  // Stablecoin principale per pagamenti
-              erc20Plugin.tokens.WETH,  // Wrapped ETH per DEX e DeFi
-              erc20Plugin.tokens.PEPE,  // Meme coin popolare
+              erc20Plugin.tokens.USDC, // Stablecoin principale per pagamenti
+              erc20Plugin.tokens.WETH, // Wrapped ETH per DEX e DeFi
+              erc20Plugin.tokens.PEPE, // Meme coin popolare
             ].filter(Boolean)
 
             if (tokens.length > 0) {
               // Pass chain context to ensure correct token addresses
-              pluginInstances.push(erc20Plugin({
-                tokens,
-                chainId: primaryChainId
-              }))
-              console.log(`✓ ERC20 plugin configured with ${tokens.length} tokens for chain ${primaryChain.name} (${primaryChainId})`)
+              pluginInstances.push(
+                erc20Plugin({
+                  tokens,
+                  chainId: primaryChainId,
+                })
+              )
+              console.log(
+                `✓ ERC20 plugin configured with ${tokens.length} tokens for chain ${primaryChain.name} (${primaryChainId})`
+              )
             } else {
               console.warn('⚠︎ No ERC20 tokens available for configuration')
             }
@@ -315,7 +320,7 @@ export class GoatProvider {
     // Generate tools using GOAT adapter
     this.tools = await getOnChainTools({
       wallet: this.walletProvider,
-      plugins: pluginInstances
+      plugins: pluginInstances,
     })
   }
 
@@ -336,7 +341,7 @@ Available capabilities:
 ${this.enabledPlugins.includes('polymarket') ? '- Polymarket: Create and interact with prediction markets' : ''}
 ${this.enabledPlugins.includes('erc20') ? '- ERC20: Transfer and manage ERC20 tokens' : ''}
 
-Supported networks: ${this.supportedChains.map(c => c.name).join(', ')}
+Supported networks: ${this.supportedChains.map((c) => c.name).join(', ')}
 
 IMPORTANT SAFETY RULES:
 1. ALWAYS confirm transaction details with the user before executing
@@ -374,9 +379,9 @@ For any blockchain transaction, provide a clear summary including:
     try {
       const walletData = {
         address,
-        chains: this.supportedChains.map(c => c.name),
+        chains: this.supportedChains.map((c) => c.name),
         plugins: this.enabledPlugins,
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date().toISOString(),
       }
 
       // Ensure directory exists
@@ -406,14 +411,14 @@ For any blockchain transaction, provide a clear summary including:
         address: walletData.address,
         chains: walletData.chains,
         plugins: walletData.plugins,
-        updatedAt: walletData.updatedAt
+        updatedAt: walletData.updatedAt,
       }
     } catch {
       return {
         address: 'Unknown',
-        chains: this.supportedChains.map(c => c.name),
+        chains: this.supportedChains.map((c) => c.name),
         plugins: this.enabledPlugins,
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date().toISOString(),
       }
     }
   }
@@ -435,18 +440,20 @@ For any blockchain transaction, provide a clear summary including:
         throw new Error('GOAT_EVM_PRIVATE_KEY required for native client')
       }
 
-      const builderCreds = process.env.POLYMARKET_BUILDER_API_KEY ? {
-        apiKey: process.env.POLYMARKET_BUILDER_API_KEY,
-        secret: process.env.POLYMARKET_BUILDER_SECRET || '',
-        passphrase: process.env.POLYMARKET_BUILDER_PASSPHRASE || ''
-      } : undefined
+      const builderCreds = process.env.POLYMARKET_BUILDER_API_KEY
+        ? {
+            apiKey: process.env.POLYMARKET_BUILDER_API_KEY,
+            secret: process.env.POLYMARKET_BUILDER_SECRET || '',
+            passphrase: process.env.POLYMARKET_BUILDER_PASSPHRASE || '',
+          }
+        : undefined
 
       return new PolymarketNativeClient({
         clobUrl: 'https://clob.polymarket.com',
         clobWsUrl: 'wss://ws-subscriptions-clob.polymarket.com/ws/',
         chainId: 137,
         privateKey: process.env.GOAT_EVM_PRIVATE_KEY as any,
-        builderCredentials: builderCreds
+        builderCredentials: builderCreds,
       })
     } catch (error: any) {
       console.warn('⚠︎ Failed to load native Polymarket client:', error.message)
@@ -461,9 +468,7 @@ For any blockchain transaction, provide a clear summary including:
     try {
       // Lazy load WebSocket manager
       const { PolymarketWebSocketManager } = require('./polymarket-websocket-manager')
-      return new PolymarketWebSocketManager(
-        'wss://ws-subscriptions-clob.polymarket.com/ws/'
-      )
+      return new PolymarketWebSocketManager('wss://ws-subscriptions-clob.polymarket.com/ws/')
     } catch (error: any) {
       console.warn('⚠︎ Failed to load WebSocket manager:', error.message)
       return null
@@ -485,7 +490,7 @@ For any blockchain transaction, provide a clear summary including:
       return new PolymarketBuilderSigningService({
         apiKey: process.env.POLYMARKET_BUILDER_API_KEY,
         secret: process.env.POLYMARKET_BUILDER_SECRET || '',
-        passphrase: process.env.POLYMARKET_BUILDER_PASSPHRASE || ''
+        passphrase: process.env.POLYMARKET_BUILDER_PASSPHRASE || '',
       })
     } catch (error: any) {
       console.warn('⚠︎ Failed to load builder signing service:', error.message)
@@ -504,7 +509,7 @@ For any blockchain transaction, provide a clear summary including:
     return {
       nativeClient: !!process.env.GOAT_EVM_PRIVATE_KEY,
       webSocket: true,
-      builderProgram: !!process.env.POLYMARKET_BUILDER_API_KEY
+      builderProgram: !!process.env.POLYMARKET_BUILDER_API_KEY,
     }
   }
 

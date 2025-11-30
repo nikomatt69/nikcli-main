@@ -1,5 +1,5 @@
-import { Router, Request, Response } from 'express'
 import crypto from 'node:crypto'
+import { type Request, type Response, Router } from 'express'
 
 /**
  * Slack API Routes
@@ -237,7 +237,7 @@ slackRouter.post('/events', async (req: Request, res: Response): Promise<void> =
       // Handle app_mention event
       if (event.type === 'app_mention') {
         // Process asynchronously to avoid Slack timeout
-        processAppMention(event).catch(error => {
+        processAppMention(event).catch((error) => {
           console.error('✖ Error processing app_mention:', error)
         })
 

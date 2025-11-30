@@ -2,10 +2,10 @@ import { readFile } from 'node:fs/promises'
 import chalk from 'chalk'
 import { type Change, diffLines, diffWords } from 'diff'
 import { PromptManager } from '../prompts/prompt-manager'
+import { advancedUI } from '../ui/advanced-cli-ui'
 import { CliUI } from '../utils/cli-ui'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
 import { sanitizePath } from './secure-file-tools'
-import { advancedUI } from '../ui/advanced-cli-ui'
 
 /**
  * DiffTool - File and content comparison with multiple diff algorithms

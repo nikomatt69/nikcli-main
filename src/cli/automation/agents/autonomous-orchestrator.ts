@@ -440,11 +440,11 @@ Consider parallel execution where possible.`,
 
     // Return in execution order: critical -> high -> normal -> low
     const ordered = new Map<string, any[]>()
-      ;['critical', 'high', 'normal', 'low'].forEach((priority) => {
-        if (groups.has(priority)) {
-          ordered.set(priority, groups.get(priority)!)
-        }
-      })
+    ;['critical', 'high', 'normal', 'low'].forEach((priority) => {
+      if (groups.has(priority)) {
+        ordered.set(priority, groups.get(priority)!)
+      }
+    })
 
     return ordered
   }
@@ -470,9 +470,9 @@ Consider parallel execution where possible.`,
           result.status === 'fulfilled'
             ? result.value
             : {
-              success: false,
-              error: result.reason?.message || 'Unknown error',
-            }
+                success: false,
+                error: result.reason?.message || 'Unknown error',
+              }
         )
       )
 

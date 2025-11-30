@@ -1,5 +1,5 @@
-import { logger, errorHandler } from './error-handler'
-import { resourceManager, type Disposable, ManagedMap, ManagedInterval } from './resource-manager'
+import { errorHandler, logger } from './error-handler'
+import { type Disposable, ManagedInterval, ManagedMap, resourceManager } from './resource-manager'
 
 export interface CacheEntry<T> {
   value: T
@@ -39,13 +39,13 @@ export class UnifiedCache<K extends string, V> implements Disposable {
       maxEntries: options.maxEntries ?? 10000,
       ttl: options.ttl ?? 30 * 60 * 1000, // 30 minutes default
       cleanupInterval: options.cleanupInterval ?? 5 * 60 * 1000, // 5 minutes
-      onEvict: options.onEvict ?? (() => {})
+      onEvict: options.onEvict ?? (() => {}),
     }
 
     logger.debug(`Created cache: ${name}`, 'UnifiedCache', {
       maxSize: this.options.maxSize,
       maxEntries: this.options.maxEntries,
-      ttl: this.options.ttl
+      ttl: this.options.ttl,
     })
 
     this.startCleanup()
@@ -81,7 +81,7 @@ export class UnifiedCache<K extends string, V> implements Disposable {
       timestamp: now,
       accessCount: 0,
       lastAccessed: now,
-      size
+      size,
     }
 
     // Remove existing entry if it exists
@@ -97,7 +97,7 @@ export class UnifiedCache<K extends string, V> implements Disposable {
 
     logger.debug(`Cache set: ${key}`, 'UnifiedCache', {
       size,
-      totalEntries: this.cache.size
+      totalEntries: this.cache.size,
     })
   }
 
@@ -126,7 +126,7 @@ export class UnifiedCache<K extends string, V> implements Disposable {
 
     logger.debug(`Cache hit: ${key}`, 'UnifiedCache', {
       accessCount: entry.accessCount,
-      age: now - entry.timestamp
+      age: now - entry.timestamp,
     })
 
     return entry.value
@@ -180,8 +180,7 @@ export class UnifiedCache<K extends string, V> implements Disposable {
   }
 
   private evictLeastRecentlyUsed(count: number): void {
-    const entries = Array.from(this.cache.entries())
-      .sort(([, a], [, b]) => a.lastAccessed - b.lastAccessed)
+    const entries = Array.from(this.cache.entries()).sort(([, a], [, b]) => a.lastAccessed - b.lastAccessed)
 
     for (let i = 0; i < count && i < entries.length; i++) {
       const [key, entry] = entries[i]
@@ -194,8 +193,7 @@ export class UnifiedCache<K extends string, V> implements Disposable {
 
   private evictBySize(targetSize: number): void {
     let freedSize = 0
-    const entries = Array.from(this.cache.entries())
-      .sort(([, a], [, b]) => a.lastAccessed - b.lastAccessed)
+    const entries = Array.from(this.cache.entries()).sort(([, a], [, b]) => a.lastAccessed - b.lastAccessed)
 
     for (const [key, entry] of entries) {
       if (freedSize >= targetSize) break
@@ -249,8 +247,8 @@ export class UnifiedCache<K extends string, V> implements Disposable {
       entries: this.cache.size,
       hitRate: totalRequests > 0 ? this.hits / totalRequests : 0,
       memoryUsage: this.getCurrentSize(),
-      oldestEntry: entries.length > 0 ? Math.min(...entries.map(e => now - e.timestamp)) : 0,
-      newestEntry: entries.length > 0 ? Math.max(...entries.map(e => now - e.timestamp)) : 0
+      oldestEntry: entries.length > 0 ? Math.min(...entries.map((e) => now - e.timestamp)) : 0,
+      newestEntry: entries.length > 0 ? Math.max(...entries.map((e) => now - e.timestamp)) : 0,
     }
   }
 
@@ -271,11 +269,11 @@ export class CacheRegistry implements Disposable {
   private caches = new ManagedMap<string, UnifiedCache<any, any>>()
 
   static getInstance(): CacheRegistry {
-    if (!this.instance) {
-      this.instance = new CacheRegistry()
-      resourceManager.register(this.instance, 'cacheRegistry')
+    if (!CacheRegistry.instance) {
+      CacheRegistry.instance = new CacheRegistry()
+      resourceManager.register(CacheRegistry.instance, 'cacheRegistry')
     }
-    return this.instance
+    return CacheRegistry.instance
   }
 
   createCache<K extends string, V>(name: string, options?: CacheOptions): UnifiedCache<K, V> {
@@ -288,7 +286,7 @@ export class CacheRegistry implements Disposable {
     this.caches.set(name, cache)
 
     logger.info(`Created cache: ${name}`, 'CacheRegistry', {
-      totalCaches: this.caches.size
+      totalCaches: this.caches.size,
     })
 
     return cache
@@ -340,17 +338,17 @@ export function getCache<K extends string, V>(name: string): UnifiedCache<K, V> 
 export const tokenCache = createCache<string, any>('tokens', {
   maxEntries: 5000,
   ttl: 10 * 60 * 1000, // 10 minutes
-  maxSize: 50 * 1024 * 1024 // 50MB
+  maxSize: 50 * 1024 * 1024, // 50MB
 })
 
 export const completionCache = createCache<string, any>('completions', {
   maxEntries: 1000,
   ttl: 30 * 60 * 1000, // 30 minutes
-  maxSize: 100 * 1024 * 1024 // 100MB
+  maxSize: 100 * 1024 * 1024, // 100MB
 })
 
 export const semanticCache = createCache<string, any>('semantic', {
   maxEntries: 2000,
   ttl: 60 * 60 * 1000, // 1 hour
-  maxSize: 200 * 1024 * 1024 // 200MB
+  maxSize: 200 * 1024 * 1024, // 200MB
 })

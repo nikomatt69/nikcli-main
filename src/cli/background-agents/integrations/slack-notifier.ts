@@ -3,9 +3,9 @@
  * Listens to BackgroundAgentService events and sends Slack notifications
  */
 
+import { notifyJobCompleted, notifyJobFailed, notifyJobStarted } from '../api/slack-routes'
 import type { BackgroundAgentService } from '../background-agent-service'
 import type { BackgroundJob } from '../types'
-import { notifyJobCompleted, notifyJobFailed, notifyJobStarted } from '../api/slack-routes'
 
 export class SlackNotifier {
   private enabled: boolean
@@ -38,9 +38,8 @@ export class SlackNotifier {
       if (!this.enabled) return
 
       try {
-        const duration = job.completedAt && job.startedAt
-          ? new Date(job.completedAt).getTime() - new Date(job.startedAt).getTime()
-          : 0
+        const duration =
+          job.completedAt && job.startedAt ? new Date(job.completedAt).getTime() - new Date(job.startedAt).getTime() : 0
 
         await notifyJobCompleted(jobId, job.repo, duration)
       } catch (error) {

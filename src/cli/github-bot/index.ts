@@ -2,31 +2,30 @@
 
 /**
  * GitHub Bot Integration for NikCLI
- * 
+ *
  * Main entry point for the GitHub bot functionality
  */
 
-export { GitHubWebhookHandler } from './webhook-handler'
-export { TaskExecutor } from './task-executor'
 export { CommentProcessor } from './comment-processor'
 export { PRReviewExecutor } from './pr-review-executor'
-
+export { TaskExecutor } from './task-executor'
 export type {
-  GitHubWebhookEvent,
-  GitHubIssue,
+  CommandParseResult,
+  GitHubBotAPI,
+  GitHubBotConfig,
   GitHubComment,
-  GitHubPullRequest,
-  GitHubUser,
+  GitHubIssue,
   GitHubLabel,
+  GitHubPullRequest,
   GitHubRepository,
+  GitHubUser,
+  GitHubWebhookEvent,
+  JobStatus,
+  NikCLICommand,
   NikCLIMention,
   ProcessingJob,
-  JobStatus,
-  TaskResult,
   RepositoryContext,
   TaskContext,
-  NikCLICommand,
-  CommandParseResult,
-  GitHubBotConfig,
-  GitHubBotAPI,
+  TaskResult,
 } from './types'
+export { GitHubWebhookHandler } from './webhook-handler'

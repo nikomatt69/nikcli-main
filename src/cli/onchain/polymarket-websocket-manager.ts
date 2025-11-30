@@ -60,11 +60,7 @@ export interface TickSizeChangeUpdate {
   timestamp: number
 }
 
-export type WebSocketUpdate =
-  | BookUpdate
-  | PriceChangeUpdate
-  | LastTradePriceUpdate
-  | TickSizeChangeUpdate
+export type WebSocketUpdate = BookUpdate | PriceChangeUpdate | LastTradePriceUpdate | TickSizeChangeUpdate
 
 export interface ConnectionStats {
   connected: boolean
@@ -184,7 +180,7 @@ export class PolymarketWebSocketManager extends EventEmitter {
     try {
       const subscription: WebSocketSubscription = {
         channel: 'market',
-        asset_id: assetId
+        asset_id: assetId,
       }
 
       this.ws.send(JSON.stringify(subscription))
@@ -224,7 +220,7 @@ export class PolymarketWebSocketManager extends EventEmitter {
       setTimeout(() => {
         this.connect().then(() => {
           // Re-subscribe to all remaining
-          this.subscriptions.forEach(id => {
+          this.subscriptions.forEach((id) => {
             this.subscribe(id, this.messageHandlers.get(id))
           })
         })
@@ -286,19 +282,18 @@ export class PolymarketWebSocketManager extends EventEmitter {
 
     // Exponential backoff with jitter
     const jitter = Math.random() * 1000
-    const delay = Math.min(
-      this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1) + jitter,
-      this.maxReconnectDelay
-    )
+    const delay = Math.min(this.reconnectDelay * 2 ** (this.reconnectAttempts - 1) + jitter, this.maxReconnectDelay)
 
-    console.log(`🔄 Reconnecting in ${delay.toFixed(0)}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`)
+    console.log(
+      `🔄 Reconnecting in ${delay.toFixed(0)}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`
+    )
 
     this.reconnectTimeout = setTimeout(() => {
       this.isManuallyClosing = false
       this.connect()
         .then(() => {
           // Re-subscribe to all markets
-          this.subscriptions.forEach(assetId => {
+          this.subscriptions.forEach((assetId) => {
             this.subscribe(assetId, this.messageHandlers.get(assetId))
           })
         })
@@ -347,7 +342,7 @@ export class PolymarketWebSocketManager extends EventEmitter {
       messageCount: this.messageCount,
       lastMessageTime: this.lastMessageTime,
       uptime,
-      reconnectAttempts: this.reconnectAttempts
+      reconnectAttempts: this.reconnectAttempts,
     }
   }
 

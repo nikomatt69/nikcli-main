@@ -1,19 +1,14 @@
 import chalk from 'chalk'
+import { type BatchSession, type CommandOptions, type CommandResult, SecureCommandTool } from './secure-command-tool'
 import { ListDirectoryTool, ReadFileTool, ReplaceInFileTool, sanitizePath, WriteFileTool } from './secure-file-tools'
-import {
-  type BatchSession,
-  type CommandOptions,
-  type CommandResult,
-  SecureCommandTool,
-} from './secure-command-tool'
 
 export type { BatchSession } from './secure-command-tool'
 
 import { CoinbaseAgentKitTool } from './coinbase-agentkit-tool'
-import { GoatTool } from './goat-tool'
 import { FigmaTool, type FigmaToolResult } from './figma-tool'
 import { FindFilesTool } from './find-files-tool'
 import { GitTools } from './git-tools'
+import { GoatTool } from './goat-tool'
 import { type GrepResult, GrepTool, type GrepToolParams } from './grep-tool'
 import { JsonPatchTool } from './json-patch-tool'
 import { MultiReadTool } from './multi-read-tool'
@@ -511,15 +506,10 @@ export class SecureToolsRegistry {
   ): Promise<ToolResult<any>> {
     const context = this.createContext(options.skipConfirmation ? 'safe' : 'confirmed')
 
-    return this.executeWithTracking(
-      'GOAT',
-      () => this.goatTool.execute(action, params),
-      context,
-      {
-        pathValidated: true,
-        userConfirmed: !options.skipConfirmation,
-      }
-    )
+    return this.executeWithTracking('GOAT', () => this.goatTool.execute(action, params), context, {
+      pathValidated: true,
+      userConfirmed: !options.skipConfirmation,
+    })
   }
 
   /**
@@ -660,7 +650,6 @@ export class SecureToolsRegistry {
     console.log(chalk.blue(`Path Validation Rate: ${(stats.pathValidationRate * 100).toFixed(1)}%`))
     console.log(chalk.blue(`User Confirmation Rate: ${(stats.userConfirmationRate * 100).toFixed(1)}%`))
   }
-
 
   // ==================== FIGMA DESIGN TOOLS ====================
 

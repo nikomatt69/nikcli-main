@@ -1,7 +1,7 @@
 import chalk from 'chalk'
+import type { MLInferenceEngine } from '../ml/ml-inference-engine'
 import { ToolRegistry } from '../tools/tool-registry'
 import { type ToolRecommendation, toolRouter } from './tool-router'
-import type { MLInferenceEngine } from '../ml/ml-inference-engine'
 
 /**
  * Dynamic Tool Selector
@@ -80,7 +80,7 @@ export class DynamicToolSelector {
     if (this.mlInferenceEngine) {
       try {
         const successRates = await this.mlInferenceEngine.predictSuccessRates(
-          combinedRecommendations.map(r => r.tool),
+          combinedRecommendations.map((r) => r.tool),
           context || {}
         )
 

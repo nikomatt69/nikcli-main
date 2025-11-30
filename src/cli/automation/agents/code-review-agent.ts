@@ -1,11 +1,11 @@
 import { nanoid } from 'nanoid'
 import { type ChatMessage, modelProvider } from '../../ai/model-provider'
+import { advancedUI } from '../../ui/advanced-cli-ui'
 import { CliUI } from '../../utils/cli-ui'
 import type { AgentTask } from './agent-router'
 import type { AgentTaskResult } from './base-agent'
 import { CognitiveAgentBase } from './cognitive-agent-base'
 import type { CodeReviewCognition, OrchestrationPlan, TaskCognition } from './cognitive-interfaces'
-import { advancedUI } from '../../ui/advanced-cli-ui'
 
 /**
  * 🔍 Enhanced Code Review Agent with Cognitive Intelligence

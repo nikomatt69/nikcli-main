@@ -59,7 +59,6 @@ export class SnapshotService extends EventEmitter {
       await snapshotProvider.initialize()
       this.isInitialized = true
 
-
       this.emit('initialized')
     } catch (error: any) {
       structuredLogger.error('Snapshot Service', `✖ Snapshot Service initialization failed: ${error.message}`)

@@ -3,7 +3,7 @@
  * Provides SSE streaming and REST endpoints for interactive chat sessions
  */
 
-import { Router, Request, Response } from 'express'
+import { type Request, type Response, Router } from 'express'
 import { v4 as uuidv4 } from 'uuid'
 import type { ChatSessionService } from '../services/chat-session-service'
 import type { SSEEvent } from '../types'

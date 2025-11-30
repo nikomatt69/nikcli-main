@@ -45,8 +45,8 @@ export class ContainerManager extends EventEmitter {
       if (config.security?.readOnlyRootfs) {
         args.push('--read-only')
       }
-      ; (config.security?.capabilities?.drop || []).forEach((cap) => args.push('--cap-drop', cap))
-        ; (config.security?.capabilities?.add || []).forEach((cap) => args.push('--cap-add', cap))
+      ;(config.security?.capabilities?.drop || []).forEach((cap) => args.push('--cap-drop', cap))
+      ;(config.security?.capabilities?.add || []).forEach((cap) => args.push('--cap-add', cap))
 
       // Tmpfs mounts for extra isolation
       args.push('--tmpfs', '/tmp:rw,noexec,nosuid,size=100m')
@@ -61,11 +61,11 @@ export class ContainerManager extends EventEmitter {
         args.push('-e', `${key}=${value}`)
       })
 
-        // Volumes
-        ; (config.volumes || []).forEach((volume) => args.push('-v', this.shellQuote(volume)))
+      // Volumes
+      ;(config.volumes || []).forEach((volume) => args.push('-v', this.shellQuote(volume)))
 
-        // Ports
-        ; (config.ports || []).forEach((port) => args.push('-p', port))
+      // Ports
+      ;(config.ports || []).forEach((port) => args.push('-p', port))
 
       // Image and default command (keep container alive)
       args.push(config.image, 'sleep', 'infinity')

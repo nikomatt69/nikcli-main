@@ -2,21 +2,21 @@
 
 import { IncomingWebhook } from '@slack/webhook'
 import axios, { type AxiosError } from 'axios'
-import { advancedUI } from '../ui/advanced-cli-ui'
 import { MESSAGE_TEMPLATES } from '../config/notification-defaults'
 import type {
+  NotificationCacheEntry,
   NotificationConfig,
+  NotificationDeliveryStatus,
+  NotificationError,
+  NotificationErrorCode,
   NotificationPayload,
   NotificationProvider,
   NotificationResult,
-  NotificationError,
-  NotificationErrorCode,
-  NotificationDeliveryStatus,
-  NotificationCacheEntry,
-  TaskCompletionPayload,
   PlanCompletionPayload,
+  TaskCompletionPayload,
 } from '../types/notifications'
 import { NotificationType } from '../types/notifications'
+import { advancedUI } from '../ui/advanced-cli-ui'
 
 /**
  * Notification Service - Multi-provider notification system
@@ -48,7 +48,11 @@ export class NotificationService {
       if (this.config.providers.discord?.enabled && this.config.providers.discord.webhookUrl) {
         advancedUI.logFunctionUpdate('success', `Discord notification provider initialized`, '✓')
       } else {
-        advancedUI.logFunctionUpdate('info', `Discord NOT initialized - enabled: ${this.config.providers.discord?.enabled}, webhook: ${this.config.providers.discord?.webhookUrl ? 'set' : 'missing'}`, 'ℹ️')
+        advancedUI.logFunctionUpdate(
+          'info',
+          `Discord NOT initialized - enabled: ${this.config.providers.discord?.enabled}, webhook: ${this.config.providers.discord?.webhookUrl ? 'set' : 'missing'}`,
+          'ℹ️'
+        )
       }
 
       if (this.config.providers.linear?.enabled && this.config.providers.linear.apiKey) {
@@ -116,9 +120,7 @@ export class NotificationService {
     }
 
     // Send to all enabled providers in parallel
-    const results = await Promise.all(
-      enabledProviders.map((provider) => this.sendToProvider(provider, payload))
-    )
+    const results = await Promise.all(enabledProviders.map((provider) => this.sendToProvider(provider, payload)))
 
     // Cache for deduplication
     if (this.config.deduplication?.enabled) {
@@ -188,7 +190,7 @@ export class NotificationService {
 
         // Wait before retry (exponential backoff)
         if (this.config.retry?.enabled) {
-          const backoffMs = this.config.retry.backoffMs * Math.pow(2, attemptNumber - 1)
+          const backoffMs = this.config.retry.backoffMs * 2 ** (attemptNumber - 1)
           await new Promise((resolve) => setTimeout(resolve, backoffMs))
         }
       }
@@ -212,10 +214,7 @@ export class NotificationService {
   /**
    * Deliver notification to provider (actual HTTP/API calls)
    */
-  private async deliverToProvider(
-    provider: NotificationProvider,
-    payload: NotificationPayload
-  ): Promise<void> {
+  private async deliverToProvider(provider: NotificationProvider, payload: NotificationPayload): Promise<void> {
     const timeout = this.config.timeout?.requestTimeoutMs || 5000
 
     switch (provider) {
@@ -262,8 +261,6 @@ export class NotificationService {
     const message = this.formatMessage(payload, 'discord')
 
     try {
-
-
       const response = await axios.post(webhookUrl, message, {
         timeout,
         headers: {
@@ -336,11 +333,7 @@ export class NotificationService {
   /**
    * Get or create a notification tracking issue in Linear
    */
-  private async getOrCreateNotificationIssue(
-    teamId: string,
-    apiKey: string,
-    timeout: number
-  ): Promise<string> {
+  private async getOrCreateNotificationIssue(teamId: string, apiKey: string, timeout: number): Promise<string> {
     // This is a simplified implementation
     // In production, you'd cache this issue ID or query for it
     const query = `

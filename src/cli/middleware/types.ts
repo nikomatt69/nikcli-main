@@ -1,6 +1,7 @@
 // TODO: Consider refactoring for reduced complexity
-import type { BaseTask, TaskError, SafeRecord } from '../types/base-types';
-import type { ModuleContext } from '../core/module-manager';
+
+import type { ModuleContext } from '../core/module-manager'
+import type { BaseTask, SafeRecord, TaskError } from '../types/base-types'
 
 // ============================================================================
 // Middleware Context
@@ -12,13 +13,13 @@ import type { ModuleContext } from '../core/module-manager';
  */
 export interface MiddlewareContext extends ModuleContext {
   /** Unique request identifier for tracing */
-  readonly requestId: string;
+  readonly requestId: string
   /** Request timestamp */
-  readonly timestamp: Date;
+  readonly timestamp: Date
   /** User ID for audit logging (optional) */
-  readonly userId?: string;
+  readonly userId?: string
   /** Additional request metadata */
-  readonly metadata: SafeRecord;
+  readonly metadata: SafeRecord
 }
 
 // ============================================================================
@@ -31,17 +32,17 @@ export interface MiddlewareContext extends ModuleContext {
  */
 export interface MiddlewareRequest {
   /** Unique request identifier */
-  readonly id: string;
+  readonly id: string
   /** Type of operation being requested */
-  readonly type: 'command' | 'agent' | 'tool' | 'file';
+  readonly type: 'command' | 'agent' | 'tool' | 'file'
   /** Specific operation name */
-  readonly operation: string;
+  readonly operation: string
   /** Arguments passed to the operation */
-  readonly args: readonly unknown[];
+  readonly args: readonly unknown[]
   /** Execution context */
-  readonly context: MiddlewareContext;
+  readonly context: MiddlewareContext
   /** Request-specific metadata */
-  readonly metadata: SafeRecord;
+  readonly metadata: SafeRecord
 }
 
 /**
@@ -50,37 +51,33 @@ export interface MiddlewareRequest {
  */
 export interface MiddlewareResponse {
   /** Indicates whether operation succeeded */
-  readonly success: boolean;
+  readonly success: boolean
   /** Result data from successful operation */
-  readonly data?: unknown;
+  readonly data?: unknown
   /** Error information if operation failed */
-  readonly error?: TaskError | string;
+  readonly error?: TaskError | string
   /** Response metadata */
-  readonly metadata?: SafeRecord;
+  readonly metadata?: SafeRecord
   /** Whether request was modified during processing */
-  readonly modified?: boolean;
+  readonly modified?: boolean
 }
 
 /**
  * Type guard to check if response has an error
  */
-export function hasError(
-  response: MiddlewareResponse,
-): response is MiddlewareResponse & {
-  error: TaskError | string;
+export function hasError(response: MiddlewareResponse): response is MiddlewareResponse & {
+  error: TaskError | string
 } {
-  return !response.success && response.error !== undefined;
+  return !response.success && response.error !== undefined
 }
 
 /**
  * Type guard to check if response succeeded
  */
-export function isSuccessResponse(
-  response: MiddlewareResponse,
-): response is MiddlewareResponse & {
-  data: unknown;
+export function isSuccessResponse(response: MiddlewareResponse): response is MiddlewareResponse & {
+  data: unknown
 } {
-  return response.success && response.data !== undefined;
+  return response.success && response.data !== undefined
 }
 
 // ============================================================================
@@ -90,7 +87,7 @@ export function isSuccessResponse(
 /**
  * Function signature for passing control to next middleware
  */
-export type MiddlewareNext = () => Promise<MiddlewareResponse>;
+export type MiddlewareNext = () => Promise<MiddlewareResponse>
 
 /**
  * Context tracking middleware execution
@@ -98,19 +95,19 @@ export type MiddlewareNext = () => Promise<MiddlewareResponse>;
  */
 export interface MiddlewareExecutionContext {
   /** Original request object */
-  readonly request: MiddlewareRequest;
+  readonly request: MiddlewareRequest
   /** Current response object (set after first middleware) */
-  response?: MiddlewareResponse;
+  response?: MiddlewareResponse
   /** When this execution started */
-  readonly startTime: Date;
+  readonly startTime: Date
   /** When this execution ended (set after completion) */
-  endTime?: Date;
+  endTime?: Date
   /** Total execution duration in milliseconds */
-  duration?: number;
+  duration?: number
   /** Whether execution was halted */
-  readonly aborted: boolean;
+  readonly aborted: boolean
   /** Number of retry attempts made */
-  readonly retries: number;
+  readonly retries: number
 }
 
 /**
@@ -118,19 +115,19 @@ export interface MiddlewareExecutionContext {
  */
 export interface MutableMiddlewareExecutionContext {
   /** Original request object */
-  readonly request: MiddlewareRequest;
+  readonly request: MiddlewareRequest
   /** Current response object (set after first middleware) */
-  response?: MiddlewareResponse;
+  response?: MiddlewareResponse
   /** When this execution started */
-  readonly startTime: Date;
+  readonly startTime: Date
   /** When this execution ended (set after completion) */
-  endTime?: Date;
+  endTime?: Date
   /** Total execution duration in milliseconds */
-  duration?: number;
+  duration?: number
   /** Whether execution was halted */
-  aborted: boolean;
+  aborted: boolean
   /** Number of retry attempts made */
-  retries: number;
+  retries: number
 }
 
 // ============================================================================
@@ -142,17 +139,17 @@ export interface MutableMiddlewareExecutionContext {
  */
 export interface MiddlewareConfig {
   /** Enable or disable this middleware */
-  readonly enabled: boolean;
+  readonly enabled: boolean
   /** Execution priority (lower number = higher priority) */
-  readonly priority: number;
+  readonly priority: number
   /** Conditions that must be met to execute */
-  readonly conditions?: readonly MiddlewareCondition[];
+  readonly conditions?: readonly MiddlewareCondition[]
   /** Execution timeout in milliseconds */
-  readonly timeout?: number;
+  readonly timeout?: number
   /** Number of retry attempts */
-  readonly retries?: number;
+  readonly retries?: number
   /** Additional configuration metadata */
-  readonly metadata?: SafeRecord;
+  readonly metadata?: SafeRecord
 }
 
 /**
@@ -160,17 +157,17 @@ export interface MiddlewareConfig {
  */
 export interface MutableMiddlewareConfig {
   /** Enable or disable this middleware */
-  enabled: boolean;
+  enabled: boolean
   /** Execution priority (lower number = higher priority) */
-  priority: number;
+  priority: number
   /** Conditions that must be met to execute */
-  conditions?: readonly MiddlewareCondition[];
+  conditions?: readonly MiddlewareCondition[]
   /** Execution timeout in milliseconds */
-  timeout?: number;
+  timeout?: number
   /** Number of retry attempts */
-  retries?: number;
+  retries?: number
   /** Additional configuration metadata */
-  metadata?: SafeRecord;
+  metadata?: SafeRecord
 }
 
 /**
@@ -179,15 +176,15 @@ export interface MutableMiddlewareConfig {
  */
 export interface MiddlewareCondition {
   /** What part of request to evaluate */
-  readonly type: 'operation' | 'args' | 'context' | 'custom';
+  readonly type: 'operation' | 'args' | 'context' | 'custom'
   /** Field name to evaluate */
-  readonly field: string;
+  readonly field: string
   /** Comparison operator */
-  readonly operator: 'equals' | 'contains' | 'matches' | 'custom';
+  readonly operator: 'equals' | 'contains' | 'matches' | 'custom'
   /** Expected value */
-  readonly value: unknown;
+  readonly value: unknown
   /** Custom evaluation function */
-  readonly customFn?: (request: MiddlewareRequest) => boolean;
+  readonly customFn?: (request: MiddlewareRequest) => boolean
 }
 
 // ============================================================================
@@ -199,11 +196,11 @@ export interface MiddlewareCondition {
  */
 export interface MiddlewareRegistration {
   /** Unique middleware name */
-  readonly name: string;
+  readonly name: string
   /** Middleware instance */
-  readonly middleware: BaseMiddleware;
+  readonly middleware: BaseMiddleware
   /** Middleware configuration */
-  readonly config: MiddlewareConfig;
+  readonly config: MiddlewareConfig
 }
 
 /**
@@ -211,11 +208,11 @@ export interface MiddlewareRegistration {
  */
 export interface MutableMiddlewareRegistration {
   /** Unique middleware name */
-  readonly name: string;
+  readonly name: string
   /** Middleware instance */
-  readonly middleware: BaseMiddleware;
+  readonly middleware: BaseMiddleware
   /** Middleware configuration */
-  config: MutableMiddlewareConfig;
+  config: MutableMiddlewareConfig
 }
 
 /**
@@ -243,11 +240,11 @@ export interface MutableMiddlewareRegistration {
  */
 export abstract class BaseMiddleware {
   /** Middleware name */
-  public readonly name: string;
+  public readonly name: string
   /** Middleware description */
-  public readonly description: string;
+  public readonly description: string
   /** Current configuration */
-  protected config: MiddlewareConfig;
+  protected config: MiddlewareConfig
 
   /**
    * Initialize middleware
@@ -256,9 +253,9 @@ export abstract class BaseMiddleware {
    * @param config - Initial configuration
    */
   constructor(name: string, description: string, config: MiddlewareConfig) {
-    this.name = name;
-    this.description = description;
-    this.config = config;
+    this.name = name
+    this.description = description
+    this.config = config
   }
 
   /**
@@ -273,8 +270,8 @@ export abstract class BaseMiddleware {
   abstract execute(
     request: MiddlewareRequest,
     next: MiddlewareNext,
-    context: MiddlewareExecutionContext,
-  ): Promise<MiddlewareResponse>;
+    context: MiddlewareExecutionContext
+  ): Promise<MiddlewareResponse>
 
   /**
    * Determine if middleware should execute for this request
@@ -285,16 +282,14 @@ export abstract class BaseMiddleware {
    */
   shouldExecute(request: MiddlewareRequest): boolean {
     if (!this.config.enabled) {
-      return false;
+      return false
     }
 
     if (!this.config.conditions) {
-      return true;
+      return true
     }
 
-    return this.config.conditions.every((condition) =>
-      this.evaluateCondition(condition, request),
-    );
+    return this.config.conditions.every((condition) => this.evaluateCondition(condition, request))
   }
 
   /**
@@ -303,43 +298,38 @@ export abstract class BaseMiddleware {
    * @param request - Request to evaluate against
    * @returns true if condition is met
    */
-  protected evaluateCondition(
-    condition: MiddlewareCondition,
-    request: MiddlewareRequest,
-  ): boolean {
-    let fieldValue: unknown;
+  protected evaluateCondition(condition: MiddlewareCondition, request: MiddlewareRequest): boolean {
+    let fieldValue: unknown
 
     switch (condition.type) {
       case 'operation':
-        fieldValue = request.operation;
-        break;
+        fieldValue = request.operation
+        break
       case 'args':
-        fieldValue = request.args;
-        break;
+        fieldValue = request.args
+        break
       case 'context':
-        fieldValue = (request.context as unknown as Record<string, unknown>)[
-          condition.field
-        ];
-        break;
+        fieldValue = (request.context as unknown as Record<string, unknown>)[condition.field]
+        break
       case 'custom':
-        return condition.customFn ? condition.customFn(request) : false;
+        return condition.customFn ? condition.customFn(request) : false
       default:
-        return false;
+        return false
     }
 
     switch (condition.operator) {
       case 'equals':
-        return fieldValue === condition.value;
+        return fieldValue === condition.value
       case 'contains':
         return Array.isArray(fieldValue)
           ? fieldValue.includes(condition.value)
-          : String(fieldValue).includes(String(condition.value));
+          : String(fieldValue).includes(String(condition.value))
       case 'matches':
-        return new RegExp(String(condition.value)).test(String(fieldValue));
+        return new RegExp(String(condition.value)).test(String(fieldValue))
       case 'custom':
-        return condition.customFn ? condition.customFn(request) : false;
+        return condition.customFn ? condition.customFn(request) : false
       default:
-        return false;
+        return false
     }
   }
 
@@ -348,7 +338,7 @@ export abstract class BaseMiddleware {
    * @returns Copy of configuration
    */
   getConfig(): MiddlewareConfig {
-    return { ...this.config };
+    return { ...this.config }
   }
 
   /**
@@ -356,7 +346,7 @@ export abstract class BaseMiddleware {
    * @param config - Partial configuration to merge
    */
   updateConfig(config: Partial<MiddlewareConfig>): void {
-    this.config = { ...this.config, ...config };
+    this.config = { ...this.config, ...config }
   }
 }
 
@@ -383,17 +373,17 @@ export enum MiddlewarePhase {
  */
 export interface MiddlewareMetrics {
   /** Total requests processed */
-  readonly totalRequests: number;
+  readonly totalRequests: number
   /** Successful requests */
-  readonly successfulRequests: number;
+  readonly successfulRequests: number
   /** Failed requests */
-  readonly failedRequests: number;
+  readonly failedRequests: number
   /** Average execution time in milliseconds */
-  readonly averageExecutionTime: number;
+  readonly averageExecutionTime: number
   /** Last execution timestamp */
-  readonly lastExecutionTime?: Date;
+  readonly lastExecutionTime?: Date
   /** Error rate as percentage */
-  readonly errorRate: number;
+  readonly errorRate: number
 }
 
 /**
@@ -401,17 +391,17 @@ export interface MiddlewareMetrics {
  */
 export interface MutableMiddlewareMetrics {
   /** Total requests processed */
-  totalRequests: number;
+  totalRequests: number
   /** Successful requests */
-  successfulRequests: number;
+  successfulRequests: number
   /** Failed requests */
-  failedRequests: number;
+  failedRequests: number
   /** Average execution time in milliseconds */
-  averageExecutionTime: number;
+  averageExecutionTime: number
   /** Last execution timestamp */
-  lastExecutionTime?: Date;
+  lastExecutionTime?: Date
   /** Error rate as percentage */
-  errorRate: number;
+  errorRate: number
 }
 
 /**
@@ -419,19 +409,19 @@ export interface MutableMiddlewareMetrics {
  */
 export interface MiddlewareEvent {
   /** Event type */
-  readonly type: 'start' | 'complete' | 'error' | 'skip' | 'timeout';
+  readonly type: 'start' | 'complete' | 'error' | 'skip' | 'timeout'
   /** Name of middleware that triggered event */
-  readonly middlewareName: string;
+  readonly middlewareName: string
   /** Associated request ID */
-  readonly requestId: string;
+  readonly requestId: string
   /** When event occurred */
-  readonly timestamp: Date;
+  readonly timestamp: Date
   /** Execution duration if applicable */
-  readonly duration?: number;
+  readonly duration?: number
   /** Error if applicable */
-  readonly error?: Error;
+  readonly error?: Error
   /** Event metadata */
-  readonly metadata?: SafeRecord;
+  readonly metadata?: SafeRecord
 }
 
 /**
@@ -439,17 +429,17 @@ export interface MiddlewareEvent {
  */
 export interface MiddlewareChainResult {
   /** Whether entire chain succeeded */
-  readonly success: boolean;
+  readonly success: boolean
   /** Final response from chain */
-  readonly response?: MiddlewareResponse;
+  readonly response?: MiddlewareResponse
   /** Error if chain failed */
-  readonly error?: Error;
+  readonly error?: Error
   /** Names of executed middleware */
-  readonly executedMiddleware: readonly string[];
+  readonly executedMiddleware: readonly string[]
   /** Names of skipped middleware */
-  readonly skippedMiddleware: readonly string[];
+  readonly skippedMiddleware: readonly string[]
   /** Total chain execution time in milliseconds */
-  readonly totalDuration: number;
+  readonly totalDuration: number
   /** Metrics for each middleware */
-  readonly metrics: Record<string, MiddlewareMetrics>;
+  readonly metrics: Record<string, MiddlewareMetrics>
 }

@@ -457,7 +457,7 @@ class UpstashVectorStore extends VectorStore {
         console.log(chalk.gray('🔗 Connecting to Upstash Redis (vector store)'))
         try {
           await this.redis.ping()
-        } catch (_e) { }
+        } catch (_e) {}
         console.log(chalk.green('✓ Upstash Redis connected'))
         return true
       }
@@ -541,7 +541,9 @@ class UpstashVectorStore extends VectorStore {
               continue // Skip this document
             }
           } catch (error) {
-            console.error(chalk.red(`✖ Failed to generate embedding for document ${doc.id}: ${(error as Error).message}`))
+            console.error(
+              chalk.red(`✖ Failed to generate embedding for document ${doc.id}: ${(error as Error).message}`)
+            )
             continue // Skip this document
           }
         }
@@ -593,7 +595,7 @@ class UpstashVectorStore extends VectorStore {
             { id },
             { headers: { Authorization: `Bearer ${this.vectorToken}` } }
           )
-        } catch (_e) { }
+        } catch (_e) {}
         return true
       }
 
@@ -830,7 +832,9 @@ class LocalVectorStore extends VectorStore {
               continue // Skip this document
             }
           } catch (error) {
-            console.error(chalk.red(`✖ Failed to generate embedding for document ${doc.id}: ${(error as Error).message}`))
+            console.error(
+              chalk.red(`✖ Failed to generate embedding for document ${doc.id}: ${(error as Error).message}`)
+            )
             continue // Skip this document
           }
         }

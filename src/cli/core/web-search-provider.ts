@@ -1,11 +1,11 @@
 import { exec } from 'node:child_process'
 import { promisify } from 'node:util'
-import { tool } from 'ai'
 import { createOpenAI, openai } from '@ai-sdk/openai'
+import { tool } from 'ai'
 import chalk from 'chalk'
 import { z } from 'zod'
-import { configManager } from './config-manager'
 import { modelProvider } from '../ai/model-provider'
+import { configManager } from './config-manager'
 
 const execAsync = promisify(exec)
 

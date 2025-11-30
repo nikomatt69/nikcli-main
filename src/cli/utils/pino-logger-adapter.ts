@@ -2,9 +2,9 @@ import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import chalk from 'chalk'
-import pino from 'pino'
 import type { Logger as PinoLogger } from 'pino'
-import type { LogEntry, LogLevel, LoggerConfig } from './logger'
+import pino from 'pino'
+import type { LogEntry, LoggerConfig, LogLevel } from './logger'
 
 /**
  * Enterprise Pino Logger Adapter

@@ -1,5 +1,5 @@
-import type { CoreMessage } from 'ai'
 import crypto from 'node:crypto'
+import type { CoreMessage } from 'ai'
 import { universalTokenizer } from '../core/universal-tokenizer-service'
 import { structuredLogger } from '../utils/structured-logger'
 import type { ChatMessage } from './model-provider'
@@ -8,21 +8,21 @@ export type ModelScope = 'chat_default' | 'planning' | 'code_gen' | 'tool_light'
 
 export interface ModelRouteInput {
   provider:
-    | 'openai'
-    | 'anthropic'
-    | 'google'
-    | 'ollama'
-    | 'vercel'
-    | 'gateway'
-    | 'openrouter'
-    | 'groq'
-    | 'cerebras'
-    | 'openai-compatible'
+  | 'openai'
+  | 'anthropic'
+  | 'google'
+  | 'ollama'
+  | 'vercel'
+  | 'gateway'
+  | 'openrouter'
+  | 'groq'
+  | 'cerebras'
+  | 'openai-compatible'
   baseModel: string // model id configured as current for provider
   messages: Array<Pick<ChatMessage, 'role' | 'content'>>
   scope?: ModelScope
   needsVision?: boolean
-  sizeHints?: { fileCount?: number; totalBytes?: number }
+  sizeHints?: { fileCount?: number; totalBytes?: number; toolCount?: number }
 }
 
 /**
@@ -53,6 +53,7 @@ export interface ModelRouteDecision {
   actualTokens?: number // Precise token count when available
   confidence: number // 0..1
   tokenizationMethod: 'precise' | 'fallback' // Indicates counting method used
+  toolchainReserve?: number // Token riservati per toolchains
 }
 
 /**
@@ -109,7 +110,7 @@ function getCharTokenRatio(provider: string): number {
     google: 4.2, // Gemini is efficient
     ollama: 3.5, // Similar to GPT
     vercel: 3.7, // Mixed models
-    gateway: 3.7, // Mixed models
+    gateway: 3.8, // Mixed models
     openrouter: 3.7, // Mixed models
     groq: 3.5, // Llama-based models, similar to GPT
     cerebras: 4.0, // GLM and mixed models
@@ -119,42 +120,259 @@ function getCharTokenRatio(provider: string): number {
   return ratios[provider] || 4.0 // Default fallback
 }
 
+function pickAnthropic(
+  baseModel: string,
+  tier: 'light' | 'medium' | 'heavy',
+  _needsVision?: boolean,
+  totalEstimatedTokens?: number
+): string {
+  try {
+    const { ConfigManager } = require('../core/config-manager')
+    const configManager = ConfigManager.getInstance()
+    const allModels = configManager.getAllModels()
 
+    // Filter Anthropic models
+    const anthropicModels = Object.entries(allModels)
+      .filter(([_, config]: [string, any]) => config.provider === 'anthropic')
+      .map(([_, config]: [string, any]) => config)
 
-function pickAnthropic(_baseModel: string, tier: 'light' | 'medium' | 'heavy', _needsVision?: boolean): string {
-  // Claude-4 Opus/Sonnet-4/3.5 Sonnet present in defaults; Haiku may not be configured
-  if (tier === 'heavy') return 'claude-sonnet-4-20250514'
-  if (tier === 'medium') return 'claude-3-7-sonnet-20250219'
-  return 'claude-3-5-sonnet-latest' // light fallback
+    if (anthropicModels.length === 0) return baseModel
+
+    // Classify models by tier
+    const modelsByTier: { light: any[]; medium: any[]; heavy: any[] } = { light: [], medium: [], heavy: [] }
+
+    for (const model of anthropicModels) {
+      const modelTier = classifyAnthropicModel(model.model, model.maxContextTokens)
+      modelsByTier[modelTier].push(model)
+    }
+
+    // Select candidates based on tier
+    let candidates = modelsByTier[tier] || []
+
+    // Fallback to other tiers
+    if (candidates.length === 0) {
+      if (tier === 'light') candidates = modelsByTier.medium.concat(modelsByTier.heavy)
+      if (tier === 'medium') candidates = modelsByTier.heavy.concat(modelsByTier.light)
+      if (tier === 'heavy') candidates = modelsByTier.medium.concat(modelsByTier.light)
+    }
+
+    if (candidates.length === 0) return baseModel
+
+    // Filter by context size if toolchain tokens specified
+    if (totalEstimatedTokens && totalEstimatedTokens > 0) {
+      const withEnoughContext = candidates.filter(
+        (m) => (m.maxContextTokens || 200000) >= totalEstimatedTokens * 1.2
+      )
+      if (withEnoughContext.length > 0) candidates = withEnoughContext
+    }
+
+    return candidates[0].model
+  } catch (error) {
+    return baseModel
+  }
 }
 
-function pickOpenAI(baseModel: string, tier: 'light' | 'medium' | 'heavy', _needsVision?: boolean): string {
-  // Use the configured OpenAI model as base, or intelligent tier-based selection
-  if (baseModel.startsWith('gpt-')) {
-    return baseModel // Use configured model directly
+function classifyAnthropicModel(modelName: string, contextTokens?: number): 'light' | 'medium' | 'heavy' {
+  const name = modelName.toLowerCase()
+
+  // Direct Anthropic models only (not OpenRouter prefixed)
+  if (name.startsWith('claude-')) {
+    if (name.includes('haiku')) return 'light'
+    if (name.includes('opus')) return 'heavy'
+    if (name.includes('sonnet-4') || name.includes('claude-3-7')) return 'heavy'
   }
 
-  // Fallback tier-based selection for OpenAI
-  if (tier === 'heavy') return 'gpt-5'
-  if (tier === 'medium') return 'gpt-5-mini'
-  return 'gpt-5' // light fallback
+  if (contextTokens && contextTokens >= 200000) return 'heavy'
+
+  return 'medium'
 }
 
-function pickGoogle(_baseModel: string, tier: 'light' | 'medium' | 'heavy'): string {
-  if (tier === 'heavy') return 'gemini-2.5-pro'
-  if (tier === 'medium') return 'gemini-2.5-flash'
-  return 'gemini-2.5-flash-lite'
-}
+function pickOpenAI(
+  baseModel: string,
+  tier: 'light' | 'medium' | 'heavy',
+  _needsVision?: boolean,
+  totalEstimatedTokens?: number
+): string {
+  try {
+    const { ConfigManager } = require('../core/config-manager')
+    const configManager = ConfigManager.getInstance()
+    const allModels = configManager.getAllModels()
 
-function pickOpenRouter(baseModel: string, _tier: 'light' | 'medium' | 'heavy', needsVision?: boolean): string {
-  // Dynamic: Use the configured baseModel (already prefixed in config for OpenRouter)
-  // No hardcoding - routes to any available model via OpenRouter
-  // For vision, prefer vision-capable if baseModel indicates, but keep dynamic
-  let selected = baseModel
-  if (needsVision && baseModel.includes('@preset/nikcli')) {
-    selected = baseModel // Keep if vision-capable
+    // Filter OpenAI models
+    const openaiModels = Object.entries(allModels)
+      .filter(([_, config]: [string, any]) => config.provider === 'openai')
+      .map(([_, config]: [string, any]) => config)
+
+    if (openaiModels.length === 0) return baseModel
+
+    // Classify models by tier
+    const modelsByTier: { light: any[]; medium: any[]; heavy: any[] } = { light: [], medium: [], heavy: [] }
+
+    for (const model of openaiModels) {
+      const modelTier = classifyOpenAIModel(model.model, model.maxContextTokens)
+      modelsByTier[modelTier].push(model)
+    }
+
+    // Select candidates based on tier
+    let candidates = modelsByTier[tier] || []
+
+    // Fallback to other tiers
+    if (candidates.length === 0) {
+      if (tier === 'light') candidates = modelsByTier.medium.concat(modelsByTier.heavy)
+      if (tier === 'medium') candidates = modelsByTier.heavy.concat(modelsByTier.light)
+      if (tier === 'heavy') candidates = modelsByTier.medium.concat(modelsByTier.light)
+    }
+
+    if (candidates.length === 0) return baseModel
+
+    // Filter by context size if toolchain tokens specified
+    if (totalEstimatedTokens && totalEstimatedTokens > 0) {
+      const withEnoughContext = candidates.filter(
+        (m) => (m.maxContextTokens || 128000) >= totalEstimatedTokens * 1.2
+      )
+      if (withEnoughContext.length > 0) candidates = withEnoughContext
+    }
+
+    return candidates[0].model
+  } catch (error) {
+    return baseModel
   }
-  return selected // e.g., returns 'openrouter-claude-3-7-sonnet-20250219' directly
+}
+
+function classifyOpenAIModel(modelName: string, contextTokens?: number): 'light' | 'medium' | 'heavy' {
+  const name = modelName.toLowerCase()
+
+  // Direct OpenAI models only (not OpenRouter prefixed like openai/gpt-5)
+  if (name.startsWith('gpt-') || name.startsWith('o1-') || name.startsWith('o3-')) {
+    if (name.includes('mini') || name.includes('nano')) return 'light'
+    if (name.includes('o1') || name.includes('o3') || name.includes('gpt-5') || name.includes('gpt-4.1'))
+      return 'heavy'
+  }
+
+  if (contextTokens && contextTokens >= 200000) return 'heavy'
+  if (contextTokens && contextTokens < 100000) return 'light'
+
+  return 'medium'
+}
+
+function pickGoogle(
+  baseModel: string,
+  tier: 'light' | 'medium' | 'heavy',
+  totalEstimatedTokens?: number
+): string {
+  try {
+    const { ConfigManager } = require('../core/config-manager')
+    const configManager = ConfigManager.getInstance()
+    const allModels = configManager.getAllModels()
+
+    // Filter Google models
+    const googleModels = Object.entries(allModels)
+      .filter(([_, config]: [string, any]) => config.provider === 'google')
+      .map(([_, config]: [string, any]) => config)
+
+    if (googleModels.length === 0) return baseModel
+
+    // Classify models by tier
+    const modelsByTier: { light: any[]; medium: any[]; heavy: any[] } = { light: [], medium: [], heavy: [] }
+
+    for (const model of googleModels) {
+      const modelTier = classifyGoogleModel(model.model, model.maxContextTokens)
+      modelsByTier[modelTier].push(model)
+    }
+
+    // Select candidates based on tier
+    let candidates = modelsByTier[tier] || []
+
+    // Fallback to other tiers
+    if (candidates.length === 0) {
+      if (tier === 'light') candidates = modelsByTier.medium.concat(modelsByTier.heavy)
+      if (tier === 'medium') candidates = modelsByTier.heavy.concat(modelsByTier.light)
+      if (tier === 'heavy') candidates = modelsByTier.medium.concat(modelsByTier.light)
+    }
+
+    if (candidates.length === 0) return baseModel
+
+    // Filter by context size if toolchain tokens specified
+    if (totalEstimatedTokens && totalEstimatedTokens > 0) {
+      const withEnoughContext = candidates.filter((m) => (m.maxContextTokens || 1000000) >= totalEstimatedTokens * 1.2)
+      if (withEnoughContext.length > 0) candidates = withEnoughContext
+    }
+
+    return candidates[0].model
+  } catch (error) {
+    return baseModel
+  }
+}
+
+function classifyGoogleModel(modelName: string, contextTokens?: number): 'light' | 'medium' | 'heavy' {
+  const name = modelName.toLowerCase()
+
+  // Direct Google models only (not OpenRouter prefixed like google/gemini-2.5-pro)
+  if (name.startsWith('gemini-')) {
+    if (name.includes('lite') || name.includes('flash-lite')) return 'light'
+    if (name.includes('pro')) return 'heavy'
+  }
+
+  if (contextTokens && contextTokens >= 2000000) return 'heavy'
+  if (contextTokens && contextTokens < 500000) return 'light'
+
+  return 'medium'
+}
+
+function pickOpenRouter(
+  baseModel: string,
+  tier: 'light' | 'medium' | 'heavy',
+  needsVision?: boolean,
+  totalEstimatedTokens?: number,
+  modelRegistry?: OpenRouterModelRegistry
+): string {
+  // Estrae provider prefix (es. 'google/gemini-2.5-flash' → 'google/')
+  const providerMatch = baseModel.match(/^([^/]+\/)/)
+  if (!providerMatch) return baseModel
+
+  const providerPrefix = providerMatch[1]
+
+  // Se non c'è registry, usa baseModel configurato
+  if (!modelRegistry || !modelRegistry[providerPrefix]) {
+    return baseModel
+  }
+
+  const providerModels = modelRegistry[providerPrefix]
+
+  // Selezione tier-based con fallback
+  let candidates = providerModels[tier] || []
+
+  // Se tier richiesto non ha modelli, prova tier superiore/inferiore
+  if (candidates.length === 0) {
+    if (tier === 'light') candidates = providerModels.medium || providerModels.heavy || []
+    if (tier === 'medium') candidates = providerModels.heavy || providerModels.light || []
+    if (tier === 'heavy') candidates = providerModels.medium || providerModels.light || []
+  }
+
+  // Fallback finale al baseModel se non ci sono candidati
+  if (candidates.length === 0) return baseModel
+
+  // Se totalEstimatedTokens specificato, filtra per context size
+  if (totalEstimatedTokens && totalEstimatedTokens > 0) {
+    const modelsWithEnoughContext = candidates.filter((model) => {
+      const limits = universalTokenizer.getModelLimits(model, 'openrouter')
+      return limits.context >= totalEstimatedTokens * 1.2 // 20% buffer
+    })
+    if (modelsWithEnoughContext.length > 0) {
+      candidates = modelsWithEnoughContext
+    }
+  }
+
+  // Filtra per vision se necessario
+  if (needsVision) {
+    const visionCapable = candidates.filter(
+      (m) => m.includes('vision') || m.includes('image') || m.includes('@preset/nikcli')
+    )
+    if (visionCapable.length > 0) candidates = visionCapable
+  }
+
+  // Restituisce primo candidato (preferenza per ordine dichiarato in registry)
+  return candidates[0]
 }
 
 function pickGroq(baseModel: string, _tier: 'light' | 'medium' | 'heavy', _needsVision?: boolean): string {
@@ -167,6 +385,92 @@ function pickCerebras(baseModel: string, _tier: 'light' | 'medium' | 'heavy', _n
   // Cerebras: Use configured baseModel directly (e.g., 'zai-glm-4.6', 'llama-3.3-70b')
   // No tier-based switching - Cerebras models are already optimized for high-speed inference
   return baseModel
+}
+
+/**
+ * OpenRouter model registry structure
+ */
+interface OpenRouterModelRegistry {
+  [providerPrefix: string]: {
+    light?: string[]
+    medium?: string[]
+    heavy?: string[]
+  }
+}
+
+/**
+ * Classifica il tier di un modello basato sul nome e context size
+ */
+function classifyModelTier(modelName: string, contextTokens?: number): 'light' | 'medium' | 'heavy' {
+  const name = modelName.toLowerCase()
+
+  // Pattern per light
+  if (name.includes('lite') || name.includes('mini') || name.includes('flash-lite')) {
+    return 'light'
+  }
+
+  // Pattern per heavy
+  if (
+    name.includes('pro') ||
+    name.includes('codex') ||
+    name.includes('opus') ||
+    name.includes('deep-research') ||
+    name.includes('405b') ||
+    name.includes('thinking')
+  ) {
+    return 'heavy'
+  }
+
+  // Context size check (cap at 200k)
+  if (contextTokens) {
+    if (contextTokens >= 200000) return 'heavy'
+    if (contextTokens < 100000) return 'light'
+  }
+
+  return 'medium'
+}
+
+/**
+ * Costruisce registry dinamica dei modelli OpenRouter dal config
+ */
+function buildOpenRouterRegistry(): OpenRouterModelRegistry {
+  try {
+    const { ConfigManager } = require('../core/config-manager')
+    const configManager = ConfigManager.getInstance()
+    const allModels = configManager.getAllModels()
+
+    const registry: OpenRouterModelRegistry = {}
+
+    // Filtra solo modelli OpenRouter
+    const openRouterModels = Object.entries(allModels).filter(
+      ([_, config]: [string, any]) => config.provider === 'openrouter'
+    )
+
+    for (const [_modelName, config] of openRouterModels) {
+      const modelConfig = config as any
+      const providerMatch = modelConfig.model.match(/^([^/]+\/)/)
+      if (!providerMatch) continue
+
+      const providerPrefix = providerMatch[1]
+      if (!registry[providerPrefix]) {
+        registry[providerPrefix] = {}
+      }
+
+      // Classificazione tier basata su nome modello
+      const tier = classifyModelTier(modelConfig.model, modelConfig.maxContextTokens)
+
+      if (!registry[providerPrefix][tier]) {
+        registry[providerPrefix][tier] = []
+      }
+
+      registry[providerPrefix][tier]!.push(modelConfig.model)
+    }
+
+    return registry
+  } catch (error) {
+    structuredLogger.warning('Failed to build OpenRouter registry', JSON.stringify({ error: String(error) }))
+    return {}
+  }
 }
 
 function determineTier(tokens: number, scope?: ModelScope, content?: string): 'light' | 'medium' | 'heavy' {
@@ -218,10 +522,7 @@ export class AdaptiveModelRouter {
     provider: string,
     model: string
   ): string {
-    const messageHash = crypto
-      .createHash('sha256')
-      .update(JSON.stringify(messages))
-      .digest('hex')
+    const messageHash = crypto.createHash('sha256').update(JSON.stringify(messages)).digest('hex')
     return `${provider}:${model}:${messageHash}`
   }
 
@@ -267,34 +568,73 @@ export class AdaptiveModelRouter {
       }))
 
     // Get precise token count with memoization
-    const { tokens, method } = await this.getTokenCountMemoized(
-      validMessages,
-      input.provider,
-      input.baseModel
-    )
+    const { tokens, method } = await this.getTokenCountMemoized(validMessages, input.provider, input.baseModel)
+
+    // Calcola spazio riservato per toolchains
+    let toolchainReserve = 0
+    if (input.sizeHints?.toolCount && input.sizeHints.toolCount > 0) {
+      const avgToolDefSize = 150 // token medi per definizione tool
+      const avgToolResultSize = 500 // token medi per risultato tool
+
+      const toolDefinitionTokens = input.sizeHints.toolCount * avgToolDefSize
+      const estimatedResultTokens = input.sizeHints.toolCount * avgToolResultSize * 0.5 // assume 50% tool usage
+      const buffer = (toolDefinitionTokens + estimatedResultTokens) * 0.1 // 10% safety
+
+      toolchainReserve = toolDefinitionTokens + estimatedResultTokens + buffer
+    }
+
+    const totalEstimatedTokens = tokens + toolchainReserve
 
     const lastUser = [...input.messages].reverse().find((m) => m.role === 'user')?.content || ''
-    const tier = determineTier(tokens, input.scope, lastUser)
+    let tier = determineTier(tokens, input.scope, lastUser)
+
+    // Ottieni limiti modello base
+    const baseLimits = universalTokenizer.getModelLimits(input.baseModel, input.provider)
+    const contextUsage = totalEstimatedTokens / baseLimits.context
+
+    // Se toolchain rischia overflow (>80% context), upgrade tier
+    if (toolchainReserve > 0 && contextUsage > 0.8) {
+      const originalTier = tier
+      if (tier === 'light') tier = 'medium'
+      else if (tier === 'medium') tier = 'heavy'
+
+      if (tier !== originalTier) {
+        structuredLogger.info(
+          `Toolchain detected, upgrading tier ${originalTier} → ${tier}`,
+          JSON.stringify({
+            toolchainReserve,
+            contextUsage: Math.round(contextUsage * 100),
+            baseModel: input.baseModel,
+          })
+        )
+      }
+    }
 
     let selected = input.baseModel
     let reason = 'base model'
 
+    // Build registry per OpenRouter
+    let registry: OpenRouterModelRegistry | undefined
+    if (input.provider === 'openrouter') {
+      registry = buildOpenRouterRegistry()
+    }
+
     switch (input.provider) {
       case 'openai':
-        selected = pickOpenAI(input.baseModel, tier, input.needsVision)
-        reason = `openai ${tier} (${method})`
+        selected = pickOpenAI(input.baseModel, tier, input.needsVision, totalEstimatedTokens)
+        reason = `openai ${tier} (${method}${toolchainReserve > 0 ? `, toolchain: ${toolchainReserve} tok` : ''})`
         break
       case 'anthropic':
-        selected = pickAnthropic(input.baseModel, tier, input.needsVision)
-        reason = `anthropic ${tier} (${method})`
+        selected = pickAnthropic(input.baseModel, tier, input.needsVision, totalEstimatedTokens)
+        reason = `anthropic ${tier} (${method}${toolchainReserve > 0 ? `, toolchain: ${toolchainReserve} tok` : ''})`
         break
       case 'google':
-        selected = pickGoogle(input.baseModel, tier)
-        reason = `google ${tier} (${method})`
+        selected = pickGoogle(input.baseModel, tier, totalEstimatedTokens)
+        reason = `google ${tier} (${method}${toolchainReserve > 0 ? `, toolchain: ${toolchainReserve} tok` : ''})`
         break
       case 'openrouter':
-        selected = pickOpenRouter(input.baseModel, tier, input.needsVision)
-        reason = `openrouter ${tier} (${method})`
+        selected = pickOpenRouter(input.baseModel, tier, input.needsVision, totalEstimatedTokens, registry)
+        reason = `openrouter ${tier} (${method}${toolchainReserve > 0 ? `, toolchain: ${toolchainReserve} tok` : ''})`
         break
       case 'groq':
         selected = pickGroq(input.baseModel, tier, input.needsVision)
@@ -316,19 +656,32 @@ export class AdaptiveModelRouter {
         break
     }
 
-    // Get model limits for additional context
-    const limits = universalTokenizer.getModelLimits(selected, input.provider)
-    const contextUsage = tokens / limits.context
+    // Verify final context limits
+    const selectedLimits = universalTokenizer.getModelLimits(selected, input.provider)
+    const selectedContextUsage = totalEstimatedTokens / selectedLimits.context
 
-    // Context usage warning
-    if (contextUsage > this.CONTEXT_WARNING_THRESHOLD) {
+    if (selectedContextUsage > this.CONTEXT_WARNING_THRESHOLD) {
       structuredLogger.warning(
-        `High context usage: ${Math.round(contextUsage * 100)}%`,
+        `High context usage: ${Math.round(selectedContextUsage * 100)}%`,
         JSON.stringify({
           model: selected,
-          tokens,
-          contextLimit: limits.context,
+          estimatedTokens: totalEstimatedTokens,
+          toolchainReserve,
+          contextLimit: selectedLimits.context,
           tier,
+        })
+      )
+    }
+
+    // Warning if approaching context limit even after selection
+    if (totalEstimatedTokens > selectedLimits.context * 0.9) {
+      structuredLogger.warning(
+        'Selected model approaching context limit',
+        JSON.stringify({
+          selectedModel: selected,
+          estimatedTokens: totalEstimatedTokens,
+          contextLimit: selectedLimits.context,
+          usage: Math.round((totalEstimatedTokens / selectedLimits.context) * 100),
         })
       )
     }
@@ -353,10 +706,11 @@ export class AdaptiveModelRouter {
       selectedModel: selected,
       tier,
       reason,
-      estimatedTokens: tokens,
+      estimatedTokens: totalEstimatedTokens,
       actualTokens: method === 'precise' ? tokens : undefined,
       confidence: method === 'precise' ? 0.95 : 0.7,
       tokenizationMethod: method,
+      toolchainReserve,
     }
   }
 

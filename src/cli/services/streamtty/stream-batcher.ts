@@ -63,9 +63,7 @@ export class StreamBatcher {
     this.currentBatch.push(chunk)
 
     const shouldFlush =
-      this.currentBatch.length >= this.config.maxBatchSize ||
-      this.shouldFlushByPriority() ||
-      this.shouldFlushByTime()
+      this.currentBatch.length >= this.config.maxBatchSize || this.shouldFlushByPriority() || this.shouldFlushByTime()
 
     if (shouldFlush) {
       this.flush()
@@ -75,7 +73,7 @@ export class StreamBatcher {
   }
 
   private shouldFlushByPriority(): boolean {
-    const highPriorityChunks = this.currentBatch.filter(c => c.priority >= this.config.priorityThreshold)
+    const highPriorityChunks = this.currentBatch.filter((c) => c.priority >= this.config.priorityThreshold)
     return highPriorityChunks.length > 0 && this.currentBatch.length > 1
   }
 

@@ -45,7 +45,9 @@ export class StreamCoordinator {
       return false
     }
 
-    const activeCount = Array.from(this.activeStreams.values()).filter(s => s.state !== 'complete' && s.state !== 'error').length
+    const activeCount = Array.from(this.activeStreams.values()).filter(
+      (s) => s.state !== 'complete' && s.state !== 'error'
+    ).length
 
     if (activeCount >= this.maxConcurrent) {
       return false
@@ -152,7 +154,9 @@ export class StreamCoordinator {
   }
 
   canAcceptNewStream(): boolean {
-    const activeCount = Array.from(this.activeStreams.values()).filter(s => s.state !== 'complete' && s.state !== 'error').length
+    const activeCount = Array.from(this.activeStreams.values()).filter(
+      (s) => s.state !== 'complete' && s.state !== 'error'
+    ).length
     return activeCount < this.maxConcurrent
   }
 
@@ -165,7 +169,7 @@ export class StreamCoordinator {
   }
 
   getActiveStreams(): StreamMetadata[] {
-    return Array.from(this.activeStreams.values()).filter(s => s.state !== 'complete' && s.state !== 'error')
+    return Array.from(this.activeStreams.values()).filter((s) => s.state !== 'complete' && s.state !== 'error')
   }
 
   getStreamsByPriority(): StreamMetadata[] {

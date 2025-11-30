@@ -1,7 +1,6 @@
+import type { EnhancedFeaturesConfig, MathRenderConfig, MermaidTTYConfig, SecurityConfig } from '@nicomatt69/streamtty'
 import { Streamtty } from '@nicomatt69/streamtty'
-import { terminalOutputManager, TerminalOutputManager } from './terminal-output-manager'
-
-import type { EnhancedFeaturesConfig, MermaidTTYConfig, MathRenderConfig, SecurityConfig } from '@nicomatt69/streamtty'
+import { TerminalOutputManager, terminalOutputManager } from './terminal-output-manager'
 
 export interface StreamttyOptions {
   parseIncompleteMarkdown?: boolean
@@ -50,7 +49,10 @@ export class StreamttyAdapter {
     ]
     for (const [re, r] of repl) out = out.replace(re, r)
     // Fallback for any remaining emoji ranges (include 2300–23FF for hourglass/timers)
-    out = out.replace(/[\u{2300}-\u{23FF}\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F900}-\u{1F9FF}\u{1F1E0}-\u{1F1FF}]/gu, '·')
+    out = out.replace(
+      /[\u{2300}-\u{23FF}\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F900}-\u{1F9FF}\u{1F1E0}-\u{1F1FF}]/gu,
+      '·'
+    )
     return out
   }
 
@@ -82,8 +84,16 @@ export class StreamttyAdapter {
     // Auto-configure default languages for Shiki if not set
     if (!this.options.shikiLanguages && this.useBlessedMode && this.options.enhancedFeatures?.shiki !== false) {
       this.options.shikiLanguages = [
-        'typescript', 'javascript', 'python', 'bash', 'json',
-        'markdown', 'yaml', 'sql', 'html', 'css'
+        'typescript',
+        'javascript',
+        'python',
+        'bash',
+        'json',
+        'markdown',
+        'yaml',
+        'sql',
+        'html',
+        'css',
       ]
     }
 
@@ -210,7 +220,7 @@ export class StreamttyAdapter {
       process.stdout.write(processedChunk)
       terminalOutputManager.confirmOutput(outputId, 'StreamChunk', chunkLines, {
         persistent: false,
-        expiryMs: 30000
+        expiryMs: 30000,
       })
 
       printedLines += chunkLines
@@ -224,12 +234,14 @@ export class StreamttyAdapter {
    */
   private async processTablesWithRoundedCorners(content: string): Promise<string> {
     if (!content.includes('|')) {
-      return content; // No tables to process
+      return content // No tables to process
     }
 
     try {
       // Import the enhanced table renderer
-      const { parseMarkdownTable, EnhancedTableRenderer } = await import('@nicomatt69/streamtty/dist/utils/enhanced-table-renderer')
+      const { parseMarkdownTable, EnhancedTableRenderer } = await import(
+        '@nicomatt69/streamtty/dist/utils/enhanced-table-renderer'
+      )
 
       // Find complete markdown tables
       const lines = content.split('\n')
@@ -256,7 +268,7 @@ export class StreamttyAdapter {
               const renderedTable = EnhancedTableRenderer.renderTable(tableData, {
                 borderStyle: 'solid',
                 compact: false,
-                width: this.options.maxWidth || 80
+                width: this.options.maxWidth || 80,
               })
 
               // Replace the table in the original content
@@ -280,7 +292,7 @@ export class StreamttyAdapter {
           const renderedTable = EnhancedTableRenderer.renderTable(tableData, {
             borderStyle: 'solid',
             compact: false,
-            width: this.options.maxWidth || 80
+            width: this.options.maxWidth || 80,
           })
 
           const originalTable = lines.slice(tableStart).join('\n')
@@ -320,9 +332,11 @@ export class StreamttyAdapter {
    * Check if enhanced features are enabled
    */
   areEnhancedFeaturesEnabled(): boolean {
-    return this.isAvailable() &&
+    return (
+      this.isAvailable() &&
       this.useBlessedMode &&
-      Object.values(this.options.enhancedFeatures || {}).some(v => v === true)
+      Object.values(this.options.enhancedFeatures || {}).some((v) => v === true)
+    )
   }
 
   /**
@@ -365,7 +379,7 @@ export class StreamttyAdapter {
   updateSecurityConfig(security: Partial<SecurityConfig>): void {
     this.options.security = {
       ...this.options.security,
-      ...security
+      ...security,
     }
   }
 
@@ -389,12 +403,14 @@ export class StreamttyAdapter {
  */
 async function processTablesWithRoundedCorners(content: string): Promise<string> {
   if (!content.includes('|')) {
-    return content; // No tables to process
+    return content // No tables to process
   }
 
   try {
     // Import the enhanced table renderer
-    const { parseMarkdownTable, EnhancedTableRenderer } = await import('@nicomatt69/streamtty/dist/utils/enhanced-table-renderer')
+    const { parseMarkdownTable, EnhancedTableRenderer } = await import(
+      '@nicomatt69/streamtty/dist/utils/enhanced-table-renderer'
+    )
 
     // Local sanitizer to keep output monospace-safe when emojis appear in tables
     const sanitize = (text: string): string => {
@@ -414,7 +430,10 @@ async function processTablesWithRoundedCorners(content: string): Promise<string>
         [/⚪️|⚪/g, '○'],
       ]
       for (const [re, r] of repl) out = out.replace(re, r)
-      out = out.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F900}-\u{1F9FF}\u{1F1E0}-\u{1F1FF}]/gu, '·')
+      out = out.replace(
+        /[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F900}-\u{1F9FF}\u{1F1E0}-\u{1F1FF}]/gu,
+        '·'
+      )
       return out
     }
 
@@ -443,7 +462,7 @@ async function processTablesWithRoundedCorners(content: string): Promise<string>
             const renderedTable = EnhancedTableRenderer.renderTable(tableData, {
               borderStyle: 'solid',
               compact: false,
-              width: 80
+              width: 80,
             })
 
             // Replace the table in the original content
@@ -467,7 +486,7 @@ async function processTablesWithRoundedCorners(content: string): Promise<string>
         const renderedTable = EnhancedTableRenderer.renderTable(tableData, {
           borderStyle: 'solid',
           compact: false,
-          width: 80
+          width: 80,
         })
 
         const originalTable = lines.slice(tableStart).join('\n')

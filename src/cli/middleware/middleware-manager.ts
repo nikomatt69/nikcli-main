@@ -10,15 +10,15 @@ import type {
   MiddlewareContext,
   MiddlewareEvent,
   MiddlewareExecutionContext,
-  MutableMiddlewareConfig,
-  MutableMiddlewareExecutionContext,
   MiddlewareMetrics,
-  MutableMiddlewareMetrics,
   MiddlewareNext,
   MiddlewareRegistration,
-  MutableMiddlewareRegistration,
   MiddlewareRequest,
   MiddlewareResponse,
+  MutableMiddlewareConfig,
+  MutableMiddlewareExecutionContext,
+  MutableMiddlewareMetrics,
+  MutableMiddlewareRegistration,
 } from './types'
 
 export class MiddlewareManager extends EventEmitter {
@@ -78,7 +78,11 @@ export class MiddlewareManager extends EventEmitter {
     moduleContext: ModuleContext,
     requestType: 'command' | 'agent' | 'tool' | 'file' = 'command'
   ): Promise<MiddlewareChainResult | undefined> {
-    const context: MiddlewareContext = MiddlewareContextBuilder.forRequest(operation, args, moduleContext) as MiddlewareContext
+    const context: MiddlewareContext = MiddlewareContextBuilder.forRequest(
+      operation,
+      args,
+      moduleContext
+    ) as MiddlewareContext
 
     const request: MiddlewareRequest = {
       id: context.requestId,
@@ -286,10 +290,10 @@ export class MiddlewareManager extends EventEmitter {
   }
 
   getAllMiddleware(): MiddlewareRegistration[] {
-    return Array.from(this.middleware.values()).map(registration => ({
+    return Array.from(this.middleware.values()).map((registration) => ({
       name: registration.name,
       middleware: registration.middleware,
-      config: { ...registration.config }
+      config: { ...registration.config },
     }))
   }
 

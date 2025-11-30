@@ -297,7 +297,7 @@ export class IDEDiagnosticIntegration {
    */
   subscribeToDiagnosticEvents(_callback: (event: any) => void): () => void {
     if (!this.isActive) {
-      return () => { }
+      return () => {}
     }
 
     try {
@@ -325,7 +325,7 @@ export class IDEDiagnosticIntegration {
       }
     } catch (error) {
       console.warn(chalk.yellow('Warning: Could not subscribe to diagnostic events:', error))
-      return () => { }
+      return () => {}
     }
   }
 
@@ -399,7 +399,6 @@ export class IDEDiagnosticIntegration {
 
   private setupWorkflowIntegration(): void {
     // The integration is now available for use by workflow systems
-
   }
 
   private getEmptyContext(): WorkflowDiagnosticContext {

@@ -447,8 +447,8 @@ export class TokenCacheManager {
 
     // Align LRU config to new limits (best-effort)
     try {
-      ; (this.cache as any).max = this.maxCacheSize
-    } catch { }
+      ;(this.cache as any).max = this.maxCacheSize
+    } catch {}
 
     console.log(chalk.blue('🔨 Cache settings updated'))
   }

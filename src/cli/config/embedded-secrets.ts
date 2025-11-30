@@ -162,9 +162,11 @@ export class EmbeddedSecrets {
   /**
    * Internal: Decrypt secret using hardware fingerprint (SYNCHRONOUS)
    */
-  private static decryptSync(
-    config: SecretConfig
-  ): { secret: string; quotaLimit?: number; rateLimitPerMinute?: number } {
+  private static decryptSync(config: SecretConfig): {
+    secret: string
+    quotaLimit?: number
+    rateLimitPerMinute?: number
+  } {
     const fingerprint = EmbeddedSecrets.hardwareFingerprintCache
     if (!fingerprint) {
       throw new Error('Hardware fingerprint not initialized')
@@ -174,7 +176,6 @@ export class EmbeddedSecrets {
       // Derive key from fingerprint + secret ID
       const keyDerivationMaterial = `${fingerprint}:${config.id}`
       const salt = Buffer.from(config.id.padEnd(16, '0').slice(0, 16))
-
 
       const key = scryptSync(keyDerivationMaterial, salt, EmbeddedSecrets.KEY_LENGTH, {
         N: 16384,

@@ -195,10 +195,10 @@ export class ChatManager {
     const notice: ChatMessage | null =
       trimmedCount > 0
         ? {
-          role: 'system',
-          content: `[Conversation trimmed] ${trimmedCount} older messages were removed to fit history limits. Recent context preserved.`,
-          timestamp: new Date(),
-        }
+            role: 'system',
+            content: `[Conversation trimmed] ${trimmedCount} older messages were removed to fit history limits. Recent context preserved.`,
+            timestamp: new Date(),
+          }
         : null
 
     this.currentSession.messages = [

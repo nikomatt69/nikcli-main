@@ -1,13 +1,13 @@
 import chalk from 'chalk'
 import * as readline from 'readline'
-import { terminalOutputManager, TerminalOutputManager } from './terminal-output-manager'
-import { renderMarkdownStream, renderMarkdownStatic, getStreamttyAdapter } from './streamtty-adapter'
+import { getStreamttyAdapter, renderMarkdownStatic, renderMarkdownStream } from './streamtty-adapter'
+import { TerminalOutputManager, terminalOutputManager } from './terminal-output-manager'
 
 /**
  * @deprecated This file is deprecated. Use streamttyService from services/streamtty-service.ts instead.
- * 
+ *
  * Stream renderer for the CLI that attempts to use Streamdown when available.
- * 
+ *
  * MIGRATION GUIDE:
  * - Replace `renderChatStreamToTerminal(stream)` with direct streaming through streamttyService
  * - Replace `createStringPushStream()` with streamttyService.createStreamRenderer()
@@ -116,7 +116,10 @@ export async function renderChatStreamToTerminal(
     process.stdout.write(lines.join('\n'))
 
     // Confirm the new output
-    terminalOutputManager.confirmOutput(currentOutputId, 'StreamRerender', newOutputLines, { persistent: false, expiryMs: 30000 })
+    terminalOutputManager.confirmOutput(currentOutputId, 'StreamRerender', newOutputLines, {
+      persistent: false,
+      expiryMs: 30000,
+    })
 
     printedLines = lines.length
   }

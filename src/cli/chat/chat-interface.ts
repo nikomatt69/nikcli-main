@@ -2,13 +2,13 @@ import boxen from 'boxen'
 import chalk from 'chalk'
 import { marked } from 'marked'
 import TerminalRenderer from 'marked-terminal'
-import * as readline from 'readline'
+import type * as readline from 'readline'
 import { modelProvider } from '../ai/model-provider'
+import { readlineManager } from '../core/readline-manager'
 import { streamttyService } from '../services/streamtty-service'
+import { AnsiStripper } from '../utils/ansi-strip'
 import { chatManager } from './chat-manager'
 import { SlashCommandHandler } from './nik-cli-commands'
-import { readlineManager } from '../core/readline-manager'
-import { AnsiStripper } from '../utils/ansi-strip'
 
 // Configure marked for terminal rendering
 const renderer = new TerminalRenderer() as any

@@ -1,6 +1,6 @@
 import chalk from 'chalk'
-import { getSentryProvider, breadcrumbTracker } from '../monitoring'
-import { MiddlewareContext } from '../middleware/types'
+import type { MiddlewareContext } from '../middleware/types'
+import { breadcrumbTracker, getSentryProvider } from '../monitoring'
 import { ExecutionPolicyManager } from '../policies/execution-policy'
 import { simpleConfigManager as configManager } from './config-manager'
 
@@ -36,10 +36,10 @@ class StructuredLogger {
   private maxEntries = 1000
 
   static getInstance(): StructuredLogger {
-    if (!this.instance) {
-      this.instance = new StructuredLogger()
+    if (!StructuredLogger.instance) {
+      StructuredLogger.instance = new StructuredLogger()
     }
-    return this.instance
+    return StructuredLogger.instance
   }
 
   setLogLevel(level: LogLevel): void {
@@ -81,12 +81,18 @@ class StructuredLogger {
 
   private colorizeLevel(level: LogLevel, message: string): string {
     switch (level) {
-      case 'debug': return chalk.gray(message)
-      case 'info': return chalk.blue(message)
-      case 'warn': return chalk.yellow(message)
-      case 'error': return chalk.red(message)
-      case 'fatal': return chalk.bgRed.white(message)
-      default: return message
+      case 'debug':
+        return chalk.gray(message)
+      case 'info':
+        return chalk.blue(message)
+      case 'warn':
+        return chalk.yellow(message)
+      case 'error':
+        return chalk.red(message)
+      case 'fatal':
+        return chalk.bgRed.white(message)
+      default:
+        return message
     }
   }
 
@@ -125,7 +131,7 @@ class StructuredLogger {
       timestamp: new Date(),
       context,
       error,
-      details
+      details,
     }
 
     this.addEntry(entry)
@@ -137,15 +143,18 @@ class StructuredLogger {
     const sentry = getSentryProvider()
     if (sentry && sentry.isInitialized() && (level === 'error' || level === 'fatal')) {
       if (error) {
-        sentry.captureError(error as Error, {
-          workingDirectory: process.cwd(),
-          session: {
-            id: crypto.randomUUID(),
-            userId: 'unknown',
-          },
-          policyManager: new ExecutionPolicyManager(configManager),
-          isProcessing: false,
-        } as MiddlewareContext)
+        sentry.captureError(
+          error as Error,
+          {
+            workingDirectory: process.cwd(),
+            session: {
+              id: crypto.randomUUID(),
+              userId: 'unknown',
+            },
+            policyManager: new ExecutionPolicyManager(configManager),
+            isProcessing: false,
+          } as MiddlewareContext
+        )
       } else {
         sentry.captureMessage(message as string, level === 'fatal' ? 'fatal' : 'error', {
           workingDirectory: process.cwd(),
@@ -180,27 +189,29 @@ export class ErrorHandler {
   private static logger = StructuredLogger.getInstance()
 
   static handle(error: Error, context?: string): CLIError {
-    const cliError = error instanceof CLIError ? error :
-      new CLIError(error.message, 'UNKNOWN_ERROR', 'system', false)
+    const cliError = error instanceof CLIError ? error : new CLIError(error.message, 'UNKNOWN_ERROR', 'system', false)
 
-    this.logger.error(cliError.message, context, cliError, {
+    ErrorHandler.logger.error(cliError.message, context, cliError, {
       code: cliError.code,
       category: cliError.category,
       recoverable: cliError.recoverable,
-      details: cliError.details
+      details: cliError.details,
     })
 
     const sentry = getSentryProvider()
     if (sentry && sentry.isInitialized()) {
-      sentry.captureError(cliError as Error, {
-        workingDirectory: process.cwd(),
-        session: {
-          id: crypto.randomUUID(),
-          userId: 'unknown',
-        },
-        policyManager: new ExecutionPolicyManager(configManager),
-        isProcessing: false,
-      } as MiddlewareContext)
+      sentry.captureError(
+        cliError as Error,
+        {
+          workingDirectory: process.cwd(),
+          session: {
+            id: crypto.randomUUID(),
+            userId: 'unknown',
+          },
+          policyManager: new ExecutionPolicyManager(configManager),
+          isProcessing: false,
+        } as MiddlewareContext
+      )
 
       breadcrumbTracker.trackOperation(`error.${cliError.category}`, {
         error_code: cliError.code,
@@ -212,26 +223,18 @@ export class ErrorHandler {
     return cliError
   }
 
-  static handleAsync<T>(
-    operation: () => Promise<T>,
-    context?: string,
-    fallback?: T
-  ): Promise<T | undefined> {
+  static handleAsync<T>(operation: () => Promise<T>, context?: string, fallback?: T): Promise<T | undefined> {
     return operation().catch((error) => {
-      this.handle(error, context)
+      ErrorHandler.handle(error, context)
       return fallback
     })
   }
 
-  static wrapSync<T>(
-    operation: () => T,
-    context?: string,
-    fallback?: T
-  ): T | undefined {
+  static wrapSync<T>(operation: () => T, context?: string, fallback?: T): T | undefined {
     try {
       return operation()
     } catch (error) {
-      this.handle(error as Error, context)
+      ErrorHandler.handle(error as Error, context)
       return fallback
     }
   }

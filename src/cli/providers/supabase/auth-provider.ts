@@ -484,10 +484,7 @@ export class AuthProvider extends EventEmitter {
       if (this.supabase && this.currentProfile?.id) {
         const client = (this.supabase as any).client
         if (client) {
-          await client
-            .from(this.userTableName)
-            .update({ usage: updatedProfile.usage })
-            .eq('id', this.currentProfile.id)
+          await client.from(this.userTableName).update({ usage: updatedProfile.usage }).eq('id', this.currentProfile.id)
         }
       }
     } catch (error: any) {
@@ -665,10 +662,7 @@ export class AuthProvider extends EventEmitter {
       if (savedCredentials?.accessToken && savedCredentials?.refreshToken) {
         try {
           // Try to refresh the session with stored tokens
-          const user = await this.supabase.refreshSession(
-            savedCredentials.accessToken,
-            savedCredentials.refreshToken
-          )
+          const user = await this.supabase.refreshSession(savedCredentials.accessToken, savedCredentials.refreshToken)
 
           if (user) {
             // Get fresh tokens from Supabase client after refresh

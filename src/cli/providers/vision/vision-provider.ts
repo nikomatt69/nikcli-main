@@ -5,7 +5,7 @@ import { createAnthropic } from '@ai-sdk/anthropic'
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import { createOpenAI } from '@ai-sdk/openai'
 import { createOpenRouter } from '@openrouter/ai-sdk-provider'
-import { type CoreMessage, generateObject, LanguageModelV1 } from 'ai'
+import { type CoreMessage, generateObject, type LanguageModelV1 } from 'ai'
 import chalk from 'chalk'
 import { z } from 'zod'
 import { simpleConfigManager } from '../../core/config-manager'
@@ -109,7 +109,9 @@ export class VisionProvider extends EventEmitter {
 
       // Perform analysis with fallback support
       let result: VisionAnalysisResult | undefined
-      const providersToTry = [provider, ...this.config.fallback_providers].filter((p, idx, arr) => arr.indexOf(p) === idx)
+      const providersToTry = [provider, ...this.config.fallback_providers].filter(
+        (p, idx, arr) => arr.indexOf(p) === idx
+      )
 
       let lastError: Error | null = null
       for (const currentProvider of providersToTry) {
@@ -144,7 +146,6 @@ export class VisionProvider extends EventEmitter {
           if (currentProvider === providersToTry[providersToTry.length - 1]) {
             throw lastError || error
           }
-          continue
         }
       }
       if (!result || !result?.metadata) {
@@ -327,7 +328,7 @@ Provide thorough, useful insights for understanding the image content and contex
       'google/gemini-1.5-pro',
       'google/gemini-1.5-flash',
       '@preset/nikcli',
-      '@preset/nikcli-pro'
+      '@preset/nikcli-pro',
     ]
 
     const preferredVisionModels = [
@@ -341,13 +342,7 @@ Provide thorough, useful insights for understanding the image content and contex
     // Use the preferred model list, optionally including user-specified or current model
     const currentModel = simpleConfigManager.get('currentModel')
     const modelCandidates = (
-      model
-        ? [model]
-        : [
-          ...preferredVisionModels,
-          ...(currentModel ? [currentModel] : []),
-          ...availableVisionModels,
-        ]
+      model ? [model] : [...preferredVisionModels, ...(currentModel ? [currentModel] : []), ...availableVisionModels]
     ).filter((m, idx, arr) => arr.indexOf(m) === idx) // unique
 
     const systemPrompt =
@@ -384,10 +379,10 @@ Provide thorough, useful insights for understanding the image content and contex
                   { type: 'text', text: systemPrompt },
                   {
                     type: 'image_url',
-                    image_url: { url: imageData }
-                  }
-                ]
-              }
+                    image_url: { url: imageData },
+                  },
+                ],
+              },
             ],
             temperature: 0.3,
             max_tokens: 1500,
@@ -396,7 +391,9 @@ Provide thorough, useful insights for understanding the image content and contex
 
         if (!response.ok) {
           const errorData: any = await response.json().catch(() => ({}))
-          throw new Error(`OpenRouter vision API error (${selectedModel}): ${errorData.error?.message || response.statusText}`)
+          throw new Error(
+            `OpenRouter vision API error (${selectedModel}): ${errorData.error?.message || response.statusText}`
+          )
         }
 
         const data: any = await response.json()
@@ -422,7 +419,6 @@ Provide thorough, useful insights for understanding the image content and contex
       } catch (error: any) {
         lastError = error instanceof Error ? error : new Error(String(error))
         console.log(chalk.yellow(`⚠︎ OpenRouter model ${selectedModel} failed: ${lastError.message}`))
-        continue
       }
     }
 
@@ -434,7 +430,7 @@ Provide thorough, useful insights for understanding the image content and contex
    */
   private parseAnalysisText(text: string): Omit<VisionAnalysisResult, 'metadata'> {
     // This is a basic parser - could be improved with better regex/NLP
-    const lines = text.split('\n').filter(line => line.trim())
+    const lines = text.split('\n').filter((line) => line.trim())
 
     return {
       description: text.substring(0, 300) + (text.length > 300 ? '...' : ''),
@@ -453,11 +449,11 @@ Provide thorough, useful insights for understanding the image content and contex
     const lines = text.toLowerCase().split('\n')
 
     for (const line of lines) {
-      if (keywords.some(keyword => line.includes(keyword))) {
+      if (keywords.some((keyword) => line.includes(keyword))) {
         // Extract items from bullet points or comma-separated lists
         const matches = line.match(/[•\-*]\s*([^•\-*\n]+)|([a-zA-Z\s]+)(?:,|$)/g)
         if (matches) {
-          items.push(...matches.map(m => m.replace(/[•\-*,]/g, '').trim()).filter(Boolean))
+          items.push(...matches.map((m) => m.replace(/[•\-*,]/g, '').trim()).filter(Boolean))
         }
       }
     }
@@ -466,17 +462,17 @@ Provide thorough, useful insights for understanding the image content and contex
   }
 
   private extractTextContent(text: string): string {
-    const textMatch = text.match(/text[^:]*:([^\.]+)/i)
+    const textMatch = text.match(/text[^:]*:([^.]+)/i)
     return textMatch ? textMatch[1].trim() : ''
   }
 
   private extractComposition(text: string): string {
-    const compMatch = text.match(/composition[^:]*:([^\.]+)/i)
+    const compMatch = text.match(/composition[^:]*:([^.]+)/i)
     return compMatch ? compMatch[1].trim() : 'Standard composition analysis'
   }
 
   private extractTechnicalQuality(text: string): string {
-    const qualityMatch = text.match(/quality[^:]*:([^\.]+)/i)
+    const qualityMatch = text.match(/quality[^:]*:([^.]+)/i)
     return qualityMatch ? qualityMatch[1].trim() : 'Good technical quality'
   }
 
@@ -732,38 +728,38 @@ Deliver detailed, structured insights for complete image understanding.`
       const anthropicKey =
         simpleConfigManager.getApiKey('claude-3-5-sonnet-20241022') || simpleConfigManager.getApiKey('anthropic')
       if (anthropicKey) providers.push('claude')
-    } catch { }
+    } catch {}
 
     // Check OpenAI
     try {
       const openaiKey = simpleConfigManager.getApiKey('gpt-4o') || simpleConfigManager.getApiKey('openai')
       if (openaiKey) providers.push('openai')
-    } catch { }
+    } catch {}
 
     // Check Google
     try {
       const googleKey = simpleConfigManager.getApiKey('gemini-1.5-pro') || simpleConfigManager.getApiKey('google')
       if (googleKey) providers.push('google')
-    } catch { }
+    } catch {}
 
     // Check OpenRouter
     try {
       const openrouterKey = simpleConfigManager.getApiKey('openrouter') || process.env.OPENROUTER_API_KEY
       if (openrouterKey) providers.push('openrouter')
-    } catch { }
+    } catch {}
 
     // Check SAM3 (OpenAI-compatible endpoint)
     try {
       const sam3Key = process.env.SAM3_API_KEY || process.env.OPENAI_COMPATIBLE_API_KEY
       const sam3Base = process.env.SAM3_BASE_URL || process.env.OPENAI_COMPATIBLE_BASE_URL
       if (sam3Key && sam3Base) providers.push('sam3')
-    } catch { }
+    } catch {}
 
     // Check Vercel
     try {
       const vercelKey = simpleConfigManager.getApiKey('v0-1.0-md') || simpleConfigManager.getApiKey('vercel')
       if (vercelKey) providers.push('vercel')
-    } catch { }
+    } catch {}
 
     return providers
   }

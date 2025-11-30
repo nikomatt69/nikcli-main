@@ -4,7 +4,14 @@ import { nanoid } from 'nanoid'
 import { createTaskMasterAdapter, type TaskMasterAdapter } from '../adapters/taskmaster-adapter'
 import { AutonomousPlanner, type PlanningEvent } from '../planning/autonomous-planner'
 import { PlanGenerator } from '../planning/plan-generator'
-import type { ExecutionPlan, MutableExecutionPlan, MutablePlanTodo, PlannerContext, PlanningToolCapability, PlanTodo } from '../planning/types'
+import type {
+  ExecutionPlan,
+  MutableExecutionPlan,
+  MutablePlanTodo,
+  PlannerContext,
+  PlanningToolCapability,
+  PlanTodo,
+} from '../planning/types'
 import { advancedUI } from '../ui/advanced-cli-ui'
 import { taskMasterService } from './taskmaster-service'
 import { type ToolCapability, toolService } from './tool-service'
@@ -254,7 +261,7 @@ export class PlanningService {
     const mutablePlan: MutableExecutionPlan = {
       ...plan,
       steps: [...plan.steps],
-      todos: plan.todos.map(todo => ({
+      todos: plan.todos.map((todo) => ({
         ...todo,
         status: todo.status,
         progress: todo.progress,
@@ -263,12 +270,12 @@ export class PlanningService {
         actualDuration: todo.actualDuration,
         dependencies: todo.dependencies ? [...todo.dependencies] : undefined,
         metadata: todo.metadata ? { ...todo.metadata } : undefined,
-        tools: todo.tools ? [...todo.tools] : undefined
+        tools: todo.tools ? [...todo.tools] : undefined,
       })),
       context: {
         ...plan.context,
-        relevantFiles: plan.context.relevantFiles ? [...plan.context.relevantFiles] : undefined
-      }
+        relevantFiles: plan.context.relevantFiles ? [...plan.context.relevantFiles] : undefined,
+      },
     }
     this.activePlans.set(plan.id, mutablePlan)
 
@@ -278,7 +285,6 @@ export class PlanningService {
     // Show dashboard for TaskMaster plans or when showProgress is enabled
     const isTaskMasterPlan = shouldUseTaskMaster && this.taskMasterAdapter.isTaskMasterAvailable()
     if (options.showProgress || isTaskMasterPlan) {
-
       await this.showDashboard(plan)
     }
 
@@ -301,7 +307,7 @@ export class PlanningService {
     const mutablePlan: MutableExecutionPlan = {
       ...plan,
       steps: [...plan.steps],
-      todos: plan.todos.map(todo => ({
+      todos: plan.todos.map((todo) => ({
         ...todo,
         status: todo.status,
         progress: todo.progress,
@@ -310,12 +316,12 @@ export class PlanningService {
         actualDuration: todo.actualDuration,
         dependencies: todo.dependencies ? [...todo.dependencies] : undefined,
         metadata: todo.metadata ? { ...todo.metadata } : undefined,
-        tools: todo.tools ? [...todo.tools] : undefined
+        tools: todo.tools ? [...todo.tools] : undefined,
       })),
       context: {
         ...plan.context,
-        relevantFiles: plan.context.relevantFiles ? [...plan.context.relevantFiles] : undefined
-      }
+        relevantFiles: plan.context.relevantFiles ? [...plan.context.relevantFiles] : undefined,
+      },
     }
 
     // Ensure plan has todos derived from steps for UI/dashboard purposes
@@ -343,17 +349,17 @@ export class PlanningService {
     // Convert back to readonly
     return {
       ...mutablePlan,
-      todos: mutablePlan.todos.map(todo => ({
+      todos: mutablePlan.todos.map((todo) => ({
         ...todo,
         status: todo.status,
         progress: todo.progress,
         updatedAt: todo.updatedAt,
         completedAt: todo.completedAt,
         actualDuration: todo.actualDuration,
-        dependencies: todo.dependencies ? [...todo.dependencies] as const : undefined,
+        dependencies: todo.dependencies ? ([...todo.dependencies] as const) : undefined,
         metadata: todo.metadata ? { ...todo.metadata } : undefined,
-        tools: todo.tools ? [...todo.tools] as const : undefined
-      }))
+        tools: todo.tools ? ([...todo.tools] as const) : undefined,
+      })),
     }
   }
 
@@ -387,8 +393,8 @@ export class PlanningService {
                 priority: (t as any).priority,
                 progress: (t as any).progress,
               }))
-                ; (advancedUI as any).showTodoDashboard?.(items, plan.title || 'Plan Todos')
-            } catch { }
+              ;(advancedUI as any).showTodoDashboard?.(items, plan.title || 'Plan Todos')
+            } catch {}
             this.emitPlanEvent({ ...event, planId: plan.id, todoStatus: 'pending' })
             break
           case 'plan_created':
@@ -405,8 +411,8 @@ export class PlanningService {
                 priority: (t as any).priority,
                 progress: (t as any).progress,
               }))
-                ; (advancedUI as any).showTodoDashboard?.(items, plan.title || 'Plan Todos')
-            } catch { }
+              ;(advancedUI as any).showTodoDashboard?.(items, plan.title || 'Plan Todos')
+            } catch {}
             this.emitPlanEvent({ ...event, planId: plan.id, todoStatus: 'in_progress' })
             break
           case 'todo_progress':
@@ -419,8 +425,8 @@ export class PlanningService {
                 priority: (t as any).priority,
                 progress: (t as any).progress,
               }))
-                ; (advancedUI as any).showTodoDashboard?.(items, plan.title || 'Plan Todos')
-            } catch { }
+              ;(advancedUI as any).showTodoDashboard?.(items, plan.title || 'Plan Todos')
+            } catch {}
             break
           case 'todo_complete':
             if (!superCompact) advancedUI.logSuccess('Todo completed', '✓')
@@ -436,8 +442,8 @@ export class PlanningService {
                 priority: (t as any).priority,
                 progress: (t as any).progress,
               }))
-                ; (advancedUI as any).showTodoDashboard?.(items, plan.title || 'Plan Todos')
-            } catch { }
+              ;(advancedUI as any).showTodoDashboard?.(items, plan.title || 'Plan Todos')
+            } catch {}
             this.emitPlanEvent({ ...event, planId: plan.id, todoStatus: event.error ? 'failed' : 'completed' })
             break
           case 'plan_failed':
@@ -452,8 +458,8 @@ export class PlanningService {
                 priority: (t as any).priority,
                 progress: (t as any).progress,
               }))
-                ; (advancedUI as any).showTodoDashboard?.(items, plan.title || 'Plan Todos')
-            } catch { }
+              ;(advancedUI as any).showTodoDashboard?.(items, plan.title || 'Plan Todos')
+            } catch {}
             break
           case 'plan_complete':
             this.updatePlanStatus(plan.id, 'completed')
@@ -470,10 +476,10 @@ export class PlanningService {
         if (nik) {
           try {
             nik.assistantProcessing = false
-          } catch { }
+          } catch {}
           if (typeof nik.renderPromptAfterOutput === 'function') nik.renderPromptAfterOutput()
         }
-      } catch { }
+      } catch {}
     } finally {
       // Always render prompt after execution cycle
       try {
@@ -481,19 +487,17 @@ export class PlanningService {
         if (nik) {
           try {
             nik.assistantProcessing = false
-          } catch { }
+          } catch {}
           if (typeof nik.renderPromptAfterOutput === 'function') nik.renderPromptAfterOutput()
         }
         // Disable possible bypass and resume prompt
         try {
           const { inputQueue } = await import('../core/input-queue')
           inputQueue.disableBypass()
-        } catch { }
-      } catch { }
+        } catch {}
+      } catch {}
     }
   }
-
-
 
   /**
    * Get all active plans
@@ -528,7 +532,7 @@ export class PlanningService {
         actualDuration: todo.actualDuration,
         dependencies: todo.dependencies ? [...todo.dependencies] : undefined,
         metadata: todo.metadata ? { ...todo.metadata } : undefined,
-        tools: todo.tools ? [...todo.tools] : undefined
+        tools: todo.tools ? [...todo.tools] : undefined,
       }
       plan.todos.push(newTodo)
       // Sync to session TodoStore
@@ -547,7 +551,7 @@ export class PlanningService {
           progress: typeof t.progress === 'number' ? t.progress : 0,
         }))
         todoStore.setTodos(String(sessionId), list)
-      } catch { }
+      } catch {}
     }
   }
 
@@ -576,7 +580,7 @@ export class PlanningService {
             progress: typeof t.progress === 'number' ? t.progress : 0,
           }))
           todoStore.setTodos(String(sessionId), list)
-        } catch { }
+        } catch {}
       }
     }
   }
@@ -658,7 +662,7 @@ export class PlanningService {
         priority: (t as any).priority,
         progress: (t as any).progress,
       }))
-        ; (advancedUI as any).showTodoDashboard?.(todoItems, plan.title || 'Plan Todos')
+      ;(advancedUI as any).showTodoDashboard?.(todoItems, plan.title || 'Plan Todos')
     } catch (error: any) {
       advancedUI.logWarning(`Could not show dashboard: ${error.message}`)
     }

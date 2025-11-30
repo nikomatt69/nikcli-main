@@ -67,7 +67,6 @@ export class GuidanceManager {
 
     // Build initial context
     await this.updateContext()
-
   }
 
   /**
@@ -141,8 +140,7 @@ export class GuidanceManager {
       }
 
       this.guidanceFiles.set(filePath, guidanceFile)
-    } catch (error: any) {
-    }
+    } catch (error: any) {}
   }
 
   /**
@@ -265,7 +263,6 @@ export class GuidanceManager {
 
       this.watchers.push(watcher)
     }
-
   }
 
   private async handleFileChange(filePath: string, changeType: 'add' | 'change' | 'unlink'): Promise<void> {

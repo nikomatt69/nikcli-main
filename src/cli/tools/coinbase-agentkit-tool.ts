@@ -132,7 +132,7 @@ export class CoinbaseAgentKitTool extends BaseTool {
             configManager.getApiKey('cdp_wallet_secret')
           if (walletFromConfig) process.env.CDP_WALLET_SECRET = walletFromConfig
         }
-      } catch { }
+      } catch {}
 
       // Check if dependencies are installed
       const isInstalled = await CoinbaseAgentKitProvider.isInstalled()
@@ -184,7 +184,7 @@ export class CoinbaseAgentKitTool extends BaseTool {
           const saved = configManager.getApiKey('coinbase_wallet_address')
           if (saved) walletAddress = saved
         }
-      } catch { }
+      } catch {}
       await this.agentKitProvider.initialize({ walletAddress })
 
       // Create official agent configuration (like Coinbase CLI)
@@ -310,7 +310,7 @@ export class CoinbaseAgentKitTool extends BaseTool {
             .filter(Boolean)
             .map((s: string) => String(s))
         }
-      } catch { }
+      } catch {}
 
       return {
         success: true,

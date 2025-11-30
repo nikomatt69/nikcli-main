@@ -7,7 +7,7 @@ import { createPatch, diffLines } from 'diff'
 import ora, { type Ora } from 'ora'
 import * as readline from 'readline'
 import { fixedPromptManager } from './fixed-prompt-manager'
-import { terminalOutputManager, TerminalOutputManager } from './terminal-output-manager'
+import { TerminalOutputManager, terminalOutputManager } from './terminal-output-manager'
 
 export interface StatusIndicator {
   id: string
@@ -435,11 +435,11 @@ export class AdvancedCliUI {
 
     const summary = boxen(
       `${chalk.bold('Execution Summary')}\\n\\n` +
-      `${chalk.green('✓ Completed:')} ${completed}\\n` +
-      `${chalk.red('✖ Failed:')} ${failed}\\n` +
-      `${chalk.yellow('⚠︎ Warnings:')} ${warnings}\\n` +
-      `${chalk.blue('📊 Total:')} ${indicators.length}\\n\\n` +
-      `${chalk.gray('Overall Status:')} ${this.getOverallStatusText()}`,
+        `${chalk.green('✓ Completed:')} ${completed}\\n` +
+        `${chalk.red('✖ Failed:')} ${failed}\\n` +
+        `${chalk.yellow('⚠︎ Warnings:')} ${warnings}\\n` +
+        `${chalk.blue('📊 Total:')} ${indicators.length}\\n\\n` +
+        `${chalk.gray('Overall Status:')} ${this.getOverallStatusText()}`,
       {
         padding: 1,
         margin: { top: 1, bottom: 1, left: 0, right: 0 },
@@ -788,7 +788,7 @@ export class AdvancedCliUI {
 
     if (!status || status === 'running') {
       // Verde lampeggiante quando in esecuzione
-      const isVisible = (this.animationFrame % 2) === 0
+      const isVisible = this.animationFrame % 2 === 0
       return isVisible ? chalk.green('⏺') : chalk.green.dim('⏺')
     }
 

@@ -105,8 +105,8 @@ export class EnhancedSupabaseProvider extends EventEmitter {
         },
         realtime: this.config.features.realtime
           ? {
-            heartbeatIntervalMs: 30000,
-          }
+              heartbeatIntervalMs: 30000,
+            }
           : undefined,
       })
 
@@ -871,11 +871,7 @@ export class EnhancedSupabaseProvider extends EventEmitter {
   /**
    * Cache ML inference result
    */
-  async cacheInference(
-    hash: string,
-    prediction: Record<string, any>,
-    expiresAt: string
-  ): Promise<void> {
+  async cacheInference(hash: string, prediction: Record<string, any>, expiresAt: string): Promise<void> {
     if (!this.client || !this.config.features.database) {
       return
     }
@@ -1006,10 +1002,7 @@ export class EnhancedSupabaseProvider extends EventEmitter {
   /**
    * Record batch metrics
    */
-  async recordBatchMetrics(
-    metrics: Record<string, any>,
-    lookbackDays: number
-  ): Promise<void> {
+  async recordBatchMetrics(metrics: Record<string, any>, lookbackDays: number): Promise<void> {
     if (!this.client || !this.config.features.database) {
       return
     }

@@ -243,7 +243,13 @@ export class ImageGenerationTool extends BaseTool {
   async generateVariations(
     prompt: string,
     count: number = 2,
-    model: 'dall-e-2' | 'dall-e-3' | 'gpt-image-1' | 'google/gemini-2.5-flash-image' | 'openai/gpt-5-image-mini' | 'openai/gpt-5-image' = 'dall-e-2'
+    model:
+      | 'dall-e-2'
+      | 'dall-e-3'
+      | 'gpt-image-1'
+      | 'google/gemini-2.5-flash-image'
+      | 'openai/gpt-5-image-mini'
+      | 'openai/gpt-5-image' = 'dall-e-2'
   ): Promise<ToolExecutionResult> {
     // For DALL-E 3 and GPT-Image-1, generate multiple single images
     const results: ToolExecutionResult[] = []

@@ -1,5 +1,5 @@
-import { z } from 'zod'
 import { getAddress } from 'viem'
+import { z } from 'zod'
 
 /**
  * GOAT SDK Tool Validation Schemas
@@ -111,10 +111,7 @@ export const EVMAddressSchema = z
     }
     return checksummed
   })
-  .refine(
-    (val) => EVM_ADDRESS_REGEX.test(val),
-    'Invalid EVM address format after checksumming'
-  )
+  .refine((val) => EVM_ADDRESS_REGEX.test(val), 'Invalid EVM address format after checksumming')
 
 export const EVMAddressOptionalSchema = EVMAddressSchema.optional()
 
@@ -166,11 +163,7 @@ export type PolymarketBet = z.infer<typeof PolymarketBetSchema>
 export const PolymarketMarketsSchema = z.object({
   limit: z.number().optional().default(10).describe('Number of markets to fetch'),
   offset: z.number().optional().default(0).describe('Pagination offset'),
-  filter: z
-    .enum(['active', 'resolved', 'all'])
-    .optional()
-    .default('active')
-    .describe('Market filter'),
+  filter: z.enum(['active', 'resolved', 'all']).optional().default('active').describe('Market filter'),
 })
 
 export type PolymarketMarkets = z.infer<typeof PolymarketMarketsSchema>
@@ -395,21 +388,11 @@ export const BuilderSignOrderSchema = z.object({
 export type BuilderSignOrder = z.infer<typeof BuilderSignOrderSchema>
 
 export const PolymarketOrderSchema = z.object({
-  tokenId: z
-    .string()
-    .min(1)
-    .describe('Token ID (market outcome identifier on Polymarket)'),
-  price: z
-    .number()
-    .min(0)
-    .max(1)
-    .describe('Order price (0.00 to 1.00, representing 0% to 100%)'),
+  tokenId: z.string().min(1).describe('Token ID (market outcome identifier on Polymarket)'),
+  price: z.number().min(0).max(1).describe('Order price (0.00 to 1.00, representing 0% to 100%)'),
   size: z.number().min(0.01).describe('Order size in shares'),
   side: z.enum(['BUY', 'SELL']).describe('Order side: BUY or SELL'),
-  orderType: z
-    .enum(['FOK', 'GTC', 'GTD'])
-    .default('GTC')
-    .describe('Order type'),
+  orderType: z.enum(['FOK', 'GTC', 'GTD']).default('GTC').describe('Order type'),
   expiration: z.number().optional().describe('Unix timestamp for GTD expiration'),
   feeRateBps: z.number().optional().default(100).describe('Fee rate in basis points (100 = 1%)'),
 })
@@ -422,11 +405,7 @@ export const PolymarketNativeOrderSchema = z.object({
   size: z.number().min(0).describe('Order size'),
   side: z.enum(['BUY', 'SELL']).describe('BUY or SELL'),
   orderType: z.enum(['FOK', 'GTC', 'GTD']).describe('Order type'),
-  builderAttribution: z
-    .boolean()
-    .optional()
-    .default(true)
-    .describe('Include builder attribution headers'),
+  builderAttribution: z.boolean().optional().default(true).describe('Include builder attribution headers'),
 })
 
 export type PolymarketNativeOrder = z.infer<typeof PolymarketNativeOrderSchema>

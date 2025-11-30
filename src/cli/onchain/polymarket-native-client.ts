@@ -89,7 +89,7 @@ export enum OrderStatus {
   FILLED = 'filled',
   CANCELLED = 'cancelled',
   DELAYED = 'delayed',
-  UNMATCHED = 'unmatched'
+  UNMATCHED = 'unmatched',
 }
 
 // ============================================================
@@ -106,7 +106,7 @@ const POLYMARKET_ERROR_MAP: Record<string, string> = {
   INVALID_ORDER_NONCE: 'Order nonce conflict',
   DUPLICATE_ORDER: 'Duplicate order submitted',
   ORDER_NOT_FOUND: 'Order does not exist',
-  INSUFFICIENT_LIQUIDITY: 'Not enough liquidity at current price'
+  INSUFFICIENT_LIQUIDITY: 'Not enough liquidity at current price',
 }
 
 class PolymarketError extends Error {
@@ -137,12 +137,12 @@ class RateLimiter {
 
   async acquire(): Promise<void> {
     const now = Date.now()
-    this.requests = this.requests.filter(time => now - time < this.windowMs)
+    this.requests = this.requests.filter((time) => now - time < this.windowMs)
 
     if (this.requests.length >= this.limit) {
       const oldestRequest = this.requests[0]
       const waitTime = this.windowMs - (now - oldestRequest)
-      await new Promise(resolve => setTimeout(resolve, waitTime))
+      await new Promise((resolve) => setTimeout(resolve, waitTime))
       return this.acquire()
     }
 
@@ -189,10 +189,10 @@ class PolymarketAuthenticator {
     })
 
     return {
-      'POLY_ADDRESS': this.account.address,
-      'POLY_SIGNATURE': signature,
-      'POLY_TIMESTAMP': timestamp.toString(),
-      'POLY_NONCE': '0',
+      POLY_ADDRESS: this.account.address,
+      POLY_SIGNATURE: signature,
+      POLY_TIMESTAMP: timestamp.toString(),
+      POLY_NONCE: '0',
     }
   }
 
@@ -209,17 +209,14 @@ class PolymarketAuthenticator {
     const bodyStr = body ? JSON.stringify(body) : ''
     const message = timestamp + method + path + bodyStr
 
-    const signature = crypto
-      .createHmac('sha256', this.l2Credentials.secret)
-      .update(message)
-      .digest('base64')
+    const signature = crypto.createHmac('sha256', this.l2Credentials.secret).update(message).digest('base64')
 
     return {
-      'POLY_ADDRESS': this.account.address,
-      'POLY_API_KEY': this.l2Credentials.apiKey,
-      'POLY_PASSPHRASE': this.l2Credentials.passphrase,
-      'POLY_TIMESTAMP': timestamp,
-      'POLY_SIGNATURE': signature
+      POLY_ADDRESS: this.account.address,
+      POLY_API_KEY: this.l2Credentials.apiKey,
+      POLY_PASSPHRASE: this.l2Credentials.passphrase,
+      POLY_TIMESTAMP: timestamp,
+      POLY_SIGNATURE: signature,
     }
   }
 
@@ -236,16 +233,13 @@ class PolymarketAuthenticator {
     const bodyStr = body ? JSON.stringify(body) : ''
     const message = timestamp + method + path + bodyStr
 
-    const signature = crypto
-      .createHmac('sha256', this.builderCredentials.secret)
-      .update(message)
-      .digest('base64')
+    const signature = crypto.createHmac('sha256', this.builderCredentials.secret).update(message).digest('base64')
 
     return {
-      'POLY_BUILDER_API_KEY': this.builderCredentials.apiKey,
-      'POLY_BUILDER_TIMESTAMP': timestamp,
-      'POLY_BUILDER_PASSPHRASE': this.builderCredentials.passphrase,
-      'POLY_BUILDER_SIGNATURE': signature
+      POLY_BUILDER_API_KEY: this.builderCredentials.apiKey,
+      POLY_BUILDER_TIMESTAMP: timestamp,
+      POLY_BUILDER_PASSPHRASE: this.builderCredentials.passphrase,
+      POLY_BUILDER_SIGNATURE: signature,
     }
   }
 
@@ -270,11 +264,7 @@ export class PolymarketNativeClient extends EventEmitter {
     this.config = config
     // Load funder address from config or environment
     this.funderAddress = config.relayerAddress || process.env.POLYMARKET_FUNDER_ADDRESS || null
-    this.authenticator = new PolymarketAuthenticator(
-      config.privateKey,
-      undefined,
-      config.builderCredentials
-    )
+    this.authenticator = new PolymarketAuthenticator(config.privateKey, undefined, config.builderCredentials)
 
     // Initialize rate limiters for different endpoints
     this.rateLimiters = new Map([
@@ -282,7 +272,7 @@ export class PolymarketNativeClient extends EventEmitter {
       ['orderBurst', new RateLimiter(2400, 10)], // 2400 req/10s burst
       ['marketData', new RateLimiter(200, 10)], // 200 req/10s
       ['trades', new RateLimiter(75, 10)], // 75 req/10s
-      ['gamma', new RateLimiter(750, 10)] // 750 req/10s
+      ['gamma', new RateLimiter(750, 10)], // 750 req/10s
     ])
   }
 
@@ -300,21 +290,12 @@ export class PolymarketNativeClient extends EventEmitter {
       }
 
       // Update authenticator with L2 credentials
-      this.authenticator = new PolymarketAuthenticator(
-        this.config.privateKey,
-        l2Creds,
-        this.config.builderCredentials
-      )
+      this.authenticator = new PolymarketAuthenticator(this.config.privateKey, l2Creds, this.config.builderCredentials)
 
       this.isInitialized = true
       console.log(`✓ Client initialized (${this.authenticator.getAddress()})`)
     } catch (error) {
-      throw new PolymarketError(
-        'Client initialization failed',
-        'INIT_FAILED',
-        undefined,
-        error
-      )
+      throw new PolymarketError('Client initialization failed', 'INIT_FAILED', undefined, error)
     }
   }
 
@@ -334,8 +315,8 @@ export class PolymarketNativeClient extends EventEmitter {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          ...headers
-        }
+          ...headers,
+        },
       })
 
       if (!response.ok) {
@@ -369,7 +350,7 @@ export class PolymarketNativeClient extends EventEmitter {
       const body = this.buildOrderPayload(params)
       const headers = {
         'Content-Type': 'application/json',
-        ...this.authenticator.generateL2Headers('POST', path, body)
+        ...this.authenticator.generateL2Headers('POST', path, body),
       }
 
       // Add builder attribution if configured
@@ -380,7 +361,7 @@ export class PolymarketNativeClient extends EventEmitter {
       const response = await fetch(`${this.config.clobUrl}${path}`, {
         method: 'POST',
         headers,
-        body: JSON.stringify(body)
+        body: JSON.stringify(body),
       })
 
       const result = await response.json()
@@ -419,12 +400,7 @@ export class PolymarketNativeClient extends EventEmitter {
     } catch (error) {
       throw error instanceof PolymarketError
         ? error
-        : new PolymarketError(
-          'Order book fetch error',
-          'ORDERBOOK_ERROR',
-          undefined,
-          error
-        )
+        : new PolymarketError('Order book fetch error', 'ORDERBOOK_ERROR', undefined, error)
     }
   }
 
@@ -466,13 +442,13 @@ export class PolymarketNativeClient extends EventEmitter {
       const body = { orderID: orderId }
       const headers = {
         'Content-Type': 'application/json',
-        ...this.authenticator.generateL2Headers('DELETE', path, body)
+        ...this.authenticator.generateL2Headers('DELETE', path, body),
       }
 
       const response = await fetch(`${this.config.clobUrl}${path}`, {
         method: 'DELETE',
         headers,
-        body: JSON.stringify(body)
+        body: JSON.stringify(body),
       })
 
       const result = await response.json()
@@ -537,36 +513,24 @@ export class PolymarketNativeClient extends EventEmitter {
 
   private validateInitialized() {
     if (!this.isInitialized) {
-      throw new PolymarketError(
-        'Client not initialized. Call initialize() first.',
-        'NOT_INITIALIZED'
-      )
+      throw new PolymarketError('Client not initialized. Call initialize() first.', 'NOT_INITIALIZED')
     }
   }
 
   private validateOrderParams(params: OrderParams) {
     // Validate price is between 0 and 1
     if (params.price < 0 || params.price > 1) {
-      throw new PolymarketError(
-        'Price must be between 0 and 1',
-        'INVALID_PRICE'
-      )
+      throw new PolymarketError('Price must be between 0 and 1', 'INVALID_PRICE')
     }
 
     // Validate size is positive
     if (params.size <= 0) {
-      throw new PolymarketError(
-        'Size must be positive',
-        'INVALID_SIZE'
-      )
+      throw new PolymarketError('Size must be positive', 'INVALID_SIZE')
     }
 
     // Validate side
     if (!['BUY', 'SELL'].includes(params.side)) {
-      throw new PolymarketError(
-        'Side must be BUY or SELL',
-        'INVALID_SIDE'
-      )
+      throw new PolymarketError('Side must be BUY or SELL', 'INVALID_SIDE')
     }
   }
 
@@ -578,7 +542,7 @@ export class PolymarketNativeClient extends EventEmitter {
       side: params.side,
       orderType: params.orderType,
       expiration: params.expiration || Math.floor(Date.now() / 1000) + 3600,
-      feeRateBps: params.feeRateBps || 100
+      feeRateBps: params.feeRateBps || 100,
     }
   }
 
@@ -586,12 +550,7 @@ export class PolymarketNativeClient extends EventEmitter {
     const errorCode = result.errorMsg || result.code || 'UNKNOWN_ERROR'
     const errorMessage = POLYMARKET_ERROR_MAP[errorCode] || result.errorMsg || 'Unknown error'
 
-    return new PolymarketError(
-      errorMessage,
-      errorCode,
-      statusCode,
-      result
-    )
+    return new PolymarketError(errorMessage, errorCode, statusCode, result)
   }
 
   /**

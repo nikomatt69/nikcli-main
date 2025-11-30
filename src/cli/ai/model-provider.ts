@@ -7,7 +7,6 @@ import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import { createVercel } from '@ai-sdk/vercel'
 import { generateObject, generateText, streamText } from 'ai'
 
-
 import { createOllama } from 'ollama-ai-provider'
 import { z } from 'zod'
 
@@ -39,12 +38,14 @@ export const GenerateOptionsSchema = z.object({
   enableReasoning: z.boolean().optional(),
   showReasoningProcess: z.boolean().optional(),
   // OpenRouter reasoning configuration
-  reasoning: z.object({
-    effort: z.enum(['high', 'medium', 'low']).optional(),
-    max_tokens: z.number().int().min(1024).max(32000).optional(),
-    exclude: z.boolean().optional(),
-    enabled: z.boolean().optional(),
-  }).optional(),
+  reasoning: z
+    .object({
+      effort: z.enum(['high', 'medium', 'low']).optional(),
+      max_tokens: z.number().int().min(1024).max(32000).optional(),
+      exclude: z.boolean().optional(),
+      enabled: z.boolean().optional(),
+    })
+    .optional(),
 })
 
 // Model Response Schema
@@ -270,7 +271,9 @@ export class ModelProvider {
       case 'openai-compatible': {
         const apiKey = configManager.getApiKey(currentModelName)
         if (!apiKey) {
-          throw new Error(`API key not found for model: ${currentModelName} (OpenAI-compatible). Use /set-key to configure.`)
+          throw new Error(
+            `API key not found for model: ${currentModelName} (OpenAI-compatible). Use /set-key to configure.`
+          )
         }
         const baseURL = (config as any).baseURL || process.env.OPENAI_COMPATIBLE_BASE_URL
         if (!baseURL) {
@@ -317,7 +320,10 @@ export class ModelProvider {
         messages: validatedOptions.messages,
         scope: (validatedOptions as any).scope as ModelScope | undefined,
         needsVision: (validatedOptions as any).needsVision,
-        sizeHints: (validatedOptions as any).sizeHints,
+        sizeHints: {
+          ...(validatedOptions as any).sizeHints,
+          toolCount: (validatedOptions as any).tools?.length || 0,
+        },
       })
       effectiveModelId = decision.selectedModel
       // Light log if verbose
@@ -349,7 +355,6 @@ export class ModelProvider {
     const baseOptions: Parameters<typeof generateText>[0] = {
       model: model as any,
       messages: validatedOptions.messages.map((msg) => ({ role: msg.role, content: msg.content })),
-
     }
     // Always honor explicit user settings for all providers
     if (validatedOptions.maxTokens != null) {
@@ -517,7 +522,6 @@ export class ModelProvider {
     const streamOptions: any = {
       model: model as any,
       messages: validatedOptions.messages.map((msg) => ({ role: msg.role, content: msg.content })),
-
     }
 
     // Set temperature and maxTokens for all providers

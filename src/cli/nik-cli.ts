@@ -10,37 +10,52 @@ import readline from 'readline'
 import { advancedAIProvider } from './ai/advanced-ai-provider'
 import { modelProvider } from './ai/model-provider'
 import type { ModernAIProvider } from './ai/modern-ai-provider'
+import { recordTokenUsageForCurrentUser } from './analytics/token-usage-metrics'
 import { ModernAgentOrchestrator } from './automation/agents/modern-agent-system'
 import { chatManager } from './chat/chat-manager'
-import { SlashCommandHandler, handleBrowserCommand, handleBrowserStatus, handleBrowserExit, handleBrowserScreenshot, handleBrowserInfo } from './chat/nik-cli-commands'
+import {
+  handleBrowserCommand,
+  handleBrowserExit,
+  handleBrowserInfo,
+  handleBrowserScreenshot,
+  handleBrowserStatus,
+  SlashCommandHandler,
+} from './chat/nik-cli-commands'
 import { CADCommands } from './commands/cad-commands'
 import { TOKEN_LIMITS } from './config/token-limits'
 import { docsContextManager } from './context/docs-context-manager'
 import { unifiedRAGSystem } from './context/rag-system'
 import { workspaceContext } from './context/workspace-context'
 import { agentFactory } from './core/agent-factory'
+import { agentLearningSystem } from './core/agent-learning-system'
 import { AgentManager } from './core/agent-manager'
 import { agentStream } from './core/agent-stream'
 import { agentTodoManager } from './core/agent-todo-manager'
-import { agentLearningSystem } from './core/agent-learning-system'
-import { intelligentFeedbackWrapper } from './core/intelligent-feedback-wrapper'
 import { AnalyticsManager } from './core/analytics-manager'
 
 import { createCloudDocsProvider, getCloudDocsProvider } from './core/cloud-docs-provider'
-import { completionCache, CompletionProtocolCache } from './core/completion-protocol-cache'
+import { CompletionProtocolCache, completionCache } from './core/completion-protocol-cache'
 // Import existing modules
 import { configManager, type SimpleConfigManager, simpleConfigManager } from './core/config-manager'
 import { contextTokenManager } from './core/context-token-manager'
 import { type DocumentationEntry, docLibrary } from './core/documentation-library'
+import { DynamicToolSelector } from './core/dynamic-tool-selector'
 import { enhancedTokenCache } from './core/enhanced-token-cache'
 import { inputQueue } from './core/input-queue'
+import { intelligentFeedbackWrapper } from './core/intelligent-feedback-wrapper'
 import { type McpServerConfig, mcpClient } from './core/mcp-client'
 import { QuietCacheLogger, TokenOptimizer } from './core/performance-optimizer'
+import { type ProjectMemoryManager, projectMemory } from './core/project-memory'
 import { tokenCache } from './core/token-cache'
 import { toolRouter } from './core/tool-router'
 import { universalTokenizer } from './core/universal-tokenizer-service'
 import { validatorManager } from './core/validator-manager'
 import { ideDiagnosticIntegration } from './integrations/ide-diagnostic-integration'
+import { EvaluationPipeline } from './ml/evaluation-pipeline'
+import { FeatureExtractor } from './ml/feature-extractor'
+import { MLInferenceEngine } from './ml/ml-inference-engine'
+// ML System imports
+import { ToolchainOptimizer } from './ml/toolchain-optimizer'
 import { EnhancedSessionManager } from './persistence/enhanced-session-manager'
 import { enhancedPlanning } from './planning/enhanced-planning'
 import { PlanningManager } from './planning/planning-manager'
@@ -48,12 +63,12 @@ import type { ExecutionPlan } from './planning/types'
 import { authProvider } from './providers/supabase/auth-provider'
 import { enhancedSupabaseProvider } from './providers/supabase/enhanced-supabase-provider'
 import { registerAgents } from './register-agents'
-import { agentService } from './services/agent-service'
-import { DashboardService } from './services/dashboard-service'
-import { adRotationService } from './services/ad-rotation-service'
 import { adDisplayManager } from './services/ad-display-manager'
+import { adRotationService } from './services/ad-rotation-service'
+import { agentService } from './services/agent-service'
 // New enhanced services
 import { cacheService } from './services/cache-service'
+import { DashboardService } from './services/dashboard-service'
 import { memoryService } from './services/memory-service'
 import { planningService } from './services/planning-service'
 import { snapshotService } from './services/snapshot-service'
@@ -62,35 +77,21 @@ import { getUnifiedToolRenderer, initializeUnifiedToolRenderer } from './service
 import { StreamingOrchestrator } from './streaming-orchestrator'
 import { toolsManager } from './tools/tools-manager'
 import { advancedUI } from './ui/advanced-cli-ui'
-
-import { projectMemory, type ProjectMemoryManager } from './core/project-memory'
 import { approvalSystem } from './ui/approval-system'
 import { createConsoleTokenDisplay } from './ui/token-aware-status-bar'
-import { recordTokenUsageForCurrentUser } from './analytics/token-usage-metrics'
-
-// ML System imports
-import { ToolchainOptimizer } from './ml/toolchain-optimizer'
-import { MLInferenceEngine } from './ml/ml-inference-engine'
-import { FeatureExtractor } from './ml/feature-extractor'
-import { EvaluationPipeline } from './ml/evaluation-pipeline'
-import { DynamicToolSelector } from './core/dynamic-tool-selector'
 
 import { PasteHandler } from './utils/paste-handler'
 
 const formatCognitive = chalk.hex('#4a4a4a')
 
+import { aiSdkEmbeddingProvider } from './context/ai-sdk-embedding-provider'
+import { fixedPromptManager } from './ui/fixed-prompt-manager'
+import { terminalOutputManager } from './ui/terminal-output-manager'
 import { structuredLogger } from './utils/structured-logger'
 import { configureSyntaxHighlighting } from './utils/syntax-highlighter'
 import { formatAgent, formatCommand, formatFileOp, formatSearch, formatStatus, wrapBlue } from './utils/text-wrapper'
-import { terminalOutputManager } from './ui/terminal-output-manager'
-import { fixedPromptManager } from './ui/fixed-prompt-manager'
-
 // VM System imports
 import { vmSelector } from './virtualized-agents/vm-selector'
-import { aiSdkEmbeddingProvider } from './context/ai-sdk-embedding-provider'
-
-
-
 
 // CAD AI System imports
 
@@ -378,7 +379,7 @@ export class NikCLI {
     // Compact mode by default (cleaner output unless explicitly disabled)
     try {
       if (!process.env.NIKCLI_COMPACT) process.env.NIKCLI_COMPACT = '1'
-    } catch { }
+    } catch {}
 
     // Initialize core managers
     this.configManager = simpleConfigManager
@@ -399,11 +400,7 @@ export class NikCLI {
 
     // Initialize analytics manager and dashboard service
     this.analyticsManager = new AnalyticsManager(this.workingDirectory)
-    this.dashboardService = new DashboardService(
-      this.agentManager as any,
-      this.analyticsManager,
-      advancedAIProvider
-    )
+    this.dashboardService = new DashboardService(this.agentManager as any, this.analyticsManager, advancedAIProvider)
     // Initialize paste handler for long text processing
     this.pasteHandler = PasteHandler.getInstance()
 
@@ -414,7 +411,6 @@ export class NikCLI {
 
     // Initialize unified tool renderer for consistent tool call rendering
 
-
     // Token optimizer will be initialized lazily when needed
 
     // Register agents
@@ -423,8 +419,8 @@ export class NikCLI {
     // Initialize token tracking system
     this.initializeTokenTrackingSystem()
 
-      // Expose this instance globally for command handlers
-      ; (global as any).__nikCLI = this
+    // Expose this instance globally for command handlers
+    ;(global as any).__nikCLI = this
 
     this.setupEventHandlers()
     // Bridge orchestrator events into NikCLI output
@@ -462,14 +458,14 @@ export class NikCLI {
     // Render initial prompt
     void void this.renderPromptArea()
 
-      // Expose NikCLI globally for token management
-      ; (global as any).__nikcli = this
+    // Expose NikCLI globally for token management
+    ;(global as any).__nikcli = this
 
     // Patch inquirer to avoid status bar redraw during interactive prompts
     try {
       const originalPrompt = (inquirer as any).prompt?.bind(inquirer)
       if (originalPrompt) {
-        ; (inquirer as any).prompt = async (...args: any[]) => {
+        ;(inquirer as any).prompt = async (...args: any[]) => {
           this.isInquirerActive = true
           this.stopStatusBar()
           try {
@@ -778,12 +774,7 @@ export class NikCLI {
   /**
    * Send task completion notification (silent)
    */
-  private async sendTaskCompletionNotification(
-    plan: any,
-    todo: any,
-    agents: any[],
-    success: boolean
-  ): Promise<void> {
+  private async sendTaskCompletionNotification(plan: any, todo: any, agents: any[], success: boolean): Promise<void> {
     if (!this.notificationService) return
 
     try {
@@ -1128,19 +1119,19 @@ export class NikCLI {
     process.on('unhandledRejection', (reason: any) => {
       try {
         console.log(require('chalk').red(`\n✖ Unhandled rejection: ${reason?.message || reason}`))
-      } catch { }
+      } catch {}
       try {
         this.renderPromptAfterOutput()
-      } catch { }
+      } catch {}
     })
 
     process.on('uncaughtException', (err: any) => {
       try {
         console.log(require('chalk').red(`\n✖ Uncaught exception: ${err?.message || err}`))
-      } catch { }
+      } catch {}
       try {
         this.renderPromptAfterOutput()
-      } catch { }
+      } catch {}
     })
 
     // Listen for auth events to sync memory with user
@@ -1464,7 +1455,11 @@ export class NikCLI {
         this.addLiveUpdate({ type: 'info', content: eventData.description, source: 'planning' })
         break
       case 'planning_step_progress':
-        this.addLiveUpdate({ type: 'progress', content: `${eventData.step} - ${eventData.progress}%`, source: 'planning' })
+        this.addLiveUpdate({
+          type: 'progress',
+          content: `${eventData.step} - ${eventData.progress}%`,
+          source: 'planning',
+        })
         break
       case 'planning_step_complete':
         this.addLiveUpdate({ type: 'log', content: `Complete: ${eventData.step}`, source: 'planning' })
@@ -1476,15 +1471,27 @@ export class NikCLI {
         this.addLiveUpdate({ type: 'log', content: `File written: ${eventData.path}`, source: 'fileoperations' })
         break
       case 'agent_file_list':
-        this.addLiveUpdate({ type: 'info', content: `Files listed: ${eventData.files?.length} items`, source: 'fileoperations' })
+        this.addLiveUpdate({
+          type: 'info',
+          content: `Files listed: ${eventData.files?.length} items`,
+          source: 'fileoperations',
+        })
         break
       case 'agent_grep_results':
-        this.addLiveUpdate({ type: 'info', content: `Search: ${eventData.pattern} - ${eventData.matches?.length} matches`, source: 'search' })
+        this.addLiveUpdate({
+          type: 'info',
+          content: `Search: ${eventData.pattern} - ${eventData.matches?.length} matches`,
+          source: 'search',
+        })
         break
 
       // Background agent events for addLiveUpdate
       case 'bg_agent_task_start':
-        this.addLiveUpdate({ type: 'info', content: `${eventData.agentName} working on "${eventData.taskDescription}"`, source: 'backgroundagent' })
+        this.addLiveUpdate({
+          type: 'info',
+          content: `${eventData.agentName} working on "${eventData.taskDescription}"`,
+          source: 'backgroundagent',
+        })
         break
 
       case 'bg_agent_task_progress': {
@@ -1494,23 +1501,35 @@ export class NikCLI {
           type: 'progress',
           content: progressContent,
           source: 'backgroundagent',
-          metadata: { progress: eventData.progress }
+          metadata: { progress: eventData.progress },
         })
         break
       }
 
       case 'bg_agent_task_complete':
-        this.addLiveUpdate({ type: 'log', content: `${eventData.agentId} completed successfully (${eventData.duration}ms)`, source: 'backgroundagent' })
+        this.addLiveUpdate({
+          type: 'log',
+          content: `${eventData.agentId} completed successfully (${eventData.duration}ms)`,
+          source: 'backgroundagent',
+        })
         break
 
       case 'bg_agent_tool_call': {
         const bgToolDetails = this.formatToolDetails(eventData.toolName, eventData.parameters)
-        this.addLiveUpdate({ type: 'info', content: `${eventData.agentId} → ${bgToolDetails}`, source: 'backgroundtool' })
+        this.addLiveUpdate({
+          type: 'info',
+          content: `${eventData.agentId} → ${bgToolDetails}`,
+          source: 'backgroundtool',
+        })
         break
       }
 
       case 'bg_agent_orchestrated':
-        this.addLiveUpdate({ type: 'info', content: `Orchestrating: ${eventData.agentName} for "${eventData.task}"`, source: 'orchestration' })
+        this.addLiveUpdate({
+          type: 'info',
+          content: `Orchestrating: ${eventData.agentName} for "${eventData.task}"`,
+          source: 'orchestration',
+        })
         break
     }
   }
@@ -2047,9 +2066,9 @@ export class NikCLI {
   private showAdvancedHeader(): void {
     const header = boxen(
       `${chalk.cyanBright.bold('🔌 NikCLI')} ${chalk.gray('v0.3.1-beta')}\n` +
-      `${chalk.gray('Autonomous AI Developer Assistant')}\n\n` +
-      `${chalk.blue('Status:')} ${this.getOverallStatus()}  ${chalk.blue('Active Tasks:')} ${this.indicators.size}\n` +
-      `${chalk.blue('Mode:')} ${this.currentMode}  ${chalk.blue('Live Updates:')} Enabled`,
+        `${chalk.gray('Autonomous AI Developer Assistant')}\n\n` +
+        `${chalk.blue('Status:')} ${this.getOverallStatus()}  ${chalk.blue('Active Tasks:')} ${this.indicators.size}\n` +
+        `${chalk.blue('Mode:')} ${this.currentMode}  ${chalk.blue('Live Updates:')} Enabled`,
       {
         padding: 1,
         margin: { top: 0, bottom: 1, left: 0, right: 0 },
@@ -2265,9 +2284,7 @@ export class NikCLI {
    */
   private printShutdownLog(message: string, level: 'info' | 'success' | 'warning' | 'error' = 'info'): void {
     const shouldSuspend =
-      terminalOutputManager.isFixedPromptEnabled() &&
-      !this.isInquirerActive &&
-      !this.isPrintingPanel
+      terminalOutputManager.isFixedPromptEnabled() && !this.isInquirerActive && !this.isPrintingPanel
 
     if (shouldSuspend) {
       this.suspendPrompt()
@@ -2309,9 +2326,7 @@ export class NikCLI {
    */
   private printShutdownHeader(): void {
     const shouldSuspend =
-      terminalOutputManager.isFixedPromptEnabled() &&
-      !this.isInquirerActive &&
-      !this.isPrintingPanel
+      terminalOutputManager.isFixedPromptEnabled() && !this.isInquirerActive && !this.isPrintingPanel
 
     if (shouldSuspend) {
       this.suspendPrompt()
@@ -2576,25 +2591,25 @@ export class NikCLI {
           // Kill any running subprocesses started by tools
           try {
             const procs = toolsManager.getRunningProcesses?.() || []
-              ; (async () => {
-                let killed = 0
-                await Promise.all(
-                  procs.map(async (p: any) => {
-                    try {
-                      const ok = await toolsManager.killProcess?.(p.pid)
-                      if (ok) killed++
-                    } catch {
-                      /* ignore */
-                    }
-                  })
+            ;(async () => {
+              let killed = 0
+              await Promise.all(
+                procs.map(async (p: any) => {
+                  try {
+                    const ok = await toolsManager.killProcess?.(p.pid)
+                    if (ok) killed++
+                  } catch {
+                    /* ignore */
+                  }
+                })
+              )
+              if (killed > 0) {
+                advancedUI.logFunctionUpdate(
+                  'info',
+                  chalk.yellow(`  Terminated ${killed} running process${killed > 1 ? 'es' : ''}`)
                 )
-                if (killed > 0) {
-                  advancedUI.logFunctionUpdate(
-                    'info',
-                    chalk.yellow(`  Terminated ${killed} running process${killed > 1 ? 'es' : ''}`)
-                  )
-                }
-              })()
+              }
+            })()
           } catch {
             /* ignore */
           }
@@ -2740,13 +2755,11 @@ export class NikCLI {
     `
     const lines: string[] = []
     const warningBox = boxen(
-
-
       chalk.red.bold('🚨  BETA VERSION WARNING\n\n') +
-      chalk.cyan(`${banner}\n`) +
-      chalk.cyan('For detailed security information, visit:\n') +
-      chalk.blue.underline('https://github.com/nikomatt69/nikcli-main/blob/main/SECURITY.md\n\n') +
-      chalk.white('By continuing, you acknowledge these risks.'),
+        chalk.cyan(`${banner}\n`) +
+        chalk.cyan('For detailed security information, visit:\n') +
+        chalk.blue.underline('https://github.com/nikomatt69/nikcli-main/blob/main/SECURITY.md\n\n') +
+        chalk.white('By continuing, you acknowledge these risks.'),
       {
         padding: 1,
         borderStyle: 'round',
@@ -2759,8 +2772,8 @@ export class NikCLI {
     lines.push(chalk.cyan('API key'))
     lines.push(
       chalk.white('• Env: ANTHROPIC_API_KEY | OPENAI_API_KEY | OPENROUTER_API_KEY') +
-      '\n' +
-      chalk.white('  GOOGLE_GENERATIVE_AI_API_KEY | AI_GATEWAY_API_KEY')
+        '\n' +
+        chalk.white('  GOOGLE_GENERATIVE_AI_API_KEY | AI_GATEWAY_API_KEY')
     )
     lines.push(chalk.white('• /set-key-<provider> <key> saved in  ~/.nikcli'))
     lines.push('')
@@ -2833,13 +2846,14 @@ export class NikCLI {
       lines.push('  /redis-status          Show Redis status')
       lines.push('  /queue status         Input queue status')
 
-      this.printPanel(boxen(lines.join('\n'), {
-        title: '⌨️  Keyboard & Commands',
-        padding: 1,
-        margin: 1,
-        borderStyle: 'round',
-        borderColor: 'cyan',
-      }),
+      this.printPanel(
+        boxen(lines.join('\n'), {
+          title: '⌨️  Keyboard & Commands',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'cyan',
+        }),
         'general'
       )
     } finally {
@@ -3127,13 +3141,14 @@ export class NikCLI {
               lines.push(` ${i + 1}. ${q.input.substring(0, 60)}${q.input.length > 60 ? '…' : ''}`)
             })
           }
-          this.printPanel(boxen(lines.join('\n'), {
-            title: '📥 Input Queue',
-            padding: 1,
-            margin: 1,
-            borderStyle: 'round',
-            borderColor: 'magenta',
-          }),
+          this.printPanel(
+            boxen(lines.join('\n'), {
+              title: '📥 Input Queue',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'magenta',
+            }),
             'general'
           )
         }
@@ -3934,13 +3949,14 @@ export class NikCLI {
       content.push('⚛️ @react-expert - React and Next.js expert')
     }
 
-    this.printPanel(boxen(content.join('\n'), {
-      title: 'Available Agents',
-      padding: 1,
-      margin: 1,
-      borderStyle: 'round',
-      borderColor: 'cyan',
-    })
+    this.printPanel(
+      boxen(content.join('\n'), {
+        title: 'Available Agents',
+        padding: 1,
+        margin: 1,
+        borderStyle: 'round',
+        borderColor: 'cyan',
+      })
     )
 
     this.printPanel(
@@ -4011,8 +4027,10 @@ export class NikCLI {
         this.printPanel(
           boxen(
             chalk.red(`✖ Token limit exceeded\n\n`) +
-            chalk.gray(`Current: ${chalk.cyan(tokenQuota.used.toString())}/${chalk.cyan(tokenQuota.limit.toString())}\n`) +
-            chalk.gray('Upgrade to Pro to increase limits'),
+              chalk.gray(
+                `Current: ${chalk.cyan(tokenQuota.used.toString())}/${chalk.cyan(tokenQuota.limit.toString())}\n`
+              ) +
+              chalk.gray('Upgrade to Pro to increase limits'),
             {
               title: 'Token Quota Exceeded',
               padding: 1,
@@ -4050,7 +4068,7 @@ export class NikCLI {
       // Record usage in project memory
       try {
         this.projectMemory.recordUsage({ type: 'command', details: input })
-      } catch { }
+      } catch {}
 
       // Load relevant project context for enhanced chat responses
       const relevantContext = await this.getRelevantProjectContext(input)
@@ -4285,7 +4303,7 @@ export class NikCLI {
     try {
       process.env.NIKCLI_COMPACT = '1'
       process.env.NIKCLI_SUPER_COMPACT = '1'
-    } catch { }
+    } catch {}
     this.addLiveUpdate({
       type: 'info',
       content: '🎯 Entering Enhanced Planning Mode with TaskMaster AI...',
@@ -4423,10 +4441,10 @@ export class NikCLI {
 
         try {
           inputQueue.disableBypass()
-        } catch { }
+        } catch {}
         try {
           advancedUI.stopInteractiveMode?.()
-        } catch { }
+        } catch {}
         this.resumePromptAndRender()
       } else {
         this.addLiveUpdate({ type: 'info', content: '📝 Plan saved to todo.md', source: 'planning' })
@@ -4470,10 +4488,10 @@ export class NikCLI {
 
         try {
           inputQueue.disableBypass()
-        } catch { }
+        } catch {}
         try {
           advancedUI.stopInteractiveMode?.()
-        } catch { }
+        } catch {}
 
         this.cleanupPlanArtifacts()
         this.resumePromptAndRender()
@@ -4722,7 +4740,10 @@ EOF`
 
     // Log with structured format (consistent with default mode)
     await this.advancedUI.logFunctionCall(`vm_command`)
-    await this.advancedUI.logFunctionUpdate('info', `Executing: ${command.substring(0, 60)}${command.length > 60 ? '...' : ''}`)
+    await this.advancedUI.logFunctionUpdate(
+      'info',
+      `Executing: ${command.substring(0, 60)}${command.length > 60 ? '...' : ''}`
+    )
     await this.advancedUI.logFunctionUpdate('info', `Container: ${this.activeVMContainer.slice(0, 12)}`)
 
     console.log(chalk.cyan(`🐳 Executing command in VM: ${command}`))
@@ -4800,7 +4821,7 @@ EOF`
       // Stop interactive mode
       try {
         advancedUI.stopInteractiveMode?.()
-      } catch { }
+      } catch {}
 
       // Restore prompt
       this.resumePromptAndRender()
@@ -4822,7 +4843,7 @@ EOF`
     this.activeTimers.forEach((timer) => {
       try {
         clearTimeout(timer)
-      } catch { }
+      } catch {}
     })
     this.activeTimers.clear()
   }
@@ -4834,7 +4855,7 @@ EOF`
     this.inquirerInstances.forEach((instance) => {
       try {
         instance.removeAllListeners?.()
-      } catch { }
+      } catch {}
     })
     this.inquirerInstances.clear()
   }
@@ -5076,8 +5097,6 @@ EOF`
         this.currentStreamControllers.delete(streamController)
       }
 
-
-
       // Clear streamed output and show formatted version if needed (same as default mode)
       if (shouldFormatOutput) {
         // Just add spacing
@@ -5106,7 +5125,6 @@ EOF`
     } finally {
       unifiedRenderer.endExecution()
       // End parallel execution mode - resume ephemeral cleanup
-
     }
   }
 
@@ -5200,7 +5218,9 @@ EOF`
       setTimeout(() => this.renderPromptAfterOutput(), 100)
 
       // Notify plan completion (failed)
-      try { void this.sendPlanCompletionNotification(plan, false) } catch { }
+      try {
+        void this.sendPlanCompletionNotification(plan, false)
+      } catch {}
 
       throw error
     }
@@ -5297,12 +5317,12 @@ ${todo.description ? `\n**Description:** ${todo.description}` : ''}
 **Agent Outputs:**
 
 ${agentOutputs
-        .map(
-          (ao) => `### ${ao.agentName} (${ao.specialization})
+  .map(
+    (ao) => `### ${ao.agentName} (${ao.specialization})
 ${ao.output || '(No output)'}
 `
-        )
-        .join('\n\n')}
+  )
+  .join('\n\n')}
 
 **Your Job:**
 Synthesize these outputs into ONE coherent result with the following sections:
@@ -5565,7 +5585,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
    */
   private ensureParallelToolchainResizeHook(): void {
     if ((this as any)._parallelResizeHookSet) return
-      ; (this as any)._parallelResizeHookSet = true
+    ;(this as any)._parallelResizeHookSet = true
     process.stdout.on('resize', () => {
       if (!this.parallelToolchainDisplay || this.parallelToolchainDisplay.size === 0) return
       const terminalHeight = process.stdout.rows || 24
@@ -5742,11 +5762,9 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
                 case 'tool_call': {
                   // Tool execution events with parameter info
                   const toolInfo = this.formatToolCallInfo(ev)
-                  {
-                    advancedUI.logFunctionCall(toolInfo.functionName)
-                    if (toolInfo.details) {
-                      advancedUI.logFunctionUpdate('info', toolInfo.details, 'ℹ')
-                    }
+                  advancedUI.logFunctionCall(toolInfo.functionName)
+                  if (toolInfo.details) {
+                    advancedUI.logFunctionUpdate('info', toolInfo.details, 'ℹ')
                   }
                   break
                 }
@@ -5754,9 +5772,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
                 case 'tool_result':
                   // Tool results
                   if (ev.toolResult) {
-                    {
-                      advancedUI.logFunctionUpdate('success', 'Tool completed', '✓')
-                    }
+                    advancedUI.logFunctionUpdate('success', 'Tool completed', '✓')
                   }
                   break
 
@@ -6069,7 +6085,6 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     return lines
   }
 
-
   /**
    * Show ads as structured log
    * Fetches active campaigns and displays as structured log instead of panel
@@ -6185,10 +6200,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
 
       // Increment impressions
       const newImpressions = (selectedAd.impressions_served || 0) + 1
-      await supabase
-        .from(this.adCampaignsTable)
-        .update({ impressions_served: newImpressions })
-        .eq('id', selectedAd.id)
+      await supabase.from(this.adCampaignsTable).update({ impressions_served: newImpressions }).eq('id', selectedAd.id)
 
       // Display as structured log (only during assistant processing)
       adDisplayManager.displayAdAsStructuredLog(selectedAd, this.assistantProcessing)
@@ -6210,9 +6222,12 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     }, 30 * 1000)
 
     // Then show ads every 5 minutes
-    this.adsTimer = setInterval(() => {
-      void this.showAdsAsStructuredLog()
-    }, 5 * 60 * 1000)
+    this.adsTimer = setInterval(
+      () => {
+        void this.showAdsAsStructuredLog()
+      },
+      5 * 60 * 1000
+    )
   }
 
   /**
@@ -6233,11 +6248,11 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
 
     const summary = boxen(
       `${chalk.bold('Execution Summary')}\n\n` +
-      `${chalk.green('✓ Completed:')} ${completed}\n` +
-      `${chalk.red('✖ Failed:')} ${failed}\n` +
-      `${chalk.yellow('⚠︎ Warnings:')} ${warnings}\n` +
-      `${chalk.blue('📊 Total:')} ${indicators.length}\n\n` +
-      `${chalk.gray('Overall Status:')} ${this.getOverallStatusText()}`,
+        `${chalk.green('✓ Completed:')} ${completed}\n` +
+        `${chalk.red('✖ Failed:')} ${failed}\n` +
+        `${chalk.yellow('⚠︎ Warnings:')} ${warnings}\n` +
+        `${chalk.blue('📊 Total:')} ${indicators.length}\n\n` +
+        `${chalk.gray('Overall Status:')} ${this.getOverallStatusText()}`,
       {
         padding: 1,
         margin: { top: 1, bottom: 1, left: 0, right: 0 },
@@ -6274,7 +6289,6 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
   private async handleDefaultMode(input: string): Promise<void> {
     // Initialize as Unified Aggregator for all event sources
     this.subscribeToAllEventSources()
-
 
     // DISABLED: Auto-todo generation in default chat mode
     // Now only triggers when user explicitly mentions "todo"
@@ -6346,7 +6360,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
               'success',
               0
             )
-          } catch { }
+          } catch {}
 
           // Auto-execute high-confidence tool recommendations in VM if available
           if (topRecommendation.confidence > 0.7 && this.activeVMContainer) {
@@ -6511,7 +6525,11 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
               // Show file diffs and content using advancedUI
               if (ev.metadata?.filePath) {
                 if (ev.metadata?.originalContent && ev.metadata?.newContent) {
-                  this.advancedUI.showFileDiff(ev.metadata.filePath, ev.metadata.originalContent, ev.metadata.newContent)
+                  this.advancedUI.showFileDiff(
+                    ev.metadata.filePath,
+                    ev.metadata.originalContent,
+                    ev.metadata.newContent
+                  )
                 } else if (ev.metadata?.content) {
                   this.advancedUI.showFileContent(ev.metadata.filePath, ev.metadata.content)
                 }
@@ -6569,7 +6587,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
         if (interactiveStarted) {
           try {
             advancedUI.stopInteractiveMode?.()
-          } catch { }
+          } catch {}
         }
         this.rl?.prompt()
       }
@@ -7022,13 +7040,14 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
                 this.sessionContext.set(key, { nextStart: t + 1, step: defaultStep })
                 if (t < total) {
                   console.log(chalk.gray('─'.repeat(50)))
-                  this.printPanel(boxen(`Tip: use "/read ${filePath} --more" to continue (next from line ${t + 1}, 'general')`, {
-                    title: 'Read More Tip',
-                    padding: 1,
-                    margin: 1,
-                    borderStyle: 'round',
-                    borderColor: 'cyan',
-                  })
+                  this.printPanel(
+                    boxen(`Tip: use "/read ${filePath} --more" to continue (next from line ${t + 1}, 'general')`, {
+                      title: 'Read More Tip',
+                      padding: 1,
+                      margin: 1,
+                      borderStyle: 'round',
+                      borderColor: 'cyan',
+                    })
                   )
                 }
               } else {
@@ -7079,13 +7098,14 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
           await toolsManager.writeFile(filePath, content)
 
           this.stopAdvancedSpinner(writeId, true, `File written: ${filePath}`)
-          this.printPanel(boxen(chalk.green(`File written: ${filePath}\n\n${content.length} characters written`, 'general'), {
-            title: 'Write Complete',
-            padding: 1,
-            margin: 1,
-            borderStyle: 'round',
-            borderColor: 'green',
-          })
+          this.printPanel(
+            boxen(chalk.green(`File written: ${filePath}\n\n${content.length} characters written`, 'general'), {
+              title: 'Write Complete',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'green',
+            })
           )
           break
         }
@@ -7444,8 +7464,10 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
             this.printPanel(
               boxen(
                 chalk.red(`✖ Session limit reached\n\n`) +
-                chalk.gray(`Current: ${chalk.cyan(sessionQuota.used.toString())}/${chalk.cyan(sessionQuota.limit.toString())}\n`) +
-                chalk.gray('Upgrade to Pro to increase limits'),
+                  chalk.gray(
+                    `Current: ${chalk.cyan(sessionQuota.used.toString())}/${chalk.cyan(sessionQuota.limit.toString())}\n`
+                  ) +
+                  chalk.gray('Upgrade to Pro to increase limits'),
                 {
                   title: 'Session Quota Exceeded',
                   padding: 1,
@@ -7494,13 +7516,14 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
               lines.push(`   ${messageCount} messages | ${session.updatedAt.toLocaleString()}`)
             })
           }
-          this.printPanel(boxen(lines.join('\n'), {
-            title: 'Chat Sessions',
-            padding: 1,
-            margin: 1,
-            borderStyle: 'round',
-            borderColor: 'cyan',
-          })
+          this.printPanel(
+            boxen(lines.join('\n'), {
+              title: 'Chat Sessions',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'cyan',
+            })
           )
           break
         }
@@ -7652,13 +7675,14 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
           try {
             // Sync AdvancedAIProvider immediately so no restart is required
             advancedAIProvider.setModel(modelName)
-            this.printPanel(boxen(`Switched to model: ${modelName}\nApplied immediately (no restart needed, 'general')`, {
-              title: 'Model Updated',
-              padding: 1,
-              margin: 1,
-              borderStyle: 'round',
-              borderColor: 'green',
-            })
+            this.printPanel(
+              boxen(`Switched to model: ${modelName}\nApplied immediately (no restart needed, 'general')`, {
+                title: 'Model Updated',
+                padding: 1,
+                margin: 1,
+                borderStyle: 'round',
+                borderColor: 'green',
+              })
             )
           } catch {
             console.log(chalk.green(`✓ Switched to model: ${modelName}`))
@@ -7687,9 +7711,9 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
               this.printPanel(
                 boxen(
                   `Provider: ${provider}\n` +
-                  `Model: ${modelCfg?.model || modelName}\n` +
-                  `API key not configured.\n` +
-                  `Tip: /set-key ${modelName} <your-api-key>  |  ${tip}`,
+                    `Model: ${modelCfg?.model || modelName}\n` +
+                    `API key not configured.\n` +
+                    `Tip: /set-key ${modelName} <your-api-key>  |  ${tip}`,
                   { title: '🔑 API Key Missing', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'yellow' }
                 )
               )
@@ -7816,13 +7840,14 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
 
           try {
             const taskId = await agentService.executeTask(agentName, task, {})
-            this.printPanel(boxen(`Successfully launched ${agentName} (Task ID: ${taskId.slice(-6,)})`, {
-              title: 'Agent Started',
-              padding: 1,
-              margin: 1,
-              borderStyle: 'round',
-              borderColor: 'green',
-            })
+            this.printPanel(
+              boxen(`Successfully launched ${agentName} (Task ID: ${taskId.slice(-6)})`, {
+                title: 'Agent Started',
+                padding: 1,
+                margin: 1,
+                borderStyle: 'round',
+                borderColor: 'green',
+              })
             )
           } catch (error: any) {
             this.printPanel(
@@ -7945,8 +7970,8 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
                 )
               )
 
-                // Set up collaboration context for this agent
-                ; (agent as any).collaborationContext = collaborationContext
+              // Set up collaboration context for this agent
+              ;(agent as any).collaborationContext = collaborationContext
 
               return {
                 agentIdentifier,
@@ -8232,8 +8257,8 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
                 )
               )
 
-                // Set up collaboration context for this agent
-                ; (agent as any).collaborationContext = collaborationContext
+              // Set up collaboration context for this agent
+              ;(agent as any).collaborationContext = collaborationContext
 
               return {
                 agentIdentifier,
@@ -8417,13 +8442,14 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
                 borderColor = percentage >= 90 ? 'red' : percentage >= 80 ? 'yellow' : 'cyan'
               }
 
-              this.printPanel(boxen(lines.join('\n'), {
-                title: '📊 Context Statistics',
-                padding: 1,
-                margin: 1,
-                borderStyle: 'round',
-                borderColor: borderColor,
-              })
+              this.printPanel(
+                boxen(lines.join('\n'), {
+                  title: '📊 Context Statistics',
+                  padding: 1,
+                  margin: 1,
+                  borderStyle: 'round',
+                  borderColor: borderColor,
+                })
               )
             } else {
               // Load paths with progress indication
@@ -8462,13 +8488,14 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
                 lines.push(`  Total Indexed: ${chalk.white(ctx.selectedPaths.length.toString())} paths`)
               }
 
-              this.printPanel(boxen(lines.join('\n'), {
-                title: '🌍 Context Updated',
-                padding: 1,
-                margin: 1,
-                borderStyle: 'round',
-                borderColor: 'green',
-              })
+              this.printPanel(
+                boxen(lines.join('\n'), {
+                  title: '🌍 Context Updated',
+                  padding: 1,
+                  margin: 1,
+                  borderStyle: 'round',
+                  borderColor: 'green',
+                })
               )
             }
           } finally {
@@ -8884,13 +8911,14 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       }
     }
 
-    this.printPanel(boxen(logLines.join('\n'), {
-      title: 'Parallel Execution Logs',
-      padding: 1,
-      margin: 1,
-      borderStyle: 'round',
-      borderColor: 'cyan',
-    })
+    this.printPanel(
+      boxen(logLines.join('\n'), {
+        title: 'Parallel Execution Logs',
+        padding: 1,
+        margin: 1,
+        borderStyle: 'round',
+        borderColor: 'cyan',
+      })
     )
   }
 
@@ -8943,18 +8971,19 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       blueprintLines.push(
         `  /parallel [${blueprints
           .slice(0, 2)
-          .map((b) => (b?.name || (b?.id ? (b.id.length >= 8 ? b.id.slice(-8) : b.id) : 'unknown')))
+          .map((b) => b?.name || (b?.id ? (b.id.length >= 8 ? b.id.slice(-8) : b.id) : 'unknown'))
           .join(', ')}] "analyze this code"`
       )
       blueprintLines.push(`  /launch-agent ${blueprints[0]?.id || 'blueprint-id'} "specific task"`)
 
-      this.printPanel(boxen(blueprintLines.join('\n'), {
-        title: '🏭 Available Factory Blueprints',
-        padding: 1,
-        margin: 1,
-        borderStyle: 'round',
-        borderColor: 'cyan',
-      })
+      this.printPanel(
+        boxen(blueprintLines.join('\n'), {
+          title: '🏭 Available Factory Blueprints',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'cyan',
+        })
       )
     } catch (error: any) {
       this.printPanel(
@@ -9007,13 +9036,14 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       `📝 Total Log Entries: ${Array.from(context.logs.values()).reduce((total, logs) => total + logs.length, 0)}`
     )
 
-    this.printPanel(boxen(statusLines.join('\n'), {
-      title: 'Parallel Execution Status',
-      padding: 1,
-      margin: 1,
-      borderStyle: 'round',
-      borderColor: 'blue',
-    })
+    this.printPanel(
+      boxen(statusLines.join('\n'), {
+        title: 'Parallel Execution Status',
+        padding: 1,
+        margin: 1,
+        borderStyle: 'round',
+        borderColor: 'blue',
+      })
     )
   }
 
@@ -9430,16 +9460,17 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
             break
           }
 
-          this.printPanel(boxen(
-            `🎨 Fetching Figma file info\n\n📋 File ID: ${fileId}\n📍 Source: ${args[0].includes('http') ? 'URL' : 'Direct ID'}\n\n⚠︎  This feature requires Figma API implementation`,
-            {
-              title: 'Figma Info',
-              padding: 1,
-              margin: 1,
-              borderStyle: 'round',
-              borderColor: 'yellow',
-            }
-          )
+          this.printPanel(
+            boxen(
+              `🎨 Fetching Figma file info\n\n📋 File ID: ${fileId}\n📍 Source: ${args[0].includes('http') ? 'URL' : 'Direct ID'}\n\n⚠︎  This feature requires Figma API implementation`,
+              {
+                title: 'Figma Info',
+                padding: 1,
+                margin: 1,
+                borderStyle: 'round',
+                borderColor: 'yellow',
+              }
+            )
           )
           break
         }
@@ -9476,16 +9507,17 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
           }
 
           const format = args[1] || 'svg'
-          this.printPanel(boxen(
-            `🎨 Exporting Figma file\n\n📋 File ID: ${exportFileId}\n📐 Format: ${format}\n📍 Source: ${args[0].includes('http') ? 'URL' : 'Direct ID'}\n\n⚠︎  This feature requires Figma API implementation`,
-            {
-              title: 'Figma Export',
-              padding: 1,
-              margin: 1,
-              borderStyle: 'round',
-              borderColor: 'yellow',
-            }
-          )
+          this.printPanel(
+            boxen(
+              `🎨 Exporting Figma file\n\n📋 File ID: ${exportFileId}\n📐 Format: ${format}\n📍 Source: ${args[0].includes('http') ? 'URL' : 'Direct ID'}\n\n⚠︎  This feature requires Figma API implementation`,
+              {
+                title: 'Figma Export',
+                padding: 1,
+                margin: 1,
+                borderStyle: 'round',
+                borderColor: 'yellow',
+              }
+            )
           )
           break
         }
@@ -9750,14 +9782,15 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
         lines.push('/doc-unload [names|--all]  - Unload docs')
         lines.push('/doc-suggest <query>       - Suggest docs')
 
-        this.printPanel(boxen(lines.join('\n'), {
-          title: 'Documentation System',
-          padding: 1,
-          margin: 1,
-          borderStyle: 'round',
-          borderColor: 'magenta',
-          width: this.getOptimalPanelWidth(),
-        })
+        this.printPanel(
+          boxen(lines.join('\n'), {
+            title: 'Documentation System',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'magenta',
+            width: this.getOptimalPanelWidth(),
+          })
         )
 
         return
@@ -10062,15 +10095,16 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
         const lines = [`Downloaded: ${result.downloaded}`, `Uploaded: ${result.uploaded}`]
         if (result.downloaded > 0) lines.push('Use /doc-search to explore new content')
         const maxHeight = this.getAvailablePanelHeight()
-        this.printPanel(boxen(lines.join('\n'), {
-          title: 'Docs Sync',
-          padding: 1,
-          margin: 1,
-          borderStyle: 'round',
-          borderColor: 'green',
-          width: Math.min(120, (process.stdout.columns || 100) - 4),
-          height: Math.min(maxHeight + 4, (process.stdout.rows || 24) - 2),
-        })
+        this.printPanel(
+          boxen(lines.join('\n'), {
+            title: 'Docs Sync',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'green',
+            width: Math.min(120, (process.stdout.columns || 100) - 4),
+            height: Math.min(maxHeight + 4, (process.stdout.rows || 24) - 2),
+          })
         )
       } catch (error: any) {
         spinner.fail('Sync failed')
@@ -10121,15 +10155,16 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       }
 
       const maxHeight = this.getAvailablePanelHeight()
-      this.printPanel(boxen(`Loading ${args.length} document(s, 'general') into AI context…`, {
-        title: '⚡︎ Load Docs',
-        padding: 1,
-        margin: 1,
-        borderStyle: 'round',
-        borderColor: 'cyan',
-        width: Math.min(120, (process.stdout.columns || 100) - 4),
-        height: Math.min(maxHeight + 4, (process.stdout.rows || 24) - 2),
-      })
+      this.printPanel(
+        boxen(`Loading ${args.length} document(s, 'general') into AI context…`, {
+          title: '⚡︎ Load Docs',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'cyan',
+          width: Math.min(120, (process.stdout.columns || 100) - 4),
+          height: Math.min(maxHeight + 4, (process.stdout.rows || 24) - 2),
+        })
       )
 
       const loadedDocs = await docsContextManager.loadDocs(args)
@@ -10297,18 +10332,16 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     // Initialize project memory for this workspace
     try {
       await this.projectMemory.initializeProject(this.workingDirectory)
-    } catch { }
+    } catch {}
 
     // Warm up learning and feedback systems (non-blocking)
     try {
       const insights = this.agentLearningSystem.getAgentInsights()
-
-    } catch { }
+    } catch {}
 
     try {
       const stats = this.intelligentFeedbackWrapper.getLearningStats()
-
-    } catch { }
+    } catch {}
 
     // Initialize memory and snapshot services
     await memoryService.initialize()
@@ -10347,7 +10380,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       this.dynamicToolSelector = new DynamicToolSelector(this.workingDirectory)
       componentStatus['instantiation'] = {
         status: '✓ completed',
-        time: Date.now() - instantiateStart
+        time: Date.now() - instantiateStart,
       }
 
       // 2. Initialize ML Inference Engine
@@ -10355,19 +10388,15 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       await this.mlInferenceEngine.initialize(cacheService)
       componentStatus['mlInferenceEngine'] = {
         status: '✓ initialized',
-        time: Date.now() - mlEngineStart
+        time: Date.now() - mlEngineStart,
       }
 
       // 3. Initialize Toolchain Optimizer
       const optimizerStart = Date.now()
-      await this.toolchainOptimizer.initialize(
-        enhancedSupabaseProvider,
-        this.mlInferenceEngine,
-        this.featureExtractor
-      )
+      await this.toolchainOptimizer.initialize(enhancedSupabaseProvider, this.mlInferenceEngine, this.featureExtractor)
       componentStatus['toolchainOptimizer'] = {
         status: '✓ initialized',
-        time: Date.now() - optimizerStart
+        time: Date.now() - optimizerStart,
       }
 
       // 4. Initialize Evaluation Pipeline
@@ -10375,7 +10404,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       await this.evaluationPipeline.initialize(enhancedSupabaseProvider)
       componentStatus['evaluationPipeline'] = {
         status: '✓ initialized',
-        time: Date.now() - evaluationStart
+        time: Date.now() - evaluationStart,
       }
 
       // 5. Integrate with tool routing
@@ -10384,7 +10413,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       this.dynamicToolSelector.setMLInferenceEngine(this.mlInferenceEngine)
       componentStatus['integration'] = {
         status: '✓ completed',
-        time: Date.now() - integrationStart
+        time: Date.now() - integrationStart,
       }
 
       // 6. Verify all components are active
@@ -10397,11 +10426,11 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
         dynamicToolSelector: this.dynamicToolSelector !== undefined,
         toolRouterIntegrated: toolRouter !== undefined,
         cacheServiceAvailable: cacheService !== undefined,
-        supabaseProviderAvailable: enhancedSupabaseProvider !== undefined
+        supabaseProviderAvailable: enhancedSupabaseProvider !== undefined,
       }
       componentStatus['verification'] = {
         status: '✓ completed',
-        time: Date.now() - verificationStart
+        time: Date.now() - verificationStart,
       }
 
       const totalTime = Date.now() - mlStartTime
@@ -10432,9 +10461,11 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       evaluationPipeline: this.evaluationPipeline !== undefined,
       toolchainOptimizer: this.toolchainOptimizer !== undefined,
       dynamicToolSelector: this.dynamicToolSelector !== undefined,
-      allComponentsActive: false
+      allComponentsActive: false,
     }
-    status.allComponentsActive = Object.values(status).slice(0, -1).every(v => v === true)
+    status.allComponentsActive = Object.values(status)
+      .slice(0, -1)
+      .every((v) => v === true)
     return status
   }
 
@@ -10454,11 +10485,8 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
         })
 
         if (cloudDocsConfig.autoSync) {
-
           await provider.sync()
         }
-
-
       } else {
         structuredLogger.info('Docs Cloud', 'ℹ️ Cloud documentation disabled')
       }
@@ -10743,18 +10771,19 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       const { calculateTokenCost, MODEL_COSTS } = await import('./config/token-limits')
       const currentModel = this.configManager.getCurrentModel()
 
-      this.printPanel(boxen(
-        `${chalk.cyan('Session Tokens:', 'general')}\n` +
-        `Input (User): ${chalk.white(userTokens.toLocaleString())} tokens\n` +
-        `Output (Assistant): ${chalk.white(assistantTokens.toLocaleString())} tokens\n` +
-        `Total: ${chalk.white((userTokens + assistantTokens).toLocaleString())} tokens`,
-        {
-          padding: 1,
-          margin: 1,
-          borderStyle: 'round',
-          borderColor: 'cyan',
-        }
-      )
+      this.printPanel(
+        boxen(
+          `${chalk.cyan('Session Tokens:', 'general')}\n` +
+            `Input (User): ${chalk.white(userTokens.toLocaleString())} tokens\n` +
+            `Output (Assistant): ${chalk.white(assistantTokens.toLocaleString())} tokens\n` +
+            `Total: ${chalk.white((userTokens + assistantTokens).toLocaleString())} tokens`,
+          {
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'cyan',
+          }
+        )
       )
 
       console.log(chalk.cyan('\n🏆 All Models Comparison:'))
@@ -10762,10 +10791,10 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       console.log(
         chalk.white(
           'Model'.padEnd(30) +
-          'Total Cost'.padStart(12) +
-          'Input Cost'.padStart(12) +
-          'Output Cost'.padStart(12) +
-          'Provider'.padStart(15)
+            'Total Cost'.padStart(12) +
+            'Input Cost'.padStart(12) +
+            'Output Cost'.padStart(12) +
+            'Provider'.padStart(15)
         )
       )
       console.log(chalk.gray('─'.repeat(90)))
@@ -10823,22 +10852,23 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       const currentModel = this.configManager.getCurrentModel()
       const pricing = getModelPricing(currentModel)
 
-      this.printPanel(boxen(
-        `${chalk.cyan('Current Model:', 'general')}\n` +
-        `${chalk.white(pricing.displayName)}\n\n` +
-        `${chalk.green('Input Pricing:')} $${pricing.input.toFixed(2)} per 1M tokens\n` +
-        `${chalk.green('Output Pricing:')} $${pricing.output.toFixed(2)} per 1M tokens\n\n` +
-        `${chalk.yellow('Examples:')}\n` +
-        `• 1K input + 1K output = $${((pricing.input + pricing.output) / 1000).toFixed(4)}\n` +
-        `• 10K input + 10K output = $${((pricing.input + pricing.output) / 100).toFixed(4)}\n` +
-        `• 100K input + 100K output = $${((pricing.input + pricing.output) / 10).toFixed(3)}`,
-        {
-          padding: 1,
-          margin: 1,
-          borderStyle: 'round',
-          borderColor: 'blue',
-        }
-      )
+      this.printPanel(
+        boxen(
+          `${chalk.cyan('Current Model:', 'general')}\n` +
+            `${chalk.white(pricing.displayName)}\n\n` +
+            `${chalk.green('Input Pricing:')} $${pricing.input.toFixed(2)} per 1M tokens\n` +
+            `${chalk.green('Output Pricing:')} $${pricing.output.toFixed(2)} per 1M tokens\n\n` +
+            `${chalk.yellow('Examples:')}\n` +
+            `• 1K input + 1K output = $${((pricing.input + pricing.output) / 1000).toFixed(4)}\n` +
+            `• 10K input + 10K output = $${((pricing.input + pricing.output) / 100).toFixed(4)}\n` +
+            `• 100K input + 100K output = $${((pricing.input + pricing.output) / 10).toFixed(3)}`,
+          {
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'blue',
+          }
+        )
       )
 
       // Show all available models
@@ -10871,18 +10901,19 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       const inputTokens = Math.floor(targetTokens / 2)
       const outputTokens = Math.floor(targetTokens / 2)
 
-      this.printPanel(boxen(
-        `${chalk.cyan('Estimation Parameters:', 'general')}\n` +
-        `Target Tokens: ${chalk.white(targetTokens.toLocaleString())}\n` +
-        `Input Tokens: ${chalk.white(inputTokens.toLocaleString())} (50%)\n` +
-        `Output Tokens: ${chalk.white(outputTokens.toLocaleString())} (50%)`,
-        {
-          padding: 1,
-          margin: 1,
-          borderStyle: 'round',
-          borderColor: 'cyan',
-        }
-      )
+      this.printPanel(
+        boxen(
+          `${chalk.cyan('Estimation Parameters:', 'general')}\n` +
+            `Target Tokens: ${chalk.white(targetTokens.toLocaleString())}\n` +
+            `Input Tokens: ${chalk.white(inputTokens.toLocaleString())} (50%)\n` +
+            `Output Tokens: ${chalk.white(outputTokens.toLocaleString())} (50%)`,
+          {
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'cyan',
+          }
+        )
       )
 
       console.log(chalk.cyan('\n💸 Cost Estimates by Model:'))
@@ -10998,27 +11029,28 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
 
         const totalTokensSaved = stats.totalTokensSaved + completionStats.totalHits * 50 // Estimate 50 tokens saved per completion hit
 
-        this.printPanel(boxen(
-          `${chalk.cyan.bold('🔮 Advanced Cache System Statistics', 'general')}\n\n` +
-          redisStats +
-          `${chalk.magenta('📦 Full Response Cache:')}\n` +
-          `  Entries: ${chalk.white(stats.totalEntries.toLocaleString())}\n` +
-          `  Hits: ${chalk.green(stats.totalHits.toLocaleString())}\n` +
-          `  Tokens Saved: ${chalk.yellow(stats.totalTokensSaved.toLocaleString())}\n\n` +
-          `${chalk.cyan('🔮 Completion Protocol Cache:')} ${chalk.red('NEW!')}\n` +
-          `  Patterns: ${chalk.white(completionStats.totalPatterns.toLocaleString())}\n` +
-          `  Hits: ${chalk.green(completionStats.totalHits.toLocaleString())}\n` +
-          `  Avg Confidence: ${chalk.blue(Math.round(completionStats.averageConfidence * 100))}%\n\n` +
-          `${chalk.green.bold('💰 Total Savings:')}\n` +
-          `Combined Tokens: ${chalk.yellow(totalTokensSaved.toLocaleString())}\n` +
-          `Estimated Cost: ~$${((totalTokensSaved * 0.003) / 1000).toFixed(2)}`,
-          {
-            padding: 1,
-            margin: 1,
-            borderStyle: 'round',
-            borderColor: 'magenta',
-          }
-        )
+        this.printPanel(
+          boxen(
+            `${chalk.cyan.bold('🔮 Advanced Cache System Statistics', 'general')}\n\n` +
+              redisStats +
+              `${chalk.magenta('📦 Full Response Cache:')}\n` +
+              `  Entries: ${chalk.white(stats.totalEntries.toLocaleString())}\n` +
+              `  Hits: ${chalk.green(stats.totalHits.toLocaleString())}\n` +
+              `  Tokens Saved: ${chalk.yellow(stats.totalTokensSaved.toLocaleString())}\n\n` +
+              `${chalk.cyan('🔮 Completion Protocol Cache:')} ${chalk.red('NEW!')}\n` +
+              `  Patterns: ${chalk.white(completionStats.totalPatterns.toLocaleString())}\n` +
+              `  Hits: ${chalk.green(completionStats.totalHits.toLocaleString())}\n` +
+              `  Avg Confidence: ${chalk.blue(Math.round(completionStats.averageConfidence * 100))}%\n\n` +
+              `${chalk.green.bold('💰 Total Savings:')}\n` +
+              `Combined Tokens: ${chalk.yellow(totalTokensSaved.toLocaleString())}\n` +
+              `Estimated Cost: ~$${((totalTokensSaved * 0.003) / 1000).toFixed(2)}`,
+            {
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'magenta',
+            }
+          )
         )
 
         if (stats.totalEntries > 0) {
@@ -11053,47 +11085,49 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
           const totalTokens = stats.session.totalInputTokens + stats.session.totalOutputTokens
           const usagePercent = (totalTokens / limits.context) * 100
 
-          this.printPanel(boxen(
-            `${chalk.cyan('🎯 Precise Token Tracking Session', 'general')}\n\n` +
-            `Model: ${chalk.white(`${currentProvider}:${currentModel}`)}\n` +
-            `Messages: ${chalk.white(stats.session.messageCount.toLocaleString())}\n` +
-            `Input Tokens: ${chalk.white(stats.session.totalInputTokens.toLocaleString())}\n` +
-            `Output Tokens: ${chalk.white(stats.session.totalOutputTokens.toLocaleString())}\n` +
-            `Total Tokens: ${chalk.white(totalTokens.toLocaleString())}\n` +
-            `Context Limit: ${chalk.gray(limits.context.toLocaleString())}\n` +
-            `Usage: ${usagePercent > 90 ? chalk.red(`${usagePercent.toFixed(1)}%`) : usagePercent > 80 ? chalk.yellow(`${usagePercent.toFixed(1)}%`) : chalk.green(`${usagePercent.toFixed(1)}%`)}\n` +
-            `Remaining: ${chalk.gray((limits.context - totalTokens).toLocaleString())} tokens\n\n` +
-            `${chalk.yellow('💰 Precise Real-time Cost:')}\n` +
-            `Total Session Cost: ${chalk.yellow.bold(`$${stats.session.totalCost.toFixed(6)}`)}\n` +
-            `Average per Message: ${chalk.green(`$${stats.costPerMessage.toFixed(6)}`)}\n` +
-            `Tokens per Minute: ${chalk.blue(Math.round(stats.tokensPerMinute).toLocaleString())}\n` +
-            `Session Duration: ${`${chalk.gray(Math.round(stats.session.lastActivity.getTime() - stats.session.startTime.getTime()) / 60000)} min`}`,
-            {
-              padding: 1,
-              margin: 1,
-              borderStyle: 'round',
-              borderColor: usagePercent > 90 ? 'red' : usagePercent > 80 ? 'yellow' : 'green',
-              title: '🔢 Universal Tokenizer',
-            }
-          )
+          this.printPanel(
+            boxen(
+              `${chalk.cyan('🎯 Precise Token Tracking Session', 'general')}\n\n` +
+                `Model: ${chalk.white(`${currentProvider}:${currentModel}`)}\n` +
+                `Messages: ${chalk.white(stats.session.messageCount.toLocaleString())}\n` +
+                `Input Tokens: ${chalk.white(stats.session.totalInputTokens.toLocaleString())}\n` +
+                `Output Tokens: ${chalk.white(stats.session.totalOutputTokens.toLocaleString())}\n` +
+                `Total Tokens: ${chalk.white(totalTokens.toLocaleString())}\n` +
+                `Context Limit: ${chalk.gray(limits.context.toLocaleString())}\n` +
+                `Usage: ${usagePercent > 90 ? chalk.red(`${usagePercent.toFixed(1)}%`) : usagePercent > 80 ? chalk.yellow(`${usagePercent.toFixed(1)}%`) : chalk.green(`${usagePercent.toFixed(1)}%`)}\n` +
+                `Remaining: ${chalk.gray((limits.context - totalTokens).toLocaleString())} tokens\n\n` +
+                `${chalk.yellow('💰 Precise Real-time Cost:')}\n` +
+                `Total Session Cost: ${chalk.yellow.bold(`$${stats.session.totalCost.toFixed(6)}`)}\n` +
+                `Average per Message: ${chalk.green(`$${stats.costPerMessage.toFixed(6)}`)}\n` +
+                `Tokens per Minute: ${chalk.blue(Math.round(stats.tokensPerMinute).toLocaleString())}\n` +
+                `Session Duration: ${`${chalk.gray(Math.round(stats.session.lastActivity.getTime() - stats.session.startTime.getTime()) / 60000)} min`}`,
+              {
+                padding: 1,
+                margin: 1,
+                borderStyle: 'round',
+                borderColor: usagePercent > 90 ? 'red' : usagePercent > 80 ? 'yellow' : 'green',
+                title: '🔢 Universal Tokenizer',
+              }
+            )
           )
 
           // Context optimization recommendations
           const optimization = contextTokenManager.analyzeContextOptimization()
           if (optimization.shouldTrim || optimization.recommendation !== 'continue') {
-            this.printPanel(boxen(
-              `${chalk.yellow('⚡ Optimization Recommendations:', 'general')}\n\n` +
-              `Status: ${optimization.recommendation === 'continue' ? chalk.green('✓ Good') : chalk.yellow('⚠︎  Attention needed')}\n` +
-              `Action: ${chalk.white(optimization.recommendation.replace('_', ' ').toUpperCase())}\n` +
-              `Reason: ${chalk.gray(optimization.reason)}`,
-              {
-                padding: 1,
-                margin: 1,
-                borderStyle: 'round',
-                borderColor: 'yellow',
-                title: 'Smart Optimization',
-              }
-            )
+            this.printPanel(
+              boxen(
+                `${chalk.yellow('⚡ Optimization Recommendations:', 'general')}\n\n` +
+                  `Status: ${optimization.recommendation === 'continue' ? chalk.green('✓ Good') : chalk.yellow('⚠︎  Attention needed')}\n` +
+                  `Action: ${chalk.white(optimization.recommendation.replace('_', ' ').toUpperCase())}\n` +
+                  `Reason: ${chalk.gray(optimization.reason)}`,
+                {
+                  padding: 1,
+                  margin: 1,
+                  borderStyle: 'round',
+                  borderColor: 'yellow',
+                  title: 'Smart Optimization',
+                }
+              )
             )
           }
         }
@@ -11131,28 +11165,29 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
 
         const currentCost = universalTokenizer.calculateCost(userTokens, assistantTokens, currentModel)
 
-        this.printPanel(boxen(
-          `${chalk.cyan(`${isPrecise ? '🎯' : '📊'} Session Token Analysis`, 'general')}\n\n` +
-          `Messages: ${chalk.white(chatSession.messages.length.toLocaleString())}\n` +
-          `Characters: ${chalk.white(totalChars.toLocaleString())}\n` +
-          `${isPrecise ? 'Precise' : 'Est.'} Tokens: ${chalk.white(preciseTokens.toLocaleString())}\n` +
-          `Context Limit: ${chalk.gray(limits.context.toLocaleString())}\n` +
-          `Usage: ${usagePercent > 90 ? chalk.red(`${usagePercent.toFixed(1)}%`) : usagePercent > 80 ? chalk.yellow(`${usagePercent.toFixed(1)}%`) : chalk.green(`${usagePercent.toFixed(1)}%`)}\n` +
-          `Remaining: ${chalk.gray((limits.context - preciseTokens).toLocaleString())} tokens\n\n` +
-          `${chalk.yellow('💰 Cost Analysis:')}\n` +
-          `Model: ${chalk.white(currentCost.model)}\n` +
-          `Input Cost: ${chalk.green(`$${currentCost.inputCost.toFixed(6)}`)}\n` +
-          `Output Cost: ${chalk.green(`$${currentCost.outputCost.toFixed(6)}`)}\n` +
-          `Total Cost: ${chalk.yellow.bold(`$${currentCost.totalCost.toFixed(6)}`)}\n\n` +
-          `${chalk.blue('💡 Tokenizer:')} ${isPrecise ? chalk.green('Universal Tokenizer ✓') : chalk.yellow('Character estimation (fallback)')}`,
-          {
-            padding: 1,
-            margin: 1,
-            borderStyle: 'round',
-            borderColor: usagePercent > 90 ? 'red' : usagePercent > 80 ? 'yellow' : 'green',
-            title: isPrecise ? 'Precise Analysis' : 'Estimated Analysis',
-          }
-        )
+        this.printPanel(
+          boxen(
+            `${chalk.cyan(`${isPrecise ? '🎯' : '📊'} Session Token Analysis`, 'general')}\n\n` +
+              `Messages: ${chalk.white(chatSession.messages.length.toLocaleString())}\n` +
+              `Characters: ${chalk.white(totalChars.toLocaleString())}\n` +
+              `${isPrecise ? 'Precise' : 'Est.'} Tokens: ${chalk.white(preciseTokens.toLocaleString())}\n` +
+              `Context Limit: ${chalk.gray(limits.context.toLocaleString())}\n` +
+              `Usage: ${usagePercent > 90 ? chalk.red(`${usagePercent.toFixed(1)}%`) : usagePercent > 80 ? chalk.yellow(`${usagePercent.toFixed(1)}%`) : chalk.green(`${usagePercent.toFixed(1)}%`)}\n` +
+              `Remaining: ${chalk.gray((limits.context - preciseTokens).toLocaleString())} tokens\n\n` +
+              `${chalk.yellow('💰 Cost Analysis:')}\n` +
+              `Model: ${chalk.white(currentCost.model)}\n` +
+              `Input Cost: ${chalk.green(`$${currentCost.inputCost.toFixed(6)}`)}\n` +
+              `Output Cost: ${chalk.green(`$${currentCost.outputCost.toFixed(6)}`)}\n` +
+              `Total Cost: ${chalk.yellow.bold(`$${currentCost.totalCost.toFixed(6)}`)}\n\n` +
+              `${chalk.blue('💡 Tokenizer:')} ${isPrecise ? chalk.green('Universal Tokenizer ✓') : chalk.yellow('Character estimation (fallback)')}`,
+            {
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: usagePercent > 90 ? 'red' : usagePercent > 80 ? 'yellow' : 'green',
+              title: isPrecise ? 'Precise Analysis' : 'Estimated Analysis',
+            }
+          )
         )
 
         // Message breakdown
@@ -11161,33 +11196,35 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
         const assistantMsgs = chatSession.messages.filter((m) => m.role === 'assistant')
         const sysTokens = Math.round(systemMsgs.reduce((sum, m) => sum + m.content.length, 0) / 4)
 
-        this.printPanel(boxen(
-          `System: ${systemMsgs.length} messages (${sysTokens.toLocaleString()} tokens)\n` +
-          `User: ${userMsgs.length} messages (${userTokens.toLocaleString()} tokens)\n` +
-          `Assistant: ${assistantMsgs.length} messages (${assistantTokens.toLocaleString()} tokens)`,
-          {
-            title: 'Message Breakdown',
-            padding: 1,
-            margin: 1,
-            borderStyle: 'round',
-            borderColor: 'cyan',
-          }
-        )
+        this.printPanel(
+          boxen(
+            `System: ${systemMsgs.length} messages (${sysTokens.toLocaleString()} tokens)\n` +
+              `User: ${userMsgs.length} messages (${userTokens.toLocaleString()} tokens)\n` +
+              `Assistant: ${assistantMsgs.length} messages (${assistantTokens.toLocaleString()} tokens)`,
+            {
+              title: 'Message Breakdown',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'cyan',
+            }
+          )
         )
 
         // Upgrade suggestion
-        this.printPanel(boxen(
-          `${chalk.yellow('💡 Tip:', 'general')} For more precise tracking, start a new session to enable\n` +
-          `real-time token monitoring with the Universal Tokenizer.\n\n` +
-          `Current session uses ${isPrecise ? 'precise' : 'estimated'} counting.`,
-          {
-            padding: 1,
-            margin: 1,
-            borderStyle: 'round',
-            borderColor: 'yellow',
-            title: 'Upgrade Available',
-          }
-        )
+        this.printPanel(
+          boxen(
+            `${chalk.yellow('💡 Tip:', 'general')} For more precise tracking, start a new session to enable\n` +
+              `real-time token monitoring with the Universal Tokenizer.\n\n` +
+              `Current session uses ${isPrecise ? 'precise' : 'estimated'} counting.`,
+            {
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'yellow',
+              title: 'Upgrade Available',
+            }
+          )
         )
 
         // Model pricing comparison (panel)
@@ -11218,13 +11255,14 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
             }
           })
           if (lines.length > 0) {
-            this.printPanel(boxen(lines.join('\n'), {
-              title: '💸 Model Pricing Comparison',
-              padding: 1,
-              margin: 1,
-              borderStyle: 'round',
-              borderColor: 'blue',
-            })
+            this.printPanel(
+              boxen(lines.join('\n'), {
+                title: '💸 Model Pricing Comparison',
+                padding: 1,
+                margin: 1,
+                borderStyle: 'round',
+                borderColor: 'blue',
+              })
             )
           }
         }
@@ -11246,13 +11284,14 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
         if (preciseTokens > 10000) {
           const projectedDailyCost = (currentCost.totalCost / preciseTokens) * 50000 // Assuming 50k tokens/day
           const projectedMonthlyCost = projectedDailyCost * 30
-          this.printPanel(boxen(
-            [
-              `Daily (50k tokens, 'general'): $${projectedDailyCost.toFixed(4)}`,
-              `Monthly (~1.5M tokens): $${projectedMonthlyCost.toFixed(2)}`,
-            ].join('\n'),
-            { title: 'Cost Projections', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'yellow' }
-          )
+          this.printPanel(
+            boxen(
+              [
+                `Daily (50k tokens, 'general'): $${projectedDailyCost.toFixed(4)}`,
+                `Monthly (~1.5M tokens): $${projectedMonthlyCost.toFixed(2)}`,
+              ].join('\n'),
+              { title: 'Cost Projections', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'yellow' }
+            )
           )
         }
 
@@ -11269,19 +11308,20 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
               const c = calc(userTokens, assistantTokens, name)
               const avgPer1K = (c.totalCost / sessionTokens) * 1000
               lines.push(`${c.model}  avg $/1K: $${avgPer1K.toFixed(4)}  total: $${c.totalCost.toFixed(4)}`)
-            } catch { }
+            } catch {}
           })
           if (lines.length > 0) {
-            this.printPanel(boxen(lines.join('\n'), {
-              title: '🔀 Router: Avg Spend per Model (per 1K)',
-              padding: 1,
-              margin: 1,
-              borderStyle: 'round',
-              borderColor: 'magenta',
-            })
+            this.printPanel(
+              boxen(lines.join('\n'), {
+                title: '🔀 Router: Avg Spend per Model (per 1K)',
+                padding: 1,
+                margin: 1,
+                borderStyle: 'round',
+                borderColor: 'magenta',
+              })
             )
           }
-        } catch { }
+        } catch {}
 
         // Recommendations
         if (preciseTokens > 150000) {
@@ -11469,16 +11509,17 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
             const cfg = (this.configManager.get('autoTodo') as any) || { requireExplicitTrigger: false }
             if (subcommand === 'on' || subcommand === 'enable') {
               this.configManager.set('autoTodo', { ...cfg, requireExplicitTrigger: false } as any)
-              this.printPanel(boxen(
-                'Auto‑todos enabled (complex inputs can trigger background todos, ).\nUse "/todos off" to require explicit "todo".',
-                {
-                  title: 'Todos: Auto Mode',
-                  padding: 1,
-                  margin: 1,
-                  borderStyle: 'round',
-                  borderColor: 'green',
-                }
-              )
+              this.printPanel(
+                boxen(
+                  'Auto‑todos enabled (complex inputs can trigger background todos, ).\nUse "/todos off" to require explicit "todo".',
+                  {
+                    title: 'Todos: Auto Mode',
+                    padding: 1,
+                    margin: 1,
+                    borderStyle: 'round',
+                    borderColor: 'green',
+                  }
+                )
               )
             } else if (subcommand === 'off' || subcommand === 'of' || subcommand === 'disable') {
               this.configManager.set('autoTodo', { ...cfg, requireExplicitTrigger: true } as any)
@@ -11497,16 +11538,17 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
             } else if (subcommand === 'status') {
               const current = (this.configManager.get('autoTodo') as any)?.requireExplicitTrigger
               const status = current ? 'Explicit Only (off)' : 'Automatic (on)'
-              this.printPanel(boxen(
-                `Current: ${status}\n- on  = auto (complex inputs can trigger, 'general')\n- off = explicit only (requires "todo")`,
-                {
-                  title: 'Todos: Status',
-                  padding: 1,
-                  margin: 1,
-                  borderStyle: 'round',
-                  borderColor: 'cyan',
-                }
-              )
+              this.printPanel(
+                boxen(
+                  `Current: ${status}\n- on  = auto (complex inputs can trigger, 'general')\n- off = explicit only (requires "todo")`,
+                  {
+                    title: 'Todos: Status',
+                    padding: 1,
+                    margin: 1,
+                    borderStyle: 'round',
+                    borderColor: 'cyan',
+                  }
+                )
               )
             }
           } else {
@@ -11568,13 +11610,14 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       lines.push('/mcp add-remote myapi https://api.example.com/mcp')
       lines.push('/mcp generate filesystem     - Generate secure wrappers')
 
-      this.printPanel(boxen(lines.join('\n'), {
-        title: '🔮 MCP Commands',
-        padding: 1,
-        margin: 1,
-        borderStyle: 'round',
-        borderColor: 'magenta',
-      })
+      this.printPanel(
+        boxen(lines.join('\n'), {
+          title: '🔮 MCP Commands',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'magenta',
+        })
       )
       return
     }
@@ -12435,9 +12478,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       },
       {
         title: '📥 Input Queue',
-        commands: [
-          ['/queue [status|clear|process]', 'Inspect or control queued inputs'],
-        ],
+        commands: [['/queue [status|clear|process]', 'Inspect or control queued inputs']],
       },
       {
         title: '🔒 Security & Development',
@@ -12619,13 +12660,14 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       lines.push('')
       lines.push(chalk.gray('Use /read NIKOCLI.md to view details'))
 
-      this.printPanel(boxen(lines.join('\n'), {
-        title: '🧭 Project Initialized',
-        padding: 1,
-        margin: 1,
-        borderStyle: 'round',
-        borderColor: 'cyan',
-      })
+      this.printPanel(
+        boxen(lines.join('\n'), {
+          title: '🧭 Project Initialized',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'cyan',
+        })
       )
 
       // Show a preview panel of the generated NIKOCLI.md
@@ -12979,7 +13021,6 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       /* ignore */
     }
 
-
     // Create responsive status bar
     const statusLeft = `${modeIcon} ${readyText} | ${responsiveModelDisplay} | ${contextInfo}${tokenRate}${vmInfo}`
     const queuePart = queueCount > 0 ? ` | 📥 ${queueCount}` : ''
@@ -13030,7 +13071,6 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       // Subtle dark background
       const bgColor = chalk.bgHex('#1a1a1a')
 
-
       // ZONA 0.5: Empty line SOPRA il prompt input (same as renderPromptArea)
       const emptyPadding = ' '.repeat(Math.max(0, terminalWidth - 2))
       process.stdout.write(bgColor(`${verticalBar}${emptyPadding}`) + '\n')
@@ -13047,8 +13087,13 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       const modeDisplay = chalk.cyan(this.currentMode.toUpperCase())
       const leftInfo = ` ${modeDisplay} ${chalk.hex('#666666')('NikCLI')} ${responsiveModelDisplay}`
 
-      const infoPadding = Math.max(1, terminalWidth - 2 - this._stripAnsi(leftInfo).length - this._stripAnsi(finalStatusRight).length)
-      process.stdout.write(bgColor(`${verticalBar}${leftInfo}${' '.repeat(infoPadding)}${chalk.white(finalStatusRight)}`) + '\n')
+      const infoPadding = Math.max(
+        1,
+        terminalWidth - 2 - this._stripAnsi(leftInfo).length - this._stripAnsi(finalStatusRight).length
+      )
+      process.stdout.write(
+        bgColor(`${verticalBar}${leftInfo}${' '.repeat(infoPadding)}${chalk.white(finalStatusRight)}`) + '\n'
+      )
 
       // ZONA 3: Empty line with vertical bar
       process.stdout.write(bgColor(`${verticalBar}${emptyPadding}`) + '\n')
@@ -13064,13 +13109,34 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       const controlsCenter = controlsCenterPieces.join('   ')
       const controlsRight = `${escShortcut}   ${ctrlpShortcut}`
 
-      const centerPadding = Math.max(1, Math.floor((terminalWidth - 2 - this._stripAnsi(controlsLeft).length - this._stripAnsi(controlsCenter).length - this._stripAnsi(controlsRight).length) / 2))
-      const rightPadding = Math.max(1, terminalWidth - 2 - this._stripAnsi(controlsLeft).length - centerPadding - this._stripAnsi(controlsCenter).length - this._stripAnsi(controlsRight).length)
+      const centerPadding = Math.max(
+        1,
+        Math.floor(
+          (terminalWidth -
+            2 -
+            this._stripAnsi(controlsLeft).length -
+            this._stripAnsi(controlsCenter).length -
+            this._stripAnsi(controlsRight).length) /
+            2
+        )
+      )
+      const rightPadding = Math.max(
+        1,
+        terminalWidth -
+          2 -
+          this._stripAnsi(controlsLeft).length -
+          centerPadding -
+          this._stripAnsi(controlsCenter).length -
+          this._stripAnsi(controlsRight).length
+      )
 
-      process.stdout.write(bgColor(`${verticalBar}${controlsLeft}${' '.repeat(centerPadding)}${controlsCenter}${' '.repeat(rightPadding)}${controlsRight}`) + '\n')
+      process.stdout.write(
+        bgColor(
+          `${verticalBar}${controlsLeft}${' '.repeat(centerPadding)}${controlsCenter}${' '.repeat(rightPadding)}${controlsRight}`
+        ) + '\n'
+      )
 
       // Add empty line after prompt area to separate from future output
-
     }
 
     // Input prompt management (same as renderPromptArea)
@@ -13175,8 +13241,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       const [command, description] = visible[idx]
       const isSelected = start + idx === this.slashMenuSelectedIndex
 
-      const trimmedCommand =
-        command.length > maxCommandLength ? `${command.slice(0, maxCommandLength - 1)}…` : command
+      const trimmedCommand = command.length > maxCommandLength ? `${command.slice(0, maxCommandLength - 1)}…` : command
 
       const prefixLength = 2 // symbol + space
       const separatorLength = 3 // ' — '
@@ -13351,7 +13416,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     // Calcola posizione del blocco animato (ping-pong)
     const totalPositions = width - 2 // Posizioni possibili per un blocco di 3 caratteri
     const cycle = Math.floor(this.statusBarStep / 7) % (totalPositions * 2)
-    const position = cycle < totalPositions ? cycle : (totalPositions * 2 - cycle - 1)
+    const position = cycle < totalPositions ? cycle : totalPositions * 2 - cycle - 1
 
     // Dimensione del blocco animato
     const blockSize = 3
@@ -13624,7 +13689,6 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     terminalOutputManager.confirmOutput(spacerId, 'PromptSpacer', spacingLines, { persistent: false, expiryMs: 2000 })
     process.stdout.write(`\x1B[${Math.max(1, terminalHeight - reservedLines)};0H`)
 
-
     // Print Plan HUD sopra solo quando:
     // - assistant NON sta processando
     // - NON siamo in modalità interactive (es. scelta Yes/No delle task)
@@ -13652,7 +13716,6 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       /* ignore */
     }
 
-
     const queueStatus = inputQueue.getStatus()
     const queueCount = queueStatus.queueLength
     const runningAgents = (() => {
@@ -13671,7 +13734,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     // Extract task info from planHudLines if available
     let taskInfo = ''
     if (planHudLines.length > 0) {
-      const taskLine = planHudLines.find(line => line.includes('Task') || line.includes('TODO'))
+      const taskLine = planHudLines.find((line) => line.includes('Task') || line.includes('TODO'))
       if (taskLine) {
         const match = taskLine.match(/(\d+)\/(\d+)/)
         if (match) {
@@ -13704,9 +13767,12 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     } else if (runningAgents > 0) {
       try {
         const activeAgents = agentService.getActiveAgents()
-        const agentNames = activeAgents.slice(0, 2).map(a => a.agentType).join(', ')
+        const agentNames = activeAgents
+          .slice(0, 2)
+          .map((a) => a.agentType)
+          .join(', ')
         dynamicInfo = chalk.white(agentNames)
-      } catch { }
+      } catch {}
     }
 
     const escShortcut = chalk.hex('#666666')('Interrupt:Esc')
@@ -13749,16 +13815,41 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       promptLines.push(bgColor(`${verticalBar}${emptyPadding}`))
 
       // 4. ZONA 2: Info Line (mode + model + statusbar)
-      const infoPadding = Math.max(1, terminalWidth - 2 - this._stripAnsi(leftInfo).length - this._stripAnsi(statusbarContent).length)
+      const infoPadding = Math.max(
+        1,
+        terminalWidth - 2 - this._stripAnsi(leftInfo).length - this._stripAnsi(statusbarContent).length
+      )
       promptLines.push(bgColor(`${verticalBar}${leftInfo}${' '.repeat(infoPadding)}${chalk.white(statusbarContent)}`))
 
       // 5. ZONA 3: Empty line
       promptLines.push(bgColor(`${verticalBar}${emptyPadding}`))
 
       // 6. ZONA 4: Controls (progress bar, user, shortcuts)
-      const centerPadding = Math.max(1, Math.floor((terminalWidth - 2 - this._stripAnsi(controlsLeft).length - this._stripAnsi(controlsCenter).length - this._stripAnsi(controlsRight).length) / 2))
-      const rightPadding = Math.max(1, terminalWidth - 2 - this._stripAnsi(controlsLeft).length - centerPadding - this._stripAnsi(controlsCenter).length - this._stripAnsi(controlsRight).length)
-      promptLines.push(bgColor(`${verticalBar}${controlsLeft}${' '.repeat(centerPadding)}${controlsCenter}${' '.repeat(rightPadding)}${controlsRight}`))
+      const centerPadding = Math.max(
+        1,
+        Math.floor(
+          (terminalWidth -
+            2 -
+            this._stripAnsi(controlsLeft).length -
+            this._stripAnsi(controlsCenter).length -
+            this._stripAnsi(controlsRight).length) /
+            2
+        )
+      )
+      const rightPadding = Math.max(
+        1,
+        terminalWidth -
+          2 -
+          this._stripAnsi(controlsLeft).length -
+          centerPadding -
+          this._stripAnsi(controlsCenter).length -
+          this._stripAnsi(controlsRight).length
+      )
+      promptLines.push(
+        bgColor(
+          `${verticalBar}${controlsLeft}${' '.repeat(centerPadding)}${controlsCenter}${' '.repeat(rightPadding)}${controlsRight}`
+        )
+      )
 
       // 7. Final separator
       promptLines.push('') // newline separator
@@ -13781,12 +13872,15 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
           // +1 perché c'è una riga vuota sopra (ZONA 0.5)
           // +hudExtraLines per PlanHUD
           // +slashMenuHeight per Slash Menu
-          const promptRow = fixedPromptManager.getPromptPosition() + 1 + (planHudLines.length > 0 ? planHudLines.length + 2 : 0) + slashMenuHeight
+          const promptRow =
+            fixedPromptManager.getPromptPosition() +
+            1 +
+            (planHudLines.length > 0 ? planHudLines.length + 2 : 0) +
+            slashMenuHeight
           const cursorCol = 4 // Dopo █❯ + spazio extra (vertical bar + prompt symbol + space)
           process.stdout.write(`\x1b[${promptRow};${cursorCol}H`)
         }
       }
-
     } else if (!this.isPrintingPanel) {
       // NORMAL MODE: Same structure as fixed prompt (without scrolling region)
 
@@ -13819,16 +13913,43 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       process.stdout.write(bgColor(`${verticalBar}${emptyPadding}`) + '\n')
 
       // 4. ZONA 2: Info Line (mode + model + statusbar)
-      const infoPadding = Math.max(1, terminalWidth - 2 - this._stripAnsi(leftInfo).length - this._stripAnsi(statusbarContent).length)
-      process.stdout.write(bgColor(`${verticalBar}${leftInfo}${' '.repeat(infoPadding)}${chalk.white(statusbarContent)}`) + '\n')
+      const infoPadding = Math.max(
+        1,
+        terminalWidth - 2 - this._stripAnsi(leftInfo).length - this._stripAnsi(statusbarContent).length
+      )
+      process.stdout.write(
+        bgColor(`${verticalBar}${leftInfo}${' '.repeat(infoPadding)}${chalk.white(statusbarContent)}`) + '\n'
+      )
 
       // 5. ZONA 3: Empty line
       process.stdout.write(bgColor(`${verticalBar}${emptyPadding}`) + '\n')
 
       // 6. ZONA 4: Controls (progress bar, user, shortcuts)
-      const centerPadding = Math.max(1, Math.floor((terminalWidth - 2 - this._stripAnsi(controlsLeft).length - this._stripAnsi(controlsCenter).length - this._stripAnsi(controlsRight).length) / 2))
-      const rightPadding = Math.max(1, terminalWidth - 2 - this._stripAnsi(controlsLeft).length - centerPadding - this._stripAnsi(controlsCenter).length - this._stripAnsi(controlsRight).length)
-      process.stdout.write(bgColor(`${verticalBar}${controlsLeft}${' '.repeat(centerPadding)}${controlsCenter}${' '.repeat(rightPadding)}${controlsRight}`) + '\n')
+      const centerPadding = Math.max(
+        1,
+        Math.floor(
+          (terminalWidth -
+            2 -
+            this._stripAnsi(controlsLeft).length -
+            this._stripAnsi(controlsCenter).length -
+            this._stripAnsi(controlsRight).length) /
+            2
+        )
+      )
+      const rightPadding = Math.max(
+        1,
+        terminalWidth -
+          2 -
+          this._stripAnsi(controlsLeft).length -
+          centerPadding -
+          this._stripAnsi(controlsCenter).length -
+          this._stripAnsi(controlsRight).length
+      )
+      process.stdout.write(
+        bgColor(
+          `${verticalBar}${controlsLeft}${' '.repeat(centerPadding)}${controlsCenter}${' '.repeat(rightPadding)}${controlsRight}`
+        ) + '\n'
+      )
 
       // 7. Final separator
       process.stdout.write('\n')
@@ -13887,7 +14008,6 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     }, 50)
 
     // Unlock prompt area after rendering (split-screen protection)
-
   }
 
   /**
@@ -14695,8 +14815,8 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       this.updateSpinnerText(operation)
     }, 500)
 
-      // Store interval for cleanup
-      ; (this.activeSpinner as any)._interval = interval
+    // Store interval for cleanup
+    ;(this.activeSpinner as any)._interval = interval
   }
 
   /**
@@ -14780,10 +14900,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
 
         // Record per-user token usage metrics when authenticated
         try {
-          if (
-            authProvider.isAuthenticated() &&
-            (messageInfo.role === 'user' || messageInfo.role === 'assistant')
-          ) {
+          if (authProvider.isAuthenticated() && (messageInfo.role === 'user' || messageInfo.role === 'assistant')) {
             await recordTokenUsageForCurrentUser(messageInfo, session)
           }
         } catch (error) {
@@ -15107,12 +15224,12 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         if (!finalized) {
           this.updateStatusIndicator(uniqueId, { status: 'failed', details: 'Command aborted' })
         }
-      } catch { }
+      } catch {}
       // Ensure the prompt is rendered on a clean line without overlaps
       try {
         process.stdout.write('\n')
         await new Promise((resolve) => setTimeout(resolve, 50))
-      } catch { }
+      } catch {}
       this.renderPromptAfterOutput()
     }
   }
@@ -15339,9 +15456,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         '',
         chalk.white(`Target: ${chalk.bold(target)}`),
         port ? chalk.white(`Port: ${chalk.bold(port.toString())}`) : chalk.gray('Port: 22 (default)'),
-        directory
-          ? chalk.white(`Directory: ${chalk.bold(directory)}`)
-          : chalk.gray('Directory: Current (default)'),
+        directory ? chalk.white(`Directory: ${chalk.bold(directory)}`) : chalk.gray('Directory: Current (default)'),
         '',
         chalk.yellow('Connecting...'),
       ].join('\n')
@@ -15747,13 +15862,14 @@ This file is automatically maintained by NikCLI to provide consistent context ac
             Object.entries(stats.memoriesBySource).forEach(([src, count]) => lines.push(`  • ${src}: ${count}`))
           }
 
-          this.printPanel(boxen(lines.join('\n'), {
-            title: 'Memory: Statistics',
-            padding: 1,
-            margin: 1,
-            borderStyle: 'round',
-            borderColor: 'green',
-          })
+          this.printPanel(
+            boxen(lines.join('\n'), {
+              title: 'Memory: Statistics',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'green',
+            })
           )
           break
         }
@@ -15772,13 +15888,14 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           if (cfg.importance_decay_days !== undefined)
             lines.push(`${chalk.green('Importance Decay (days):')} ${cfg.importance_decay_days}`)
 
-          this.printPanel(boxen(lines.join('\n'), {
-            title: 'Memory: Configuration',
-            padding: 1,
-            margin: 1,
-            borderStyle: 'round',
-            borderColor: 'yellow',
-          }),
+          this.printPanel(
+            boxen(lines.join('\n'), {
+              title: 'Memory: Configuration',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'yellow',
+            }),
             'general'
           )
           break
@@ -15817,13 +15934,14 @@ This file is automatically maintained by NikCLI to provide consistent context ac
             })
           }
 
-          this.printPanel(boxen(lines.join('\n'), {
-            title: '⚡︎ Memory: Context',
-            padding: 1,
-            margin: 1,
-            borderStyle: 'round',
-            borderColor: 'cyan',
-          })
+          this.printPanel(
+            boxen(lines.join('\n'), {
+              title: '⚡︎ Memory: Context',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'cyan',
+            })
           )
           break
         }
@@ -15867,13 +15985,14 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           if (p.interaction_patterns.common_tasks?.length)
             lines.push(`${chalk.green('Common Tasks:')} ${p.interaction_patterns.common_tasks.slice(0, 5).join(', ')}`)
 
-          this.printPanel(boxen(lines.join('\n'), {
-            title: '⚡︎ Memory: Personalization',
-            padding: 1,
-            margin: 1,
-            borderStyle: 'round',
-            borderColor: 'magenta',
-          })
+          this.printPanel(
+            boxen(lines.join('\n'), {
+              title: '⚡︎ Memory: Personalization',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'magenta',
+            })
           )
           break
         }
@@ -16080,13 +16199,14 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           lines.push('• Use /diag-status to check monitoring status')
           lines.push('• Use /diagnostic stop to stop monitoring')
 
-          this.printPanel(boxen(lines.join('\n'), {
-            title: '🔍 IDE Diagnostics: Monitoring',
-            padding: 1,
-            margin: 1,
-            borderStyle: 'round',
-            borderColor: 'cyan',
-          })
+          this.printPanel(
+            boxen(lines.join('\n'), {
+              title: '🔍 IDE Diagnostics: Monitoring',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'cyan',
+            })
           )
           break
         }
@@ -16120,13 +16240,14 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           lines.push('')
           lines.push(`Current status: ${quick}`)
 
-          this.printPanel(boxen(lines.join('\n'), {
-            title: '🔍 IDE Diagnostics: Status',
-            padding: 1,
-            margin: 1,
-            borderStyle: 'round',
-            borderColor: 'cyan',
-          })
+          this.printPanel(
+            boxen(lines.join('\n'), {
+              title: '🔍 IDE Diagnostics: Status',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'cyan',
+            })
           )
           break
         }
@@ -16164,13 +16285,14 @@ This file is automatically maintained by NikCLI to provide consistent context ac
             context.recommendations.forEach((rec: string) => lines.push(`• ${rec}`))
           }
 
-          this.printPanel(boxen(lines.join('\n'), {
-            title: '📊 Diagnostic Results',
-            padding: 1,
-            margin: 1,
-            borderStyle: 'round',
-            borderColor: 'magenta',
-          })
+          this.printPanel(
+            boxen(lines.join('\n'), {
+              title: '📊 Diagnostic Results',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'magenta',
+            })
           )
 
           if (!wasActive) ideDiagnosticIntegration.setActive(false)
@@ -16258,8 +16380,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           borderStyle: 'round',
           borderColor: 'green',
         }),
-        'general',
-
+        'general'
       )
     } catch (error: any) {
       this.printPanel(
@@ -16270,10 +16391,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           borderStyle: 'round',
           borderColor: 'red',
         }),
-        'general',
-
+        'general'
       )
-
     }
   }
 
@@ -16305,13 +16424,14 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         const tags = s.metadata?.tags?.length ? ` [${s.metadata.tags.join(', ')}]` : ''
         lines.push(`${s.id.substring(0, 8)}  ${s.name}  ${ts}${tags}`)
       })
-      this.printPanel(boxen(lines.join('\n'), {
-        title: '📸 Snapshots',
-        padding: 1,
-        margin: 1,
-        borderStyle: 'round',
-        borderColor: 'yellow',
-      })
+      this.printPanel(
+        boxen(lines.join('\n'), {
+          title: '📸 Snapshots',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'yellow',
+        })
       )
     } catch (error: any) {
       this.printPanel(
@@ -16407,13 +16527,14 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         })
         lines.push('\nUse /resume <session-id> to resume a session')
 
-        this.printPanel(boxen(lines.join('\n'), {
-          title: '💼 Available Work Sessions',
-          padding: 1,
-          margin: 1,
-          borderStyle: 'round',
-          borderColor: 'cyan',
-        }),
+        this.printPanel(
+          boxen(lines.join('\n'), {
+            title: '💼 Available Work Sessions',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'cyan',
+          }),
           'general'
         )
         return
@@ -16526,13 +16647,14 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         if (idx < sessions.length - 1) lines.push('')
       })
 
-      this.printPanel(boxen(lines.join('\n'), {
-        title: '💼 All Work Sessions',
-        padding: 1,
-        margin: 1,
-        borderStyle: 'round',
-        borderColor: 'cyan',
-      })
+      this.printPanel(
+        boxen(lines.join('\n'), {
+          title: '💼 All Work Sessions',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'cyan',
+        })
       )
     } catch (error: any) {
       this.printPanel(
@@ -16829,13 +16951,14 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         lines.push(`${opIcon} ${op.operation.toUpperCase()} - ${op.filePath}`)
       })
 
-      this.printPanel(boxen(lines.join('\n'), {
-        title: '↶ Undo Complete',
-        padding: 1,
-        margin: 1,
-        borderStyle: 'round',
-        borderColor: 'green',
-      })
+      this.printPanel(
+        boxen(lines.join('\n'), {
+          title: '↶ Undo Complete',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'green',
+        })
       )
     } catch (error: any) {
       this.printPanel(
@@ -16911,13 +17034,14 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         lines.push(`${opIcon} ${op.operation.toUpperCase()} - ${op.filePath}`)
       })
 
-      this.printPanel(boxen(lines.join('\n'), {
-        title: '↷ Redo Complete',
-        padding: 1,
-        margin: 1,
-        borderStyle: 'round',
-        borderColor: 'green',
-      })
+      this.printPanel(
+        boxen(lines.join('\n'), {
+          title: '↷ Redo Complete',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'green',
+        })
       )
     } catch (error: any) {
       this.printPanel(
@@ -16982,13 +17106,14 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         })
       }
 
-      this.printPanel(boxen(lines.join('\n'), {
-        title: '📝 Edit History',
-        padding: 1,
-        margin: 1,
-        borderStyle: 'round',
-        borderColor: 'cyan',
-      })
+      this.printPanel(
+        boxen(lines.join('\n'), {
+          title: '📝 Edit History',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'cyan',
+        })
       )
     } catch (error: any) {
       this.printPanel(
@@ -17214,13 +17339,14 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           lines.push(`• System Commands: ${pol.systemCommands}`)
           lines.push(`• Network Requests: ${pol.networkRequests}`)
 
-          this.printPanel(boxen(lines.join('\n'), {
-            title: '🔒 Security Status',
-            padding: 1,
-            margin: 1,
-            borderStyle: 'round',
-            borderColor: 'yellow',
-          }),
+          this.printPanel(
+            boxen(lines.join('\n'), {
+              title: '🔒 Security Status',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'yellow',
+            }),
             'general'
           )
           break
@@ -17362,13 +17488,14 @@ This file is automatically maintained by NikCLI to provide consistent context ac
             '',
             '⚠︎ Developer mode reduces security restrictions',
           ]
-          this.printPanel(boxen(lines.join('\n'), {
-            title: '� Developer Mode: Help',
-            padding: 1,
-            margin: 1,
-            borderStyle: 'round',
-            borderColor: 'yellow',
-          }),
+          this.printPanel(
+            boxen(lines.join('\n'), {
+              title: '� Developer Mode: Help',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'yellow',
+            }),
             'general'
           )
           break
@@ -18115,8 +18242,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
 
           const lines = sessions.map((session, index) => {
             const status = (session.metadata as any)?.status || 'active'
-            const statusColor =
-              status === 'archived' ? chalk.yellow : status === 'deleted' ? chalk.red : chalk.green
+            const statusColor = status === 'archived' ? chalk.yellow : status === 'deleted' ? chalk.red : chalk.green
             const messageCount = (session.metadata as any)?.message_count ?? session.content?.messages?.length ?? 0
             const totalTokens = (session.metadata as any)?.total_tokens ?? 0
             const tagLine = session.tags?.length ? chalk.gray(`   Tags: ${session.tags.join(', ')}`) : ''
@@ -18261,7 +18387,12 @@ This file is automatically maintained by NikCLI to provide consistent context ac
             supabase.from(table).select('id', { count: 'exact', head: true }).eq('status', 'active'),
             supabase.from(table).select('id', { count: 'exact', head: true }).eq('status', 'archived'),
             supabase.from(table).select('id', { count: 'exact', head: true }).eq('is_public', true),
-            supabase.from(table).select('title, updated_at').order('updated_at', { ascending: false }).limit(1).maybeSingle(),
+            supabase
+              .from(table)
+              .select('title, updated_at')
+              .order('updated_at', { ascending: false })
+              .limit(1)
+              .maybeSingle(),
           ])
 
           if (total.error || active.error || archived.error || publicSessions.error || latest.error) {
@@ -18272,7 +18403,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
             `${chalk.bold('Total Sessions:')} ${chalk.cyan(total.count ?? 0)}`,
             `${chalk.bold('Active:')} ${chalk.green(active.count ?? 0)}    ${chalk.bold('Archived:')} ${chalk.yellow(archived.count ?? 0)}`,
             `${chalk.bold('Public:')} ${chalk.magenta(publicSessions.count ?? 0)}`,
-            `${chalk.bold('Last Updated:')} ${latest.data ? `${latest.data.title || 'Untitled'} (${this.formatTimestamp(latest.data.updated_at)})` : '—'
+            `${chalk.bold('Last Updated:')} ${
+              latest.data ? `${latest.data.title || 'Untitled'} (${this.formatTimestamp(latest.data.updated_at)})` : '—'
             }`,
           ]
 
@@ -18338,7 +18470,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           const limit = this.getOptionNumber(options, 'limit', 10)
           const tags = this.getOptionList(options, 'tags')
           const includePrivate = this.hasOption(options, 'all')
-          const order = (this.getOptionValue(options, 'order') as 'created_at' | 'install_count' | 'name') || 'install_count'
+          const order =
+            (this.getOptionValue(options, 'order') as 'created_at' | 'install_count' | 'name') || 'install_count'
           const searchQuery = this.getOptionValue(options, 'query')
 
           const blueprints = await enhancedSupabaseProvider.searchBlueprints({
@@ -18465,7 +18598,12 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           const [total, publicCount, latest] = await Promise.all([
             supabase.from(table).select('id', { count: 'exact', head: true }),
             supabase.from(table).select('id', { count: 'exact', head: true }).eq('is_public', true),
-            supabase.from(table).select('name, install_count').order('install_count', { ascending: false }).limit(1).maybeSingle(),
+            supabase
+              .from(table)
+              .select('name, install_count')
+              .order('install_count', { ascending: false })
+              .limit(1)
+              .maybeSingle(),
           ])
 
           if (total.error || publicCount.error || latest.error) {
@@ -18474,9 +18612,11 @@ This file is automatically maintained by NikCLI to provide consistent context ac
 
           const statsLines = [
             `${chalk.bold('Total Blueprints:')} ${chalk.cyan(total.count ?? 0)}`,
-            `${chalk.bold('Public:')} ${chalk.green(publicCount.count ?? 0)} | ${chalk.bold('Private:')} ${(total.count ?? 0) - (publicCount.count ?? 0)
+            `${chalk.bold('Public:')} ${chalk.green(publicCount.count ?? 0)} | ${chalk.bold('Private:')} ${
+              (total.count ?? 0) - (publicCount.count ?? 0)
             }`,
-            `${chalk.bold('Top Install:')} ${latest.data ? `${latest.data.name} (${latest.data.install_count ?? 0} installs)` : '—'
+            `${chalk.bold('Top Install:')} ${
+              latest.data ? `${latest.data.name} (${latest.data.install_count ?? 0} installs)` : '—'
             }`,
           ]
 
@@ -18546,7 +18686,9 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           const tier = this.getOptionValue(options, 'tier')
           const orderBy = (this.getOptionValue(options, 'order') as 'created_at' | 'subscription_tier') || 'created_at'
 
-          let query = supabase.from(table).select('id, email, username, subscription_tier, created_at, updated_at, last_active_at')
+          let query = supabase
+            .from(table)
+            .select('id, email, username, subscription_tier, created_at, updated_at, last_active_at')
           if (tier) {
             query = query.eq('subscription_tier', tier)
           }
@@ -18713,7 +18855,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
             return [
               `${chalk.cyan(`${index + 1}.`)} ${chalk.bold(metric.event_type)} ${chalk.gray(metric.id)}`,
               `   User: ${metric.user_id || 'n/a'} | Session: ${metric.session_id || 'n/a'}`,
-              `   Timestamp: ${this.formatTimestamp(metric.timestamp)}${metric.error_code ? chalk.red(` | Error: ${metric.error_code}`) : ''
+              `   Timestamp: ${this.formatTimestamp(metric.timestamp)}${
+                metric.error_code ? chalk.red(` | Error: ${metric.error_code}`) : ''
               }`,
             ].join('\n')
           })
@@ -18980,16 +19123,13 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       const user = authProvider.getCurrentUser()
 
       if (!profile || !user) {
-        const panel = boxen(
-          chalk.red('✖ Could not load profile from authentication provider'),
-          {
-            title: 'Profile Error',
-            padding: 1,
-            margin: 1,
-            borderStyle: 'round',
-            borderColor: 'red',
-          }
-        )
+        const panel = boxen(chalk.red('✖ Could not load profile from authentication provider'), {
+          title: 'Profile Error',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
         this.printPanel(panel, 'general')
         return
       }
@@ -19004,7 +19144,11 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       lines.push('')
 
       const tierColor =
-        profile.subscription_tier === 'free' ? chalk.yellow : profile.subscription_tier === 'pro' ? chalk.blue : chalk.green
+        profile.subscription_tier === 'free'
+          ? chalk.yellow
+          : profile.subscription_tier === 'pro'
+            ? chalk.blue
+            : chalk.green
       lines.push(chalk.bold('💎 Subscription'))
       lines.push(`  Tier: ${tierColor(profile.subscription_tier.toUpperCase())}`)
       lines.push('')
@@ -19012,46 +19156,29 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       lines.push(chalk.bold('🎛 Preferences'))
       lines.push(`  Theme: ${chalk.cyan(profile.preferences.theme)}`)
       lines.push(`  Language: ${chalk.cyan(profile.preferences.language)}`)
-      lines.push(
-        `  Notifications: ${profile.preferences.notifications ? chalk.green('✓ On') : chalk.gray('✖ Off')
-        }`
-      )
-      lines.push(
-        `  Analytics: ${profile.preferences.analytics ? chalk.green('✓ On') : chalk.gray('✖ Off')}`
-      )
+      lines.push(`  Notifications: ${profile.preferences.notifications ? chalk.green('✓ On') : chalk.gray('✖ Off')}`)
+      lines.push(`  Analytics: ${profile.preferences.analytics ? chalk.green('✓ On') : chalk.gray('✖ Off')}`)
       lines.push('')
 
       lines.push(chalk.bold('📅 Account Information'))
       lines.push(`  Account Created: ${new Date(user.created_at).toLocaleString()}`)
       lines.push(
-        `  Last Sign In: ${(user as any).last_sign_in_at
-          ? new Date((user as any).last_sign_in_at).toLocaleString()
-          : 'Never'
+        `  Last Sign In: ${
+          (user as any).last_sign_in_at ? new Date((user as any).last_sign_in_at).toLocaleString() : 'Never'
         }`
       )
       lines.push(
-        `  Email Verified: ${(user as any).email_confirmed_at ? chalk.green('✓ Yes') : chalk.yellow('⚠︎ Pending')
-        }`
+        `  Email Verified: ${(user as any).email_confirmed_at ? chalk.green('✓ Yes') : chalk.yellow('⚠︎ Pending')}`
       )
 
       // Quotas & usage (compact summary, full details remain under /auth quotas)
       if (profile.quotas && profile.usage) {
         lines.push('')
         lines.push(chalk.bold('📊 Usage (This Month)'))
+        lines.push(`  Sessions: ${chalk.cyan(`${profile.usage.sessionsThisMonth}/${profile.quotas.sessionsPerMonth}`)}`)
+        lines.push(`  Tokens: ${chalk.cyan(`${profile.usage.tokensThisMonth}/${profile.quotas.tokensPerMonth}`)}`)
         lines.push(
-          `  Sessions: ${chalk.cyan(
-            `${profile.usage.sessionsThisMonth}/${profile.quotas.sessionsPerMonth}`
-          )}`
-        )
-        lines.push(
-          `  Tokens: ${chalk.cyan(
-            `${profile.usage.tokensThisMonth}/${profile.quotas.tokensPerMonth}`
-          )}`
-        )
-        lines.push(
-          `  API Calls (hour): ${chalk.cyan(
-            `${profile.usage.apiCallsThisHour}/${profile.quotas.apiCallsPerHour}`
-          )}`
+          `  API Calls (hour): ${chalk.cyan(`${profile.usage.apiCallsThisHour}/${profile.quotas.apiCallsPerHour}`)}`
         )
       }
 
@@ -19192,7 +19319,6 @@ This file is automatically maintained by NikCLI to provide consistent context ac
 
       // Display todos to user
 
-
       // Start executing todos with background agents
       console.log(chalk.green('🚀 Starting background execution...'))
       console.log(
@@ -19302,13 +19428,14 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       agentsList += `  ${chalk.gray(agent.description)}\n\n`
     })
 
-    const agentsBox = this.printPanel(boxen(agentsList.trim(), {
-      title: '🔌 Available Agents',
-      padding: 1,
-      margin: 1,
-      borderStyle: 'round',
-      borderColor: 'blue',
-    })
+    const agentsBox = this.printPanel(
+      boxen(agentsList.trim(), {
+        title: '🔌 Available Agents',
+        padding: 1,
+        margin: 1,
+        borderStyle: 'round',
+        borderColor: 'blue',
+      })
     )
     // printed via begin/end guards at call site
     console.log(agentsBox)
@@ -19736,10 +19863,10 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     // Prevent user input queue interference during interactive prompts
     try {
       this.suspendPrompt()
-    } catch { }
+    } catch {}
     try {
       inputQueue.enableBypass()
-    } catch { }
+    } catch {}
 
     try {
       const sectionChoices = [
@@ -20231,7 +20358,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       // Always disable bypass and restore prompt
       try {
         inputQueue.disableBypass()
-      } catch { }
+      } catch {}
       process.stdout.write('')
       await new Promise((resolve) => setTimeout(resolve, 150))
       this.renderPromptAfterOutput()
@@ -20245,10 +20372,10 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     // Prevent user input queue interference
     try {
       this.suspendPrompt()
-    } catch { }
+    } catch {}
     try {
       inputQueue.enableBypass()
-    } catch { }
+    } catch {}
 
     try {
       const sectionChoices = [
@@ -20369,7 +20496,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     } finally {
       try {
         inputQueue.disableBypass()
-      } catch { }
+      } catch {}
       process.stdout.write('')
       await new Promise((resolve) => setTimeout(resolve, 150))
       this.renderPromptAfterOutput()
@@ -20383,10 +20510,10 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     // Prevent user input queue interference
     try {
       this.suspendPrompt()
-    } catch { }
+    } catch {}
     try {
       inputQueue.enableBypass()
-    } catch { }
+    } catch {}
 
     try {
       const sectionChoices = [
@@ -20497,7 +20624,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     } finally {
       try {
         inputQueue.disableBypass()
-      } catch { }
+      } catch {}
       process.stdout.write('')
       await new Promise((resolve) => setTimeout(resolve, 150))
       this.renderPromptAfterOutput()
@@ -21388,16 +21515,13 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         const provider = cfg?.provider || 'openrouter'
         const dims = cfg?.dimensions || aiSdkEmbeddingProvider.getCurrentDimensions()
         this.printPanel(
-          boxen(
-            `Switched embedding model: ${args[0]}\nProvider: ${provider}\nDimensions: ${dims}`,
-            {
-              title: 'Embedding Model Updated',
-              padding: 1,
-              margin: 1,
-              borderStyle: 'round',
-              borderColor: 'green',
-            }
-          ),
+          boxen(`Switched embedding model: ${args[0]}\nProvider: ${provider}\nDimensions: ${dims}`, {
+            title: 'Embedding Model Updated',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'green',
+          }),
           'general'
         )
       } catch (error: any) {
@@ -21442,7 +21566,9 @@ This file is automatically maintained by NikCLI to provide consistent context ac
             chalk.gray(`Provider: ${cfg?.provider || provider || 'openrouter'}`),
             chalk.gray(`Dimensions: ${dims}`),
             cfg?.baseURL ? chalk.gray(`Base URL: ${cfg.baseURL}`) : '',
-          ].filter(Boolean).join('\n'),
+          ]
+            .filter(Boolean)
+            .join('\n'),
           {
             title: 'Embedding Model Updated',
             padding: 1,
@@ -21511,9 +21637,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
 
       this.printPanel(
         boxen(
-          modelType === 'rerankers'
-            ? '🚀 OpenRouter Rerankers Browser'
-            : '🚀 OpenRouter Embedding Models Browser',
+          modelType === 'rerankers' ? '🚀 OpenRouter Rerankers Browser' : '🚀 OpenRouter Embedding Models Browser',
           {
             title: modelType === 'rerankers' ? '📦 Fetching Rerankers' : '📦 Fetching Embeddings',
             padding: 1,
@@ -21527,7 +21651,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
 
       const response = await fetch(endpoint, {
         headers: {
-          'Authorization': `Bearer ${apiKey}`,
+          Authorization: `Bearer ${apiKey}`,
           'HTTP-Referer': 'https://nikcli.mintlify.app',
           'X-Title': 'NikCLI',
         },
@@ -21553,7 +21677,13 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       }
 
       const data = (await response.json()) as any
-      const allModels = (data.data || []) as Array<{ id: string; name?: string; description?: string; pricing?: any; context_length?: number }>
+      const allModels = (data.data || []) as Array<{
+        id: string
+        name?: string
+        description?: string
+        pricing?: any
+        context_length?: number
+      }>
 
       this.printPanel(
         boxen(`✓ Found ${allModels.length} ${modelType}`, {
@@ -21569,7 +21699,6 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       // Interactive search & select
       const { inputQueue } = await import('./core/input-queue')
 
-
       this.suspendPrompt()
       inputQueue.enableBypass()
       let selectedModel: string | null = null
@@ -21579,7 +21708,10 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           {
             type: 'input',
             name: 'search',
-            message: modelType === 'rerankers' ? 'Search rerankers (by name or ID)' : 'Search embedding models (by name or ID)',
+            message:
+              modelType === 'rerankers'
+                ? 'Search rerankers (by name or ID)'
+                : 'Search embedding models (by name or ID)',
             default: '',
           },
         ])
@@ -21598,9 +21730,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         }
 
         const displayModels = filtered.slice(0, 20).map((m) => {
-          const pricing = m.pricing
-            ? ` (cost: $${m.pricing?.prompt || 0}/1M)`
-            : ''
+          const pricing = m.pricing ? ` (cost: $${m.pricing?.prompt || 0}/1M)` : ''
           const ctx = m.context_length ? ` ctx:${m.context_length}` : ''
           return {
             name: `${chalk.bold(m.id)}${chalk.dim(pricing + ctx)}`,
@@ -21632,16 +21762,13 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         if (setCurrentAnswer.setCurrent) {
           configManager.setCurrentEmbeddingModel(selectedModel as string)
           this.printPanel(
-            boxen(
-              `✓ Selected embedding model: ${chalk.bold(selectedModel)}\nApplied immediately (no restart needed)`,
-              {
-                title: '✓ Embedding Model Selected',
-                padding: 1,
-                margin: 1,
-                borderStyle: 'round',
-                borderColor: 'green',
-              }
-            ),
+            boxen(`✓ Selected embedding model: ${chalk.bold(selectedModel)}\nApplied immediately (no restart needed)`, {
+              title: '✓ Embedding Model Selected',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'green',
+            }),
             'general'
           )
         }
@@ -21921,7 +22048,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     } finally {
       try {
         inputQueue.disableBypass()
-      } catch { }
+      } catch {}
       this.resumePromptAndRender()
     }
   }
@@ -22470,12 +22597,13 @@ This file is automatically maintained by NikCLI to provide consistent context ac
 
           if (stats.redis.health) {
             statusContent += `  Latency: ${chalk.blue(stats.redis.health.latency)}ms\n`
-            statusContent += `  Status: ${stats.redis.health.status === 'healthy'
-              ? chalk.green('Healthy')
-              : stats.redis.health.status === 'degraded'
-                ? chalk.yellow('Degraded')
-                : chalk.red('Unhealthy')
-              }\n`
+            statusContent += `  Status: ${
+              stats.redis.health.status === 'healthy'
+                ? chalk.green('Healthy')
+                : stats.redis.health.status === 'degraded'
+                  ? chalk.yellow('Degraded')
+                  : chalk.red('Unhealthy')
+            }\n`
           }
 
           statusContent += `\n${chalk.cyan('Performance:')}\n`
@@ -22778,13 +22906,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
 
     plan.todos.forEach((todo: any, index: number) => {
       const statusIcon =
-        todo.status === 'completed'
-          ? '✓'
-          : todo.status === 'in_progress'
-            ? '⚡︎'
-            : todo.status === 'failed'
-              ? '✖'
-              : '⏳︎'
+        todo.status === 'completed' ? '✓' : todo.status === 'in_progress' ? '⚡︎' : todo.status === 'failed' ? '✖' : '⏳︎'
 
       const priorityIcon = todo.priority === 'high' ? '🔴' : todo.priority === 'medium' ? '🟡' : '🟢'
 
@@ -23379,13 +23501,14 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       }
     }
 
-    this.printPanel(boxen(lines.join('\n'), {
-      title: config.title,
-      padding: 1,
-      margin: 1,
-      borderStyle: 'round',
-      borderColor: config.color,
-    })
+    this.printPanel(
+      boxen(lines.join('\n'), {
+        title: config.title,
+        padding: 1,
+        margin: 1,
+        borderStyle: 'round',
+        borderColor: config.color,
+      })
     )
   }
 
@@ -23719,13 +23842,19 @@ This file is automatically maintained by NikCLI to provide consistent context ac
 
       // Interactive mode
       this.printPanel(
-        boxen(
-          'Configure NikDrive endpoint. This URL is where your cloud storage API is running.',
-          { title: '☁️  Set NikDrive Endpoint', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'cyan' }
-        )
+        boxen('Configure NikDrive endpoint. This URL is where your cloud storage API is running.', {
+          title: '☁️  Set NikDrive Endpoint',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'cyan',
+        })
       )
 
-      const currentEndpoint = process.env.NIKDRIVE_ENDPOINT || process.env.NIKDRIVE_API_ENDPOINT || 'https://nikcli-drive-production.up.railway.app'
+      const currentEndpoint =
+        process.env.NIKDRIVE_ENDPOINT ||
+        process.env.NIKDRIVE_API_ENDPOINT ||
+        'https://nikcli-drive-production.up.railway.app'
 
       this.suspendPrompt()
       inputQueue.enableBypass()
@@ -23765,6 +23894,6 @@ let globalNikCLI: NikCLI | null = null
 // Export function to set global instance
 export function setGlobalNikCLI(instance: NikCLI): void {
   globalNikCLI = instance
-    // Use consistent global variable name
-    ; (global as any).__nikCLI = instance
+  // Use consistent global variable name
+  ;(global as any).__nikCLI = instance
 }

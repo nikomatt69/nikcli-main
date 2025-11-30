@@ -1,8 +1,8 @@
 import { EventEmitter } from 'node:events'
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
-import { createOpenAI } from '@ai-sdk/openai'
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
+import { createOpenAI } from '@ai-sdk/openai'
 import chalk from 'chalk'
 import { simpleConfigManager } from '../../core/config-manager'
 import { advancedUI } from '../../ui/advanced-cli-ui'
@@ -11,13 +11,13 @@ import { redisProvider } from '../redis/redis-provider'
 export interface ImageGenerationOptions {
   prompt: string
   model?:
-  | 'gpt-image-1'
-  | 'dall-e-2'
-  | 'dall-e-3'
-  | 'google/gemini-2.5-flash-image'
-  | 'google/gemini-3-pro-image-preview'
-  | 'openai/gpt-5-image-mini'
-  | 'openai/gpt-5-image'
+    | 'gpt-image-1'
+    | 'dall-e-2'
+    | 'dall-e-3'
+    | 'google/gemini-2.5-flash-image'
+    | 'google/gemini-3-pro-image-preview'
+    | 'openai/gpt-5-image-mini'
+    | 'openai/gpt-5-image'
   provider?: 'openai' | 'google' | 'openrouter'
   size?: '1024x1024' | '1536x1024' | '1024x1536' | '1792x1024' | '1024x1792' | '512x512' | '256x256'
   quality?: 'low' | 'medium' | 'high' | 'auto' | 'standard' | 'hd'
@@ -46,13 +46,13 @@ export interface ImageGenerationResult {
 export interface ImageGeneratorConfig {
   enabled: boolean
   default_model:
-  | 'gpt-image-1'
-  | 'dall-e-2'
-  | 'dall-e-3'
-  | 'google/gemini-2.5-flash-image'
-  | 'google/gemini-3-pro-image-preview'
-  | 'openai/gpt-5-image-mini'
-  | 'openai/gpt-5-image'
+    | 'gpt-image-1'
+    | 'dall-e-2'
+    | 'dall-e-3'
+    | 'google/gemini-2.5-flash-image'
+    | 'google/gemini-3-pro-image-preview'
+    | 'openai/gpt-5-image-mini'
+    | 'openai/gpt-5-image'
   default_provider: 'openai' | 'google' | 'openrouter'
   fallback_providers: ('openai' | 'google' | 'openrouter')[]
   default_size: '1024x1024' | '1536x1024' | '1024x1536' | '1792x1024' | '1024x1792'
@@ -119,7 +119,9 @@ export class ImageGenerator extends EventEmitter {
     try {
       const modelForLog = effectiveInitialModel.toUpperCase()
       if (initialModel !== model) {
-        console.log(chalk.yellow(`⚠︎ Remapping model ${model} to ${effectiveInitialModel} for provider ${resolvedProvider}`))
+        console.log(
+          chalk.yellow(`⚠︎ Remapping model ${model} to ${effectiveInitialModel} for provider ${resolvedProvider}`)
+        )
       }
       console.log(chalk.blue(`🎨 Generating image with ${modelForLog}...`))
       console.log(chalk.gray(`Prompt: "${options.prompt}"`))
@@ -242,7 +244,6 @@ export class ImageGenerator extends EventEmitter {
           if (currentProvider === providersToTry[providersToTry.length - 1]) {
             throw lastError || error
           }
-          continue
         }
       }
 
@@ -473,7 +474,10 @@ export class ImageGenerator extends EventEmitter {
    * Generate image with OpenRouter models
    */
   private async generateWithOpenRouter(options: ImageGenerationOptions, model: string): Promise<ImageGenerationResult> {
-    const apiKey = simpleConfigManager.getApiKey('openrouter') || simpleConfigManager.getApiKey(model) || process.env.OPENROUTER_API_KEY
+    const apiKey =
+      simpleConfigManager.getApiKey('openrouter') ||
+      simpleConfigManager.getApiKey(model) ||
+      process.env.OPENROUTER_API_KEY
 
     if (!apiKey) {
       throw new Error('OpenRouter API key not configured. Use /set-key openrouter <key>')
@@ -603,13 +607,20 @@ export class ImageGenerator extends EventEmitter {
     }
 
     const choice = data?.choices?.[0]?.message
-    const imageData = choice?.images?.[0]?.image_url?.url || choice?.content?.find?.((c: any) => c.type === 'image_url')?.image_url?.url
+    const imageData =
+      choice?.images?.[0]?.image_url?.url || choice?.content?.find?.((c: any) => c.type === 'image_url')?.image_url?.url
 
     if (!imageData) {
-      throw new Error(`No image data returned from OpenRouter ${model}; response snippet: ${rawBody?.slice(0, 200) || 'empty'}`)
+      throw new Error(
+        `No image data returned from OpenRouter ${model}; response snippet: ${rawBody?.slice(0, 200) || 'empty'}`
+      )
     }
 
-    const costEstimate = this.calculateOpenRouterCost(model, options.size || this.config.default_size, options.quality || this.config.default_quality)
+    const costEstimate = this.calculateOpenRouterCost(
+      model,
+      options.size || this.config.default_size,
+      options.quality || this.config.default_quality
+    )
 
     return {
       imageUrl: imageData,
@@ -918,7 +929,7 @@ export class ImageGenerator extends EventEmitter {
       if (openaiKey) {
         models.push('gpt-image-1', 'dall-e-2', 'dall-e-3')
       }
-    } catch { }
+    } catch {}
 
     // Check Google API key
     try {
@@ -929,15 +940,20 @@ export class ImageGenerator extends EventEmitter {
       if (googleKey && this.providerHasApiKey('openrouter')) {
         models.push('google/gemini-2.5-flash-image')
       }
-    } catch { }
+    } catch {}
 
     // Check OpenRouter API key
     try {
       const openrouterKey = simpleConfigManager.getApiKey('openrouter') || process.env.OPENROUTER_API_KEY
       if (openrouterKey) {
-        models.push('google/gemini-2.5-flash-image', 'google/gemini-3-pro-image-preview', 'openai/gpt-5-image-mini', 'openai/gpt-5-image')
+        models.push(
+          'google/gemini-2.5-flash-image',
+          'google/gemini-3-pro-image-preview',
+          'openai/gpt-5-image-mini',
+          'openai/gpt-5-image'
+        )
       }
-    } catch { }
+    } catch {}
 
     return [...new Set(models)] // Remove duplicates
   }
@@ -970,7 +986,9 @@ export class ImageGenerator extends EventEmitter {
   /**
    * Build fallback provider list respecting API key availability
    */
-  private resolveFallbackProviders(primary: 'openai' | 'google' | 'openrouter'): ('openai' | 'google' | 'openrouter')[] {
+  private resolveFallbackProviders(
+    primary: 'openai' | 'google' | 'openrouter'
+  ): ('openai' | 'google' | 'openrouter')[] {
     const all = ['openrouter', 'openai', 'google'] as const
     return all.filter((provider) => provider !== primary && this.providerHasApiKey(provider))
   }

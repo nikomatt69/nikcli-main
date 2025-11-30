@@ -3,20 +3,20 @@ import type { CoreMessage } from 'ai'
 import chalk from 'chalk'
 import { nanoid } from 'nanoid'
 import { advancedAIProvider } from '../ai/advanced-ai-provider'
+import { getLightweightInference } from '../ai/lightweight-inference-layer'
 import { WorkspaceRAG } from '../context/workspace-rag'
 import { advancedUI } from '../ui/advanced-cli-ui'
-import { getLightweightInference } from '../ai/lightweight-inference-layer'
 import type { ExecutionPlan, MutableExecutionPlan, PlanTodo } from './types'
 
 export interface PlanningEvent {
   type:
-  | 'plan_start'
-  | 'plan_created'
-  | 'todo_start'
-  | 'todo_progress'
-  | 'todo_complete'
-  | 'plan_complete'
-  | 'plan_failed'
+    | 'plan_start'
+    | 'plan_created'
+    | 'todo_start'
+    | 'todo_progress'
+    | 'todo_complete'
+    | 'plan_complete'
+    | 'plan_failed'
   planId?: string
   todoId?: string
   content?: string
@@ -184,8 +184,8 @@ ${workspaceContext.relevantFiles.map((f: { path: any; summary: any }) => `- ${f.
 
 AVAILABLE TOOLCHAINS:
 ${Array.from(this.toolchainRegistry.entries())
-            .map(([key, chain]) => `- ${key}: ${chain.description} (tools: ${chain.tools.join(', ')})`)
-            .join('\n')}
+  .map(([key, chain]) => `- ${key}: ${chain.description} (tools: ${chain.tools.join(', ')})`)
+  .join('\n')}
 
 AVAILABLE TOOLS:
 - read_file: Read and analyze file contents
@@ -297,7 +297,7 @@ IMPORTANT: Only use tools that are actually available. Be specific about file pa
       ...plan,
       status: 'running',
       steps: [...plan.steps],
-      todos: plan.todos.map(todo => ({
+      todos: plan.todos.map((todo) => ({
         ...todo,
         status: todo.status,
         progress: todo.progress,
@@ -306,12 +306,12 @@ IMPORTANT: Only use tools that are actually available. Be specific about file pa
         actualDuration: todo.actualDuration,
         dependencies: todo.dependencies ? [...todo.dependencies] : undefined,
         metadata: todo.metadata ? { ...todo.metadata } : undefined,
-        tools: todo.tools ? [...todo.tools] : undefined
+        tools: todo.tools ? [...todo.tools] : undefined,
       })),
       context: {
         ...plan.context,
-        relevantFiles: plan.context.relevantFiles ? [...plan.context.relevantFiles] : undefined
-      }
+        relevantFiles: plan.context.relevantFiles ? [...plan.context.relevantFiles] : undefined,
+      },
     }
     let completedTodos = 0
 
@@ -509,34 +509,36 @@ IMPORTANT: Only use tools that are actually available. Be specific about file pa
       ],
     }
 
-    const todos = templates[template] || [
-      {
-        id: nanoid(),
-        title: 'Execute task',
-        description: goal,
-        reasoning: 'Execute simple task using appropriate tools',
-        tools: ['read_file', 'execute_command'],
-        estimatedDuration: 10,
-        status: 'pending' as const,
-        priority: 'high',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        progress: 0,
-        dependencies: [],
-        metadata: {
-          method: 'template',
-          template,
-          simple: true,
+    const todos =
+      templates[template] ||
+      [
+        {
+          id: nanoid(),
+          title: 'Execute task',
+          description: goal,
+          reasoning: 'Execute simple task using appropriate tools',
+          tools: ['read_file', 'execute_command'],
+          estimatedDuration: 10,
+          status: 'pending' as const,
+          priority: 'high',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          progress: 0,
+          dependencies: [],
+          metadata: {
+            method: 'template',
+            template,
+            simple: true,
+          },
         },
-      },
-    ].map((todo) => ({
-      ...todo,
-      id: todo.id || nanoid(),
-      status: todo.status || 'pending',
-      priority: todo.priority || 'high',
-      createdAt: todo.createdAt || new Date(),
-      updatedAt: todo.updatedAt || new Date(),
-    }))
+      ].map((todo) => ({
+        ...todo,
+        id: todo.id || nanoid(),
+        status: todo.status || 'pending',
+        priority: todo.priority || 'high',
+        createdAt: todo.createdAt || new Date(),
+        updatedAt: todo.updatedAt || new Date(),
+      }))
     return {
       id: planId,
       title: goal,

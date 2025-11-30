@@ -583,7 +583,7 @@ export class AgentService extends EventEmitter {
         const gen = this.runningGenerators.get(taskId)
         if (gen && typeof (gen as any).return === 'function') {
           try {
-            ; (gen as any).return()
+            ;(gen as any).return()
           } catch {
             /* ignore */
           }
@@ -787,10 +787,10 @@ export class AgentService extends EventEmitter {
         },
         gitStatus: gitInfo
           ? {
-            branch: gitInfo.branch || 'Unknown',
-            hasChanges: (gitInfo.files || []).length > 0,
-            modifiedFiles: (gitInfo.files || []).length,
-          }
+              branch: gitInfo.branch || 'Unknown',
+              hasChanges: (gitInfo.files || []).length > 0,
+              modifiedFiles: (gitInfo.files || []).length,
+            }
           : null,
         qualityAssessment: {
           hasTypeScript: (tsFiles?.matches?.length || 0) > 0,
@@ -1767,31 +1767,33 @@ export class AgentService extends EventEmitter {
 ## 📋 Detailed Results
 
 ${results
-        .map((result: any, index: number) => {
-          const status = result.success !== false ? '✓' : '✖'
-          const title = result.title || result.action || `Task ${index + 1}`
-          const description = result.summary || result.description || 'No description available'
+  .map((result: any, index: number) => {
+    const status = result.success !== false ? '✓' : '✖'
+    const title = result.title || result.action || `Task ${index + 1}`
+    const description = result.summary || result.description || 'No description available'
 
-          return `### ${status} Result ${index + 1}: ${title}
+    return `### ${status} Result ${index + 1}: ${title}
 
 ${description}
 
-${result.details
-              ? `**Details:** ${result.details}
+${
+  result.details
+    ? `**Details:** ${result.details}
 
 `
-              : ''
-            }`
-        })
-        .join('')}
-${errors && errors.length > 0
-        ? `## ✖ Errors
+    : ''
+}`
+  })
+  .join('')}
+${
+  errors && errors.length > 0
+    ? `## ✖ Errors
 
 ${errors.map((error: any) => `- **${error.step}:** ${error.error}`).join('\n')}
 
 `
-        : ''
-      }
+    : ''
+}
 ## 🔌 Agent Information
 
 - **Agent ID:** ${agent}

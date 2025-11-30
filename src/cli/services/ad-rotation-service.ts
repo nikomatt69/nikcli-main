@@ -4,9 +4,9 @@
  * Global state stored in Supabase for consistency across all users
  */
 
-import type { AdRotationState, AdCampaign } from '../types/ads'
-import { enhancedSupabaseProvider } from '../providers/supabase/enhanced-supabase-provider'
 import { simpleConfigManager } from '../core/config-manager'
+import { enhancedSupabaseProvider } from '../providers/supabase/enhanced-supabase-provider'
+import type { AdCampaign, AdRotationState } from '../types/ads'
 
 export class AdRotationService {
   private cachedRotationState: AdRotationState | null = null
@@ -32,18 +32,14 @@ export class AdRotationService {
       const now = Date.now()
 
       // Return cached state if still valid
-      if (this.cachedRotationState && (now - this.lastStateCheckTime) < this.STATE_CACHE_TTL_MS) {
+      if (this.cachedRotationState && now - this.lastStateCheckTime < this.STATE_CACHE_TTL_MS) {
         return this.cachedRotationState
       }
 
       const supabase = await enhancedSupabaseProvider.getClient()
       if (!supabase) return null
 
-      const { data, error } = await supabase
-        .from(this.adRotationStateTable)
-        .select('*')
-        .limit(1)
-        .single()
+      const { data, error } = await supabase.from(this.adRotationStateTable).select('*').limit(1).single()
 
       if (error || !data) return null
 
@@ -127,10 +123,7 @@ export class AdRotationService {
    * Get next campaign in weighted rotation
    * Automatically skips campaigns in recent history (anti-fatigue)
    */
-  async getNextCampaign(
-    campaigns: AdCampaign[],
-    state: AdRotationState
-  ): Promise<AdCampaign | null> {
+  async getNextCampaign(campaigns: AdCampaign[], state: AdRotationState): Promise<AdCampaign | null> {
     try {
       if (!state.weightedOrder || state.weightedOrder.length === 0) {
         return null
@@ -159,10 +152,7 @@ export class AdRotationService {
    * Update rotation state in Supabase
    * Called after each rotation to advance index and update recent campaigns
    */
-  async updateRotationState(
-    campaign: AdCampaign,
-    state: AdRotationState
-  ): Promise<AdRotationState | null> {
+  async updateRotationState(campaign: AdCampaign, state: AdRotationState): Promise<AdRotationState | null> {
     try {
       const supabase = await enhancedSupabaseProvider.getClient()
       if (!supabase) return null
@@ -215,11 +205,7 @@ export class AdRotationService {
       const supabase = await enhancedSupabaseProvider.getClient()
       if (!supabase) return null
 
-      const { data, error } = await supabase
-        .from(this.adRotationStateTable)
-        .select('*')
-        .limit(1)
-        .maybeSingle()
+      const { data, error } = await supabase.from(this.adRotationStateTable).select('*').limit(1).maybeSingle()
 
       // Already exists
       if (data && !error) {

@@ -1,34 +1,34 @@
-import { EventEmitter } from 'node:events';
-import type { RedisProvider } from '../../providers/redis/redis-provider';
-import type { HealthCheckResult, HealthStatus, DependencyHealth, ReadinessProbe, LivenessProbe } from './types';
+import { EventEmitter } from 'node:events'
+import type { RedisProvider } from '../../providers/redis/redis-provider'
+import type { DependencyHealth, HealthCheckResult, HealthStatus, LivenessProbe, ReadinessProbe } from './types'
 
 export class HealthChecker extends EventEmitter {
-  private lastCheck?: HealthCheckResult;
-  private checkInterval?: NodeJS.Timeout;
+  private lastCheck?: HealthCheckResult
+  private checkInterval?: NodeJS.Timeout
 
   constructor(
     private readonly redis: RedisProvider,
     private readonly checkIntervalMs = 30000
   ) {
-    super();
+    super()
   }
 
   startPeriodicChecks(): void {
     if (this.checkInterval) {
-      return;
+      return
     }
 
     this.checkInterval = setInterval(() => {
-      this.check().catch(err => {
-        this.emit('error', err);
-      });
-    }, this.checkIntervalMs);
+      this.check().catch((err) => {
+        this.emit('error', err)
+      })
+    }, this.checkIntervalMs)
   }
 
   stopPeriodicChecks(): void {
     if (this.checkInterval) {
-      clearInterval(this.checkInterval);
-      this.checkInterval = undefined;
+      clearInterval(this.checkInterval)
+      this.checkInterval = undefined
     }
   }
 
@@ -37,14 +37,10 @@ export class HealthChecker extends EventEmitter {
       this.checkRedis(),
       this.checkEventLoop(),
       this.checkMemory(),
-    ]);
+    ])
 
     const result: HealthCheckResult = {
-      status: this.determineOverallStatus([
-        redisHealth,
-        eventLoopHealth,
-        memoryHealth,
-      ]),
+      status: this.determineOverallStatus([redisHealth, eventLoopHealth, memoryHealth]),
       timestamp: new Date(),
       uptime: process.uptime(),
       checks: {
@@ -53,18 +49,18 @@ export class HealthChecker extends EventEmitter {
         eventLoop: eventLoopHealth,
         memory: memoryHealth,
       },
-    };
+    }
 
-    this.lastCheck = result;
-    this.emit('check', result);
+    this.lastCheck = result
+    this.emit('check', result)
 
-    return result;
+    return result
   }
 
   private async checkRedis(): Promise<DependencyHealth> {
-    const start = Date.now();
+    const start = Date.now()
     try {
-      const health = await this.redis.isHealthy();
+      const health = await this.redis.isHealthy()
       return {
         name: 'redis',
         status: health ? 'healthy' : 'unhealthy',
@@ -73,35 +69,35 @@ export class HealthChecker extends EventEmitter {
           connected: true,
           uptime: 0,
         },
-      };
+      }
     } catch (error) {
       return {
         name: 'redis',
         status: 'unhealthy',
         latency: Date.now() - start,
         error: error instanceof Error ? error.message : 'Unknown error',
-      };
+      }
     }
   }
 
   private async checkEventLoop(): Promise<DependencyHealth> {
-    const start = Date.now();
-    return new Promise(resolve => {
+    const start = Date.now()
+    return new Promise((resolve) => {
       setImmediate(() => {
-        const lag = Date.now() - start;
+        const lag = Date.now() - start
         resolve({
           name: 'eventLoop',
           status: lag < 100 ? 'healthy' : lag < 500 ? 'degraded' : 'unhealthy',
           latency: lag,
           metadata: { lagMs: lag },
-        });
-      });
-    });
+        })
+      })
+    })
   }
 
   private async checkMemory(): Promise<DependencyHealth> {
-    const memUsage = process.memoryUsage();
-    const heapUsedPercent = (memUsage.heapUsed / memUsage.heapTotal) * 100;
+    const memUsage = process.memoryUsage()
+    const heapUsedPercent = (memUsage.heapUsed / memUsage.heapTotal) * 100
 
     return {
       name: 'memory',
@@ -112,32 +108,32 @@ export class HealthChecker extends EventEmitter {
         heapUsedPercent: Math.round(heapUsedPercent),
         rssMB: Math.round(memUsage.rss / 1024 / 1024),
       },
-    };
+    }
   }
 
   private determineOverallStatus(checks: DependencyHealth[]): HealthStatus {
-    if (checks.some(c => c.status === 'unhealthy')) return 'unhealthy';
-    if (checks.some(c => c.status === 'degraded')) return 'degraded';
-    return 'healthy';
+    if (checks.some((c) => c.status === 'unhealthy')) return 'unhealthy'
+    if (checks.some((c) => c.status === 'degraded')) return 'degraded'
+    return 'healthy'
   }
 
   async readinessProbe(): Promise<ReadinessProbe> {
-    const health = await this.check();
+    const health = await this.check()
     return {
       ready: health.status !== 'unhealthy',
       reason: health.status === 'unhealthy' ? 'Dependencies unhealthy' : undefined,
       timestamp: new Date(),
-    };
+    }
   }
 
   livenessProbe(): LivenessProbe {
     return {
       alive: true,
       timestamp: new Date(),
-    };
+    }
   }
 
   getLastCheck(): HealthCheckResult | undefined {
-    return this.lastCheck;
+    return this.lastCheck
   }
 }

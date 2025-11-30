@@ -56,7 +56,7 @@ export class TaskExecutor {
 
     // Initialize Slack service if configured
     if (process.env.SLACK_BOT_TOKEN) {
-      this.initializeSlackService().catch(err => {
+      this.initializeSlackService().catch((err) => {
         console.error('⚠︎ Failed to initialize Slack service in TaskExecutor:', err)
       })
     }
@@ -904,44 +904,44 @@ ${result.analysis ? `## Analysis\n${result.analysis}\n` : ''}
         ].concat(
           result.prUrl
             ? [
-              {
-                type: 'actions',
-                elements: [
-                  {
-                    type: 'button',
-                    text: {
-                      type: 'plain_text',
-                      text: '👁️ View Results on GitHub',
+                {
+                  type: 'actions',
+                  elements: [
+                    {
+                      type: 'button',
+                      text: {
+                        type: 'plain_text',
+                        text: '👁️ View Results on GitHub',
+                      },
+                      url: `https://github.com/${job.repository}/issues/${job.issueNumber}`,
                     },
-                    url: `https://github.com/${job.repository}/issues/${job.issueNumber}`,
-                  },
-                  {
-                    type: 'button',
-                    text: {
-                      type: 'plain_text',
-                      text: '🔀 View Pull Request',
+                    {
+                      type: 'button',
+                      text: {
+                        type: 'plain_text',
+                        text: '🔀 View Pull Request',
+                      },
+                      url: result.prUrl,
+                      style: 'primary',
                     },
-                    url: result.prUrl,
-                    style: 'primary',
-                  },
-                ],
-              },
-            ]
+                  ],
+                },
+              ]
             : [
-              {
-                type: 'actions',
-                elements: [
-                  {
-                    type: 'button',
-                    text: {
-                      type: 'plain_text',
-                      text: '👁️ View Results on GitHub',
+                {
+                  type: 'actions',
+                  elements: [
+                    {
+                      type: 'button',
+                      text: {
+                        type: 'plain_text',
+                        text: '👁️ View Results on GitHub',
+                      },
+                      url: `https://github.com/${job.repository}/issues/${job.issueNumber}`,
                     },
-                    url: `https://github.com/${job.repository}/issues/${job.issueNumber}`,
-                  },
-                ],
-              },
-            ],
+                  ],
+                },
+              ]
         ) as any,
       })
 

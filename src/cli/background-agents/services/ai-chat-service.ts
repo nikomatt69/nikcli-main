@@ -3,11 +3,11 @@
  * Integrates AI SDK for generating chat responses in interactive mode via OpenRouter
  */
 
-import { createOpenRouter } from '@openrouter/ai-sdk-provider'
-import { LanguageModelV1, streamText, type CoreMessage } from 'ai'
 import { EventEmitter } from 'node:events'
+import { createOpenRouter } from '@openrouter/ai-sdk-provider'
+import { type CoreMessage, type LanguageModelV1, streamText } from 'ai'
+import { ExternalServiceError, retryOperation, withTimeout } from '../middleware/error-handler'
 import type { ChatMessage, ChatSession } from '../types'
-import { retryOperation, withTimeout, ExternalServiceError } from '../middleware/error-handler'
 
 export interface AIChatServiceConfig {
   model?: string
@@ -115,9 +115,9 @@ export class AIChatService extends EventEmitter {
         openrouter: {
           reasoning: {
             exclude: true,
-            enabled: false
-          }
-        }
+            enabled: false,
+          },
+        },
       },
       onFinish: ({ text, usage }) => {
         console.log('[AI Chat] Response completed:', {
@@ -153,10 +153,7 @@ export class AIChatService extends EventEmitter {
         this.circuitState = 'half-open'
         this.failureCount = 0
       } else {
-        throw new ExternalServiceError(
-          'OpenRouter AI',
-          new Error('Circuit breaker is OPEN - too many failures')
-        )
+        throw new ExternalServiceError('OpenRouter AI', new Error('Circuit breaker is OPEN - too many failures'))
       }
     }
   }
@@ -180,9 +177,7 @@ export class AIChatService extends EventEmitter {
     this.lastFailureTime = Date.now()
 
     if (this.failureCount >= this.failureThreshold) {
-      console.error(
-        `[AI Chat] Circuit breaker: OPENING circuit after ${this.failureCount} failures`
-      )
+      console.error(`[AI Chat] Circuit breaker: OPENING circuit after ${this.failureCount} failures`)
       this.circuitState = 'open'
     }
   }
@@ -190,10 +185,7 @@ export class AIChatService extends EventEmitter {
   /**
    * Convert chat messages to AI SDK CoreMessage format
    */
-  private convertMessagesToAIFormat(
-    messages: ChatMessage[],
-    newUserMessage: string
-  ): CoreMessage[] {
+  private convertMessagesToAIFormat(messages: ChatMessage[], newUserMessage: string): CoreMessage[] {
     const coreMessages: CoreMessage[] = []
 
     // Add existing messages

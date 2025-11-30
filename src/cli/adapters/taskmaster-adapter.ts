@@ -144,7 +144,7 @@ export class TaskMasterAdapter extends EventEmitter {
       updatedAt: planTodo.updatedAt,
       estimatedDuration: planTodo.estimatedDuration,
       actualDuration: planTodo.actualDuration,
-      tags: planTodo.tools?.slice() as string[] || [],
+      tags: (planTodo.tools?.slice() as string[]) || [],
       progress: planTodo.progress,
       context: {
         reasoning: planTodo.reasoning,

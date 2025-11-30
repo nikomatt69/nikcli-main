@@ -1,8 +1,8 @@
 import { randomBytes } from 'node:crypto'
 import chalk from 'chalk'
-import { QuietCacheLogger } from './performance-optimizer'
 import { LRUCache } from 'lru-cache'
 import { getLightweightInference } from '../ai/lightweight-inference-layer'
+import { QuietCacheLogger } from './performance-optimizer'
 
 export interface CacheStrategy {
   name: string

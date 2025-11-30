@@ -2,18 +2,14 @@ import { EventEmitter } from 'node:events'
 import type { CoreMessage } from 'ai'
 import chalk from 'chalk'
 import { z } from 'zod'
-
-// ⚡︎ Import Cognitive Types
-import type { OrchestrationPlan, TaskCognition } from '../automation/agents/universal-agent'
-
-// 🔧 Import Unified Tool Registry
-import { ToolRegistry } from '../tools/tool-registry'
-
 // 🚀 Import Lightweight Inference Layer
 import { getLightweightInference } from '../ai/lightweight-inference-layer'
-
+// ⚡︎ Import Cognitive Types
+import type { OrchestrationPlan, TaskCognition } from '../automation/agents/universal-agent'
 // 🤖 Import ML Toolchain Optimizer
 import type { ToolchainOptimizer } from '../ml/toolchain-optimizer'
+// 🔧 Import Unified Tool Registry
+import { ToolRegistry } from '../tools/tool-registry'
 
 // 📊 Import Structured Logger
 import { structuredLogger } from '../utils/structured-logger'
@@ -267,7 +263,17 @@ export class ToolRouter extends EventEmitter {
     // Multi-read (batch) - HIGH PRIORITY FOR BATCH OPERATIONS
     {
       tool: 'multi_read',
-      keywords: ['multi read', 'batch read', 'analyze files', 'collect contents', 'inspect many files', 'read several', 'read multiple', 'analyze all', 'check all files'],
+      keywords: [
+        'multi read',
+        'batch read',
+        'analyze files',
+        'collect contents',
+        'inspect many files',
+        'read several',
+        'read multiple',
+        'analyze all',
+        'check all files',
+      ],
       priority: 7, // BALANCED: high for batch ops but not higher than grep for precision
       description: 'Read multiple files with search and context - preferred for batch operations',
       examples: ['read multiple files', 'batch analyze src/**/*.ts', 'check all config files'],
@@ -276,10 +282,27 @@ export class ToolRouter extends EventEmitter {
     // RAG Semantic Search - HIGH PRIORITY FOR SEMANTIC CODE SEARCH
     {
       tool: 'rag_search',
-      keywords: ['semantic search', 'rag search', 'code search', 'find similar', 'semantic find', 'vector search', 'embedding search', 'contextual search', 'meaning search', 'similar code', 'related code'],
+      keywords: [
+        'semantic search',
+        'rag search',
+        'code search',
+        'find similar',
+        'semantic find',
+        'vector search',
+        'embedding search',
+        'contextual search',
+        'meaning search',
+        'similar code',
+        'related code',
+      ],
       priority: 8, // HIGH: semantic search is powerful for code understanding
       description: 'Perform semantic search in the RAG system to find relevant code and documentation',
-      examples: ['semantic search for authentication', 'find similar implementations', 'rag search user login', 'semantic find error handling'],
+      examples: [
+        'semantic search for authentication',
+        'find similar implementations',
+        'rag search user login',
+        'semantic find error handling',
+      ],
     },
 
     {
@@ -307,7 +330,18 @@ export class ToolRouter extends EventEmitter {
     },
     {
       tool: 'multi_edit',
-      keywords: ['multi', 'batch', 'atomic', 'transaction', 'multiple files', 'batch edit', 'edit several', 'change multiple', 'update all', 'modify multiple'],
+      keywords: [
+        'multi',
+        'batch',
+        'atomic',
+        'transaction',
+        'multiple files',
+        'batch edit',
+        'edit several',
+        'change multiple',
+        'update all',
+        'modify multiple',
+      ],
       priority: 6, // MODERATE: batch edits important but less common than single edits
       description: 'Apply multiple edits atomically - preferred for batch modifications',
       examples: ['batch replace across files', 'atomic patch multiple files', 'update multiple components'],
@@ -361,7 +395,19 @@ export class ToolRouter extends EventEmitter {
     // Grep/Search - HIGHEST PRIORITY FOR PRECISE TEXT SEARCH
     {
       tool: 'grep',
-      keywords: ['grep', 'search', 'find text', 'search in files', 'search code', 'find pattern', 'search content', 'look for', 'find string', 'search term', 'search for'],
+      keywords: [
+        'grep',
+        'search',
+        'find text',
+        'search in files',
+        'search code',
+        'find pattern',
+        'search content',
+        'look for',
+        'find string',
+        'search term',
+        'search for',
+      ],
       priority: 9, // HIGHEST: grep is most precise for finding specific text/patterns
       description: 'Search text patterns in files - preferred for content search',
       examples: ['search for "function"', 'grep "export" in src/', 'find all TODO comments'],
@@ -833,7 +879,6 @@ export class ToolRouter extends EventEmitter {
   // Log tool recommendations for debugging
   logRecommendations(message: string, recommendations: ToolRecommendation[]): void {
     if (!process.env.NIKCLI_CLEAN_CHAT && !process.env.NIKCLI_MINIMAL_STREAM) {
-
     }
 
     if (recommendations.length === 0) {
@@ -845,7 +890,6 @@ export class ToolRouter extends EventEmitter {
         const confidenceColor = rec.confidence > 0.7 ? chalk.green : rec.confidence > 0.4 ? chalk.yellow : chalk.red
 
         if (rec.suggestedParams && Object.keys(rec.suggestedParams).length > 0) {
-
         }
       }
     })
@@ -885,34 +929,31 @@ export class ToolRouter extends EventEmitter {
       let mlEnhancedTools = toolCandidates
       if (this.toolchainOptimizer) {
         try {
-          const mlPrediction = await this.toolchainOptimizer.predictOptimalTools(
-            context.userIntent,
-            {
-              workspaceType: context.projectType || 'general',
-              fileTypes: context.currentWorkspace,
-              intentType: intentAnalysis.primaryAction,
-              estimatedDifficulty: intentAnalysis.complexity / 10,
-            }
-          )
+          const mlPrediction = await this.toolchainOptimizer.predictOptimalTools(context.userIntent, {
+            workspaceType: context.projectType || 'general',
+            fileTypes: context.currentWorkspace,
+            intentType: intentAnalysis.primaryAction,
+            estimatedDifficulty: intentAnalysis.complexity / 10,
+          })
 
           if (mlPrediction.confidence > 0.75) {
             // Boost ML-predicted tools in the candidates list
             mlEnhancedTools = this.applyMLBoost(toolCandidates, mlPrediction) as any[]
-            (structuredLogger as any).debug('ML Tool Routing', '🤖 ML-Enhanced Tool Selection Active', {
+            ;(structuredLogger as any).debug('ML Tool Routing', '🤖 ML-Enhanced Tool Selection Active', {
               mlConfidence: mlPrediction.confidence,
               predictedTools: mlPrediction.tools,
               inputIntent: context.userIntent.substring(0, 100),
               totalCandidates: toolCandidates.length,
-              enhancedCandidates: mlEnhancedTools.length
+              enhancedCandidates: mlEnhancedTools.length,
             })
           } else {
-            (structuredLogger as any).debug('ML Tool Routing', '⚠︎ ML Confidence Below Threshold', {
+            ;(structuredLogger as any).debug('ML Tool Routing', '⚠︎ ML Confidence Below Threshold', {
               mlConfidence: mlPrediction.confidence,
-              threshold: 0.75
+              threshold: 0.75,
             })
           }
         } catch (error: any) {
-          (structuredLogger as any).warn('ML Tool Routing', `⚠︎ ML prediction failed: ${error.message}`)
+          ;(structuredLogger as any).warn('ML Tool Routing', `⚠︎ ML prediction failed: ${error.message}`)
           // Silent ML failure - use rule-based routing
         }
       }
@@ -1791,10 +1832,7 @@ export class ToolRouter extends EventEmitter {
   /**
    * Apply ML predictions to boost tool recommendations
    */
-  private applyMLBoost(
-    candidates: AdvancedToolRecommendation[],
-    mlPrediction: any
-  ): AdvancedToolRecommendation[] {
+  private applyMLBoost(candidates: AdvancedToolRecommendation[], mlPrediction: any): AdvancedToolRecommendation[] {
     // Create a map of predicted tools for quick lookup
     const predictedToolSet = new Set(mlPrediction.tools)
     const boostedTools: string[] = []
@@ -1817,11 +1855,11 @@ export class ToolRouter extends EventEmitter {
 
     // Log ML boost details
     if (boostedTools.length > 0) {
-      (structuredLogger as any).debug('ML Boost', '✓ ML-predicted tools boosted', {
+      ;(structuredLogger as any).debug('ML Boost', '✓ ML-predicted tools boosted', {
         boostedTools,
         confidenceBoost: '+0.15',
         totalCandidates: candidates.length,
-        boostedCount: boostedTools.length
+        boostedCount: boostedTools.length,
       })
     }
 

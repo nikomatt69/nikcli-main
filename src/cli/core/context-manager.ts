@@ -1070,12 +1070,12 @@ export class ContextManager {
       const sentences = content.split(/[.!?]+/)
       questions.push(...sentences.filter((s) => s.includes('?')))
 
-        // Track actions
-        ;['create', 'modify', 'delete', 'fix', 'implement', 'test'].forEach((action) => {
-          if (content.toLowerCase().includes(action)) {
-            actions.add(action)
-          }
-        })
+      // Track actions
+      ;['create', 'modify', 'delete', 'fix', 'implement', 'test'].forEach((action) => {
+        if (content.toLowerCase().includes(action)) {
+          actions.add(action)
+        }
+      })
     })
 
     if (actions.size > 0) summary.push(`Actions: ${Array.from(actions).join(', ')}`)

@@ -7,56 +7,53 @@
 
 import { browserToolDescriptions } from './playwright-automation-tools'
 
-// Core browser functionality
-export {
-  BrowserContainerManager,
-  browserContainerManager,
-  type BrowserContainerOptions,
-  type BrowserContainer,
-  type BrowserContainerStats,
-} from './browser-container-manager'
-
-export {
-  BrowserSessionManager,
-  browserSessionManager,
-  type BrowserSession,
-  type BrowserSessionConfig,
-  type BrowserSessionOptions,
-  type BrowserState,
-  type BrowserMessage,
-  type BrowserAction,
-  type BrowserActionResult,
-  type BrowserSessionStats,
-  type BrowserActionType,
-  type BrowserMessageType,
-  DEFAULT_BROWSER_SESSION_CONFIG,
-} from './browser-session-manager'
-
-// Browser automation tools
-export {
-  browserAutomationTools,
-  createBrowserTools,
-  browserToolDescriptions,
-  BrowserNavigateTool,
-  BrowserClickTool,
-  BrowserTypeTool,
-  BrowserScreenshotTool,
-  BrowserExtractTextTool,
-  BrowserWaitForElementTool,
-  BrowserScrollTool,
-  BrowserExecuteScriptTool,
-  BrowserGetPageInfoTool,
-} from './playwright-automation-tools'
-
 // Chat bridge and integration
 export {
   BrowserChatBridge,
-  browserChatBridge,
+  type BrowserChatResponse,
   type BrowserMode,
   type BrowserModeResult,
-  type BrowserChatResponse,
   type BrowserStatus,
+  browserChatBridge,
 } from './browser-chat-bridge'
+// Core browser functionality
+export {
+  type BrowserContainer,
+  BrowserContainerManager,
+  type BrowserContainerOptions,
+  type BrowserContainerStats,
+  browserContainerManager,
+} from './browser-container-manager'
+export {
+  type BrowserAction,
+  type BrowserActionResult,
+  type BrowserActionType,
+  type BrowserMessage,
+  type BrowserMessageType,
+  type BrowserSession,
+  type BrowserSessionConfig,
+  BrowserSessionManager,
+  type BrowserSessionOptions,
+  type BrowserSessionStats,
+  type BrowserState,
+  browserSessionManager,
+  DEFAULT_BROWSER_SESSION_CONFIG,
+} from './browser-session-manager'
+// Browser automation tools
+export {
+  BrowserClickTool,
+  BrowserExecuteScriptTool,
+  BrowserExtractTextTool,
+  BrowserGetPageInfoTool,
+  BrowserNavigateTool,
+  BrowserScreenshotTool,
+  BrowserScrollTool,
+  BrowserTypeTool,
+  BrowserWaitForElementTool,
+  browserAutomationTools,
+  browserToolDescriptions,
+  createBrowserTools,
+} from './playwright-automation-tools'
 
 // Utility functions
 export function isBrowserModeAvailable(): boolean {

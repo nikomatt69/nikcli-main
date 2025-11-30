@@ -12,9 +12,9 @@ auto = "auto"
 # Performance optimizations
 frozenLockfile = false
 dryRun = false
-production = true
+production = false
 optional = true
-dev = false
+dev = true
 peer = true
 
 # Concurrency for faster installs

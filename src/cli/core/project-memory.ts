@@ -147,7 +147,6 @@ export class ProjectMemoryManager {
     this.memoryDir = join(this.workingDirectory, '.nikcli', 'projects')
     this.ensureMemoryDirectory()
     this.loadGlobalPreferences()
-
   }
 
   /**

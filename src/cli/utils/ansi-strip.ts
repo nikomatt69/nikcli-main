@@ -19,9 +19,9 @@ export class AnsiStripper {
    */
   static strip(str: string): string {
     return str
-      .replace(this.ANSI_8_BIT, '')
-      .replace(this.OSC_PATTERN, '')
-      .replace(this.ST_PATTERN, '')
+      .replace(AnsiStripper.ANSI_8_BIT, '')
+      .replace(AnsiStripper.OSC_PATTERN, '')
+      .replace(AnsiStripper.ST_PATTERN, '')
   }
 
   /**
@@ -29,13 +29,13 @@ export class AnsiStripper {
    * Accounts for double-width characters (emoji, CJK)
    */
   static visualWidth(str: string): number {
-    const stripped = this.strip(str)
+    const stripped = AnsiStripper.strip(str)
     let width = 0
 
     for (const char of stripped) {
       const code = char.charCodeAt(0)
       // Simple heuristic: emoji and CJK are double-width
-      if (code > 0x1000 || (code >= 0x2000 && code <= 0x206F)) {
+      if (code > 0x1000 || (code >= 0x2000 && code <= 0x206f)) {
         width += 2
       } else {
         width += 1
@@ -51,7 +51,7 @@ export class AnsiStripper {
    */
   static safePrompt(coloredPrompt: string): string {
     // For multiline prompts, strip ANSI from all lines
-    return this.strip(coloredPrompt)
+    return AnsiStripper.strip(coloredPrompt)
   }
 }
 

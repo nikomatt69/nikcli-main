@@ -64,9 +64,7 @@ export function resolveShellConfig(requestedShell?: string): ShellConfiguration 
       return SUPPORTED_SHELLS[normalizedShell]
     }
 
-    throw new Error(
-      `Unsupported shell '${requestedShell}'. Supported shells: ${SUPPORTED_SHELL_NAMES.join(', ')}`
-    )
+    throw new Error(`Unsupported shell '${requestedShell}'. Supported shells: ${SUPPORTED_SHELL_NAMES.join(', ')}`)
   }
 
   const envShell = process.env.SHELL ? basename(process.env.SHELL).toLowerCase() : undefined

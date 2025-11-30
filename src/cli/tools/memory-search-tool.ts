@@ -1,8 +1,8 @@
 import { type CoreTool, tool } from 'ai'
 import chalk from 'chalk'
 import { z } from 'zod'
+import type { MemorySearchResult } from '../providers/memory'
 import { memoryService } from '../services/memory-service'
-import { type MemorySearchResult } from '../providers/memory'
 
 // Types to avoid never[] inference on arrays inside the result object
 type MemoryResult = {
@@ -38,7 +38,11 @@ export const memorySearchTool: CoreTool = tool({
   description:
     'Search through persistent memories to retrieve information from previous conversations, user preferences, or historical context',
   parameters: z.object({
-    query: z.string().describe('What to search for in memories (e.g., "user preferences", "previous implementation", "discussed feature")'),
+    query: z
+      .string()
+      .describe(
+        'What to search for in memories (e.g., "user preferences", "previous implementation", "discussed feature")'
+      ),
     searchMode: z
       .enum(['semantic', 'traditional', 'hybrid'])
       .default('hybrid')
@@ -79,9 +83,9 @@ export const memorySearchTool: CoreTool = tool({
         tags,
         timeRange: timeRange
           ? {
-            start: timeRange.start || 0,
-            end: timeRange.end || Date.now(),
-          }
+              start: timeRange.start || 0,
+              end: timeRange.end || Date.now(),
+            }
           : undefined,
       }
 
@@ -258,4 +262,3 @@ export const aiMemoryTools = {
   search: memorySearchTool,
   getContext: getConversationContextTool,
 }
-

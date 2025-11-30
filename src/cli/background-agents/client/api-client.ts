@@ -1,9 +1,9 @@
 // Background Agents API Client SDK
 // Connects CLI to cloud-deployed API services
 
-import axios, { type AxiosInstance } from 'axios'
 import http from 'node:http'
 import https from 'node:https'
+import axios, { type AxiosInstance } from 'axios'
 import { WebSocket } from 'ws'
 import type { BackgroundJob, CreateBackgroundJobRequest, JobStatus } from '../types'
 
@@ -48,10 +48,7 @@ export class BackgroundAgentsClient {
   constructor(config: BackgroundAgentsClientConfig = {}) {
     // Priority: config > env variable > default cloud URL
     this.baseUrl =
-      config.baseUrl ||
-      process.env.NIKCLI_API_URL ||
-      process.env.BACKGROUND_AGENTS_API_URL ||
-      'https://bg.nikcli.store'
+      config.baseUrl || process.env.NIKCLI_API_URL || process.env.BACKGROUND_AGENTS_API_URL || 'https://bg.nikcli.store'
 
     this.wsUrl = this.baseUrl.replace(/^http/, 'ws')
 
@@ -124,7 +121,9 @@ export class BackgroundAgentsClient {
           // Ensure minimum delay of 1 second
           delay = Math.max(delay, 1000)
 
-          console.warn(`Rate limit hit (429). Retrying after ${Math.ceil(delay / 1000)}s (attempt ${config.retry}/${maxRetries})`)
+          console.warn(
+            `Rate limit hit (429). Retrying after ${Math.ceil(delay / 1000)}s (attempt ${config.retry}/${maxRetries})`
+          )
           await new Promise((resolve) => setTimeout(resolve, delay))
         } else {
           // Exponential backoff for other retryable errors (5xx, network errors)

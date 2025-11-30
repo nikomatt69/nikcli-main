@@ -133,10 +133,7 @@ export class PolymarketCTF extends EventEmitter {
   /**
    * Create a condition for a market
    */
-  async createCondition(
-    questionId: string,
-    oracle: string = this.config.oracleAddress
-  ): Promise<Condition> {
+  async createCondition(questionId: string, oracle: string = this.config.oracleAddress): Promise<Condition> {
     this.validateInitialized()
 
     try {
@@ -166,18 +163,14 @@ export class PolymarketCTF extends EventEmitter {
    * Split collateral into outcome tokens
    * Creates equal YES and NO positions from collateral
    */
-  async split(
-    userAddress: string,
-    collateralAmount: string,
-    conditionId: string
-  ): Promise<Position[]> {
+  async split(userAddress: string, collateralAmount: string, conditionId: string): Promise<Position[]> {
     this.validateInitialized()
 
     try {
       console.log(`📊 Splitting ${collateralAmount} collateral for condition...`)
 
       // Get or create condition
-      let condition = this.conditions.get(conditionId)
+      const condition = this.conditions.get(conditionId)
       if (!condition) {
         throw new Error(`Condition not found: ${conditionId}`)
       }
@@ -224,11 +217,7 @@ export class PolymarketCTF extends EventEmitter {
   /**
    * Merge outcome tokens back to collateral
    */
-  async merge(
-    userAddress: string,
-    collateralAmount: string,
-    conditionId: string
-  ): Promise<string> {
+  async merge(userAddress: string, collateralAmount: string, conditionId: string): Promise<string> {
     this.validateInitialized()
 
     try {
@@ -294,10 +283,7 @@ export class PolymarketCTF extends EventEmitter {
   /**
    * Resolve condition with outcome
    */
-  async resolveCondition(
-    conditionId: string,
-    payoutNumerators: number[]
-  ): Promise<ConditionResolution> {
+  async resolveCondition(conditionId: string, payoutNumerators: number[]): Promise<ConditionResolution> {
     this.validateInitialized()
 
     try {

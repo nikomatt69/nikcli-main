@@ -341,14 +341,14 @@ export class TextToCADTool extends BaseTool {
         this.activeBridge = 'ai-cad-sdk'
         return
       }
-    } catch { }
+    } catch {}
     try {
       const cadOk = await this.cadBridge.initialize()
       if (cadOk && this.cadBridge.isAvailable()) {
         this.activeBridge = 'cadcamfun'
         return
       }
-    } catch { }
+    } catch {}
     this.activeBridge = null
   }
 

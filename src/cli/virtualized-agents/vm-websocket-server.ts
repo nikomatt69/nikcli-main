@@ -229,8 +229,8 @@ export class VMWebSocketServer extends EventEmitter implements VMEventEmitter {
       }
     }, 10000) // 10 second timeout
 
-      // Store temporary connection until initialized
-      ; (ws as any)._initTimeout = initTimeout
+    // Store temporary connection until initialized
+    ;(ws as any)._initTimeout = initTimeout
   }
 
   private async handleMessage(ws: WebSocket, data: any): Promise<void> {

@@ -83,7 +83,7 @@ export {
   type VisionAnalysisToolResult,
 } from './vision-analysis-tool'
 export { type WatchEvent, type WatchResult, WatchTool, type WatchToolParams } from './watch-tool'
-export { WebSearchTool, type WebSearchOptions } from './web-search-tool'
+export { type WebSearchOptions, WebSearchTool } from './web-search-tool'
 
 /**
  * Initialize secure tools and show security banner

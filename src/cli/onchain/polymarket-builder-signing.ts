@@ -77,16 +77,13 @@ export class PolymarketBuilderSigningService extends EventEmitter {
     totalVolume: 0,
     totalGasFeesSpared: 0,
     attributedOrders: 0,
-    revenueShareEligible: false
+    revenueShareEligible: false,
   }
   private attributionLog: Map<string, OrderAttributionRecord> = new Map()
   private enableMetrics: boolean = true
   private maxLogSize: number = 10000
 
-  constructor(
-    credentials: BuilderCredentials,
-    clobUrl: string = 'https://clob.polymarket.com'
-  ) {
+  constructor(credentials: BuilderCredentials, clobUrl: string = 'https://clob.polymarket.com') {
     super()
     this.credentials = credentials
     this.clobUrl = clobUrl
@@ -109,26 +106,19 @@ export class PolymarketBuilderSigningService extends EventEmitter {
   /**
    * Generate builder authentication headers
    */
-  generateBuilderHeaders(
-    method: string,
-    path: string,
-    body?: any
-  ): Record<string, string> {
+  generateBuilderHeaders(method: string, path: string, body?: any): Record<string, string> {
     const timestamp = Math.floor(Date.now() / 1000).toString()
     const bodyStr = body ? JSON.stringify(body) : ''
     const message = timestamp + method + path + bodyStr
 
     // HMAC-SHA256 signature
-    const signature = crypto
-      .createHmac('sha256', this.credentials.secret)
-      .update(message)
-      .digest('base64')
+    const signature = crypto.createHmac('sha256', this.credentials.secret).update(message).digest('base64')
 
     return {
-      'POLY_BUILDER_API_KEY': this.credentials.apiKey,
-      'POLY_BUILDER_TIMESTAMP': timestamp,
-      'POLY_BUILDER_PASSPHRASE': this.credentials.passphrase,
-      'POLY_BUILDER_SIGNATURE': signature
+      POLY_BUILDER_API_KEY: this.credentials.apiKey,
+      POLY_BUILDER_TIMESTAMP: timestamp,
+      POLY_BUILDER_PASSPHRASE: this.credentials.passphrase,
+      POLY_BUILDER_SIGNATURE: signature,
     }
   }
 
@@ -142,23 +132,21 @@ export class PolymarketBuilderSigningService extends EventEmitter {
       const path = '/order'
       const body = {
         order: request.signedOrder,
-        orderType: request.orderType
+        orderType: request.orderType,
       }
 
       const builderHeaders = this.generateBuilderHeaders('POST', path, body)
 
-      console.log(
-        `📝 Signing order with builder attribution: ${request.orderType}`
-      )
+      console.log(`📝 Signing order with builder attribution: ${request.orderType}`)
 
       // Submit order to CLOB with builder headers
       const response = await fetch(`${this.clobUrl}${path}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...builderHeaders
+          ...builderHeaders,
         },
-        body: JSON.stringify(body)
+        body: JSON.stringify(body),
       })
 
       const result = await response.json()
@@ -170,7 +158,7 @@ export class PolymarketBuilderSigningService extends EventEmitter {
 
         return {
           success: false,
-          error: result.errorMsg
+          error: result.errorMsg,
         }
       }
 
@@ -181,8 +169,7 @@ export class PolymarketBuilderSigningService extends EventEmitter {
       this.metrics.totalOrdersSuccess++
       this.metrics.attributedOrders++
       if (request.signedOrder.size && request.signedOrder.price) {
-        this.metrics.totalVolume +=
-          request.signedOrder.size * request.signedOrder.price
+        this.metrics.totalVolume += request.signedOrder.size * request.signedOrder.price
       }
 
       console.log(`✓ Order signed and submitted: ${result.orderId}`)
@@ -192,7 +179,7 @@ export class PolymarketBuilderSigningService extends EventEmitter {
         success: true,
         orderId: result.orderId,
         orderHashes: result.orderHashes,
-        status: result.status
+        status: result.status,
       }
     } catch (error: any) {
       console.error('✖ Order signing failed:', error.message)
@@ -201,7 +188,7 @@ export class PolymarketBuilderSigningService extends EventEmitter {
 
       return {
         success: false,
-        error: error.message
+        error: error.message,
       }
     }
   }
@@ -209,10 +196,7 @@ export class PolymarketBuilderSigningService extends EventEmitter {
   /**
    * Record attribution metadata for tracking
    */
-  private recordAttribution(
-    orderResult: any,
-    headers: Record<string, string>
-  ): void {
+  private recordAttribution(orderResult: any, headers: Record<string, string>): void {
     const record: OrderAttributionRecord = {
       timestamp: Date.now(),
       orderId: orderResult.orderId || 'unknown',
@@ -224,8 +208,8 @@ export class PolymarketBuilderSigningService extends EventEmitter {
       attribution: {
         apiKey: this.credentials.apiKey,
         timestamp: parseInt(headers['POLY_BUILDER_TIMESTAMP']),
-        signature: headers['POLY_BUILDER_SIGNATURE']
-      }
+        signature: headers['POLY_BUILDER_SIGNATURE'],
+      },
     }
 
     this.attributionLog.set(orderResult.orderId, record)
@@ -243,13 +227,10 @@ export class PolymarketBuilderSigningService extends EventEmitter {
   getMetrics(): BuilderMetrics {
     // Calculate success rate
     const successRate =
-      this.metrics.totalOrdersSubmitted > 0
-        ? this.metrics.totalOrdersSuccess / this.metrics.totalOrdersSubmitted
-        : 0
+      this.metrics.totalOrdersSubmitted > 0 ? this.metrics.totalOrdersSuccess / this.metrics.totalOrdersSubmitted : 0
 
     // Revenue share eligibility (20+ orders, 95%+ success rate)
-    this.metrics.revenueShareEligible =
-      this.metrics.totalOrdersSuccess >= 20 && successRate >= 0.95
+    this.metrics.revenueShareEligible = this.metrics.totalOrdersSuccess >= 20 && successRate >= 0.95
 
     // Estimate gas fees spared (average ~50 gwei per transaction)
     this.metrics.totalGasFeesSpared = this.metrics.attributedOrders * 0.001 // Rough estimate in MATIC
@@ -260,9 +241,7 @@ export class PolymarketBuilderSigningService extends EventEmitter {
   /**
    * Get attribution records
    */
-  getAttributionLog(
-    limit: number = 100
-  ): OrderAttributionRecord[] {
+  getAttributionLog(limit: number = 100): OrderAttributionRecord[] {
     return Array.from(this.attributionLog.values())
       .sort((a, b) => b.timestamp - a.timestamp)
       .slice(0, limit)
@@ -282,9 +261,7 @@ export class PolymarketBuilderSigningService extends EventEmitter {
 
     // Generate recommendations based on metrics
     if (metrics.totalOrdersSuccess < 20) {
-      recommendations.push(
-        'Submit at least 20 successful orders to become eligible for revenue sharing'
-      )
+      recommendations.push('Submit at least 20 successful orders to become eligible for revenue sharing')
     }
 
     if (metrics.totalOrdersSubmitted > 0) {
@@ -309,12 +286,10 @@ export class PolymarketBuilderSigningService extends EventEmitter {
     return {
       metrics,
       period: {
-        start: Math.min(
-          ...Array.from(this.attributionLog.values()).map(r => r.timestamp)
-        ),
-        end: Date.now()
+        start: Math.min(...Array.from(this.attributionLog.values()).map((r) => r.timestamp)),
+        end: Date.now(),
       },
-      recommendations
+      recommendations,
     }
   }
 
@@ -329,7 +304,7 @@ export class PolymarketBuilderSigningService extends EventEmitter {
       totalVolume: 0,
       totalGasFeesSpared: 0,
       attributedOrders: 0,
-      revenueShareEligible: false
+      revenueShareEligible: false,
     }
     this.attributionLog.clear()
   }
@@ -340,9 +315,7 @@ export class PolymarketBuilderSigningService extends EventEmitter {
   getSummary(): string {
     const metrics = this.getMetrics()
     const successRate =
-      metrics.totalOrdersSubmitted > 0
-        ? (metrics.totalOrdersSuccess / metrics.totalOrdersSubmitted) * 100
-        : 0
+      metrics.totalOrdersSubmitted > 0 ? (metrics.totalOrdersSuccess / metrics.totalOrdersSubmitted) * 100 : 0
 
     return `
 === POLYMARKET BUILDER STATS ===
@@ -371,13 +344,13 @@ export function createSigningMiddleware(signingService: PolymarketBuilderSigning
       if (!signedOrder || !orderType) {
         return res.status(400).json({
           success: false,
-          error: 'Missing signedOrder or orderType'
+          error: 'Missing signedOrder or orderType',
         })
       }
 
       const result = await signingService.signOrder({
         signedOrder,
-        orderType
+        orderType,
       })
 
       res.json(result)
@@ -385,7 +358,7 @@ export function createSigningMiddleware(signingService: PolymarketBuilderSigning
       console.error('Signing middleware error:', error)
       res.status(500).json({
         success: false,
-        error: error.message
+        error: error.message,
       })
     }
   }

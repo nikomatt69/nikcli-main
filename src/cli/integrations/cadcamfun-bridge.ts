@@ -74,7 +74,7 @@ export class CADCamFunBridge {
           await fs.access(p)
           found = p
           break
-        } catch { }
+        } catch {}
       }
 
       if (!found) {

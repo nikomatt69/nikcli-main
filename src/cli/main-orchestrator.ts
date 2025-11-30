@@ -109,7 +109,7 @@ export class MainOrchestrator {
         advancedUI.logWarning(`⚠︎ Tool Service disposal failed: ${error.message}`)
       }
       try {
-        ; (advancedUI as any)?.dispose?.()
+        ;(advancedUI as any)?.dispose?.()
       } catch (error: any) {
         console.warn(`Advanced UI disposal failed: ${error.message}`)
       }
@@ -573,10 +573,7 @@ export class MainOrchestrator {
       await advancedUI.logFunctionCall(`vm_${containerId}`)
       await advancedUI.logFunctionUpdate('info', logMessage)
 
-      await this.streamOrchestrator.streamToPanel(
-        'vm-logs',
-        `[${timestamp}] [${containerId}] ${logMessage}\n`
-      )
+      await this.streamOrchestrator.streamToPanel('vm-logs', `[${timestamp}] [${containerId}] ${logMessage}\n`)
     })
 
     this.vmOrchestrator.on('container:metrics', async (data: any) => {
@@ -589,9 +586,9 @@ export class MainOrchestrator {
       await this.streamOrchestrator.streamToPanel(
         'vm-metrics',
         `📊 ${containerId}:\n` +
-        `   Memory: ${memoryUsage} MB\n` +
-        `   CPU: ${cpuUsage}%\n` +
-        `   Network: ${networkActivity} KB\n\n`
+          `   Memory: ${memoryUsage} MB\n` +
+          `   CPU: ${cpuUsage}%\n` +
+          `   Network: ${networkActivity} KB\n\n`
       )
     })
 

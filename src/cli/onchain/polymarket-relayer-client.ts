@@ -157,10 +157,7 @@ export class PolymarketRelayerClient extends EventEmitter {
   /**
    * Execute transactions on Safe wallet
    */
-  async executeSafeTransactions(
-    userAddress: string,
-    transactions: SafeTransaction[]
-  ): Promise<ExecutionResponse> {
+  async executeSafeTransactions(userAddress: string, transactions: SafeTransaction[]): Promise<ExecutionResponse> {
     this.validateInitialized()
 
     if (!transactions.length) {
@@ -205,11 +202,7 @@ export class PolymarketRelayerClient extends EventEmitter {
   /**
    * Wait for transaction confirmation
    */
-  async wait(
-    transactionHash: string,
-    confirmations: number = 1,
-    timeout: number = 300000
-  ): Promise<TransactionStatus> {
+  async wait(transactionHash: string, confirmations: number = 1, timeout: number = 300000): Promise<TransactionStatus> {
     this.validateInitialized()
 
     console.log(`⏳︎ Waiting for ${confirmations} confirmation(s)...`)
@@ -306,10 +299,7 @@ export class PolymarketRelayerClient extends EventEmitter {
   /**
    * Estimate gas for transactions
    */
-  async estimateGas(
-    userAddress: string,
-    transactions: SafeTransaction[]
-  ): Promise<string> {
+  async estimateGas(userAddress: string, transactions: SafeTransaction[]): Promise<string> {
     this.validateInitialized()
 
     try {
@@ -339,11 +329,7 @@ export class PolymarketRelayerClient extends EventEmitter {
   /**
    * Call relayer API with authentication
    */
-  private async callRelayerAPI(
-    method: string,
-    path: string,
-    body?: any
-  ): Promise<any> {
+  private async callRelayerAPI(method: string, path: string, body?: any): Promise<any> {
     const url = `${this.config.relayerUrl}${path}`
     const timestamp = Math.floor(Date.now() / 1000).toString()
 
@@ -353,10 +339,10 @@ export class PolymarketRelayerClient extends EventEmitter {
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      'POLY_BUILDER_API_KEY': this.config.builderCredentials.apiKey,
-      'POLY_BUILDER_TIMESTAMP': timestamp,
-      'POLY_BUILDER_PASSPHRASE': this.config.builderCredentials.passphrase,
-      'POLY_BUILDER_SIGNATURE': signature,
+      POLY_BUILDER_API_KEY: this.config.builderCredentials.apiKey,
+      POLY_BUILDER_TIMESTAMP: timestamp,
+      POLY_BUILDER_PASSPHRASE: this.config.builderCredentials.passphrase,
+      POLY_BUILDER_SIGNATURE: signature,
     }
 
     try {
@@ -382,10 +368,7 @@ export class PolymarketRelayerClient extends EventEmitter {
    */
   private createSignature(message: string): string {
     const crypto = require('crypto')
-    return crypto
-      .createHmac('sha256', this.config.builderCredentials.secret)
-      .update(message)
-      .digest('hex')
+    return crypto.createHmac('sha256', this.config.builderCredentials.secret).update(message).digest('hex')
   }
 
   /**

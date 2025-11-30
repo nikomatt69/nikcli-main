@@ -1,5 +1,5 @@
 // TODO: Consider refactoring for reduced complexity
-import type { BaseTask, TaskStatus, SafeRecord, TaskPriority } from '../types/base-types';
+import type { BaseTask, SafeRecord, TaskPriority, TaskStatus } from '../types/base-types'
 
 // ============================================================================
 // Risk Assessment
@@ -10,13 +10,13 @@ import type { BaseTask, TaskStatus, SafeRecord, TaskPriority } from '../types/ba
  */
 export interface RiskAssessment {
   /** Overall risk level */
-  readonly overallRisk: 'low' | 'medium' | 'high';
+  readonly overallRisk: 'low' | 'medium' | 'high'
   /** Count of destructive operations */
-  readonly destructiveOperations: number;
+  readonly destructiveOperations: number
   /** Count of file modifications */
-  readonly fileModifications: number;
+  readonly fileModifications: number
   /** Count of external API calls */
-  readonly externalCalls: number;
+  readonly externalCalls: number
 }
 
 // ============================================================================
@@ -29,19 +29,19 @@ export interface RiskAssessment {
  */
 export interface PlanningToolCapability {
   /** Tool capability name */
-  readonly name: string;
+  readonly name: string
   /** Human-readable description */
-  readonly description: string;
+  readonly description: string
   /** Risk level of using this capability */
-  readonly riskLevel: 'low' | 'medium' | 'high';
+  readonly riskLevel: 'low' | 'medium' | 'high'
   /** Whether operation can be undone */
-  readonly reversible: boolean;
+  readonly reversible: boolean
   /** Estimated execution duration in milliseconds */
-  readonly estimatedDuration: number;
+  readonly estimatedDuration: number
   /** Required arguments for this capability */
-  readonly requiredArgs: readonly string[];
+  readonly requiredArgs: readonly string[]
   /** Optional arguments */
-  readonly optionalArgs: readonly string[];
+  readonly optionalArgs: readonly string[]
 }
 
 // ============================================================================
@@ -68,27 +68,27 @@ export interface PlanningToolCapability {
  */
 export interface ExecutionStep {
   /** Unique step identifier */
-  readonly id: string;
+  readonly id: string
   /** Type of step to execute */
-  readonly type: 'tool' | 'validation' | 'user_input' | 'decision';
+  readonly type: 'tool' | 'validation' | 'user_input' | 'decision'
   /** Display title for the step */
-  readonly title: string;
+  readonly title: string
   /** Detailed description of what step does */
-  readonly description: string;
+  readonly description: string
   /** Tool name (if type is 'tool') */
-  readonly toolName?: string;
+  readonly toolName?: string
   /** Arguments to pass to tool */
-  readonly toolArgs?: SafeRecord;
+  readonly toolArgs?: SafeRecord
   /** IDs of steps that must complete before this one */
-  readonly dependencies?: readonly string[];
+  readonly dependencies?: readonly string[]
   /** Estimated time to complete in milliseconds */
-  readonly estimatedDuration?: number;
+  readonly estimatedDuration?: number
   /** Risk level of this operation */
-  readonly riskLevel: 'low' | 'medium' | 'high';
+  readonly riskLevel: 'low' | 'medium' | 'high'
   /** Whether this step can be rolled back */
-  readonly reversible: boolean;
+  readonly reversible: boolean
   /** Additional metadata for this step */
-  readonly metadata?: SafeRecord;
+  readonly metadata?: SafeRecord
 }
 
 // ============================================================================
@@ -118,40 +118,40 @@ export interface ExecutionStep {
  */
 export interface ExecutionPlan {
   /** Unique plan identifier */
-  readonly id: string;
+  readonly id: string
   /** Plan title */
-  readonly title: string;
+  readonly title: string
   /** Plan description */
-  readonly description: string;
+  readonly description: string
   /** Ordered list of steps to execute */
-  readonly steps: readonly ExecutionStep[];
+  readonly steps: readonly ExecutionStep[]
   /** Related todo items */
-  readonly todos: readonly PlanTodo[];
+  readonly todos: readonly PlanTodo[]
   /** Current execution status */
-  readonly status: 'pending' | 'running' | 'completed' | 'failed';
+  readonly status: 'pending' | 'running' | 'completed' | 'failed'
   /** Estimated total duration in milliseconds */
-  readonly estimatedTotalDuration: number;
+  readonly estimatedTotalDuration: number
   /** Actual duration if completed */
-  readonly actualDuration?: number;
+  readonly actualDuration?: number
   /** Risk assessment for entire plan */
-  readonly riskAssessment: RiskAssessment;
+  readonly riskAssessment: RiskAssessment
   /** When plan was created */
-  readonly createdAt: Date;
+  readonly createdAt: Date
   /** Agent that created this plan */
-  readonly createdBy: string;
+  readonly createdBy: string
   /** Execution context and metadata */
   readonly context: {
     /** Original user request */
-    userRequest: string;
+    userRequest: string
     /** Project path for operation */
-    projectPath: string;
+    projectPath: string
     /** Files relevant to this plan */
-    relevantFiles?: readonly string[];
+    relevantFiles?: readonly string[]
     /** Planning reasoning (explanation of choices) */
-    reasoning?: string;
+    reasoning?: string
     /** Whether this is a simple plan (few steps) */
-    simple?: boolean;
-  };
+    simple?: boolean
+  }
 }
 
 /**
@@ -159,40 +159,40 @@ export interface ExecutionPlan {
  */
 export interface MutableExecutionPlan {
   /** Unique plan identifier */
-  readonly id: string;
+  readonly id: string
   /** Plan title */
-  title: string;
+  title: string
   /** Plan description */
-  description: string;
+  description: string
   /** Ordered list of steps to execute */
-  steps: ExecutionStep[];
+  steps: ExecutionStep[]
   /** Related todo items */
-  todos: MutablePlanTodo[];
+  todos: MutablePlanTodo[]
   /** Current execution status */
-  status: 'pending' | 'running' | 'completed' | 'failed';
+  status: 'pending' | 'running' | 'completed' | 'failed'
   /** Estimated total duration in milliseconds */
-  estimatedTotalDuration: number;
+  estimatedTotalDuration: number
   /** Actual duration if completed */
-  actualDuration?: number;
+  actualDuration?: number
   /** Risk assessment for entire plan */
-  riskAssessment: RiskAssessment;
+  riskAssessment: RiskAssessment
   /** When plan was created */
-  readonly createdAt: Date;
+  readonly createdAt: Date
   /** Agent that created this plan */
-  createdBy: string;
+  createdBy: string
   /** Execution context and metadata */
   context: {
     /** Original user request */
-    userRequest: string;
+    userRequest: string
     /** Project path for operation */
-    projectPath: string;
+    projectPath: string
     /** Files relevant to this plan */
-    relevantFiles?: string[];
+    relevantFiles?: string[]
     /** Planning reasoning (explanation of choices) */
-    reasoning?: string;
+    reasoning?: string
     /** Whether this is a simple plan (few steps) */
-    simple?: boolean;
-  };
+    simple?: boolean
+  }
 }
 
 // ============================================================================
@@ -204,19 +204,19 @@ export interface MutableExecutionPlan {
  */
 export interface StepExecutionResult {
   /** ID of executed step */
-  readonly stepId: string;
+  readonly stepId: string
   /** Outcome of execution */
-  readonly status: 'success' | 'failure' | 'skipped' | 'cancelled';
+  readonly status: 'success' | 'failure' | 'skipped' | 'cancelled'
   /** Output data from step */
-  readonly output?: unknown;
+  readonly output?: unknown
   /** Error if step failed */
-  readonly error?: Error;
+  readonly error?: Error
   /** How long step took to execute in milliseconds */
-  readonly duration: number;
+  readonly duration: number
   /** When step was executed */
-  readonly timestamp: Date;
+  readonly timestamp: Date
   /** Execution logs */
-  readonly logs?: readonly string[];
+  readonly logs?: readonly string[]
 }
 
 /**
@@ -224,19 +224,19 @@ export interface StepExecutionResult {
  */
 export interface MutableStepExecutionResult {
   /** ID of executed step */
-  readonly stepId: string;
+  readonly stepId: string
   /** Outcome of execution */
-  status: 'success' | 'failure' | 'skipped' | 'cancelled';
+  status: 'success' | 'failure' | 'skipped' | 'cancelled'
   /** Output data from step */
-  output?: unknown;
+  output?: unknown
   /** Error if step failed */
-  error?: Error;
+  error?: Error
   /** How long step took to execute in milliseconds */
-  duration: number;
+  duration: number
   /** When step was executed */
-  readonly timestamp: Date;
+  readonly timestamp: Date
   /** Execution logs */
-  logs?: string[];
+  logs?: string[]
 }
 
 /**
@@ -244,26 +244,26 @@ export interface MutableStepExecutionResult {
  */
 export interface PlanExecutionResult {
   /** ID of executed plan */
-  readonly planId: string;
+  readonly planId: string
   /** Overall execution status */
-  readonly status: 'completed' | 'failed' | 'cancelled' | 'partial';
+  readonly status: 'completed' | 'failed' | 'cancelled' | 'partial'
   /** When execution started */
-  readonly startTime: Date;
+  readonly startTime: Date
   /** When execution ended */
-  readonly endTime?: Date;
+  readonly endTime?: Date
   /** Results for each step */
-  readonly stepResults: readonly StepExecutionResult[];
+  readonly stepResults: readonly StepExecutionResult[]
   /** Summary statistics */
   readonly summary: {
     /** Total number of steps */
-    totalSteps: number;
+    totalSteps: number
     /** Steps completed successfully */
-    successfulSteps: number;
+    successfulSteps: number
     /** Steps that failed */
-    failedSteps: number;
+    failedSteps: number
     /** Steps that were skipped */
-    skippedSteps: number;
-  };
+    skippedSteps: number
+  }
 }
 
 /**
@@ -271,26 +271,26 @@ export interface PlanExecutionResult {
  */
 export interface MutablePlanExecutionResult {
   /** ID of executed plan */
-  readonly planId: string;
+  readonly planId: string
   /** Overall execution status */
-  status: 'completed' | 'failed' | 'cancelled' | 'partial';
+  status: 'completed' | 'failed' | 'cancelled' | 'partial'
   /** When execution started */
-  readonly startTime: Date;
+  readonly startTime: Date
   /** When execution ended */
-  endTime?: Date;
+  endTime?: Date
   /** Results for each step */
-  stepResults: MutableStepExecutionResult[];
+  stepResults: MutableStepExecutionResult[]
   /** Summary statistics */
   summary: {
     /** Total number of steps */
-    totalSteps: number;
+    totalSteps: number
     /** Steps completed successfully */
-    successfulSteps: number;
+    successfulSteps: number
     /** Steps that failed */
-    failedSteps: number;
+    failedSteps: number
     /** Steps that were skipped */
-    skippedSteps: number;
-  };
+    skippedSteps: number
+  }
 }
 
 // ============================================================================
@@ -303,13 +303,13 @@ export interface MutablePlanExecutionResult {
  */
 export interface PlanApprovalRequest {
   /** Plan requiring approval */
-  readonly plan: ExecutionPlan;
+  readonly plan: ExecutionPlan
   /** When approval was requested */
-  readonly timestamp: Date;
+  readonly timestamp: Date
   /** Whether confirmation is required before execution */
-  readonly requiresConfirmation: boolean;
+  readonly requiresConfirmation: boolean
   /** Warning messages about risky operations */
-  readonly warningMessages?: readonly string[];
+  readonly warningMessages?: readonly string[]
 }
 
 /**
@@ -317,13 +317,13 @@ export interface PlanApprovalRequest {
  */
 export interface PlanApprovalResponse {
   /** Whether user approved the plan */
-  readonly approved: boolean;
+  readonly approved: boolean
   /** IDs of steps user wants to skip */
-  readonly modifiedSteps?: readonly string[];
+  readonly modifiedSteps?: readonly string[]
   /** User's comments about the plan */
-  readonly userComments?: string;
+  readonly userComments?: string
   /** When approval decision was made */
-  readonly timestamp: Date;
+  readonly timestamp: Date
 }
 
 // ============================================================================
@@ -335,17 +335,17 @@ export interface PlanApprovalResponse {
  */
 export interface PlannerConfig {
   /** Maximum number of steps allowed in a single plan */
-  readonly maxStepsPerPlan: number;
+  readonly maxStepsPerPlan: number
   /** Risk level that requires user approval */
-  readonly requireApprovalForRisk: 'medium' | 'high';
+  readonly requireApprovalForRisk: 'medium' | 'high'
   /** Enable automatic rollback on failure */
-  readonly enableRollback: boolean;
+  readonly enableRollback: boolean
   /** Logging verbosity level */
-  readonly logLevel: 'debug' | 'info' | 'warn' | 'error';
+  readonly logLevel: 'debug' | 'info' | 'warn' | 'error'
   /** Timeout per step in milliseconds */
-  readonly timeoutPerStep: number;
+  readonly timeoutPerStep: number
   /** Auto-approve read-only operations */
-  readonly autoApproveReadonly?: boolean;
+  readonly autoApproveReadonly?: boolean
 }
 
 // ============================================================================
@@ -357,13 +357,13 @@ export interface PlannerConfig {
  */
 export interface PlanValidationResult {
   /** Whether plan is valid */
-  readonly isValid: boolean;
+  readonly isValid: boolean
   /** Validation errors */
-  readonly errors: readonly string[];
+  readonly errors: readonly string[]
   /** Non-critical warnings */
-  readonly warnings: readonly string[];
+  readonly warnings: readonly string[]
   /** Suggestions for improvement */
-  readonly suggestions: readonly string[];
+  readonly suggestions: readonly string[]
 }
 
 // ============================================================================
@@ -375,33 +375,33 @@ export interface PlanValidationResult {
  */
 export interface PlannerContext {
   /** User's original request */
-  readonly userRequest: string;
+  readonly userRequest: string
   /** Project root path */
-  readonly projectPath: string;
+  readonly projectPath: string
   /** Available tools for planning */
-  readonly availableTools: readonly PlanningToolCapability[];
+  readonly availableTools: readonly PlanningToolCapability[]
   /** Analysis of the project */
   readonly projectAnalysis?: {
     /** Number of files in project */
-    fileCount: number;
+    fileCount: number
     /** Languages used in project */
-    languages: readonly string[];
+    languages: readonly string[]
     /** Frameworks detected */
-    frameworks: readonly string[];
+    frameworks: readonly string[]
     /** Whether project has tests */
-    hasTests: boolean;
+    hasTests: boolean
     /** Whether project has documentation */
-    hasDocumentation: boolean;
-  };
+    hasDocumentation: boolean
+  }
   /** User preferences for planning */
   readonly userPreferences?: {
     /** How much risk user is willing to accept */
-    riskTolerance: 'conservative' | 'moderate' | 'aggressive';
+    riskTolerance: 'conservative' | 'moderate' | 'aggressive'
     /** Tools user prefers to use */
-    preferredTools: readonly string[];
+    preferredTools: readonly string[]
     /** Operations to avoid */
-    excludedOperations: readonly string[];
-  };
+    excludedOperations: readonly string[]
+  }
 }
 
 // ============================================================================
@@ -414,15 +414,15 @@ export interface PlannerContext {
  */
 export interface PlanTodo extends BaseTask {
   /** Title of the todo */
-  readonly title: string;
+  readonly title: string
   /** Detailed description */
-  readonly description: string;
+  readonly description: string
   /** Agent assigned to this todo */
-  readonly assignedAgent?: string;
+  readonly assignedAgent?: string
   /** Reasoning for this todo */
-  readonly reasoning?: string;
+  readonly reasoning?: string
   /** Tools needed to complete this todo */
-  readonly tools?: readonly string[];
+  readonly tools?: readonly string[]
 }
 
 /**
@@ -430,37 +430,37 @@ export interface PlanTodo extends BaseTask {
  */
 export interface MutablePlanTodo {
   /** Unique task identifier */
-  readonly id: string;
+  readonly id: string
   /** Human-readable task title */
-  title: string;
+  title: string
   /** Detailed task description */
-  description: string;
+  description: string
   /** Current execution status */
-  status: TaskStatus;
+  status: TaskStatus
   /** Task priority level */
-  priority: TaskPriority;
+  priority: TaskPriority
   /** Task creation timestamp */
-  readonly createdAt: Date;
+  readonly createdAt: Date
   /** Task last update timestamp */
-  updatedAt: Date;
+  updatedAt: Date
   /** Task completion timestamp (if completed) */
-  completedAt?: Date;
+  completedAt?: Date
   /** Task progress percentage (0-100) */
-  progress: number;
+  progress: number
   /** Estimated duration in milliseconds */
-  estimatedDuration?: number;
+  estimatedDuration?: number
   /** Actual duration in milliseconds (if completed) */
-  actualDuration?: number;
+  actualDuration?: number
   /** Dependencies on other task IDs */
-  dependencies?: string[];
+  dependencies?: string[]
   /** Related metadata */
-  metadata?: Record<string, unknown>;
+  metadata?: Record<string, unknown>
   /** Agent assigned to this todo */
-  assignedAgent?: string;
+  assignedAgent?: string
   /** Reasoning for this todo */
-  reasoning?: string;
+  reasoning?: string
   /** Tools needed to complete this todo */
-  tools?: string[];
+  tools?: string[]
 }
 
 // ============================================================================
@@ -474,20 +474,20 @@ export interface ConversationContext {
   /** Message history */
   readonly messages: readonly {
     /** Who sent the message */
-    role: 'user' | 'assistant' | 'system';
+    role: 'user' | 'assistant' | 'system'
     /** Message content */
-    content: string;
+    content: string
     /** When message was sent */
-    timestamp: Date;
-  }[];
+    timestamp: Date
+  }[]
   /** Conversation session ID */
-  readonly sessionId: string;
+  readonly sessionId: string
   /** Project analysis from earlier in conversation */
-  readonly workspaceAnalysis?: unknown;
+  readonly workspaceAnalysis?: unknown
   /** Files currently being worked on */
-  readonly activeFiles?: readonly string[];
+  readonly activeFiles?: readonly string[]
   /** Last modification time in workspace */
-  readonly lastModified?: Date;
+  readonly lastModified?: Date
 }
 
 // ============================================================================
@@ -499,10 +499,8 @@ export interface ConversationContext {
  * @param step - The step to check
  * @returns true if step executes a tool
  */
-export function isToolStep(
-  step: ExecutionStep,
-): step is ExecutionStep & { toolName: string } {
-  return step.type === 'tool' && step.toolName !== undefined;
+export function isToolStep(step: ExecutionStep): step is ExecutionStep & { toolName: string } {
+  return step.type === 'tool' && step.toolName !== undefined
 }
 
 /**
@@ -511,7 +509,7 @@ export function isToolStep(
  * @returns true if step requires user interaction
  */
 export function isUserInputStep(step: ExecutionStep): boolean {
-  return step.type === 'user_input' || step.type === 'decision';
+  return step.type === 'user_input' || step.type === 'decision'
 }
 
 /**
@@ -520,21 +518,21 @@ export function isUserInputStep(step: ExecutionStep): boolean {
  * @returns Risk score 0-100
  */
 export function calculatePlanRiskScore(plan: ExecutionPlan): number {
-  const riskAssessment = plan.riskAssessment;
-  let score = 0;
+  const riskAssessment = plan.riskAssessment
+  let score = 0
 
   // Base score from overall risk
-  if (riskAssessment.overallRisk === 'high') score += 50;
-  else if (riskAssessment.overallRisk === 'medium') score += 25;
+  if (riskAssessment.overallRisk === 'high') score += 50
+  else if (riskAssessment.overallRisk === 'medium') score += 25
 
   // Add points for destructive operations
-  score += Math.min(riskAssessment.destructiveOperations * 5, 20);
+  score += Math.min(riskAssessment.destructiveOperations * 5, 20)
 
   // Add points for file modifications
-  score += Math.min(riskAssessment.fileModifications * 3, 15);
+  score += Math.min(riskAssessment.fileModifications * 3, 15)
 
   // Add points for external calls
-  score += Math.min(riskAssessment.externalCalls * 2, 10);
+  score += Math.min(riskAssessment.externalCalls * 2, 10)
 
-  return Math.min(score, 100);
+  return Math.min(score, 100)
 }

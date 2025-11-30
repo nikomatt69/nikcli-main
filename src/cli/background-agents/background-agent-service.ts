@@ -2,15 +2,19 @@
 
 import { EventEmitter } from 'node:events'
 import { v4 as uuidv4 } from 'uuid'
+import { advancedUI } from '../ui/advanced-cli-ui'
 import { VMStatusIndicator } from '../ui/vm-status-indicator'
 import { ContainerManager } from '../virtualized-agents/container-manager'
 import { VMOrchestrator } from '../virtualized-agents/vm-orchestrator'
+import {
+  type LocalFileAdapter,
+  type LocalFileBackgroundAgentAdapter,
+  localFileAdapter,
+} from './adapters/local-file-adapter'
 import { VercelKVBackgroundAgentAdapter, vercelKVAdapter } from './adapters/vercel-kv-adapter'
-import { LocalFileBackgroundAgentAdapter, localFileAdapter, type LocalFileAdapter } from './adapters/local-file-adapter'
 import { EnvironmentParser } from './core/environment-parser'
 import { PlaybookParser } from './core/playbook-parser'
 import type { BackgroundJob, CreateBackgroundJobRequest, JobStatus } from './types'
-import { advancedUI } from '../ui/advanced-cli-ui'
 
 export interface BackgroundJobStats {
   total: number
@@ -249,7 +253,6 @@ export class BackgroundAgentService extends EventEmitter {
 
         // Mark as completed in queue
         await jobQueue.completeJob(jobId)
-
       } catch (error: any) {
         console.error(`[BackgroundAgentService] Error executing job ${jobId}:`, error)
         await jobQueue.failJob(jobId, error.message || 'Unknown error')
@@ -418,8 +421,8 @@ export class BackgroundAgentService extends EventEmitter {
         try {
           // Clear require cache for the problematic package if it exists
           const cacheKeys = Object.keys(require.cache)
-          const problematicKeys = cacheKeys.filter(key => key.includes(packageName))
-          problematicKeys.forEach(key => delete require.cache[key])
+          const problematicKeys = cacheKeys.filter((key) => key.includes(packageName))
+          problematicKeys.forEach((key) => delete require.cache[key])
 
           this.logJob(job, 'info', `🧹 Cleared module cache for ${packageName}`)
         } catch (cacheError) {
@@ -576,18 +579,17 @@ export class BackgroundAgentService extends EventEmitter {
       })
 
       this.logJob(job, 'info', '✓ Successfully cloned from GitHub')
-
     } catch (cloneError: any) {
       this.logJob(job, 'warn', `GitHub clone failed: ${cloneError.message}`)
 
       // Network issues detected - fallback to local repository copy
-      if (cloneError.message.includes('Could not resolve host') ||
+      if (
+        cloneError.message.includes('Could not resolve host') ||
         cloneError.message.includes('timeout') ||
-        cloneError.message.includes('network')) {
-
+        cloneError.message.includes('network')
+      ) {
         this.logJob(job, 'info', '🔄 Network issue detected, using local repository copy as fallback')
         await this.copyLocalRepository(job, workspaceDir, repoDir)
-
       } else {
         // Re-throw non-network errors
         throw cloneError
@@ -726,10 +728,13 @@ export class BackgroundAgentService extends EventEmitter {
       this.logJob(job, 'info', `📁 Copying local repository from: ${currentRepo}`)
 
       // Copy the entire repository except node_modules and workspace
-      execSync(`rsync -av --exclude='node_modules' --exclude='workspace' --exclude='.git/objects/pack/*.pack' "${currentRepo}/" "${repoDir}/"`, {
-        cwd: workspaceDir,
-        stdio: 'pipe',
-      })
+      execSync(
+        `rsync -av --exclude='node_modules' --exclude='workspace' --exclude='.git/objects/pack/*.pack' "${currentRepo}/" "${repoDir}/"`,
+        {
+          cwd: workspaceDir,
+          stdio: 'pipe',
+        }
+      )
 
       // Initialize a new git repository
       execSync('git init', { cwd: repoDir })
@@ -737,7 +742,6 @@ export class BackgroundAgentService extends EventEmitter {
       execSync('git commit -m "Initial commit from local copy"', { cwd: repoDir })
 
       this.logJob(job, 'info', '✓ Successfully created repository from local copy')
-
     } catch (error: any) {
       this.logJob(job, 'error', `Failed to copy local repository: ${error.message}`)
 
@@ -760,24 +764,18 @@ export class BackgroundAgentService extends EventEmitter {
 
       // Create basic package.json
       const packageJson = {
-        name: "background-agent-workspace",
-        version: "1.0.0",
-        description: "Background agent workspace",
+        name: 'background-agent-workspace',
+        version: '1.0.0',
+        description: 'Background agent workspace',
         scripts: {
-          test: "echo 'No tests configured'"
-        }
+          test: "echo 'No tests configured'",
+        },
       }
 
-      await fs.writeFile(
-        `${repoDir}/package.json`,
-        JSON.stringify(packageJson, null, 2)
-      )
+      await fs.writeFile(`${repoDir}/package.json`, JSON.stringify(packageJson, null, 2))
 
       // Create basic README
-      await fs.writeFile(
-        `${repoDir}/README.md`,
-        `# Background Agent Workspace\n\nGenerated for task: ${job.task}\n`
-      )
+      await fs.writeFile(`${repoDir}/README.md`, `# Background Agent Workspace\n\nGenerated for task: ${job.task}\n`)
 
       // Initialize git
       execSync('git init', { cwd: repoDir })
@@ -785,7 +783,6 @@ export class BackgroundAgentService extends EventEmitter {
       execSync('git commit -m "Initial minimal repository for background agent"', { cwd: repoDir })
 
       this.logJob(job, 'info', '✓ Created minimal repository structure')
-
     } catch (error: any) {
       this.logJob(job, 'error', `Failed to create minimal repository: ${error.message}`)
       throw error
@@ -901,7 +898,10 @@ export class BackgroundAgentService extends EventEmitter {
         let output = ''
         if (step.run.startsWith('nikcli')) {
           // Extract task from nikcli command and execute with real toolchain
-          const task = step.run.replace(/^nikcli\s+/, '').replace(/^\/auto\s+/, '').replace(/['"]/g, '')
+          const task = step.run
+            .replace(/^nikcli\s+/, '')
+            .replace(/^\/auto\s+/, '')
+            .replace(/['"]/g, '')
           await this.executeRealToolchain(job, repoDir, task)
         } else {
           output = await this.executeShellCommandWithOutput(job, repoDir, step.run)
@@ -929,7 +929,10 @@ export class BackgroundAgentService extends EventEmitter {
           await this.logJob(job, 'warn', `Retrying step ${i + 1}...`)
           try {
             if (step.run.startsWith('nikcli')) {
-              const task = step.run.replace(/^nikcli\s+/, '').replace(/^\/auto\s+/, '').replace(/['"]/g, '')
+              const task = step.run
+                .replace(/^nikcli\s+/, '')
+                .replace(/^\/auto\s+/, '')
+                .replace(/['"]/g, '')
               await this.executeRealToolchain(job, repoDir, task)
             } else {
               await this.executeShellCommand(job, repoDir, step.run)
@@ -983,7 +986,6 @@ export class BackgroundAgentService extends EventEmitter {
     await this.executeRealToolchain(job, repoDir, job.task)
   }
 
-
   /**
    * Execute task using real toolchains exactly like NikCLI user mode
    * Uses advancedAIProvider.streamChatWithFullAutonomy with unifiedRenderer and streamttyService
@@ -991,7 +993,7 @@ export class BackgroundAgentService extends EventEmitter {
   private async executeRealToolchain(job: BackgroundJob, workingDir: string, task: string): Promise<void> {
     // Suppress Node.js module resolution warnings for malformed packages
     const originalEmitWarning = process.emitWarning
-    process.emitWarning = function (warning: any, ...args: any[]) {
+    process.emitWarning = (warning: any, ...args: any[]) => {
       // Ignore warnings about missing exports/main in package.json
       if (typeof warning === 'string' && warning.includes('exports') && warning.includes('package.json')) {
         return
@@ -1049,7 +1051,7 @@ export class BackgroundAgentService extends EventEmitter {
             // Try to fix and retry
             const { autoFixESMPackages } = await import('./utils/esm-fix-loader')
             autoFixESMPackages(process.cwd())
-            await new Promise(resolve => setTimeout(resolve, 100))
+            await new Promise((resolve) => setTimeout(resolve, 100))
             const aiProviderModule = await import('../ai/advanced-ai-provider')
             advancedAIProvider = aiProviderModule.advancedAIProvider
           } else {
@@ -1065,7 +1067,7 @@ export class BackgroundAgentService extends EventEmitter {
           if (isESMError) {
             const { autoFixESMPackages } = await import('./utils/esm-fix-loader')
             autoFixESMPackages(process.cwd())
-            await new Promise(resolve => setTimeout(resolve, 100))
+            await new Promise((resolve) => setTimeout(resolve, 100))
             const rendererModule = await import('../services/unified-tool-renderer')
             getUnifiedToolRenderer = rendererModule.getUnifiedToolRenderer
           } else {
@@ -1081,7 +1083,7 @@ export class BackgroundAgentService extends EventEmitter {
           if (isESMError) {
             const { autoFixESMPackages } = await import('./utils/esm-fix-loader')
             autoFixESMPackages(process.cwd())
-            await new Promise(resolve => setTimeout(resolve, 100))
+            await new Promise((resolve) => setTimeout(resolve, 100))
             const streamttyModule = await import('../services/streamtty-service')
             streamttyService = streamttyModule.streamttyService
           } else {
@@ -1136,9 +1138,14 @@ export class BackgroundAgentService extends EventEmitter {
         try {
           streamGenerator = advancedAIProvider.streamChatWithFullAutonomy(messages)
         } catch (streamInitError: any) {
-          const isModuleError = streamInitError?.message?.includes('exports') && streamInitError?.message?.includes('package.json')
+          const isModuleError =
+            streamInitError?.message?.includes('exports') && streamInitError?.message?.includes('package.json')
           if (isModuleError) {
-            this.logJob(job, 'warn', `⚠︎ Module resolution warning during stream init (non-critical): ${streamInitError.message}`)
+            this.logJob(
+              job,
+              'warn',
+              `⚠︎ Module resolution warning during stream init (non-critical): ${streamInitError.message}`
+            )
             this.logJob(job, 'info', '💡 Retrying stream initialization...')
             // Retry once
             streamGenerator = advancedAIProvider.streamChatWithFullAutonomy(messages)
@@ -1231,11 +1238,10 @@ export class BackgroundAgentService extends EventEmitter {
               }
               break
 
-            case 'error':
+            case 'error': {
               // Stream error - check if it's a non-critical module resolution error
               const isModuleResolutionErrorInStream =
-                ev.error?.includes('exports') &&
-                ev.error?.includes('package.json')
+                ev.error?.includes('exports') && ev.error?.includes('package.json')
 
               if (isModuleResolutionErrorInStream) {
                 this.logJob(job, 'warn', `⚠︎ Module resolution warning (non-critical): ${ev.error}`)
@@ -1247,6 +1253,7 @@ export class BackgroundAgentService extends EventEmitter {
                 this.logJob(job, 'error', `✖ Background agent error: ${ev.error}`)
                 throw new Error(ev.error)
               }
+            }
           }
         }
 
@@ -1275,13 +1282,14 @@ export class BackgroundAgentService extends EventEmitter {
           await usageTracker.trackJobCompletion(job.userId)
         }
 
-        this.logJob(job, 'info', `✓ Task completed successfully with ${toolCallCount} tool calls, ${aiCallCount} AI calls, ${job.metrics.tokenUsage} tokens ($${job.metrics.estimatedCost?.toFixed(4)})`)
-
+        this.logJob(
+          job,
+          'info',
+          `✓ Task completed successfully with ${toolCallCount} tool calls, ${aiCallCount} AI calls, ${job.metrics.tokenUsage} tokens ($${job.metrics.estimatedCost?.toFixed(4)})`
+        )
       } catch (error: any) {
         // Check if this is a module resolution error that we can ignore
-        const isModuleResolutionError =
-          error.message?.includes('exports') &&
-          error.message?.includes('package.json')
+        const isModuleResolutionError = error.message?.includes('exports') && error.message?.includes('package.json')
 
         if (isModuleResolutionError) {
           this.logJob(job, 'warn', `⚠︎ Module resolution warning (non-critical): ${error.message}`)
@@ -1294,7 +1302,6 @@ export class BackgroundAgentService extends EventEmitter {
       } finally {
         unifiedRenderer.endExecution()
       }
-
     } catch (error: any) {
       this.logJob(job, 'error', `Background agent execution failed: ${error.message}`)
       throw error
@@ -1320,7 +1327,6 @@ export class BackgroundAgentService extends EventEmitter {
         // Execute using the same autonomous approach as plan mode
         await this.executeAutonomousTask(job, workingDir, todo)
         this.logJob(job, 'info', `✓ Completed task ${index + 1}: ${todo.title}`)
-
       } catch (error: any) {
         this.logJob(job, 'error', `✖ Failed task ${index + 1}: ${todo.title} - ${error.message}`)
         // Continue with other tasks even if one fails
@@ -1364,7 +1370,6 @@ export class BackgroundAgentService extends EventEmitter {
 
       this.logJob(job, 'info', `🎯 Container task executed successfully`)
       this.logJob(job, 'info', `📄 Container output: ${result.substring(0, 300)}...`)
-
     } catch (error: any) {
       this.logJob(job, 'error', `Container execution failed: ${error.message}`)
 
@@ -1404,15 +1409,15 @@ try {
   console.error('✖ Task failed in container:', error.message);
   process.exit(1);
 }
-`;
+`
   }
 
   /**
    * Generate task-specific execution code
    */
   private generateTaskExecutionCode(todo: any): string {
-    const task = todo.title?.toLowerCase() || '';
-    const description = todo.description?.toLowerCase() || '';
+    const task = todo.title?.toLowerCase() || ''
+    const description = todo.description?.toLowerCase() || ''
 
     if (task.includes('fix') || task.includes('bug') || description.includes('fix')) {
       return `
@@ -1426,8 +1431,8 @@ try {
 
     // Create a bug analysis report using string concatenation
     const timestamp = new Date().toISOString();
-    const taskTitle = '${todo.title || "Bug Fix Task"}';
-    const taskDesc = '${todo.description || "Container bug analysis"}';
+    const taskTitle = '${todo.title || 'Bug Fix Task'}';
+    const taskDesc = '${todo.description || 'Container bug analysis'}';
 
     const analysisReport = '# Bug Analysis Report\\n' +
       'Generated: ' + timestamp + '\\n\\n' +
@@ -1448,7 +1453,7 @@ try {
 
   } catch (err) {
     console.error('Error in bug analysis:', err.message);
-  }`;
+  }`
     }
 
     if (task.includes('test') || description.includes('test')) {
@@ -1463,7 +1468,7 @@ try {
 
     // Create test report using string concatenation
     const timestamp = new Date().toISOString();
-    const taskTitle = '${todo.title || "Test Task"}';
+    const taskTitle = '${todo.title || 'Test Task'}';
 
     const testReport = '# Test Execution Report\\n' +
       'Generated: ' + timestamp + '\\n\\n' +
@@ -1478,7 +1483,7 @@ try {
 
   } catch (err) {
     console.error('Error running tests:', err.message);
-  }`;
+  }`
     }
 
     // Default generic task execution
@@ -1493,8 +1498,8 @@ try {
 
     // Create task completion report using string concatenation
     const timestamp = new Date().toISOString();
-    const taskTitle = '${todo.title || "Generic Task"}';
-    const taskDesc = '${todo.description || "Container task execution"}';
+    const taskTitle = '${todo.title || 'Generic Task'}';
+    const taskDesc = '${todo.description || 'Container task execution'}';
 
     const taskReport = '# Task Completion Report\\n' +
       'Generated: ' + timestamp + '\\n\\n' +
@@ -1517,7 +1522,7 @@ try {
 
   } catch (err) {
     console.error('Error in task execution:', err.message);
-  }`;
+  }`
   }
 
   /**
@@ -1532,7 +1537,6 @@ EOF`
 
       await this.vmOrchestrator.executeCommand(containerId, command)
       this.logJob(job, 'info', '📝 Task script written to container')
-
     } catch (error: any) {
       this.logJob(job, 'error', `Failed to write script to container: ${error.message}`)
       throw error
@@ -1577,12 +1581,12 @@ EXECUTION GUIDELINES:
 9. NEVER modify files outside this workspace - you operate in complete isolation
 10. All changes will be committed and pushed as a PR from this workspace
 
-Execute the task now using the available tools. Make real changes in the sandbox workspace.`
+Execute the task now using the available tools. Make real changes in the sandbox workspace.`,
       },
       {
         role: 'user' as const,
-        content: `Execute task: ${todo.title}\n\nDescription: ${todo.description}\n\nComplete this task fully using all necessary tools in workspace: ${workingDir}`
-      }
+        content: `Execute task: ${todo.title}\n\nDescription: ${todo.description}\n\nComplete this task fully using all necessary tools in workspace: ${workingDir}`,
+      },
     ]
 
     let responseText = ''
@@ -1610,7 +1614,6 @@ Execute the task now using the available tools. Make real changes in the sandbox
       if (responseText.trim()) {
         this.logJob(job, 'info', `📄 AI Response: ${responseText.substring(0, 200)}...`)
       }
-
     } catch (error: any) {
       this.logJob(job, 'error', `Host execution failed: ${error.message}`)
       throw error
@@ -1620,7 +1623,6 @@ Execute the task now using the available tools. Make real changes in the sandbox
     // This ensures all subsequent operations (like PR creation) happen in the correct sandbox
     this.logJob(job, 'info', `🔒 Maintaining sandbox workspace: ${workingDir}`)
   }
-
 
   /**
    * Basic toolchain fallback when TaskMaster fails
@@ -1645,7 +1647,6 @@ Execute the task now using the available tools. Make real changes in the sandbox
         // General analysis
         await this.executeBasicAnalysis(job, toolService, task)
       }
-
     } catch (error: any) {
       this.logJob(job, 'error', `Basic toolchain failed: ${error.message}`)
       throw error
@@ -1723,19 +1724,17 @@ Generated by NikCLI Background Agent with AI Analysis
 
         await toolService.executeTool('write_file', {
           filePath: 'AI_BUG_ANALYSIS.md',
-          content: reportContent
+          content: reportContent,
         })
 
         this.logJob(job, 'info', '✓ AI bug analysis completed: AI_BUG_ANALYSIS.md')
       } else {
         this.logJob(job, 'warn', '⚠︎ AI analysis failed, creating basic report')
       }
-
     } catch (error: any) {
       this.logJob(job, 'warn', `Bug analysis failed: ${error.message}`)
     }
   }
-
 
   /**
    * Basic analysis workflow with AI analysis
@@ -1840,20 +1839,17 @@ Generated by NikCLI Background Agent with AI Analysis
 
         await toolService.executeTool('write_file', {
           filePath: 'AI_PROJECT_ANALYSIS.md',
-          content: reportContent
+          content: reportContent,
         })
 
         this.logJob(job, 'info', '✓ AI project analysis completed: AI_PROJECT_ANALYSIS.md')
       } else {
         this.logJob(job, 'warn', '⚠︎ AI analysis failed')
       }
-
     } catch (error: any) {
       this.logJob(job, 'warn', `Project analysis failed: ${error.message}`)
     }
   }
-
-
 
   /**
    * Execute shell command
@@ -1921,7 +1917,7 @@ Generated by NikCLI Background Agent with AI Analysis
             title: `🤖 ${job.task}`,
             description: `Automated changes from NikCLI Background Agent\n\nTask: ${job.task}\n\nGenerated: ${new Date().toISOString()}`,
             branch: job.workBranch,
-            baseBranch: job.baseBranch
+            baseBranch: job.baseBranch,
           })
           job.prUrl = prUrl
           this.logJob(job, 'info', `Pull request created: ${prUrl}`)

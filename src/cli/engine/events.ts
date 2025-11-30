@@ -38,7 +38,21 @@ export async function runAnalysisWithEvents(
     const globbyModule: any = await import('globby')
     const globby = globbyModule.globby || globbyModule.default
 
-    const patterns = ['**/*.{ts,tsx,js,jsx,json,md}', '!node_modules/**', '!dist/**', '!build/**', '!coverage/**', '!out/**', '!.next/**', '!.nuxt/**', '!.env/**', '!.env.local/**', '!.env.development.local/**', '!.env.test.local/**', '!.env.production.local/**']
+    const patterns = [
+      '**/*.{ts,tsx,js,jsx,json,md}',
+      '!node_modules/**',
+      '!dist/**',
+      '!build/**',
+      '!coverage/**',
+      '!out/**',
+      '!.next/**',
+      '!.nuxt/**',
+      '!.env/**',
+      '!.env.local/**',
+      '!.env.development.local/**',
+      '!.env.test.local/**',
+      '!.env.production.local/**',
+    ]
     let files: string[] = []
     try {
       // Prefer globby async

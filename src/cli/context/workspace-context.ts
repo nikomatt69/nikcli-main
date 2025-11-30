@@ -115,12 +115,12 @@ export class WorkspaceContextManager {
     path: string
     max?: number
   }> = [
-      { kind: 'directory', path: 'src/cli/background-agents', max: 8 },
-      { kind: 'directory', path: 'src/cli/cloud', max: 6 },
-      { kind: 'directory', path: 'src/cli/github-bot', max: 4 },
-      { kind: 'file', path: 'src/cli/core/api-key-manager.ts' },
-      { kind: 'file', path: 'src/cli/core/config-manager.ts' },
-    ]
+    { kind: 'directory', path: 'src/cli/background-agents', max: 8 },
+    { kind: 'directory', path: 'src/cli/cloud', max: 6 },
+    { kind: 'directory', path: 'src/cli/github-bot', max: 4 },
+    { kind: 'file', path: 'src/cli/core/api-key-manager.ts' },
+    { kind: 'file', path: 'src/cli/core/config-manager.ts' },
+  ]
 
   // Integrated components
   private fileFilter: FileFilterSystem
@@ -194,8 +194,6 @@ export class WorkspaceContextManager {
 
       this.context.ragAvailable = !ragResult.fallbackMode
       this.ragInitialized = true
-
-
     } catch (_error) {
       advancedUI.logWarning(chalk.yellow('⚠︎ RAG integration failed, using basic workspace analysis'))
       this.context.ragAvailable = false
@@ -206,15 +204,12 @@ export class WorkspaceContextManager {
   // Initialize integrated components
   private async initializeIntegratedComponents(): Promise<void> {
     try {
-
-
       // File filter is already initialized in constructor
 
       // Pre-scan workspace to populate file filter context
       await this.refreshWorkspaceIndex()
 
       this.isInitialized = true
-
     } catch (error) {
       advancedUI.logWarning(chalk.yellow('⚠︎ Failed to initialize integrated components:', error))
       this.isInitialized = false

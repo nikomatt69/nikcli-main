@@ -109,7 +109,7 @@ export class ParameterPredictor {
       },
       {
         name: 'search-pattern',
-        regex: [/(?:search|find|grep)\s+(?:for\s+)?([a-zA-Z0-9_\-\.]+)/],
+        regex: [/(?:search|find|grep)\s+(?:for\s+)?([a-zA-Z0-9_\-.]+)/],
         extract: (matches) => {
           if (matches[0]?.[1]) {
             return { query: matches[0][1] }
@@ -176,7 +176,7 @@ export class ParameterPredictor {
     this.patterns.set('executeCommand', [
       {
         name: 'run-command',
-        regex: [/(?:run|execute|use|call)\s+['"`]?([a-z\-]+)(?:\s+(.+))?['"`]?$/m],
+        regex: [/(?:run|execute|use|call)\s+['"`]?([a-z-]+)(?:\s+(.+))?['"`]?$/m],
         extract: (matches) => {
           if (matches[0]?.[1]) {
             const cmd = matches[0][1]
@@ -287,13 +287,13 @@ export class ParameterPredictor {
     const lower = query.toLowerCase()
 
     // Common file extensions pattern
-    const fileMatch = query.match(/\b([a-zA-Z0-9_\-]+\.[a-zA-Z0-9]{1,5})\b/)
+    const fileMatch = query.match(/\b([a-zA-Z0-9_-]+\.[a-zA-Z0-9]{1,5})\b/)
     if (fileMatch && (toolName.includes('file') || toolName.includes('read') || toolName.includes('write'))) {
       params.filePath = fileMatch[1]
     }
 
     // Directory separator pattern
-    const dirMatch = query.match(/([a-zA-Z0-9_\-/\\]+(?:[/\\][a-zA-Z0-9_\-]+)+)/)
+    const dirMatch = query.match(/([a-zA-Z0-9_\-/\\]+(?:[/\\][a-zA-Z0-9_-]+)+)/)
     if (dirMatch && toolName.includes('directory')) {
       params.directoryPath = dirMatch[1]
     }

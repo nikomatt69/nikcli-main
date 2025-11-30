@@ -1,4 +1,4 @@
-import { logger, CLIError } from './error-handler'
+import { CLIError, logger } from './error-handler'
 
 export interface TimeoutOptions {
   timeoutMs: number
@@ -24,10 +24,7 @@ export class AsyncUtils {
   /**
    * Wraps a promise with a timeout
    */
-  static async withTimeout<T>(
-    promise: Promise<T>,
-    options: TimeoutOptions
-  ): Promise<T> {
+  static async withTimeout<T>(promise: Promise<T>, options: TimeoutOptions): Promise<T> {
     const { timeoutMs, timeoutMessage = 'Operation timed out', abortController } = options
 
     return Promise.race([
@@ -42,24 +39,15 @@ export class AsyncUtils {
 
         // Clear timeout if the main promise resolves first
         promise.finally(() => clearTimeout(timeoutId))
-      })
+      }),
     ])
   }
 
   /**
    * Retry operation with exponential backoff
    */
-  static async withRetry<T>(
-    operation: () => Promise<T>,
-    options: RetryOptions
-  ): Promise<T> {
-    const {
-      maxRetries,
-      baseDelay,
-      maxDelay,
-      backoffFactor,
-      retryCondition = () => true
-    } = options
+  static async withRetry<T>(operation: () => Promise<T>, options: RetryOptions): Promise<T> {
+    const { maxRetries, baseDelay, maxDelay, backoffFactor, retryCondition = () => true } = options
 
     let lastError: Error
 
@@ -77,18 +65,13 @@ export class AsyncUtils {
           throw lastError
         }
 
-        const delay = Math.min(
-          baseDelay * Math.pow(backoffFactor, attempt),
-          maxDelay
-        )
+        const delay = Math.min(baseDelay * backoffFactor ** attempt, maxDelay)
 
-        logger.warn(
-          `Operation failed, retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries})`,
-          'AsyncUtils',
-          { error: lastError.message }
-        )
+        logger.warn(`Operation failed, retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries})`, 'AsyncUtils', {
+          error: lastError.message,
+        })
 
-        await this.delay(delay)
+        await AsyncUtils.delay(delay)
       }
     }
 
@@ -99,21 +82,18 @@ export class AsyncUtils {
    * Simple delay utility
    */
   static delay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms))
+    return new Promise((resolve) => setTimeout(resolve, ms))
   }
 
   /**
    * Execute operations in sequence with delay between each
    */
-  static async sequence<T>(
-    operations: (() => Promise<T>)[],
-    delayMs: number = 0
-  ): Promise<T[]> {
+  static async sequence<T>(operations: (() => Promise<T>)[], delayMs: number = 0): Promise<T[]> {
     const results: T[] = []
 
     for (let i = 0; i < operations.length; i++) {
       if (i > 0 && delayMs > 0) {
-        await this.delay(delayMs)
+        await AsyncUtils.delay(delayMs)
       }
       results.push(await operations[i]())
     }
@@ -124,15 +104,12 @@ export class AsyncUtils {
   /**
    * Execute operations in parallel with controlled concurrency
    */
-  static async parallel<T>(
-    operations: (() => Promise<T>)[],
-    maxConcurrent: number = 5
-  ): Promise<T[]> {
+  static async parallel<T>(operations: (() => Promise<T>)[], maxConcurrent: number = 5): Promise<T[]> {
     const results: T[] = new Array(operations.length)
     const executing: Promise<void>[] = []
 
     for (let i = 0; i < operations.length; i++) {
-      const promise = operations[i]().then(result => {
+      const promise = operations[i]().then((result) => {
         results[i] = result
       })
 
@@ -140,7 +117,10 @@ export class AsyncUtils {
 
       if (executing.length >= maxConcurrent) {
         await Promise.race(executing)
-        executing.splice(executing.findIndex(p => p === promise), 1)
+        executing.splice(
+          executing.findIndex((p) => p === promise),
+          1
+        )
       }
     }
 
@@ -175,13 +155,10 @@ export class AsyncUtils {
       // Check circuit breaker state
       if (state === 'open') {
         if (now < nextAttemptTime) {
-          throw new CLIError(
-            'Circuit breaker is open',
-            'CIRCUIT_BREAKER_OPEN',
-            'system',
-            true,
-            { nextAttemptTime, currentTime: now }
-          )
+          throw new CLIError('Circuit breaker is open', 'CIRCUIT_BREAKER_OPEN', 'system', true, {
+            nextAttemptTime,
+            currentTime: now,
+          })
         }
         state = 'half-open'
       }
@@ -204,11 +181,7 @@ export class AsyncUtils {
         if (failures >= options.failureThreshold) {
           state = 'open'
           nextAttemptTime = now + options.resetTimeoutMs
-          logger.warn(
-            `Circuit breaker opened due to ${failures} failures`,
-            'AsyncUtils',
-            { nextAttemptTime }
-          )
+          logger.warn(`Circuit breaker opened due to ${failures} failures`, 'AsyncUtils', { nextAttemptTime })
         }
 
         throw error
@@ -266,7 +239,7 @@ export class AsyncUtils {
           operation,
           resolve,
           reject,
-          timestamp: Date.now()
+          timestamp: Date.now(),
         })
 
         processQueue()
@@ -277,10 +250,7 @@ export class AsyncUtils {
   /**
    * Debounce async operations
    */
-  static debounce<T extends any[], R>(
-    func: (...args: T) => Promise<R>,
-    wait: number
-  ): (...args: T) => Promise<R> {
+  static debounce<T extends any[], R>(func: (...args: T) => Promise<R>, wait: number): (...args: T) => Promise<R> {
     let timeoutId: NodeJS.Timeout | null = null
     let resolveQueue: Array<{ resolve: (value: R) => void; reject: (error: Error) => void }> = []
 
@@ -312,10 +282,7 @@ export class AsyncUtils {
   /**
    * Throttle async operations
    */
-  static throttle<T extends any[], R>(
-    func: (...args: T) => Promise<R>,
-    limit: number
-  ): (...args: T) => Promise<R> {
+  static throttle<T extends any[], R>(func: (...args: T) => Promise<R>, limit: number): (...args: T) => Promise<R> {
     let lastExecTime = 0
     let timeoutId: NodeJS.Timeout | null = null
     let lastPromise: Promise<R> | null = null
@@ -369,7 +336,7 @@ export class AsyncUtils {
   ): (item: T) => Promise<R> {
     const { maxBatchSize, maxWaitMs, maxConcurrentBatches = 1 } = options
 
-    let currentBatch: Array<{
+    const currentBatch: Array<{
       item: T
       resolve: (value: R) => void
       reject: (error: Error) => void
@@ -392,7 +359,7 @@ export class AsyncUtils {
       }
 
       try {
-        const results = await batchProcessor(batch.map(b => b.item))
+        const results = await batchProcessor(batch.map((b) => b.item))
         batch.forEach((b, index) => {
           if (results[index] !== undefined) {
             b.resolve(results[index])
@@ -401,7 +368,7 @@ export class AsyncUtils {
           }
         })
       } catch (error) {
-        batch.forEach(b => b.reject(error as Error))
+        batch.forEach((b) => b.reject(error as Error))
       } finally {
         activeBatches--
 
@@ -431,15 +398,15 @@ export const defaultRetryOptions: RetryOptions = {
   maxRetries: 3,
   baseDelay: 1000,
   maxDelay: 30000,
-  backoffFactor: 2
+  backoffFactor: 2,
 }
 
 export const defaultTimeoutOptions: Partial<TimeoutOptions> = {
-  timeoutMs: 30000
+  timeoutMs: 30000,
 }
 
 export const defaultRateLimitOptions: RateLimitOptions = {
   maxConcurrent: 5,
   queueSize: 100,
-  timeoutMs: 30000
+  timeoutMs: 30000,
 }

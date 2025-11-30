@@ -412,7 +412,7 @@ export class DocumentationLibrary {
     // Persisti stato finale
     try {
       await this.saveLibrary()
-    } catch { }
+    } catch {}
 
     return addedCount
   }
@@ -642,8 +642,6 @@ export class DocumentationLibrary {
         })
         this.categories.add(typedEntry.category)
       }
-
-
     } catch (_error) {
       // File non esiste, inizia con libreria vuota
     }

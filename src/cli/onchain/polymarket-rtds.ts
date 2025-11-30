@@ -316,10 +316,7 @@ export class PolymarketRTDS extends EventEmitter {
 
     this.reconnectAttempts++
     const jitter = Math.random() * 1000
-    const delay = Math.min(
-      this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1) + jitter,
-      this.maxReconnectDelay
-    )
+    const delay = Math.min(this.reconnectDelay * 2 ** (this.reconnectAttempts - 1) + jitter, this.maxReconnectDelay)
 
     console.log(`⏳︎ Reconnecting in ${Math.round(delay)}ms (attempt ${this.reconnectAttempts})...`)
 

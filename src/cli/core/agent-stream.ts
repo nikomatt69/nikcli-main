@@ -1,8 +1,8 @@
 import { randomBytes } from 'node:crypto'
 import { EventEmitter } from 'node:events'
 import chalk from 'chalk'
-import { MemoryManager } from '../utils/memory-manager'
 import { advancedUI } from '../ui/advanced-cli-ui'
+import { MemoryManager } from '../utils/memory-manager'
 
 export interface StreamEvent {
   type: 'thinking' | 'planning' | 'executing' | 'progress' | 'result' | 'error' | 'info'
@@ -385,7 +385,7 @@ export class AgentStreamManager extends EventEmitter {
     const averageActionDuration =
       completedActions.length > 0
         ? completedActions.reduce((sum, action) => sum + (action.endTime!.getTime() - action.startTime.getTime()), 0) /
-        completedActions.length
+          completedActions.length
         : 0
 
     return {

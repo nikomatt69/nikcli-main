@@ -2,7 +2,7 @@
 
 /**
  * Example configuration for GitHub Bot
- * 
+ *
  * Copy this file to bot-config.ts and fill in your credentials
  * Add bot-config.ts to .gitignore to keep secrets safe
  */
@@ -17,14 +17,14 @@ export const botConfig = {
 
   // Bot behavior configuration
   executionMode: 'auto' as const, // 'auto' | 'background-agent' | 'local-execution'
-  
+
   // Webhook endpoint
   webhookEndpoint: '/api/github/webhook',
-  
+
   // Rate limiting
   maxConcurrentJobs: 5,
   jobTimeout: 30 * 60 * 1000, // 30 minutes
-  
+
   // Feature flags
   features: {
     enablePRReview: true,
@@ -33,7 +33,7 @@ export const botConfig = {
     enableESLintFixes: true,
     enableAIPoweredFixes: true,
   },
-  
+
   // AI model configuration for fixes
   aiModel: {
     provider: 'openai',

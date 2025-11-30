@@ -1,13 +1,13 @@
 // TODO: Consider refactoring for reduced complexity
 import type {
-  BaseTask,
-  TaskStatus,
-  TaskPriority,
   AgentStatus,
+  BaseTask,
   ExecutionContext,
-  ToolResult,
   SafeRecord,
-} from '../types/base-types';
+  TaskPriority,
+  TaskStatus,
+  ToolResult,
+} from '../types/base-types'
 
 // ============================================================================
 // Agent Interface (Core Definition)
@@ -28,38 +28,38 @@ import type {
  */
 export interface Agent {
   /** Unique agent identifier */
-  readonly id: string;
+  readonly id: string
   /** Display name for the agent */
-  readonly name: string;
+  readonly name: string
   /** Detailed description of agent capabilities */
-  readonly description: string;
+  readonly description: string
   /** Specialized domain (e.g., 'react', 'backend', 'devops') */
-  readonly specialization: string;
+  readonly specialization: string
   /** List of capabilities this agent provides */
-  readonly capabilities: readonly string[];
+  readonly capabilities: readonly string[]
   /** Current operational status */
-  readonly status: AgentStatus;
+  readonly status: AgentStatus
   /** Timestamp of last activity */
-  readonly lastActivity?: Date;
+  readonly lastActivity?: Date
 
   /**
    * Get current agent status
    * @returns Current operational status
    */
-  getStatus(): AgentStatus;
+  getStatus(): AgentStatus
 
   /**
    * Check if agent can handle a specific task
    * @param task - The task to evaluate
    * @returns true if agent can handle this task
    */
-  canHandle(task: AgentTask): boolean;
+  canHandle(task: AgentTask): boolean
 
   /**
    * Get detailed agent capabilities
    * @returns Array of capability strings
    */
-  getCapabilities(): readonly string[];
+  getCapabilities(): readonly string[]
 }
 
 // ============================================================================
@@ -85,15 +85,15 @@ export interface Agent {
  */
 export interface AgentTask extends BaseTask {
   /** Agent assigned to execute this task */
-  readonly agentId: string;
+  readonly agentId: string
   /** Retry count for failed executions */
-  readonly retryCount?: number;
+  readonly retryCount?: number
   /** Maximum allowed retries */
-  readonly maxRetries?: number;
+  readonly maxRetries?: number
   /** Last error encountered (if any) */
-  readonly lastError?: string;
+  readonly lastError?: string
   /** Task execution result (if completed) */
-  readonly result?: unknown;
+  readonly result?: unknown
 }
 
 // ============================================================================
@@ -106,19 +106,19 @@ export interface AgentTask extends BaseTask {
  */
 export interface WorkspaceInfo {
   /** Absolute path to workspace root */
-  readonly path: string;
+  readonly path: string
   /** Workspace display name */
-  readonly name: string;
+  readonly name: string
   /** Type of workspace */
-  readonly type: 'project' | 'workspace' | 'monorepo';
+  readonly type: 'project' | 'workspace' | 'monorepo'
   /** Primary programming language */
-  readonly language?: string;
+  readonly language?: string
   /** Framework or runtime (e.g., 'react', 'express') */
-  readonly framework?: string;
+  readonly framework?: string
   /** Package manager in use */
-  readonly packageManager?: 'npm' | 'yarn' | 'pnpm' | 'bun';
+  readonly packageManager?: 'npm' | 'yarn' | 'pnpm' | 'bun'
   /** Additional workspace metadata */
-  readonly metadata?: SafeRecord;
+  readonly metadata?: SafeRecord
 }
 
 // ============================================================================
@@ -140,7 +140,7 @@ export interface WorkspaceInfo {
  */
 export interface TypedToolResult<T = unknown> extends ToolResult<T> {
   /** Human-readable status message */
-  readonly message?: string;
+  readonly message?: string
 }
 
 /**
@@ -148,10 +148,8 @@ export interface TypedToolResult<T = unknown> extends ToolResult<T> {
  * @param result - The result to check
  * @returns true if result indicates success
  */
-export function isSuccessfulResult<T>(
-  result: ToolResult<T>,
-): result is ToolResult<T> & { output: T } {
-  return result.success && result.output !== undefined;
+export function isSuccessfulResult<T>(result: ToolResult<T>): result is ToolResult<T> & { output: T } {
+  return result.success && result.output !== undefined
 }
 
 /**
@@ -159,10 +157,8 @@ export function isSuccessfulResult<T>(
  * @param result - The result to check
  * @returns true if result indicates failure
  */
-export function isFailedResult(
-  result: ToolResult,
-): result is ToolResult & { error: NonNullable<ToolResult['error']> } {
-  return !result.success && result.error !== undefined;
+export function isFailedResult(result: ToolResult): result is ToolResult & { error: NonNullable<ToolResult['error']> } {
+  return !result.success && result.error !== undefined
 }
 
 // ============================================================================
@@ -175,25 +171,25 @@ export function isFailedResult(
  */
 export interface ExecutionStep {
   /** Unique step identifier */
-  readonly id: string;
+  readonly id: string
   /** Step title for UI/logging */
-  readonly title: string;
+  readonly title: string
   /** Detailed step description */
-  readonly description: string;
+  readonly description: string
   /** Tool or operation to execute */
-  readonly operation: string;
+  readonly operation: string
   /** Arguments for the operation */
-  readonly args?: readonly unknown[];
+  readonly args?: readonly unknown[]
   /** IDs of steps that must complete first */
-  readonly dependencies?: readonly string[];
+  readonly dependencies?: readonly string[]
   /** Risk level of this step */
-  readonly riskLevel: 'low' | 'medium' | 'high';
+  readonly riskLevel: 'low' | 'medium' | 'high'
   /** Whether this step can be rolled back */
-  readonly reversible: boolean;
+  readonly reversible: boolean
   /** Estimated duration in milliseconds */
-  readonly estimatedDuration?: number;
+  readonly estimatedDuration?: number
   /** Additional metadata */
-  readonly metadata?: SafeRecord;
+  readonly metadata?: SafeRecord
 }
 
 // ============================================================================
@@ -252,7 +248,7 @@ export function isAgent(value: unknown): value is Agent {
     'name' in value &&
     'status' in value &&
     typeof (value as Agent).getStatus === 'function'
-  );
+  )
 }
 
 /**
@@ -268,7 +264,7 @@ export function isAgentTask(value: unknown): value is AgentTask {
     'agentId' in value &&
     'status' in value &&
     'priority' in value
-  );
+  )
 }
 
 /**
@@ -276,10 +272,8 @@ export function isAgentTask(value: unknown): value is AgentTask {
  * @param data - Partial task data
  * @returns Complete AgentTask with defaults
  */
-export function createAgentTask(
-  data: Partial<AgentTask> & { id: string; agentId: string; title: string },
-): AgentTask {
-  const now = new Date();
+export function createAgentTask(data: Partial<AgentTask> & { id: string; agentId: string; title: string }): AgentTask {
+  const now = new Date()
 
   return {
     description: data.description ?? '',
@@ -289,5 +283,5 @@ export function createAgentTask(
     createdAt: data.createdAt ?? now,
     updatedAt: data.updatedAt ?? now,
     ...data,
-  };
+  }
 }

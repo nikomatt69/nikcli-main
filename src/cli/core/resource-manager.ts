@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events'
-import { logger, errorHandler } from './error-handler'
+import { errorHandler, logger } from './error-handler'
 
 export interface Disposable {
   dispose(): void | Promise<void>
@@ -19,11 +19,11 @@ export class ResourceManager extends EventEmitter implements Disposable {
   private disposeTimeout = 5000 // 5 seconds
 
   static getInstance(): ResourceManager {
-    if (!this.instance) {
-      this.instance = new ResourceManager()
-      this.instance.setupGracefulShutdown()
+    if (!ResourceManager.instance) {
+      ResourceManager.instance = new ResourceManager()
+      ResourceManager.instance.setupGracefulShutdown()
     }
-    return this.instance
+    return ResourceManager.instance
   }
 
   private setupGracefulShutdown(): void {
@@ -65,11 +65,11 @@ export class ResourceManager extends EventEmitter implements Disposable {
       id: resourceId,
       resource,
       type,
-      created: new Date()
+      created: new Date(),
     })
 
     logger.debug(`Registered resource: ${resourceId} (type: ${type})`, 'ResourceManager', {
-      totalResources: this.resources.size
+      totalResources: this.resources.size,
     })
 
     this.emit('resourceRegistered', resourceId, resource)
@@ -81,7 +81,7 @@ export class ResourceManager extends EventEmitter implements Disposable {
     if (resource) {
       this.resources.delete(id)
       logger.debug(`Unregistered resource: ${id}`, 'ResourceManager', {
-        totalResources: this.resources.size
+        totalResources: this.resources.size,
       })
       this.emit('resourceUnregistered', id, resource.resource)
     }
@@ -134,16 +134,14 @@ export class ResourceManager extends EventEmitter implements Disposable {
     }
 
     // Execute sync operations first
-    syncDisposeOperations.forEach(op => op())
+    syncDisposeOperations.forEach((op) => op())
 
     // Execute async operations with timeout
     if (disposePromises.length > 0) {
       try {
         await Promise.race([
           Promise.all(disposePromises),
-          new Promise<void>((_, reject) =>
-            setTimeout(() => reject(new Error('Dispose timeout')), this.disposeTimeout)
-          )
+          new Promise<void>((_, reject) => setTimeout(() => reject(new Error('Dispose timeout')), this.disposeTimeout)),
         ])
       } catch (error) {
         logger.error('Some resources failed to dispose within timeout', 'ResourceManager', error as Error)

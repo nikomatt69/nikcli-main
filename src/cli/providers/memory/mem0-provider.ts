@@ -126,7 +126,6 @@ export class Mem0Provider extends EventEmitter {
       }
 
       this.isInitialized = true
-
     } catch (error: any) {
       structuredLogger.error('Memory', `✖ Mem0 initialization failed: ${error.message}`)
       throw error
@@ -702,7 +701,6 @@ export class Mem0Provider extends EventEmitter {
             this.memories.set(memory.id, memory)
           }
         }
-
       }
     } catch (_error) {
       structuredLogger.warning('Memory', '⚠︎ Failed to load memories from cache')
@@ -761,9 +759,7 @@ export class Mem0Provider extends EventEmitter {
   private async saveMemoriesToFile(userId: string): Promise<void> {
     try {
       // Filtra memories per questo utente
-      const userMemories = Array.from(this.memories.values()).filter(
-        (memory) => memory.metadata.userId === userId
-      )
+      const userMemories = Array.from(this.memories.values()).filter((memory) => memory.metadata.userId === userId)
 
       const filePath = join(this.memoriesDir, `${userId}.json`)
       const data = {

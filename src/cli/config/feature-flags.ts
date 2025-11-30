@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from 'zod'
 
 /**
  * Feature flags configuration for NikCLI enhanced features
@@ -6,32 +6,32 @@ import { z } from 'zod';
  */
 
 export interface SemanticCacheConfig {
-  enabled: boolean;
-  minSimilarity: number;
-  ttl: number;
-  useVectorDB: boolean;
-  embeddingProvider?: 'openai' | 'anthropic' | 'google';
-  maxCacheSize: number;
-  cacheBackend: 'redis' | 'memory';
+  enabled: boolean
+  minSimilarity: number
+  ttl: number
+  useVectorDB: boolean
+  embeddingProvider?: 'openai' | 'anthropic' | 'google'
+  maxCacheSize: number
+  cacheBackend: 'redis' | 'memory'
 }
 
 export interface AgentMemoryConfig {
-  enabled: boolean;
-  maxMemorySize: number;
-  retrievalTopK: number;
-  memoryBackend: 'chromadb' | 'memory';
-  embeddingProvider?: 'openai' | 'anthropic' | 'google';
-  maxContextLength: number;
-  autoLearning: boolean;
+  enabled: boolean
+  maxMemorySize: number
+  retrievalTopK: number
+  memoryBackend: 'chromadb' | 'memory'
+  embeddingProvider?: 'openai' | 'anthropic' | 'google'
+  maxContextLength: number
+  autoLearning: boolean
 }
 
 export interface DebugDashboardConfig {
-  enabled: boolean;
-  updateInterval: number;
-  showMetrics: boolean;
-  maxHistorySize: number;
-  theme: 'dark' | 'light';
-  autoRefresh: boolean;
+  enabled: boolean
+  updateInterval: number
+  showMetrics: boolean
+  maxHistorySize: number
+  theme: 'dark' | 'light'
+  autoRefresh: boolean
 }
 
 export const FeatureFlagsSchema = z.object({
@@ -75,25 +75,21 @@ export const FeatureFlagsSchema = z.object({
       autoRefresh: z.boolean().default(true),
     }),
   ]),
-});
+})
 
-export type FeatureFlags = z.infer<typeof FeatureFlagsSchema>;
+export type FeatureFlags = z.infer<typeof FeatureFlagsSchema>
 
 // Type guards for feature configurations
-export function isSemanticCacheConfig(
-  config: any,
-): config is SemanticCacheConfig {
-  return typeof config === 'object' && 'enabled' in config;
+export function isSemanticCacheConfig(config: any): config is SemanticCacheConfig {
+  return typeof config === 'object' && 'enabled' in config
 }
 
 export function isAgentMemoryConfig(config: any): config is AgentMemoryConfig {
-  return typeof config === 'object' && 'enabled' in config;
+  return typeof config === 'object' && 'enabled' in config
 }
 
-export function isDebugDashboardConfig(
-  config: any,
-): config is DebugDashboardConfig {
-  return typeof config === 'object' && 'enabled' in config;
+export function isDebugDashboardConfig(config: any): config is DebugDashboardConfig {
+  return typeof config === 'object' && 'enabled' in config
 }
 
 /**
@@ -101,9 +97,9 @@ export function isDebugDashboardConfig(
  * Fallback to default values if not specified
  */
 export function loadFeatureFlags(): FeatureFlags {
-  const cacheConfig = process.env.NIKCLI_SEMANTIC_CACHE;
-  const memoryConfig = process.env.NIKCLI_AGENT_MEMORY;
-  const dashboardConfig = process.env.NIKCLI_DEBUG_DASHBOARD;
+  const cacheConfig = process.env.NIKCLI_SEMANTIC_CACHE
+  const memoryConfig = process.env.NIKCLI_AGENT_MEMORY
+  const dashboardConfig = process.env.NIKCLI_DEBUG_DASHBOARD
 
   return FeatureFlagsSchema.parse({
     semanticCache:
@@ -153,49 +149,42 @@ export function loadFeatureFlags(): FeatureFlags {
                 autoRefresh: true,
               }
             : undefined,
-  });
+  })
 }
 
 /**
  * Check if a specific feature is enabled
  */
-export function isFeatureEnabled(
-  flags: FeatureFlags,
-  feature: keyof FeatureFlags,
-): boolean {
-  const config = flags[feature];
+export function isFeatureEnabled(flags: FeatureFlags, feature: keyof FeatureFlags): boolean {
+  const config = flags[feature]
 
   if (typeof config === 'boolean') {
-    return config;
+    return config
   }
 
   if (typeof config === 'object' && config !== null) {
-    return (config as any).enabled || false;
+    return (config as any).enabled || false
   }
 
-  return false;
+  return false
 }
 
 /**
  * Get feature configuration or defaults
  */
-export function getFeatureConfig<T>(
-  flags: FeatureFlags,
-  feature: keyof FeatureFlags,
-  defaults: T,
-): T {
-  const config = flags[feature];
+export function getFeatureConfig<T>(flags: FeatureFlags, feature: keyof FeatureFlags, defaults: T): T {
+  const config = flags[feature]
 
   if (typeof config === 'object' && config !== null) {
-    return config as T;
+    return config as T
   }
 
   if (typeof config === 'boolean' && config) {
-    return defaults;
+    return defaults
   }
 
   // Return defaults with disabled flag for disabled features
-  return { ...defaults, enabled: false } as T;
+  return { ...defaults, enabled: false } as T
 }
 
 /**
@@ -205,18 +194,15 @@ export const FeatureFlagEnvVars = {
   SEMANTIC_CACHE: 'NIKCLI_SEMANTIC_CACHE',
   AGENT_MEMORY: 'NIKCLI_AGENT_MEMORY',
   DEBUG_DASHBOARD: 'NIKCLI_DEBUG_DASHBOARD',
-} as const;
+} as const
 
 /**
  * Quick feature flag check utilities
  */
 export const FeatureFlags = {
-  isSemanticCacheEnabled: (flags: FeatureFlags): boolean =>
-    isFeatureEnabled(flags, 'semanticCache'),
-  isAgentMemoryEnabled: (flags: FeatureFlags): boolean =>
-    isFeatureEnabled(flags, 'agentMemory'),
-  isDebugDashboardEnabled: (flags: FeatureFlags): boolean =>
-    isFeatureEnabled(flags, 'debugDashboard'),
+  isSemanticCacheEnabled: (flags: FeatureFlags): boolean => isFeatureEnabled(flags, 'semanticCache'),
+  isAgentMemoryEnabled: (flags: FeatureFlags): boolean => isFeatureEnabled(flags, 'agentMemory'),
+  isDebugDashboardEnabled: (flags: FeatureFlags): boolean => isFeatureEnabled(flags, 'debugDashboard'),
   getSemanticCacheConfig: (flags: FeatureFlags): SemanticCacheConfig =>
     getFeatureConfig(flags, 'semanticCache', {
       enabled: false,
@@ -244,4 +230,4 @@ export const FeatureFlags = {
       theme: 'dark',
       autoRefresh: true,
     }),
-};
+}

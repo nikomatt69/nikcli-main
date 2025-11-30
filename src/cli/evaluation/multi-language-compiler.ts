@@ -1,7 +1,7 @@
-import { spawn } from 'child_process'
-import { mkdir, writeFile, readFile } from 'fs/promises'
-import { join, dirname } from 'path'
 import chalk from 'chalk'
+import { spawn } from 'child_process'
+import { mkdir, readFile, writeFile } from 'fs/promises'
+import { dirname, join } from 'path'
 
 export type SupportedLanguage = 'typescript' | 'python' | 'rust' | 'solidity'
 

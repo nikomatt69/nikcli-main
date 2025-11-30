@@ -1,12 +1,12 @@
 import { nanoid } from 'nanoid'
 import { type ChatMessage, modelProvider } from '../../ai/model-provider'
 import { toolsManager } from '../../tools/tools-manager'
+import { advancedUI } from '../../ui/advanced-cli-ui'
 import { CliUI } from '../../utils/cli-ui'
 import type { AgentTask } from './agent-router'
 import type { AgentTaskResult } from './base-agent'
 import { CognitiveAgentBase } from './cognitive-agent-base'
 import type { OrchestrationPlan, ReactCognition, TaskCognition } from './cognitive-interfaces'
-import { advancedUI } from '../../ui/advanced-cli-ui'
 
 /**
  * 🎨 Enhanced React Agent with Cognitive Intelligence

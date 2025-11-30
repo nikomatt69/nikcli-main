@@ -2,8 +2,8 @@
 // Adapter to use local filesystem as storage for Background Agents
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
 import { homedir } from 'node:os'
+import { join } from 'node:path'
 import type { BackgroundJob } from '../types'
 
 export interface LocalFileAdapter {
@@ -298,4 +298,3 @@ export class LocalFileBackgroundAgentAdapter implements LocalFileAdapter {
 
 // Export singleton instance
 export const localFileAdapter = new LocalFileBackgroundAgentAdapter()
-

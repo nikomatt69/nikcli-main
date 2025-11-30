@@ -5,10 +5,9 @@
  */
 
 import { createHash } from 'node:crypto'
-import { networkInterfaces, platform, arch, release } from 'node:os'
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { arch, homedir, networkInterfaces, platform, release } from 'node:os'
 import { join } from 'node:path'
-import { homedir } from 'node:os'
 
 const FINGERPRINT_CACHE_FILE = join(homedir(), '.nikcli', 'fingerprint.cache')
 

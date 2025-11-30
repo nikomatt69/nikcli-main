@@ -418,7 +418,6 @@ export const MODEL_REASONING_CAPABILITIES: ModelReasoningMap = {
     requiresExplicitRequest: false,
   },
 
-
   // Default fallback for unknown models
   default: {
     supportsReasoning: false,
@@ -488,11 +487,26 @@ export class ReasoningDetector {
       { pattern: /claude-sonnet-4\.5/, capabilities: MODEL_REASONING_CAPABILITIES['claude-sonnet-4.5'] },
       { pattern: /claude-haiku-4\.5/, capabilities: MODEL_REASONING_CAPABILITIES['claude-haiku-4.5'] },
       { pattern: /claude-3-7/, capabilities: MODEL_REASONING_CAPABILITIES['claude-3-7-sonnet-latest'] },
-      { pattern: /anthropic\/claude-sonnet-4\.5/, capabilities: MODEL_REASONING_CAPABILITIES['anthropic/claude-sonnet-4.5'] },
-      { pattern: /anthropic\/claude-haiku-4\.5/, capabilities: MODEL_REASONING_CAPABILITIES['anthropic/claude-haiku-4.5'] },
-      { pattern: /anthropic\/claude-3\.7-sonnet/, capabilities: MODEL_REASONING_CAPABILITIES['anthropic/claude-3.7-sonnet'] },
-      { pattern: /anthropic\/claude-sonnet-4/, capabilities: MODEL_REASONING_CAPABILITIES['anthropic/claude-sonnet-4'] },
-      { pattern: /anthropic\/claude-4-opus/, capabilities: MODEL_REASONING_CAPABILITIES['anthropic/claude-4-opus-20250514'] },
+      {
+        pattern: /anthropic\/claude-sonnet-4\.5/,
+        capabilities: MODEL_REASONING_CAPABILITIES['anthropic/claude-sonnet-4.5'],
+      },
+      {
+        pattern: /anthropic\/claude-haiku-4\.5/,
+        capabilities: MODEL_REASONING_CAPABILITIES['anthropic/claude-haiku-4.5'],
+      },
+      {
+        pattern: /anthropic\/claude-3\.7-sonnet/,
+        capabilities: MODEL_REASONING_CAPABILITIES['anthropic/claude-3.7-sonnet'],
+      },
+      {
+        pattern: /anthropic\/claude-sonnet-4/,
+        capabilities: MODEL_REASONING_CAPABILITIES['anthropic/claude-sonnet-4'],
+      },
+      {
+        pattern: /anthropic\/claude-4-opus/,
+        capabilities: MODEL_REASONING_CAPABILITIES['anthropic/claude-4-opus-20250514'],
+      },
       { pattern: /anthropic\/claude-opus-4/, capabilities: MODEL_REASONING_CAPABILITIES['anthropic/claude-opus-4.1'] },
 
       // OpenAI reasoning patterns
@@ -508,11 +522,17 @@ export class ReasoningDetector {
       { pattern: /x-ai\/grok/, capabilities: MODEL_REASONING_CAPABILITIES['x-ai/grok-2'] },
 
       // Gemini thinking patterns (direct and via OpenRouter)
-      { pattern: /gemini-2\.5.*thinking/, capabilities: MODEL_REASONING_CAPABILITIES['google/gemini-2.5-pro-thinking'] },
+      {
+        pattern: /gemini-2\.5.*thinking/,
+        capabilities: MODEL_REASONING_CAPABILITIES['google/gemini-2.5-pro-thinking'],
+      },
       { pattern: /gemini-2\.5/, capabilities: MODEL_REASONING_CAPABILITIES['gemini-2.5-pro'] },
       { pattern: /gemini-3.*preview/, capabilities: MODEL_REASONING_CAPABILITIES['gemini-3-pro-preview'] },
       { pattern: /gemini-3/, capabilities: MODEL_REASONING_CAPABILITIES['gemini-3-pro'] },
-      { pattern: /google\/gemini-3.*preview/, capabilities: MODEL_REASONING_CAPABILITIES['google/gemini-3-pro-preview'] },
+      {
+        pattern: /google\/gemini-3.*preview/,
+        capabilities: MODEL_REASONING_CAPABILITIES['google/gemini-3-pro-preview'],
+      },
       { pattern: /google\/gemini-3/, capabilities: MODEL_REASONING_CAPABILITIES['google/gemini-3-pro'] },
       { pattern: /google\/gemini-2\.5/, capabilities: MODEL_REASONING_CAPABILITIES['google/gemini-2.5-pro'] },
 

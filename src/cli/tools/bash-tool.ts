@@ -1,16 +1,15 @@
 import { type ChildProcess, spawn } from 'node:child_process'
 import { z } from 'zod'
 import { PromptManager } from '../prompts/prompt-manager'
+import { advancedUI } from '../ui/advanced-cli-ui'
 import { CliUI } from '../utils/cli-ui'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
 import {
   resolveShellConfig,
-  SUPPORTED_SHELL_NAMES,
   type ShellConfiguration,
+  SUPPORTED_SHELL_NAMES,
   type SupportedShellName,
 } from './shell-support'
-import { advancedUI } from '../ui/advanced-cli-ui'
-
 
 const MAX_OUTPUT_LENGTH = 30000
 const DEFAULT_TIMEOUT = 60000 // 1 minuto
@@ -124,7 +123,6 @@ const DANGEROUS_PATTERNS = [
   /\/etc\/passwd/i,
   /\/etc\/shadow/i,
 ]
-
 
 export class BashTool extends BaseTool {
   constructor(workingDirectory: string = process.cwd()) {

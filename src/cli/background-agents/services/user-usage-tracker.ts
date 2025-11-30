@@ -350,7 +350,10 @@ export class UserUsageTracker {
  * Adapter interface for persisting usage data
  */
 export interface UserUsageAdapter {
-  recordAICall(userId: string, data: { timestamp: Date; inputTokens: number; outputTokens: number; estimatedCost: number; model?: string }): Promise<void>
+  recordAICall(
+    userId: string,
+    data: { timestamp: Date; inputTokens: number; outputTokens: number; estimatedCost: number; model?: string }
+  ): Promise<void>
   getUserUsage(userId: string, period: 'hour' | 'day' | 'month'): Promise<UserUsage | null>
   getAllUserUsage(userId: string): Promise<UserUsage[]>
 }
@@ -364,34 +367,3 @@ export function getUserUsageTracker(): UserUsageTracker {
   }
   return userUsageTrackerInstance
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

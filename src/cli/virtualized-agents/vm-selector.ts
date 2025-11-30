@@ -854,5 +854,5 @@ export const vmSelector = new VMSelector(
 
 // Method to inject VM orchestrator
 export function initializeVMSelector(vmOrchestrator: VMOrchestrator): void {
-  ; (vmSelector as any).vmOrchestrator = vmOrchestrator
+  ;(vmSelector as any).vmOrchestrator = vmOrchestrator
 }
