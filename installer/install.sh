@@ -1,142 +1,311 @@
-#!/bin/bash
-# Universal NikCLI Installation Script
-# Supports npm, yarn, pnpm, and bun
+#!/usr/bin/env bash
+set -euo pipefail
 
-set -e
+PACKAGE="@nicomatt69/nikcli"
+RELEASE_REPO="${NIKCLI_RELEASE_REPO:-nicomatt69/nikcli-main}"
+NODE_MIN_MAJOR=22
+DEFAULT_METHODS=("brew" "bun" "npm" "standalone")
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+info() { echo -e "[NikCLI] $*"; }
+warn() { echo -e "[NikCLI][WARN] $*" >&2; }
+error() { echo -e "[NikCLI][ERROR] $*" >&2; }
 
-# Package managers to try in order of preference
-PACKAGE_MANAGERS=("pnpm" "bun" "yarn" "npm")
+usage() {
+  cat <<'EOF'
+NikCLI universal installer
+Usage: bash install.sh [--method=brew|bun|npm|standalone]
+Default priority: brew -> bun -> npm -> standalone
+EOF
+}
 
-echo -e "${BLUE}🚀 NikCLI Universal Installer${NC}"
-echo -e "${BLUE}================================${NC}"
+method_label() {
+  case "$1" in
+    brew) echo "Homebrew";;
+    bun) echo "Bun";;
+    npm) echo "npm";;
+    standalone) echo "standalone binary";;
+    *) echo "$1";;
+  esac
+}
 
-# Function to check if command exists
 command_exists() {
-    command -v "$1" >/dev/null 2>&1
+  command -v "$1" >/dev/null 2>&1
 }
 
-# Function to get package manager version
-get_version() {
-    case $1 in
-        "npm")
-            npm --version 2>/dev/null
-            ;;
-        "yarn")
-            yarn --version 2>/dev/null
-            ;;
-        "pnpm")
-            pnpm --version 2>/dev/null
-            ;;
-        "bun")
-            bun --version 2>/dev/null
-            ;;
+parse_method_override() {
+  local override=""
+  for arg in "$@"; do
+    case "$arg" in
+      --method=*)
+        override="${arg#*=}"
+        ;;
+      -h|--help)
+        usage
+        exit 0
+        ;;
+      *)
+        error "Unknown argument: $arg"
+        usage
+        exit 1
+        ;;
     esac
-}
+  done
 
-# Function to install with specific package manager
-install_with_manager() {
-    local manager=$1
-    echo -e "${GREEN}📦 Installing NikCLI with ${manager}...${NC}"
-
-    case $manager in
-        "npm")
-            npm install -g @nicomatt69/nikcli
-            ;;
-        "yarn")
-            yarn global add @nicomatt69/nikcli
-            ;;
-        "pnpm")
-            pnpm install -g @nicomatt69/nikcli
-            ;;
-        "bun")
-            bun install -g @nicomatt69/nikcli
-            ;;
+  if [[ -n "$override" ]]; then
+    case "$override" in
+      brew|bun|npm|standalone) ;;
+      *) error "Invalid method: $override"; exit 1;;
     esac
+    local reordered=("$override")
+    for m in "${DEFAULT_METHODS[@]}"; do
+      [[ "$m" == "$override" ]] || reordered+=("$m")
+    done
+    METHOD_ORDER=("${reordered[@]}")
+  else
+    METHOD_ORDER=("${DEFAULT_METHODS[@]}")
+  fi
 }
 
-# Check for Node.js
-if ! command_exists node; then
-    echo -e "${RED}❌ Node.js not found. Please install Node.js 18+ first.${NC}"
-    echo -e "${BLUE}Visit: https://nodejs.org/${NC}"
-    exit 1
-fi
+node_version_ok() {
+  if ! command_exists node; then
+    warn "Node.js not found; skipping npm install path."
+    return 1
+  fi
+  local major
+  major=$(node -v 2>/dev/null | sed 's/^v//' | cut -d. -f1)
+  if [[ -z "$major" ]] || (( major < NODE_MIN_MAJOR )); then
+    warn "Node.js ${NODE_MIN_MAJOR}+ required for npm install (found $(node -v 2>/dev/null))."
+    return 1
+  fi
+  return 0
+}
 
-NODE_VERSION=$(node --version | cut -d'v' -f2 | cut -d'.' -f1)
-if [ "$NODE_VERSION" -lt 18 ]; then
-    echo -e "${RED}❌ Node.js 18+ required. Current version: $(node --version)${NC}"
-    exit 1
-fi
+resolve_standalone_asset() {
+  local os arch
+  os=$(uname -s)
+  arch=$(uname -m)
+  case "$os" in
+    Darwin) os="macos";;
+    Linux) os="linux";;
+    *) return 1;;
+  esac
 
-echo -e "${GREEN}✅ Node.js $(node --version) detected${NC}"
+  case "$arch" in
+    arm64|aarch64) arch="arm64";;
+    x86_64|amd64) arch="x64";;
+    *) return 1;;
+  esac
 
-# Check available package managers
-echo -e "\n${BLUE}🔍 Checking available package managers...${NC}"
-available_managers=()
+  if [[ "$os" == "macos" && "$arch" == "arm64" ]]; then
+    echo "nikcli-macos-arm64.tar.gz"
+  elif [[ "$os" == "macos" && "$arch" == "x64" ]]; then
+    echo "nikcli-macos-x64.tar.gz"
+  elif [[ "$os" == "linux" && "$arch" == "x64" ]]; then
+    echo "nikcli-linux-x64.tar.gz"
+  else
+    return 1
+  fi
+}
 
-for manager in "${PACKAGE_MANAGERS[@]}"; do
-    if command_exists "$manager"; then
-        version=$(get_version "$manager")
-        echo -e "${GREEN}✅ ${manager} ${version}${NC}"
-        available_managers+=("$manager")
+download_file() {
+  local url=$1 dest=$2
+  if command_exists curl; then
+    curl -fL "$url" -o "$dest"
+  elif command_exists wget; then
+    wget -qO "$dest" "$url"
+  else
+    return 1
+  fi
+}
+
+INSTALLER_SUDO=""
+INSTALL_ROOT=""
+BIN_DIR=""
+
+run_cmd() {
+  if [[ -n "$INSTALLER_SUDO" ]]; then
+    sudo "$@"
+  else
+    "$@"
+  fi
+}
+
+prepare_paths() {
+  local base="${NIKCLI_PREFIX:-/usr/local}"
+  INSTALLER_SUDO=""
+
+  if ! mkdir -p "$base" 2>/dev/null; then
+    if command_exists sudo && sudo mkdir -p "$base" 2>/dev/null; then
+      INSTALLER_SUDO="sudo"
     else
-        echo -e "${YELLOW}⚠️  ${manager} not found${NC}"
+      base="$HOME/.local"
+      if ! mkdir -p "$base" 2>/dev/null; then
+        error "Cannot create install path at $base."
+        return 1
+      fi
+      warn "Using $base because /usr/local is not writable."
     fi
+  fi
+
+  INSTALL_ROOT="$base/lib/nikcli"
+  BIN_DIR="$base/bin"
+
+  run_cmd mkdir -p "$INSTALL_ROOT" "$BIN_DIR"
+}
+
+install_with_brew() {
+  if ! command_exists brew; then
+    warn "Homebrew not found."
+    return 1
+  fi
+
+  info "Installing via Homebrew..."
+  brew tap nicomatt69/nikcli >/dev/null 2>&1 || true
+  if brew install nicomatt69/nikcli/nikcli; then
+    return 0
+  fi
+
+  return 1
+}
+
+install_with_bun() {
+  if ! command_exists bun; then
+    warn "Bun not found."
+    return 1
+  fi
+
+  info "Installing via Bun..."
+  if bun install -g "$PACKAGE"; then
+    return 0
+  fi
+  return 1
+}
+
+install_with_npm() {
+  if ! command_exists npm; then
+    warn "npm not found."
+    return 1
+  fi
+  if ! node_version_ok; then
+    return 1
+  fi
+
+  info "Installing via npm..."
+  if npm install -g "$PACKAGE"; then
+    return 0
+  fi
+  return 1
+}
+
+install_standalone() {
+  local asset
+  asset=$(resolve_standalone_asset) || { warn "Unsupported platform for standalone install."; return 1; }
+
+  if ! command_exists tar; then
+    warn "tar is required for standalone install."
+    return 1
+  fi
+
+  if ! command_exists curl && ! command_exists wget; then
+    warn "Neither curl nor wget is available to download the standalone package."
+    return 1
+  fi
+
+  local url="https://github.com/${RELEASE_REPO}/releases/latest/download/${asset}"
+  local tmp_dir archive_path extracted_dir
+  tmp_dir=$(mktemp -d 2>/dev/null || mktemp -d -t nikcli) || { warn "Cannot create temp directory."; return 1; }
+  archive_path="${tmp_dir}/${asset}"
+
+  info "Downloading standalone package (${asset})..."
+  if ! download_file "$url" "$archive_path"; then
+    warn "Download failed from $url"
+    rm -rf "$tmp_dir"
+    return 1
+  fi
+
+  if ! tar -xzf "$archive_path" -C "$tmp_dir"; then
+    warn "Failed to extract archive."
+    rm -rf "$tmp_dir"
+    return 1
+  fi
+
+  extracted_dir="${tmp_dir}/${asset%.tar.gz}"
+  if [[ ! -d "$extracted_dir" ]]; then
+    warn "Unexpected archive structure."
+    rm -rf "$tmp_dir"
+    return 1
+  fi
+
+  if ! prepare_paths; then
+    rm -rf "$tmp_dir"
+    return 1
+  fi
+
+  info "Installing standalone payload into ${INSTALL_ROOT}..."
+  run_cmd rm -rf "$INSTALL_ROOT"
+  run_cmd mkdir -p "$INSTALL_ROOT"
+  run_cmd cp -R "${extracted_dir}/." "$INSTALL_ROOT"
+  run_cmd mkdir -p "$BIN_DIR"
+  run_cmd ln -sf "${INSTALL_ROOT}/bin/nikcli" "${BIN_DIR}/nikcli"
+  run_cmd chmod +x "${INSTALL_ROOT}/bin/nikcli" 2>/dev/null || true
+  if ls "${INSTALL_ROOT}"/bin/nikcli-* >/dev/null 2>&1; then
+    run_cmd chmod +x "${INSTALL_ROOT}"/bin/nikcli-*
+  fi
+
+  rm -rf "$tmp_dir"
+  info "Standalone install complete (linked at ${BIN_DIR}/nikcli)."
+  return 0
+}
+
+verify_install() {
+  local check_cmd="nikcli"
+  if ! command_exists nikcli && [[ -n "${BIN_DIR:-}" && -x "${BIN_DIR}/nikcli" ]]; then
+    check_cmd="${BIN_DIR}/nikcli"
+  fi
+
+  if ! command_exists "$check_cmd"; then
+    warn "nikcli not found on PATH after install. Ensure ${BIN_DIR:-/usr/local/bin} is in your PATH."
+    return 1
+  fi
+
+  if "$check_cmd" --version >/dev/null 2>&1; then
+    info "nikcli installed successfully. Run: ${check_cmd} --help"
+    return 0
+  else
+    warn "nikcli installed but version check failed."
+    return 1
+  fi
+}
+
+run_method() {
+  case "$1" in
+    brew) install_with_brew;;
+    bun) install_with_bun;;
+    npm) install_with_npm;;
+    standalone) install_standalone;;
+    *) return 1;;
+  esac
+}
+
+parse_method_override "$@"
+info "Preferred order: ${METHOD_ORDER[*]}"
+
+SUCCESS_METHOD=""
+for method in "${METHOD_ORDER[@]}"; do
+  info "Attempting $(method_label "$method")..."
+  if run_method "$method"; then
+    SUCCESS_METHOD="$method"
+    break
+  else
+    warn "Method $(method_label "$method") failed, trying next option."
+  fi
 done
 
-if [ ${#available_managers[@]} -eq 0 ]; then
-    echo -e "${RED}❌ No supported package managers found!${NC}"
-    echo -e "${BLUE}Please install one of: npm, yarn, pnpm, or bun${NC}"
-    exit 1
+if [[ -z "$SUCCESS_METHOD" ]]; then
+  error "All installation methods failed."
+  exit 1
 fi
 
-# Use the first available package manager
-preferred_manager=${available_managers[0]}
+info "Installation completed using $(method_label "$SUCCESS_METHOD")."
 
-# Allow user to override
-if [ "$1" ]; then
-    user_choice="$1"
-    if [[ " ${available_managers[@]} " =~ " ${user_choice} " ]]; then
-        preferred_manager="$user_choice"
-        echo -e "${BLUE}📋 Using user-specified package manager: ${preferred_manager}${NC}"
-    else
-        echo -e "${YELLOW}⚠️  ${user_choice} not available. Using ${preferred_manager} instead.${NC}"
-    fi
-fi
-
-echo -e "\n${BLUE}📦 Installing with ${preferred_manager}...${NC}"
-
-# Install NikCLI
-if install_with_manager "$preferred_manager"; then
-    echo -e "\n${GREEN}🎉 NikCLI installed successfully!${NC}"
-    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${GREEN}🚀 Get started with: ${YELLOW}nikcli${NC}"
-    echo -e "${GREEN}📚 For help: ${YELLOW}nikcli --help${NC}"
-    echo -e "${GREEN}🔧 Configuration: ${YELLOW}nikcli /config${NC}"
-    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-else
-    echo -e "\n${RED}❌ Installation failed with ${preferred_manager}${NC}"
-
-    # Try other managers
-    echo -e "${YELLOW}🔄 Trying alternative package managers...${NC}"
-    for manager in "${available_managers[@]}"; do
-        if [ "$manager" != "$preferred_manager" ]; then
-            echo -e "${BLUE}Trying ${manager}...${NC}"
-            if install_with_manager "$manager"; then
-                echo -e "\n${GREEN}🎉 NikCLI installed successfully with ${manager}!${NC}"
-                exit 0
-            fi
-        fi
-    done
-
-    echo -e "\n${RED}❌ Installation failed with all available package managers.${NC}"
-    echo -e "${BLUE}Please try manual installation:${NC}"
-    echo -e "${YELLOW}npm install -g @nicomatt69/nikcli${NC}"
-    exit 1
-fi
+verify_install || exit 1

@@ -12,7 +12,7 @@ import { fileURLToPath } from 'url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const projectRoot = path.join(__dirname, '..')
-const distDir = path.join(projectRoot, 'public', 'bin')
+const binaryPath = path.join(projectRoot, 'dist', 'cli', 'nikcli')
 const formulaPath = path.join(projectRoot, 'installer', 'nikcli.rb')
 
 console.log('🍺 Updating Homebrew Formula\n')
@@ -25,17 +25,16 @@ const version = packageJson.version
 
 console.log(`📦 Version: ${version}`)
 
-// Check if tar.gz exists
-const tarballPath = path.join(distDir, 'nikcli-standalone.tar.gz')
-if (!fs.existsSync(tarballPath)) {
-  console.error('❌ nikcli-standalone.tar.gz not found!')
-  console.error('   Run: bun run package:standalone first')
+// Check if binary exists
+if (!fs.existsSync(binaryPath)) {
+  console.error('❌ dist/cli/nikcli not found!')
+  console.error('   Run: bun run build first')
   process.exit(1)
 }
 
 // Calculate SHA256
 console.log('\n🔐 Calculating SHA256...')
-const sha256 = execSync(`shasum -a 256 "${tarballPath}"`, {
+const sha256 = execSync(`shasum -a 256 "${binaryPath}"`, {
   encoding: 'utf-8',
 })
   .trim()
@@ -84,7 +83,7 @@ console.log(`📍 Location: ${formulaPath}`)
 console.log('\n📋 Next steps:')
 console.log('  1. Review changes: git diff installer/nikcli.rb')
 console.log('  2. Create GitHub release v' + version)
-console.log('  3. Upload nikcli-standalone.tar.gz as release asset')
+console.log('  3. Upload built standalone assets to the release (generated from dist/cli/nikcli)')
 console.log('  4. Update Homebrew tap:')
 console.log('     cd ../homebrew-nikcli')
 console.log('     cp ../nikcli-main/installer/nikcli.rb Formula/')
