@@ -1506,10 +1506,10 @@ export class SimpleConfigManager {
       model: 'moonshotai/kimi-k2-0905:exacto',
       maxContextTokens: 128000,
     },
-    'minimax/minimax-m2:free': {
+    'minimax/minimax-m2': {
       provider: 'openrouter',
-      model: 'minimax/minimax-m2:free',
-      maxContextTokens: 128000,
+      model: 'minimax/minimax-m2',
+      maxContextTokens: 200000,
     },
     'qwen/qwen3-coder': {
       provider: 'openrouter',
@@ -1531,10 +1531,10 @@ export class SimpleConfigManager {
       model: 'x-ai/grok-3-mini',
       maxContextTokens: 128000,
     },
-    'x-ai/grok-4-fast:free': {
+    'x-ai/grok-4-fast': {
       provider: 'openrouter',
-      model: 'x-ai/grok-4-fast:free',
-      maxContextTokens: 128000,
+      model: 'x-ai/grok-4-fast',
+      maxContextTokens: 2000000,
     },
     'x-ai/grok-code-fast-1': {
       provider: 'openrouter',
@@ -2259,7 +2259,7 @@ export class SimpleConfigManager {
             )
           }
         })
-        .catch(() => {})
+        .catch(() => { })
     }
   }
 
@@ -2324,9 +2324,9 @@ export class SimpleConfigManager {
   setEmbeddingModelConfig(model: string, config: Partial<z.infer<typeof EmbeddingModelConfigSchema>>): void {
     const baseConfig = this.config.embeddingModels?.[model] ||
       this.getEmbeddingModelConfig(model) || {
-        provider: this.inferEmbeddingProvider(model),
-        model,
-      }
+      provider: this.inferEmbeddingProvider(model),
+      model,
+    }
 
     this.config.embeddingModels = {
       ...this.config.embeddingModels,

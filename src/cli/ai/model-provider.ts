@@ -130,6 +130,16 @@ export class ModelProvider {
   private getModel(config: ModelConfig) {
     const currentModelName = configManager.get('currentModel')
 
+    // Try provider registry first (optional, experimental)
+    if (process.env.USE_PROVIDER_REGISTRY === 'true') {
+      try {
+        const { getLanguageModel } = require('./provider-registry')
+        return getLanguageModel(config.provider, config.model)
+      } catch (error) {
+        // Fall through to legacy implementation
+      }
+    }
+
     switch (config.provider) {
       case 'openai': {
         const apiKey = configManager.getApiKey(currentModelName)

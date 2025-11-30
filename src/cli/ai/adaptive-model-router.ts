@@ -3,6 +3,7 @@ import type { CoreMessage } from 'ai'
 import { universalTokenizer } from '../core/universal-tokenizer-service'
 import { structuredLogger } from '../utils/structured-logger'
 import type { ChatMessage } from './model-provider'
+import { simpleConfigManager } from '../core/config-manager'
 
 export type ModelScope = 'chat_default' | 'planning' | 'code_gen' | 'tool_light' | 'tool_heavy' | 'vision'
 
@@ -127,9 +128,7 @@ function pickAnthropic(
   totalEstimatedTokens?: number
 ): string {
   try {
-    const { ConfigManager } = require('../core/config-manager')
-    const configManager = ConfigManager.getInstance()
-    const allModels = configManager.getAllModels()
+    const allModels = simpleConfigManager.getAllModels()
 
     // Filter Anthropic models
     const anthropicModels = Object.entries(allModels)
@@ -194,9 +193,7 @@ function pickOpenAI(
   totalEstimatedTokens?: number
 ): string {
   try {
-    const { ConfigManager } = require('../core/config-manager')
-    const configManager = ConfigManager.getInstance()
-    const allModels = configManager.getAllModels()
+    const allModels = simpleConfigManager.getAllModels()
 
     // Filter OpenAI models
     const openaiModels = Object.entries(allModels)
@@ -261,9 +258,7 @@ function pickGoogle(
   totalEstimatedTokens?: number
 ): string {
   try {
-    const { ConfigManager } = require('../core/config-manager')
-    const configManager = ConfigManager.getInstance()
-    const allModels = configManager.getAllModels()
+    const allModels = simpleConfigManager.getAllModels()
 
     // Filter Google models
     const googleModels = Object.entries(allModels)
@@ -435,9 +430,7 @@ function classifyModelTier(modelName: string, contextTokens?: number): 'light' |
  */
 function buildOpenRouterRegistry(): OpenRouterModelRegistry {
   try {
-    const { ConfigManager } = require('../core/config-manager')
-    const configManager = ConfigManager.getInstance()
-    const allModels = configManager.getAllModels()
+    const allModels = simpleConfigManager.getAllModels()
 
     const registry: OpenRouterModelRegistry = {}
 
