@@ -81,6 +81,9 @@ export const ReadFileOptionsSchema = z.object({
   maxLines: z.number().int().min(1).optional(),
   stripComments: z.boolean().optional(),
   parseJson: z.boolean().optional(),
+  startLine: z.number().int().min(1).optional(),
+  maxTokens: z.number().int().min(512).optional(),
+  disableChunking: z.boolean().optional(),
 })
 
 export const ReadFileResultSchema = z.object({
@@ -95,7 +98,19 @@ export const ReadFileResultSchema = z.object({
     isEmpty: z.boolean(),
     isBinary: z.boolean(),
     extension: z.string(),
+    truncated: z.boolean().optional(),
+    chunked: z.boolean().optional(),
+    startLine: z.number().int().min(1).optional(),
+    endLine: z.number().int().min(0).optional(),
+    totalLines: z.number().int().min(0).optional(),
+    nextStartLine: z.number().int().min(1).nullable().optional(),
+    remainingLines: z.number().int().min(0).optional(),
+    approxTokens: z.number().int().min(0).optional(),
+    totalApproxTokens: z.number().int().min(0).optional(),
+    chunkReason: z.string().optional(),
+    hasMore: z.boolean().optional(),
   }),
+  truncated: z.boolean().optional(),
 })
 
 export const CommandOptionsSchema = z.object({

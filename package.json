@@ -27,7 +27,7 @@
   "scripts": {
     "start": "bun --bun run src/cli/index.ts",
     "dev": "bun start",
-    "clean": "rm -rf dist public/bin",
+    "clean": "rm -rf dist",
     "build": "bun scripts/build-with-secrets.mjs",
     "build:start": "bun scripts/build-with-secrets.mjs && ./dist/cli/nikcli",
     "build:all": "bun scripts/build-all-platforms.mjs",

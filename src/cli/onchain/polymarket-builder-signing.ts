@@ -207,8 +207,8 @@ export class PolymarketBuilderSigningService extends EventEmitter {
       gasFeeCovered: true, // Polymarket covers gas for builders
       attribution: {
         apiKey: this.credentials.apiKey,
-        timestamp: parseInt(headers['POLY_BUILDER_TIMESTAMP']),
-        signature: headers['POLY_BUILDER_SIGNATURE'],
+        timestamp: parseInt(headers['POLY_BUILDER_TIMESTAMP'] ?? '0', 10),
+        signature: headers['POLY_BUILDER_SIGNATURE'] ?? '',
       },
     }
 
@@ -217,7 +217,7 @@ export class PolymarketBuilderSigningService extends EventEmitter {
     // Maintain log size
     if (this.attributionLog.size > this.maxLogSize) {
       const firstKey = this.attributionLog.keys().next().value
-      this.attributionLog.delete(firstKey)
+      this.attributionLog.delete(firstKey as string)
     }
   }
 

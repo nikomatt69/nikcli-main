@@ -12070,9 +12070,9 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       const isDefault = style === defaultStyle
       const isModelCurrent = style === modelStyle
 
-      const indicators = []
-      if (isDefault) indicators.push()
-      if (isModelCurrent) indicators.push()
+      const indicators: string[] = []
+      if (isDefault) indicators.push('default')
+      if (isModelCurrent) indicators.push('current-model')
 
       const prefix = indicators.length > 0 ? ` [${indicators.join(', ')}]` : ''
 

@@ -163,7 +163,7 @@ export class PolymarketCTF extends EventEmitter {
    * Split collateral into outcome tokens
    * Creates equal YES and NO positions from collateral
    */
-  async split(userAddress: string, collateralAmount: string, conditionId: string): Promise<Position[]> {
+  async split(userAddress: string, collateralAmount: string, conditionId: string): Promise<CTFPosition[]> {
     this.validateInitialized()
 
     try {
@@ -179,26 +179,26 @@ export class PolymarketCTF extends EventEmitter {
       const yesCollection = await this.createCollection(conditionId, 1) // 0b01 = YES
       const noCollection = await this.createCollection(conditionId, 2) // 0b10 = NO
 
-      const positions: Position[] = [
+      const positions: CTFPosition[] = [
         {
           positionId: yesCollection.collectionId,
           collectionId: yesCollection.collectionId,
-          collateralToken: this.config.collateralTokenAddress,
-          amount: collateralAmount,
+          balance: collateralAmount,
+          indexSet: yesCollection.indexSet,
           outcome: 'YES',
         },
         {
           positionId: noCollection.collectionId,
           collectionId: noCollection.collectionId,
-          collateralToken: this.config.collateralTokenAddress,
-          amount: collateralAmount,
+          balance: collateralAmount,
+          indexSet: noCollection.indexSet,
           outcome: 'NO',
         },
       ]
 
       // Store user positions
       const key = `${userAddress}:${conditionId}`
-      this.userPositions.set(key, positions as CTFPosition[])
+      this.userPositions.set(key, positions)
 
       console.log(`✓ Split complete: created YES and NO positions`)
       this.emit('splitCompleted', {
@@ -208,7 +208,7 @@ export class PolymarketCTF extends EventEmitter {
         positions,
       })
 
-      return positions
+      return positions as CTFPosition[]
     } catch (error: any) {
       throw new Error(`Split operation failed: ${error.message}`)
     }

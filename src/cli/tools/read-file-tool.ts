@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises'
 import chalk from 'chalk'
 import { z } from 'zod'
 import { ContextAwareRAGSystem } from '../context/context-aware-rag'
+import { contextTokenManager } from '../core/context-token-manager'
 import { lspManager } from '../lsp/lsp-manager'
 import {
   type ReadFileOptions,
@@ -20,6 +21,11 @@ import { sanitizePath } from './secure-file-tools'
  */
 export class ReadFileTool extends BaseTool {
   private contextSystem: ContextAwareRAGSystem
+  private readonly AUTO_CHUNK_LINE_THRESHOLD = 800
+  private readonly MAX_LINES_PER_CHUNK = 1200
+  private readonly MIN_SAFE_TOKENS = 512
+  private readonly MAX_SAFE_TOKENS = 20000
+  private readonly DEFAULT_SAFE_TOKEN_BUDGET = 12000
 
   constructor(workingDirectory: string) {
     super('read-file-tool', workingDirectory)
@@ -91,14 +97,24 @@ export class ReadFileTool extends BaseTool {
         processedContent = this.stripComments(processedContent, this.getFileExtension(filePath))
       }
 
-      if (validatedOptions.maxLines && typeof processedContent === 'string') {
-        const lines = processedContent.split('\n')
-        if (lines.length > validatedOptions.maxLines) {
-          processedContent =
-            lines.slice(0, validatedOptions.maxLines).join('\n') +
-            `\n... (truncated ${lines.length - validatedOptions.maxLines} lines)`
-        }
+      let chunkMetadata: Partial<ReadFileResult['metadata']> = {}
+      let truncated = false
+
+      if (typeof processedContent === 'string') {
+        const chunkingResult = this.applyChunking(processedContent, validatedOptions)
+        processedContent = chunkingResult.content
+        chunkMetadata = chunkingResult.metadata
+        truncated = chunkingResult.truncated
       }
+
+      const chunkLineCount =
+        typeof processedContent === 'string' &&
+        typeof chunkMetadata.startLine === 'number' &&
+        typeof chunkMetadata.endLine === 'number'
+          ? Math.max(0, chunkMetadata.endLine - chunkMetadata.startLine + 1)
+          : typeof processedContent === 'string'
+            ? processedContent.split('\n').length
+            : undefined
 
       const result: ReadFileResult = {
         success: true,
@@ -106,16 +122,26 @@ export class ReadFileTool extends BaseTool {
         content: processedContent,
         size: Buffer.byteLength(content, encoding as BufferEncoding),
         encoding,
+        truncated,
         metadata: {
-          lines: typeof processedContent === 'string' ? processedContent.split('\n').length : undefined,
+          lines: chunkLineCount,
           isEmpty: content.length === 0,
           isBinary: encoding !== 'utf8' && encoding !== 'utf-8',
           extension: this.getFileExtension(filePath),
+          ...chunkMetadata,
         },
       }
 
       // Zod validation for result
       const validatedResult = ReadFileResultSchema.parse(result)
+
+      if (chunkMetadata.chunked) {
+        const start = chunkMetadata.startLine ?? 1
+        const end = chunkMetadata.endLine ?? chunkLineCount ?? 0
+        const total = chunkMetadata.totalLines ?? chunkLineCount ?? 0
+        const moreSuffix = chunkMetadata.hasMore ? ` (next start line: ${chunkMetadata.nextStartLine})` : ''
+        advancedUI.logInfo(`Chunked read ${filePath}: lines ${start}-${end} of ${total}${moreSuffix}`)
+      }
 
       // Show file content in structured UI if not binary and not too large
       if (
@@ -214,6 +240,162 @@ export class ReadFileTool extends BaseTool {
     } catch (error: any) {
       throw new Error(`Failed to get file info: ${error.message}`)
     }
+  }
+
+  private applyChunking(
+    content: string,
+    options: ReadFileOptions
+  ): { content: string; metadata: Partial<ReadFileResult['metadata']>; truncated: boolean } {
+    const lines = content.split('\n')
+    const totalApproxTokens = this.estimateTokens(content)
+    const tokenBudget = this.getSafeTokenBudget(options.maxTokens)
+
+    const startLine = options.startLine && options.startLine > 0 ? options.startLine : 1
+    const explicitRange = typeof options.maxLines === 'number' || typeof options.startLine === 'number'
+    const autoChunkNeeded =
+      !options.disableChunking &&
+      (totalApproxTokens > tokenBudget || lines.length > this.AUTO_CHUNK_LINE_THRESHOLD)
+
+    if (!explicitRange && !autoChunkNeeded) {
+      return {
+        content,
+        metadata: {
+          totalLines: lines.length,
+          totalApproxTokens,
+        },
+        truncated: false,
+      }
+    }
+
+    const lineLimit =
+      options.maxLines && options.maxLines > 0
+        ? Math.min(options.maxLines, this.MAX_LINES_PER_CHUNK)
+        : this.estimateLinesForBudget(lines, tokenBudget)
+
+    const chunk = this.sliceLines(lines, startLine, lineLimit, tokenBudget)
+    const reason = explicitRange ? 'manual_range' : 'auto_chunk'
+    const contentWithNote =
+      chunk.content +
+      (chunk.hasMore
+        ? `\n... (truncated, continue from line ${chunk.nextStartLine ?? chunk.endLine + 1})`
+        : '')
+
+    return {
+      content: contentWithNote,
+      metadata: {
+        startLine: chunk.startLine,
+        endLine: chunk.endLine,
+        nextStartLine: chunk.nextStartLine,
+        remainingLines: chunk.remainingLines,
+        approxTokens: chunk.chunkTokens,
+        totalApproxTokens,
+        totalLines: lines.length,
+        chunkReason: reason,
+        chunked: true,
+        truncated: chunk.hasMore,
+        hasMore: chunk.hasMore,
+      },
+      truncated: chunk.hasMore,
+    }
+  }
+
+  private sliceLines(
+    lines: string[],
+    startLine: number,
+    maxLines: number,
+    tokenBudget: number
+  ): {
+    content: string
+    startLine: number
+    endLine: number
+    nextStartLine: number | null
+    remainingLines: number
+    chunkTokens: number
+    hasMore: boolean
+  } {
+    const startIndex = Math.max(startLine - 1, 0)
+
+    if (startIndex >= lines.length) {
+      return {
+        content: `Requested start line ${startLine} is beyond total lines (${lines.length}).`,
+        startLine,
+        endLine: startLine - 1,
+        nextStartLine: null,
+        remainingLines: 0,
+        chunkTokens: 0,
+        hasMore: false,
+      }
+    }
+
+    let tokensUsed = 0
+    const selected: string[] = []
+    let i = startIndex
+
+    for (; i < lines.length; i++) {
+      const lineTokens = this.estimateTokens(lines[i] || ' ')
+      const overLineLimit = selected.length >= maxLines
+      const overTokenLimit = tokensUsed + lineTokens > tokenBudget
+
+      if (overLineLimit || overTokenLimit) {
+        break
+      }
+
+      selected.push(lines[i])
+      tokensUsed += lineTokens
+    }
+
+    const endIndex = startIndex + selected.length
+    const hasMore = endIndex < lines.length
+    const nextStartLine = hasMore ? endIndex + 1 : null
+
+    return {
+      content: selected.join('\n'),
+      startLine,
+      endLine: endIndex,
+      nextStartLine,
+      remainingLines: hasMore ? lines.length - endIndex : 0,
+      chunkTokens: tokensUsed,
+      hasMore,
+    }
+  }
+
+  private estimateLinesForBudget(lines: string[], tokenBudget: number): number {
+    const sample = lines.slice(0, Math.min(lines.length, 400))
+    const averageTokensPerLine =
+      sample.length > 0
+        ? sample.reduce((sum, line) => sum + this.estimateTokens(line || ' '), 0) / sample.length
+        : 8
+
+    const estimated = Math.floor(tokenBudget / Math.max(averageTokensPerLine, 1))
+    return Math.max(50, Math.min(this.MAX_LINES_PER_CHUNK, estimated))
+  }
+
+  private getSafeTokenBudget(requestedMaxTokens?: number): number {
+    if (requestedMaxTokens && requestedMaxTokens > 0) {
+      return Math.min(this.MAX_SAFE_TOKENS, Math.max(this.MIN_SAFE_TOKENS, requestedMaxTokens))
+    }
+
+    const stats = contextTokenManager.getSessionStats()
+    if (!stats || !stats.session) return this.DEFAULT_SAFE_TOKEN_BUDGET
+
+    const reserveForResponse = Math.max(2000, Math.floor(stats.session.modelLimits.output * 1.5))
+    const remainingAfterReserve = Math.max(stats.remainingContext - reserveForResponse, 0)
+    if (remainingAfterReserve === 0) {
+      return 0
+    }
+
+    const derived = Math.floor(remainingAfterReserve * 0.6)
+    const fallback = Math.min(remainingAfterReserve, this.DEFAULT_SAFE_TOKEN_BUDGET)
+    const rawBudget = derived > 0 ? derived : fallback
+    const upperBounded = Math.min(this.MAX_SAFE_TOKENS, rawBudget)
+    const lowerBound = Math.min(this.MIN_SAFE_TOKENS, remainingAfterReserve)
+
+    return Math.max(lowerBound, upperBounded)
+  }
+
+  private estimateTokens(text: string): number {
+    if (!text) return 0
+    return Math.max(1, Math.ceil(text.length / 4))
   }
 
   /**

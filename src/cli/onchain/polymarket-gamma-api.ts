@@ -356,7 +356,7 @@ export class PolymarketGammaAPI extends EventEmitter {
           'Content-Type': 'application/json',
           Accept: 'application/json',
         },
-        timeout: 30000,
+        signal: AbortSignal.timeout(30000),
       })
 
       if (!response.ok) {

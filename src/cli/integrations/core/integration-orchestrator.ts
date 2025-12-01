@@ -1,6 +1,4 @@
 // src/cli/integrations/core/integration-orchestrator.ts
-
-import { TaskMasterAI } from 'task-master-ai'
 import type { EventBus } from '../../automation/agents/event-bus'
 import type { EnhancedGitHubService } from '../github/github-service'
 import type { EnhancedSlackService } from '../slack/slack-service'
@@ -42,7 +40,7 @@ export class IntegrationOrchestrator {
   private githubService: EnhancedGitHubService
   private slackService: EnhancedSlackService
   private eventBus: EventBus
-  private taskMaster: TaskMasterAI
+  private taskMaster: { generateTasksWithAI: (prompt: string) => Promise<any> }
   private workflows: Map<string, WorkflowDefinition> = new Map()
   private config: IntegrationConfig
 
@@ -56,10 +54,31 @@ export class IntegrationOrchestrator {
     this.githubService = githubService
     this.slackService = slackService
     this.eventBus = eventBus
-    this.taskMaster = new TaskMasterAI()
+    this.taskMaster = this.createTaskMaster()
 
     this.initializeDefaultWorkflows()
     this.setupEventListeners()
+  }
+
+  private createTaskMaster(): { generateTasksWithAI: (prompt: string) => Promise<any> } {
+    try {
+      // Lazy require to avoid hard dependency/typing issues if module shape changes
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const taskMasterModule = require('task-master-ai')
+      const TaskMasterCtor = taskMasterModule.TaskMasterAI || taskMasterModule.default
+      if (TaskMasterCtor) {
+        return new TaskMasterCtor()
+      }
+    } catch (_error) {
+      /* fallback below */
+    }
+
+    // Fallback no-op implementation keeps orchestrator functional
+    return {
+      async generateTasksWithAI(prompt: string) {
+        return { tasks: [], prompt }
+      },
+    }
   }
 
   private initializeDefaultWorkflows(): void {
@@ -223,9 +242,10 @@ export class IntegrationOrchestrator {
         if (await this.evaluateWorkflowConditions(workflow, event)) {
           await this.executeWorkflow(workflow, event)
         }
-      } catch (error) {
-        console.error(`Error executing workflow ${workflow.id}:`, error)
-        await this.handleWorkflowError(workflow, error, event)
+      } catch (error: unknown) {
+        const err = error instanceof Error ? error : new Error(String(error))
+        console.error(`Error executing workflow ${workflow.id}:`, err)
+        await this.handleWorkflowError(workflow, err, event)
       }
     }
   }
@@ -241,9 +261,10 @@ export class IntegrationOrchestrator {
         if (await this.evaluateWorkflowConditions(workflow, event)) {
           await this.executeWorkflow(workflow, event)
         }
-      } catch (error) {
-        console.error(`Error executing workflow ${workflow.id}:`, error)
-        await this.handleWorkflowError(workflow, error, event)
+      } catch (error: unknown) {
+        const err = error instanceof Error ? error : new Error(String(error))
+        console.error(`Error executing workflow ${workflow.id}:`, err)
+        await this.handleWorkflowError(workflow, err, event)
       }
     }
   }
@@ -347,9 +368,10 @@ export class IntegrationOrchestrator {
           // For async actions, don't wait for completion
           this.executeAsyncAction(action, result)
         }
-      } catch (error) {
-        console.error(`Error executing action ${action.operation}:`, error)
-        actionResults.push({ action, error: error.message })
+      } catch (error: unknown) {
+        const err = error instanceof Error ? error : new Error(String(error))
+        console.error(`Error executing action ${action.operation}:`, err)
+        actionResults.push({ action, error: err.message })
 
         // Stop workflow execution on critical errors
         if (action.operation.includes('critical')) {
@@ -358,7 +380,7 @@ export class IntegrationOrchestrator {
       }
     }
     // Store action results for potential template expansion
-    ;(event as any).actionResults = actionResults
+    ; (event as any).actionResults = actionResults
   }
 
   private async executeAction(action: WorkflowAction, event: WorkflowEvent, previousResults: any[]): Promise<any> {
@@ -524,8 +546,9 @@ export class IntegrationOrchestrator {
       try {
         // Log or handle async action completion
         console.log(`Async action completed: ${action.operation}`)
-      } catch (error) {
-        console.error(`Error in async action: ${action.operation}`, error)
+      } catch (error: unknown) {
+        const err = error instanceof Error ? error : new Error(String(error))
+        console.error(`Error in async action: ${action.operation}`, err)
       }
     })
   }

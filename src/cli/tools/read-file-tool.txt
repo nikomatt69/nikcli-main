@@ -6,6 +6,7 @@ Production-ready file reading tool with advanced processing, LSP integration, an
 ## Capabilities
 - Safe file reading with comprehensive error handling
 - Content processing and filtering options
+- Token-aware chunking to avoid overflowing context windows
 - LSP integration for code intelligence during reading
 - Context-aware RAG system integration for workspace learning
 - Multiple file reading with parallel processing
@@ -50,6 +51,21 @@ const result = await readFileTool.execute('/path/to/component.tsx', {
   maxLines: 100,
   maxSize: 1024 * 1024 // 1MB limit
 });
+```
+
+### Paginated Log Reading
+```typescript
+const firstChunk = await readFileTool.execute('./logs/app.log', {
+  startLine: 1,
+  maxTokens: 8000, // keeps output under token budget
+});
+
+if (firstChunk.metadata?.hasMore && firstChunk.metadata?.nextStartLine) {
+  const nextChunk = await readFileTool.execute('./logs/app.log', {
+    startLine: firstChunk.metadata.nextStartLine,
+    maxTokens: 8000,
+  });
+}
 ```
 
 ### Multiple File Reading
@@ -120,6 +136,9 @@ console.log('Is Readable:', info.isReadable);
 - `maxLines`: Maximum number of lines to read
 - `stripComments`: Remove comments from code files
 - `parseJson`: Parse JSON files automatically
+- `startLine`: 1-based line to start reading from (for pagination/step-by-step reads)
+- `maxTokens`: Approximate token budget to cap returned content (auto-chunking)
+- `disableChunking`: Disable automatic chunking when you really need the full content
 
 ### File Processing Features
 - **Comment Stripping**: Intelligent comment removal for various languages
@@ -144,11 +163,18 @@ console.log('Is Readable:', info.isReadable);
 - `content`: File content (string or Buffer)
 - `size`: File size in bytes
 - `encoding`: Used encoding
+- `truncated`: Whether the returned content was truncated for safety
 - `metadata`: File metadata object
   - `lines`: Number of lines (for text files)
   - `isEmpty`: Whether file is empty
   - `isBinary`: Binary file detection
   - `extension`: File extension
+  - `startLine` / `endLine`: Line window returned
+  - `nextStartLine`: Suggested starting line for the next chunk (if any)
+  - `totalLines`: Total number of lines in the file (when available)
+  - `hasMore` / `truncated`: Flags indicating additional content exists
+  - `approxTokens` / `totalApproxTokens`: Estimated token counts for chunk and full file
+  - `chunkReason`: Why chunking was applied (auto vs manual)
 
 ### FileInfo
 - `path`: Absolute file path
@@ -164,8 +190,9 @@ console.log('Is Readable:', info.isReadable);
 1. Always check result.success before using content
 2. Use appropriate processing options for file types
 3. Handle large files with streaming when possible
-4. Leverage LSP integration for code analysis
-5. Record reading operations for context learning
+4. Use `startLine`/`nextStartLine` to walk long logs instead of loading everything at once
+5. Leverage LSP integration for code analysis
+6. Record reading operations for context learning
 
 ### For Tool Composition
 1. Combine with write-file-tool for modification workflows

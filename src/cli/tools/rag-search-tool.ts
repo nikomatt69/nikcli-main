@@ -125,9 +125,6 @@ export class RAGSearchTool extends BaseTool {
         }
       }
 
-      // Ensure RAG system is initialized
-      await unifiedRAGSystem.ensureInitialized()
-
       // Perform semantic search
       let searchResults: RAGSearchResult[] = []
       const searchMode = semanticOnly ? 'semantic' : 'hybrid'
@@ -189,7 +186,13 @@ export class RAGSearchTool extends BaseTool {
 
       // Generate summary
       const executionTime = Date.now() - startTime
-      const sourcesUsed = Array.from(new Set(results.map((r) => r.metadata.source).filter((s): s is string => !!s)))
+      const sourcesUsed = Array.from(
+        new Set(
+          results
+            .map((r) => r.metadata.source)
+            .filter((s): s is RAGSearchResult['metadata']['source'] => Boolean(s))
+        )
+      )
 
       const summary = this.generateSummary(query, results, searchMode, executionTime, sourcesUsed)
 

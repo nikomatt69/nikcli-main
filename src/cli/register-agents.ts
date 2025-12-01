@@ -271,7 +271,7 @@ export function registerAgents(agentManager: AgentManager): void {
   })
 
   // Register PolymarketAgent for prediction market trading
-  agentManager.registerAgentClass(PolymarketAgent, {
+  agentManager.registerAgentClass(PolymarketAgent as any, {
     id: 'polymarket-agent',
     name: 'Polymarket Trading Agent',
     description:

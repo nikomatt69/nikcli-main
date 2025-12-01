@@ -868,81 +868,81 @@ ${result.analysis ? `## Analysis\n${result.analysis}\n` : ''}
     try {
       const commandText = `${job.mention.command} ${job.mention.args.join(' ')}`.trim()
 
+      const blocks: any[] = [
+        {
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: `*✓ Task Completed*\n\`@nikcli ${commandText}\``,
+          },
+        },
+        {
+          type: 'section',
+          fields: [
+            {
+              type: 'mrkdwn',
+              text: `*Repository*\n${job.repository}`,
+            },
+            {
+              type: 'mrkdwn',
+              text: `*Issue/PR*\n#${job.issueNumber}`,
+            },
+            {
+              type: 'mrkdwn',
+              text: `*Files Modified*\n${result.files?.length || 0}`,
+            },
+            {
+              type: 'mrkdwn',
+              text: `*Status*\n${result.success ? 'Success ✓' : 'Partial ⚠'}`,
+            },
+          ],
+        },
+      ]
+
+      blocks.push(
+        result.prUrl
+          ? {
+            type: 'actions',
+            elements: [
+              {
+                type: 'button',
+                text: {
+                  type: 'plain_text',
+                  text: '👁️ View Results on GitHub',
+                },
+                url: `https://github.com/${job.repository}/issues/${job.issueNumber}`,
+              },
+              {
+                type: 'button',
+                text: {
+                  type: 'plain_text',
+                  text: '🔀 View Pull Request',
+                },
+                url: result.prUrl,
+                style: 'primary',
+              },
+            ],
+          }
+          : {
+            type: 'actions',
+            elements: [
+              {
+                type: 'button',
+                text: {
+                  type: 'plain_text',
+                  text: '👁️ View Results on GitHub',
+                },
+                url: `https://github.com/${job.repository}/issues/${job.issueNumber}`,
+              },
+            ],
+          }
+      )
+
       await this.slackService.webClient.chat.postMessage({
         channel: process.env.SLACK_DEFAULT_CHANNEL,
         thread_ts: job.slackThreadTs,
         text: `✓ Task completed successfully`,
-        blocks: [
-          {
-            type: 'section',
-            text: {
-              type: 'mrkdwn',
-              text: `*✓ Task Completed*\n\`@nikcli ${commandText}\``,
-            },
-          },
-          {
-            type: 'section',
-            fields: [
-              {
-                type: 'mrkdwn',
-                text: `*Repository*\n${job.repository}`,
-              },
-              {
-                type: 'mrkdwn',
-                text: `*Issue/PR*\n#${job.issueNumber}`,
-              },
-              {
-                type: 'mrkdwn',
-                text: `*Files Modified*\n${result.files?.length || 0}`,
-              },
-              {
-                type: 'mrkdwn',
-                text: `*Status*\n${result.success ? 'Success ✓' : 'Partial ⚠'}`,
-              },
-            ],
-          },
-        ].concat(
-          result.prUrl
-            ? [
-                {
-                  type: 'actions',
-                  elements: [
-                    {
-                      type: 'button',
-                      text: {
-                        type: 'plain_text',
-                        text: '👁️ View Results on GitHub',
-                      },
-                      url: `https://github.com/${job.repository}/issues/${job.issueNumber}`,
-                    },
-                    {
-                      type: 'button',
-                      text: {
-                        type: 'plain_text',
-                        text: '🔀 View Pull Request',
-                      },
-                      url: result.prUrl,
-                      style: 'primary',
-                    },
-                  ],
-                },
-              ]
-            : [
-                {
-                  type: 'actions',
-                  elements: [
-                    {
-                      type: 'button',
-                      text: {
-                        type: 'plain_text',
-                        text: '👁️ View Results on GitHub',
-                      },
-                      url: `https://github.com/${job.repository}/issues/${job.issueNumber}`,
-                    },
-                  ],
-                },
-              ]
-        ) as any,
+        blocks,
       })
 
       console.log(`✓ Notified Slack of task completion`)

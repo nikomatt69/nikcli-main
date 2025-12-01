@@ -29,7 +29,7 @@ class EvaluationPipeline {
   private metricsBuffer: Map<string, EvaluationMetrics> = new Map()
   private readonly BATCH_EVALUATION_SIZE = 50
 
-  constructor() {}
+  constructor() { }
 
   async initialize(supabaseProvider: EnhancedSupabaseProvider): Promise<void> {
     try {
@@ -120,8 +120,9 @@ class EvaluationPipeline {
       )
 
       return metrics
-    } catch (error) {
-      structuredLogger.error('Batch evaluation failed', error)
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error)
+      structuredLogger.error('Batch evaluation failed', `Batch evaluation failed, error: ${message}`)
       return this.getDefaultMetrics()
     }
   }

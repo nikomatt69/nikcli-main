@@ -122,7 +122,7 @@ export class CommandSandboxExecutor {
           // Stream final status
           const status = code === 0 ? '✓ Success' : code ? `✖ Failed (code: ${code})` : `⚠︎  Terminated (signal: ${sig})`
           advancedUI.addLiveUpdate({
-            type: code === 0 ? 'success' : 'error',
+            type: code === 0 ? 'result' : 'error',
             content: `${status}`,
           })
 
@@ -162,7 +162,7 @@ export class CommandSandboxExecutor {
   private async createSandboxDirectory(): Promise<string> {
     try {
       const sandboxDir = await mkdtemp(join(tmpdir(), 'nikcli-sandbox-'))
-      advancedUI.logDebug(`🏝️  Sandbox created: ${sandboxDir}`)
+      advancedUI.logInfo(`🏝️  Sandbox created: ${sandboxDir}`)
       return sandboxDir
     } catch (error: any) {
       throw new Error(`Failed to create sandbox: ${error.message}`)
@@ -184,7 +184,7 @@ export class CommandSandboxExecutor {
       // Remove sandbox directory
       await rm(sandboxDir, { recursive: true, force: true })
       this.sandboxDirs.delete(sessionId)
-      advancedUI.logDebug(`🧹 Sandbox cleaned: ${sandboxDir}`)
+      advancedUI.logInfo(`🧹 Sandbox cleaned: ${sandboxDir}`)
     } catch (error: any) {
       console.error(`Failed to cleanup sandbox ${sandboxDir}: ${error.message}`)
     }

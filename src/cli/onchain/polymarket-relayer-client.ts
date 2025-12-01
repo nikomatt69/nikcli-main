@@ -38,6 +38,7 @@ export interface ExecutionResponse {
 export interface TransactionStatus {
   transactionHash: string
   status: 'pending' | 'confirmed' | 'failed'
+  timestamp?: number
   blockNumber?: number
   confirmations?: number
   gasUsed?: string
@@ -188,6 +189,7 @@ export class PolymarketRelayerClient extends EventEmitter {
       this.transactionHistory.set(result.transactionHash, {
         transactionHash: result.transactionHash,
         status: 'pending',
+        timestamp: response.timestamp,
       })
 
       console.log(`✓ Transaction submitted: ${result.transactionHash}`)
@@ -246,9 +248,13 @@ export class PolymarketRelayerClient extends EventEmitter {
     try {
       const result = await this.callRelayerAPI('GET', `/transaction/${transactionHash}`)
 
+      // Preserve existing timestamp if available
+      const existing = this.transactionHistory.get(transactionHash)
+
       const status: TransactionStatus = {
         transactionHash,
         status: result.status,
+        timestamp: existing?.timestamp || Date.now(),
         blockNumber: result.blockNumber,
         confirmations: result.confirmations,
         gasUsed: result.gasUsed,
@@ -322,7 +328,7 @@ export class PolymarketRelayerClient extends EventEmitter {
    */
   getTransactionHistory(limit: number = 100): TransactionStatus[] {
     return Array.from(this.transactionHistory.values())
-      .sort((a, b) => b.timestamp - a.timestamp)
+      .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))
       .slice(0, limit)
   }
 
