@@ -18,6 +18,7 @@ import { type PromptContext, PromptManager } from '../prompts/prompt-manager'
 import { streamttyService } from '../services/streamtty-service'
 import type { OutputStyle } from '../types/output-styles'
 import { ReasoningDetector } from './reasoning-detector'
+import { openRouterRegistry } from './openrouter-model-registry'
 
 export interface ModelConfig {
   provider:
@@ -40,6 +41,10 @@ export interface ModelConfig {
   reasoningMode?: 'auto' | 'explicit' | 'disabled'
   outputStyle?: OutputStyle
   transforms?: string[] // OpenRouter transforms (e.g., ["middle-out"] for context compression)
+  // OpenRouter Web Search - append :online to model for web search capability
+  enableWebSearch?: boolean
+  // Control parallel tool execution (default: true)
+  parallelToolCalls?: boolean
 }
 
 export interface AIProviderOptions {
@@ -47,6 +52,105 @@ export interface AIProviderOptions {
   context?: string
   taskType?: string
   modelOverride?: string
+  // OpenRouter Web Search - enables :online suffix for real-time web data
+  enableWebSearch?: boolean
+  // Control parallel tool execution (default: true)
+  parallelToolCalls?: boolean
+  // OpenRouter transforms (e.g., ["middle-out"] for context compression)
+  transforms?: string[]
+}
+
+/**
+ * Retry configuration with exponential backoff
+ * Reference: https://openrouter.ai/docs/guides/features/zero-completion-insurance
+ */
+const RETRY_CONFIG = {
+  maxRetries: 3,
+  baseDelayMs: 1000,
+  maxDelayMs: 30000,
+  exponentialBase: 2,
+  jitterFactor: 0.1, // Add 0-10% random jitter
+  enableLogging: true,
+}
+
+/**
+ * Calculate exponential backoff delay with jitter
+ * @param attempt Current attempt number (1-based)
+ * @returns Delay in milliseconds
+ */
+function getExponentialBackoff(attempt: number): number {
+  const exponentialDelay = RETRY_CONFIG.baseDelayMs * Math.pow(RETRY_CONFIG.exponentialBase, attempt - 1)
+  const delay = Math.min(exponentialDelay, RETRY_CONFIG.maxDelayMs)
+
+  // Add random jitter to prevent thundering herd
+  const jitter = delay * RETRY_CONFIG.jitterFactor * Math.random()
+  return Math.round(delay + jitter)
+}
+
+// Alias for backwards compatibility
+const ZERO_COMPLETION_CONFIG = RETRY_CONFIG
+
+/**
+ * Context-aware transforms configuration
+ * Reference: https://openrouter.ai/docs/guides/features/message-transforms
+ */
+const TRANSFORMS_CONFIG = {
+  // Auto-enable middle-out when prompt exceeds this % of context window
+  autoEnableThreshold: 0.5,
+  // Default transforms when auto-enabled
+  defaultTransforms: ['middle-out'],
+}
+
+/**
+ * Calculate if context-aware transforms should be auto-enabled
+ * @param promptTokens Estimated prompt token count
+ * @param contextWindow Model's context window size
+ * @param explicitTransforms User-specified transforms (overrides auto)
+ */
+function getContextAwareTransforms(
+  promptTokens: number,
+  contextWindow: number,
+  explicitTransforms?: string[]
+): string[] | undefined {
+  // If explicit transforms provided, use them (empty array = disable)
+  if (explicitTransforms !== undefined) {
+    return explicitTransforms.length > 0 ? explicitTransforms : undefined
+  }
+
+  // Auto-enable middle-out if prompt exceeds threshold
+  const utilizationRatio = promptTokens / contextWindow
+  if (utilizationRatio > TRANSFORMS_CONFIG.autoEnableThreshold) {
+    return TRANSFORMS_CONFIG.defaultTransforms
+  }
+
+  // No transforms needed for small prompts
+  return undefined
+}
+
+/**
+ * Check if response qualifies for Zero Completion Insurance (no charge)
+ * Conditions: zero completion tokens AND (blank finish_reason OR error finish_reason)
+ */
+function isZeroCompletionResponse(result: any): boolean {
+  const usage = result?.usage || result?.experimental_providerMetadata?.usage
+  const finishReason = result?.finishReason || result?.finish_reason
+
+  // Zero completion tokens with blank/null/error finish reason
+  if (usage?.completionTokens === 0 || usage?.completion_tokens === 0) {
+    if (!finishReason || finishReason === '' || finishReason === 'error') {
+      return true
+    }
+  }
+
+  // Empty text response with no tool calls
+  if ((!result?.text || result.text.trim() === '') &&
+    (!result?.toolCalls || result.toolCalls.length === 0)) {
+    if (!finishReason || finishReason === 'error') {
+      return true
+    }
+  }
+
+  return false
 }
 
 export class ModernAIProvider {
@@ -60,7 +164,81 @@ export class ModernAIProvider {
   }
 
   /**
+   * Execute with Zero Completion Insurance retry logic
+   * Auto-retries on zero completion responses (OpenRouter doesn't charge for these)
+   */
+  private async executeWithRetry<T>(
+    operation: () => Promise<T>,
+    context: string,
+    maxRetries = ZERO_COMPLETION_CONFIG.maxRetries
+  ): Promise<T> {
+    let lastError: Error | null = null
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const result = await operation()
+
+        // Check for zero completion (protected by insurance, can retry for free)
+        if (isZeroCompletionResponse(result) && attempt < maxRetries) {
+          if (ZERO_COMPLETION_CONFIG.enableLogging) {
+            console.log(require('chalk').dim(
+              `[ZeroCompletion] ${context}: Empty response (attempt ${attempt}/${maxRetries}), retrying...`
+            ))
+          }
+          await new Promise(r => setTimeout(r, getExponentialBackoff(attempt)))
+          continue
+        }
+
+        return result
+      } catch (error: any) {
+        lastError = error
+
+        // Retry on transient errors
+        if (attempt < maxRetries && this.isRetryableError(error)) {
+          if (ZERO_COMPLETION_CONFIG.enableLogging) {
+            console.log(require('chalk').dim(
+              `[Retry] ${context}: ${error.message} (attempt ${attempt}/${maxRetries})`
+            ))
+          }
+          await new Promise(r => setTimeout(r, getExponentialBackoff(attempt)))
+          continue
+        }
+
+        throw error
+      }
+    }
+
+    throw lastError || new Error(`${context}: Max retries exceeded`)
+  }
+
+  /**
+   * Check if error is retryable (rate limits, transient failures)
+   */
+  private isRetryableError(error: any): boolean {
+    const message = error?.message?.toLowerCase() || ''
+    const status = error?.status || error?.statusCode
+
+    // Rate limit errors
+    if (status === 429 || message.includes('rate limit') || message.includes('too many requests')) {
+      return true
+    }
+
+    // Transient server errors
+    if (status >= 500 && status < 600) {
+      return true
+    }
+
+    // Connection errors
+    if (message.includes('network') || message.includes('timeout') || message.includes('econnreset')) {
+      return true
+    }
+
+    return false
+  }
+
+  /**
    * Check if reasoning should be enabled for current model
+   * Uses dynamic detection for OpenRouter models
    */
   private shouldEnableReasoning(): boolean {
     const config = simpleConfigManager?.getCurrentModel() as any
@@ -71,12 +249,53 @@ export class ModernAIProvider {
       return config.enableReasoning
     }
 
-    // Auto-detect based on model capabilities
+    // Auto-detect based on model capabilities (sync version)
+    return ReasoningDetector.shouldEnableReasoning(config.provider, config.model)
+  }
+
+  /**
+   * Async version - uses OpenRouter API for dynamic capability detection
+   */
+  private async shouldEnableReasoningAsync(): Promise<boolean> {
+    const config = simpleConfigManager?.getCurrentModel() as any
+    if (!config) return false
+
+    if (config.enableReasoning !== undefined) {
+      return config.enableReasoning
+    }
+
+    // For OpenRouter, fetch actual model capabilities
+    if (config.provider === 'openrouter') {
+      return ReasoningDetector.shouldEnableReasoningAsync(config.provider, config.model)
+    }
+
     return ReasoningDetector.shouldEnableReasoning(config.provider, config.model)
   }
 
   /**
    * Log reasoning status if enabled
+   * Uses async version for OpenRouter to get actual capabilities
+   */
+  private async logReasoningStatusAsync(enabled: boolean): Promise<void> {
+    const config = simpleConfigManager?.getCurrentModel() as any
+    if (!config) return
+
+    try {
+      let summary: string
+      if (config.provider === 'openrouter') {
+        summary = await ReasoningDetector.getModelReasoningSummaryAsync(config.provider, config.model)
+      } else {
+        summary = ReasoningDetector.getModelReasoningSummary(config.provider, config.model)
+      }
+      const msg = `[Reasoning] ${config.model}: ${summary} - ${enabled ? 'ENABLED' : 'DISABLED'}`
+      console.log(require('chalk').dim(msg))
+    } catch {
+      // Silent fail for logging
+    }
+  }
+
+  /**
+   * Sync version for backwards compatibility
    */
   private logReasoningStatus(enabled: boolean): void {
     const config = simpleConfigManager?.getCurrentModel() as any
@@ -581,11 +800,17 @@ export class ModernAIProvider {
           apiKey,
           baseURL: 'https://openrouter.ai/api/v1',
           headers: {
-            'HTTP-Referer': 'https://nikcli.mintlify.app', // Optional: for attribution
+            'HTTP-Referer': 'https://nikcli.mintlify.app',
             'X-Title': 'NikCLI',
           },
         })
-        return openrouterProvider(config.model) // Assumes model like 'openai/gpt-4o'
+        // OpenRouter Web Search: append :online suffix for real-time web data
+        // Reference: https://openrouter.ai/docs/guides/features/web-search
+        let modelId = config.model
+        if ((config as any).enableWebSearch && !modelId.endsWith(':online')) {
+          modelId = `${modelId}:online`
+        }
+        return openrouterProvider(modelId)
       }
       case 'ollama': {
         // Ollama does not require API keys; assumes local daemon at default endpoint
@@ -641,12 +866,16 @@ export class ModernAIProvider {
   // Claude Code style streaming with tool support
   async *streamChatWithTools(messages: CoreMessage[]): AsyncGenerator<
     {
-      type: 'text' | 'tool_call' | 'tool_result' | 'finish' | 'reasoning'
+      type: 'text' | 'tool_call' | 'tool_call_complete' | 'tool_result' | 'finish' | 'reasoning' | 'error' | 'usage'
       content?: string
       toolCall?: any
+      toolCallId?: string
       toolResult?: any
+      result?: any
       finishReason?: string
       reasoningSummary?: string
+      error?: any
+      usage?: any
     },
     void,
     unknown
@@ -695,11 +924,18 @@ export class ModernAIProvider {
         temperature: 1,
         maxTokens: 8000,
         maxSteps: 10,
-        // Spread middleware if available
       }
 
-      // OpenRouter-specific parameters support
+      // OpenRouter-specific parameters support - dynamic based on model capabilities
       const cfg = simpleConfigManager?.getCurrentModel() as any
+
+      // Parallel tool calls control (default: true)
+      // Reference: https://openrouter.ai/docs/guides/features/tool-calling
+      const parallelToolCalls = cfg?.parallelToolCalls ?? true
+      if (!parallelToolCalls) {
+        streamOptions.experimental_toolCallStreaming = false
+      }
+
       if (cfg?.provider === 'openrouter') {
         if (!streamOptions.experimental_providerMetadata) {
           streamOptions.experimental_providerMetadata = {}
@@ -708,13 +944,43 @@ export class ModernAIProvider {
           streamOptions.experimental_providerMetadata.openrouter = {}
         }
 
-        // Transforms parameter support (e.g., middle-out for context compression)
-        const transforms = cfg.transforms || simpleConfigManager.get('openrouterTransforms')
-        if (transforms && Array.isArray(transforms) && transforms.length > 0) {
-          streamOptions.experimental_providerMetadata.openrouter.transforms = transforms
-        } else {
-          // Default to middle-out for automatic context compression
-          streamOptions.experimental_providerMetadata.openrouter.transforms = ['middle-out']
+        // Parallel tool calls control
+        streamOptions.experimental_providerMetadata.openrouter.parallel_tool_calls = parallelToolCalls
+
+        // Fetch model capabilities and build parameters dynamically
+        try {
+          const modelCaps = await openRouterRegistry.getCapabilities(cfg.model)
+
+          // Only add reasoning if model supports it
+          if (reasoningEnabled && (modelCaps.supportsReasoning || modelCaps.supportsIncludeReasoning)) {
+            if (modelCaps.supportsIncludeReasoning) {
+              streamOptions.experimental_providerMetadata.openrouter.include_reasoning = true
+            }
+            if (modelCaps.supportsReasoningEffort) {
+              streamOptions.experimental_providerMetadata.openrouter.reasoning = {
+                effort: 'medium',
+                enabled: true,
+              }
+            }
+          }
+
+          // Context-aware transforms (e.g., middle-out for context compression)
+          // Auto-enable when prompt exceeds 50% of context window
+          const explicitTransforms = cfg.transforms || simpleConfigManager.get('openrouterTransforms')
+          const estimatedTokens = JSON.stringify(messages).length / 4 // rough estimate
+          const contextWindow = modelCaps.contextLength || 128000
+          const contextAwareTransforms = getContextAwareTransforms(estimatedTokens, contextWindow, explicitTransforms)
+          if (contextAwareTransforms && contextAwareTransforms.length > 0) {
+            streamOptions.experimental_providerMetadata.openrouter.transforms = contextAwareTransforms
+          }
+        } catch {
+          // Fallback: use explicit transforms or auto-enable for large prompts
+          const explicitTransforms = cfg.transforms || simpleConfigManager.get('openrouterTransforms')
+          const estimatedTokens = JSON.stringify(messages).length / 4
+          const contextAwareTransforms = getContextAwareTransforms(estimatedTokens, 128000, explicitTransforms)
+          if (contextAwareTransforms && contextAwareTransforms.length > 0) {
+            streamOptions.experimental_providerMetadata.openrouter.transforms = contextAwareTransforms
+          }
         }
       }
 
@@ -747,8 +1013,46 @@ export class ModernAIProvider {
                 content: (event as any).argsTextDelta,
               }
               break
+            case 'tool-call':
+              // Complete tool call event
+              yield {
+                type: 'tool_call_complete',
+                toolCall: (event as any).toolCall,
+              }
+              break
+            case 'tool-result':
+              // Tool execution result
+              yield {
+                type: 'tool_result',
+                toolCallId: (event as any).toolCallId,
+                result: (event as any).result,
+              }
+              break
+            case 'reasoning':
+            case 'reasoning-delta':
+              // AI SDK reasoning events
+              yield {
+                type: 'reasoning',
+                content: (event as any).textDelta || (event as any).text || (event as any).reasoning,
+              }
+              break
+            case 'error':
+              // Stream error event
+              yield {
+                type: 'error',
+                error: (event as any).error,
+              }
+              break
             case 'finish':
             case 'step-finish':
+              // Step completion - can include usage info
+              if ((event as any).usage) {
+                yield {
+                  type: 'usage',
+                  usage: (event as any).usage
+                  ,
+                }
+              }
               break
             default:
               // Handle any unknown event types gracefully
@@ -758,12 +1062,38 @@ export class ModernAIProvider {
                   content: (event as any).thinking,
                 }
               }
+              // Log unknown event types for debugging
+              if (RETRY_CONFIG.enableLogging && process.env.DEBUG_STREAM) {
+                console.log(require('chalk').dim(`[Stream] Unknown event type: ${eventType}`))
+              }
               break
           }
         }
       } catch (streamError: any) {
+        // Stream recovery: attempt to reconnect or fallback
+        const errorMessage = streamError.message?.toLowerCase() || ''
+
+        // Connection errors - could potentially retry
+        if (errorMessage.includes('network') ||
+          errorMessage.includes('timeout') ||
+          errorMessage.includes('econnreset') ||
+          errorMessage.includes('socket')) {
+          yield {
+            type: 'error',
+            error: {
+              code: 'STREAM_CONNECTION_ERROR',
+              message: 'Stream connection interrupted',
+              recoverable: true,
+            },
+          }
+        }
+
         // Fallback to textStream if fullStream fails
-        if (streamError.message?.includes('fullStream')) {
+        if (streamError.message?.includes('fullStream') ||
+          streamError.message?.includes('not iterable')) {
+          if (RETRY_CONFIG.enableLogging) {
+            console.log(require('chalk').dim('[Stream] Falling back to textStream'))
+          }
           for await (const delta of result.textStream) {
             yield {
               type: 'text',
@@ -818,11 +1148,19 @@ export class ModernAIProvider {
         maxSteps: 10,
         temperature: 1,
         maxTokens: 8000,
-        // Spread middleware if available
       }
 
-      // OpenRouter-specific parameters support
+      // OpenRouter-specific parameters support - dynamic based on model capabilities
       const cfg = simpleConfigManager?.getCurrentModel() as any
+
+      // Parallel tool calls control (default: true)
+      // Reference: https://openrouter.ai/docs/guides/features/tool-calling
+      const parallelToolCalls = cfg?.parallelToolCalls ?? true
+      if (!parallelToolCalls) {
+        // When disabled, tools are called sequentially (useful for dependent operations)
+        generateOptions.experimental_toolCallStreaming = false
+      }
+
       if (cfg?.provider === 'openrouter') {
         if (!generateOptions.experimental_providerMetadata) {
           generateOptions.experimental_providerMetadata = {}
@@ -831,26 +1169,67 @@ export class ModernAIProvider {
           generateOptions.experimental_providerMetadata.openrouter = {}
         }
 
-        // Reasoning parameter support for OpenRouter
-        if (reasoningEnabled) {
-          generateOptions.experimental_providerMetadata.openrouter.reasoning = {
-            effort: 'medium',
-            exclude: false,
-            enabled: true,
-          }
-        }
+        // Parallel tool calls control
+        // Reference: https://openrouter.ai/docs/guides/features/tool-calling
+        generateOptions.experimental_providerMetadata.openrouter.parallel_tool_calls = parallelToolCalls
 
-        // Transforms parameter support (e.g., middle-out for context compression)
-        const transforms = cfg.transforms || simpleConfigManager.get('openrouterTransforms')
-        if (transforms && Array.isArray(transforms) && transforms.length > 0) {
-          generateOptions.experimental_providerMetadata.openrouter.transforms = transforms
-        } else {
-          // Default to middle-out for automatic context compression
-          generateOptions.experimental_providerMetadata.openrouter.transforms = ['middle-out']
+        // Fetch model capabilities and build parameters dynamically
+        try {
+          const modelCaps = await openRouterRegistry.getCapabilities(cfg.model)
+
+          // Only add reasoning parameters if model supports them
+          if (reasoningEnabled && (modelCaps.supportsReasoning || modelCaps.supportsIncludeReasoning)) {
+            if (modelCaps.supportsIncludeReasoning) {
+              generateOptions.experimental_providerMetadata.openrouter.include_reasoning = true
+            }
+            if (modelCaps.supportsReasoningEffort) {
+              generateOptions.experimental_providerMetadata.openrouter.reasoning = {
+                effort: 'medium',
+                exclude: false,
+                enabled: true,
+              }
+            }
+          }
+
+          // Context-aware transforms (auto-enable when prompt exceeds 50% of context window)
+          const explicitTransforms = cfg.transforms || simpleConfigManager.get('openrouterTransforms')
+          const estimatedTokens = JSON.stringify(messages).length / 4
+          const contextWindow = modelCaps.contextLength || 128000
+          const contextAwareTransforms = getContextAwareTransforms(estimatedTokens, contextWindow, explicitTransforms)
+          if (contextAwareTransforms && contextAwareTransforms.length > 0) {
+            generateOptions.experimental_providerMetadata.openrouter.transforms = contextAwareTransforms
+          }
+        } catch {
+          // Fallback to default if registry fails
+          if (reasoningEnabled) {
+            generateOptions.experimental_providerMetadata.openrouter.reasoning = {
+              effort: 'medium',
+              exclude: false,
+              enabled: true,
+            }
+          }
+          // Fallback: use explicit transforms or auto-enable for large prompts
+          const explicitTransforms = cfg.transforms || simpleConfigManager.get('openrouterTransforms')
+          const estimatedTokens = JSON.stringify(messages).length / 4
+          const contextAwareTransforms = getContextAwareTransforms(estimatedTokens, 128000, explicitTransforms)
+          if (contextAwareTransforms && contextAwareTransforms.length > 0) {
+            generateOptions.experimental_providerMetadata.openrouter.transforms = contextAwareTransforms
+          }
         }
       }
 
-      const result = await generateText(generateOptions)
+      // Execute with Zero Completion Insurance retry logic
+      const result = await this.executeWithRetry(
+        () => generateText(generateOptions),
+        'generateWithTools'
+      )
+
+      // Check for zero completion response after all retries
+      if (isZeroCompletionResponse(result)) {
+        console.log(require('chalk').yellow(
+          '[ZeroCompletion] Protected response - no charges applied'
+        ))
+      }
 
       // Extract reasoning if available
       let reasoningData = {}
@@ -947,13 +1326,17 @@ export class ModernAIProvider {
     messages: CoreMessage[],
     options: AIProviderOptions = {}
   ): AsyncGenerator<{
-    type: 'text' | 'tool_call' | 'tool_result' | 'finish' | 'reasoning' | 'style_applied'
+    type: 'text' | 'tool_call' | 'tool_call_complete' | 'tool_result' | 'finish' | 'reasoning' | 'style_applied' | 'error' | 'usage'
     content?: string
     toolCall?: any
+    toolCallId?: string
     toolResult?: any
+    result?: any
     finishReason?: string
     reasoningSummary?: string
     outputStyle?: OutputStyle
+    error?: any
+    usage?: any
   }> {
     // Resolve output style
     const outputStyle = this.resolveOutputStyle(options)

@@ -101,7 +101,7 @@ export class UnifiedRerankingInterface {
       maxDocuments: Number(process.env.RERANKING_MAX_DOCUMENTS || 100),
       baseURL: 'https://openrouter.ai/api/v1',
       headers: {
-        'HTTP-Referer': 'https://nikcli.ai',
+        'HTTP-Referer': 'https://nikcli.mintlify.app',
         'X-Title': 'NikCLI',
       },
       ...config,

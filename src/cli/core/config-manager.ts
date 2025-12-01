@@ -59,7 +59,7 @@ const RerankingModelConfigSchema = z.object({
 
 const ConfigSchema = z.object({
   currentModel: z.string(),
-  currentEmbeddingModel: z.string().default('openai/text-embedding-3-small'),
+  currentEmbeddingModel: z.string().default('qwen/qwen3-embedding-8b'),
   temperature: z.number().min(0).max(2).default(0.7),
   maxTokens: z.number().min(1).max(8000).default(8000),
   chatHistory: z.boolean().default(true),
@@ -1049,303 +1049,48 @@ export class SimpleConfigManager {
     return process.env.EMBED_ADAPTIVE_BATCHING !== 'false'
   }
 
-  // Default models configuration
+  // Default models configuration - Top providers only
   private defaultModels: Record<string, ModelConfig> = {
-    'claude-sonnet-4-20250514': {
+    // === Top Provider Models (Direct) ===
+    // Anthropic - Claude Sonnet 4.5
+    'claude-sonnet-4.5': {
       provider: 'anthropic',
-      model: 'claude-sonnet-4-20250514',
-      maxContextTokens: 200000,
+      model: 'claude-sonnet-4.5',
+      maxContextTokens: 1000000, // 1M context
     },
-    'claude-3-5-sonnet-latest': {
-      provider: 'anthropic',
-      model: 'claude-3-5-sonnet-latest',
-      maxContextTokens: 200000,
-    },
-    'claude-3-7-sonnet-20250219': {
-      provider: 'anthropic',
-      model: 'claude-3-7-sonnet-20250219',
-      maxContextTokens: 200000,
-    },
-    'claude-opus-4-20250514': {
-      provider: 'anthropic',
-      model: 'claude-opus-4-20250514',
-      maxContextTokens: 200000,
-    },
-    'gpt-5-mini-2025-08-07': {
+    // OpenAI - GPT-5.1
+    'gpt-5.1': {
       provider: 'openai',
-      model: 'gpt-5-mini-2025-08-07',
-      maxContextTokens: 128000,
+      model: 'gpt-5.1',
+      maxContextTokens: 400000, // 400K context
     },
-    'gpt-5-nano-2025-08-07': {
-      provider: 'openai',
-      model: 'gpt-5-nano-2025-08-07',
-      maxContextTokens: 128000,
-    },
-    'gpt-4o-mini': {
-      provider: 'openai',
-      model: 'gpt-4o-mini',
-      maxContextTokens: 128000,
-    },
-    'gpt-5': {
-      provider: 'openai',
-      model: 'gpt-5',
-      maxContextTokens: 200000,
-    },
-    'gpt-4o': {
-      provider: 'openai',
-      model: 'gpt-4o',
-      maxContextTokens: 128000,
-    },
-    'gpt-4.1': {
-      provider: 'openai',
-      model: 'gpt-4.1',
-      maxContextTokens: 1000000,
-    },
-    'gpt-4': {
-      provider: 'openai',
-      model: 'gpt-4',
-      maxContextTokens: 128000,
-    },
-    'v0-1.0-md': {
-      provider: 'vercel',
-      model: 'v0-1.0-md',
-      maxContextTokens: 32000,
-    },
-    'vercel/v0-1.5-md': {
-      provider: 'gateway',
-      model: 'vercel/v0-1.5-md',
-      maxContextTokens: 32000,
-    },
-    'vercel/v0-1.5-lg': {
-      provider: 'gateway',
-      model: 'vercel/v0-1.5-lg',
-      maxContextTokens: 32000,
-    },
-    'gemini-2.5-pro': {
+    // Google - Gemini 3 Pro Preview
+    'gemini-3-pro-preview': {
       provider: 'google',
-      model: 'gemini-2.5-pro',
-      maxContextTokens: 2097152,
+      model: 'gemini-3-pro-preview',
+      maxContextTokens: 1050000, // 1.05M context
     },
-
-    'gemini-2.5-flash': {
-      provider: 'google',
-      model: 'gemini-2.5-flash',
-      maxContextTokens: 1000000,
-    },
-    'gemini-2.5-flash-lite': {
-      provider: 'google',
-      model: 'gemini-2.5-flash-lite',
-      maxContextTokens: 1000000,
-    },
-    'llama3.1:8b': {
-      provider: 'ollama',
-      model: 'llama3.1:8b',
-      maxContextTokens: 128000,
-    },
-    'codellama:7b': {
-      provider: 'ollama',
-      model: 'codellama:7b',
-      maxContextTokens: 16000,
-    },
-    'deepseek-r1:8b': {
-      provider: 'ollama',
-      model: 'deepseek-r1:8b',
-      maxContextTokens: 128000,
-    },
-    'deepseek-r1:3b': {
-      provider: 'ollama',
-      model: 'deepseek-r1:3b',
-      maxContextTokens: 128000,
-    },
-    'deepseek-r1:7b': {
-      provider: 'ollama',
-      model: 'deepseek-r1:7b',
-      maxContextTokens: 128000,
-    },
-    'mistral:7b': {
-      provider: 'ollama',
-      model: 'mistral:7b',
-      maxContextTokens: 128000,
-    },
-    // Groq models - Ultra-fast inference
-    'llama-3.1-8b-instant': {
-      provider: 'groq',
-      model: 'llama-3.1-8b-instant',
-      maxContextTokens: 131072,
-    },
-    'llama-3.3-70b-versatile': {
-      provider: 'groq',
-      model: 'llama-3.3-70b-versatile',
-      maxContextTokens: 131072,
-    },
-    'meta-llama/llama-guard-4-12b': {
-      provider: 'groq',
-      model: 'meta-llama/llama-guard-4-12b',
-      maxContextTokens: 131072,
-    },
-    'openai/gpt-oss-120b': {
-      provider: 'groq',
-      model: 'openai/gpt-oss-120b',
-      maxContextTokens: 131072,
-    },
-    'openai/gpt-oss-20b': {
-      provider: 'groq',
-      model: 'openai/gpt-oss-20b',
-      maxContextTokens: 131072,
-    },
-    'whisper-large-v3': {
-      provider: 'groq',
-      model: 'whisper-large-v3',
-      maxContextTokens: 8192,
-    },
-    'whisper-large-v3-turbo': {
-      provider: 'groq',
-      model: 'whisper-large-v3-turbo',
-      maxContextTokens: 8192,
-    },
-    'groq/compound': {
-      provider: 'groq',
-      model: 'groq/compound',
-      maxContextTokens: 131072,
-    },
-    'groq/compound-mini': {
-      provider: 'groq',
-      model: 'groq/compound-mini',
-      maxContextTokens: 131072,
-    },
-    // Groq Preview Models
-    'meta-llama/llama-4-maverick-17b-128e-instruct': {
-      provider: 'groq',
-      model: 'meta-llama/llama-4-maverick-17b-128e-instruct',
-      maxContextTokens: 131072,
-    },
-    'meta-llama/llama-4-scout-17b-16e-instruct': {
-      provider: 'groq',
-      model: 'meta-llama/llama-4-scout-17b-16e-instruct',
-      maxContextTokens: 131072,
-    },
-    'meta-llama/llama-prompt-guard-2-22m': {
-      provider: 'groq',
-      model: 'meta-llama/llama-prompt-guard-2-22m',
-      maxContextTokens: 512,
-    },
-    'meta-llama/llama-prompt-guard-2-86m': {
-      provider: 'groq',
-      model: 'meta-llama/llama-prompt-guard-2-86m',
-      maxContextTokens: 512,
-    },
-    'moonshotai/kimi-k2-instruct-0905': {
-      provider: 'groq',
-      model: 'moonshotai/kimi-k2-instruct-0905',
-      maxContextTokens: 262144,
-    },
-    'openai/gpt-oss-safeguard-20b': {
-      provider: 'groq',
-      model: 'openai/gpt-oss-safeguard-20b',
-      maxContextTokens: 131072,
-    },
-    'playai-tts': {
-      provider: 'groq',
-      model: 'playai-tts',
-      maxContextTokens: 8192,
-    },
-    'playai-tts-arabic': {
-      provider: 'groq',
-      model: 'playai-tts-arabic',
-      maxContextTokens: 8192,
-    },
-    'qwen/qwen3-32b': {
-      provider: 'groq',
-      model: 'qwen/qwen3-32b',
-      maxContextTokens: 131072,
-    },
-    // Cerebras models - High-speed inference
-    'zai-glm-4.6': {
-      provider: 'cerebras',
-      model: 'zai-glm-4.6',
-      maxContextTokens: 128000,
-    },
-    'gpt-oss:20b': {
+    // === OpenRouter Models (from provider-registry.ts) ===
+    // Auto Router
+    'openrouter/auto': {
       provider: 'openrouter',
-      model: 'gpt-oss:20b',
-      maxContextTokens: 128000,
-    },
-    gemma3n: {
-      provider: 'openrouter',
-      model: 'gemma3n',
-      maxContextTokens: 8192,
-    },
-    'gemma3n-large': {
-      provider: 'openrouter',
-      model: 'gemma3n-large',
-      maxContextTokens: 8192,
-    },
-    // OpenRouter models
-    'anthropic/claude-sonnet-4.5': {
-      provider: 'openrouter',
-      model: 'anthropic/claude-sonnet-4.5',
-      maxContextTokens: 1000000,
-    },
-    ' z-ai/glm-4.6:exacto': {
-      provider: 'openrouter',
-      model: 'z-ai/glm-4.6:exacto',
-      maxContextTokens: 128000,
-    },
-
-    'anthropic/claude-haiku-4.5': {
-      provider: 'openrouter',
-      model: 'anthropic/claude-haiku-4.5',
+      model: 'openrouter/auto',
       maxContextTokens: 200000,
     },
-    'anthropic/claude-sonnet-4': {
+    // OpenAI GPT-5.1 Models
+    'openai/gpt-5.1': {
       provider: 'openrouter',
-      model: 'anthropic/claude-sonnet-4',
-      maxContextTokens: 200000,
-    },
-    'anthropic/claude-3.7-sonnet:thinking': {
-      provider: 'openrouter',
-      model: 'anthropic/claude-3.7-sonnet:thinking',
-      maxContextTokens: 200000,
-    },
-    'anthropic/claude-3.7-sonnet': {
-      provider: 'openrouter',
-      model: 'anthropic/claude-3.7-sonnet',
-      maxContextTokens: 200000,
-    },
-    'anthropic/claude-opus-4.1': {
-      provider: 'openrouter',
-      model: 'anthropic/claude-opus-4.1',
-      maxContextTokens: 200000,
-    },
-    'anthropic/claude-3.5-sonnet': {
-      provider: 'openrouter',
-      model: 'anthropic/claude-3.5-sonnet',
-      maxContextTokens: 200000,
-    },
-
-    'nvidia/nemotron-nano-9b-v2:free': {
-      provider: 'openrouter',
-      model: 'nvidia/nemotron-nano-9b-v2:free',
-      maxContextTokens: 32000,
-    },
-    'openai/gpt-5-pro': {
-      provider: 'openrouter',
-      model: 'openai/gpt-5-pro',
+      model: 'openai/gpt-5.1',
       maxContextTokens: 400000,
     },
-    'openai/gpt-5-codex': {
+    'openai/gpt-5.1-chat': {
       provider: 'openrouter',
-      model: 'openai/gpt-5-codex',
-      maxContextTokens: 400000,
+      model: 'openai/gpt-5.1-chat',
+      maxContextTokens: 128000,
     },
-    'openai/gpt-5-image': {
+    'openai/gpt-5.1-codex': {
       provider: 'openrouter',
-      model: 'openai/gpt-5-image',
-      maxContextTokens: 400000,
-    },
-    'openai/gpt-5-image-mini': {
-      provider: 'openrouter',
-      model: 'openai/gpt-5-image-mini',
+      model: 'openai/gpt-5.1-codex',
       maxContextTokens: 400000,
     },
     'openai/gpt-5.1-codex-mini': {
@@ -1353,229 +1098,227 @@ export class SimpleConfigManager {
       model: 'openai/gpt-5.1-codex-mini',
       maxContextTokens: 400000,
     },
-    'openai/gpt-5.1-codex': {
+    // OpenAI GPT-5 Models (Fallback tier)
+    'openai/gpt-5': {
       provider: 'openrouter',
-      model: 'openai/gpt-5.1-codex',
+      model: 'openai/gpt-5',
       maxContextTokens: 400000,
     },
-    'openai/gpt-5.1-image': {
+    'openai/gpt-4.1': {
       provider: 'openrouter',
-      model: 'openai/gpt-5.1-image',
-      maxContextTokens: 400000,
+      model: 'openai/gpt-4.1',
+      maxContextTokens: 1000000,
     },
-    'openai/o3-deep-research': {
+    'openai/gpt-4.1-mini': {
       provider: 'openrouter',
-      model: 'openai/o3-deep-research',
+      model: 'openai/gpt-4.1-mini',
+      maxContextTokens: 128000,
+    },
+    'openai/gpt-4.1-nano': {
+      provider: 'openrouter',
+      model: 'openai/gpt-4.1-nano',
+      maxContextTokens: 128000,
+    },
+    'openai/gpt-4o': {
+      provider: 'openrouter',
+      model: 'openai/gpt-4o',
+      maxContextTokens: 128000,
+    },
+    'openai/gpt-4o-mini': {
+      provider: 'openrouter',
+      model: 'openai/gpt-4o-mini',
+      maxContextTokens: 128000,
+    },
+    // OpenAI Reasoning Models
+    'openai/o3': {
+      provider: 'openrouter',
+      model: 'openai/o3',
       maxContextTokens: 200000,
     },
-    'openai/o4-mini-deep-research': {
+    'openai/o4-mini': {
       provider: 'openrouter',
-      model: 'openai/o4-mini-deep-research',
+      model: 'openai/o4-mini',
       maxContextTokens: 200000,
     },
-    'openai/gpt-4o-audio-preview': {
+    'openai/o1': {
       provider: 'openrouter',
-      model: 'openai/gpt-4o-audio-preview',
-      maxContextTokens: 128000,
+      model: 'openai/o1',
+      maxContextTokens: 200000,
     },
-
-    'meta-llama/llama-3.1-405b-instruct': {
+    // Anthropic Claude 4.5 Models
+    'anthropic/claude-opus-4.5': {
       provider: 'openrouter',
-      model: 'meta-llama/llama-3.1-405b-instruct',
-      maxContextTokens: 128000,
+      model: 'anthropic/claude-opus-4.5',
+      maxContextTokens: 200000,
     },
-    'meta-llama/llama-3.1-70b-instruct': {
+    'anthropic/claude-sonnet-4.5': {
       provider: 'openrouter',
-      model: 'meta-llama/llama-3.1-70b-instruct',
-      maxContextTokens: 128000,
-    },
-    'meta-llama/llama-3.1-8b-instruct': {
-      provider: 'openrouter',
-      model: 'meta-llama/llama-3.1-8b-instruct',
-      maxContextTokens: 128000,
-    },
-    'google/gemini-2.5-flash-lite': {
-      provider: 'openrouter',
-      model: 'google/gemini-2.5-flash-lite',
+      model: 'anthropic/claude-sonnet-4.5',
       maxContextTokens: 1000000,
     },
-    'google/gemini-2.5-flash': {
+    'anthropic/claude-haiku-4.5': {
       provider: 'openrouter',
-      model: 'google/gemini-2.5-flash',
-      maxContextTokens: 1000000,
+      model: 'anthropic/claude-haiku-4.5',
+      maxContextTokens: 200000,
     },
-    'google/gemini-2.5-flash-image-preview': {
+    // Anthropic Claude 4 Models (Fallback tier)
+    'anthropic/claude-sonnet-4-20250514': {
       provider: 'openrouter',
-      model: 'google/gemini-2.5-flash-image-preview',
-      maxContextTokens: 1000000,
+      model: 'anthropic/claude-sonnet-4-20250514',
+      maxContextTokens: 200000,
     },
-    'google/gemini-2.5-pro': {
+    'anthropic/claude-opus-4-20250514': {
       provider: 'openrouter',
-      model: 'google/gemini-2.5-pro',
-      maxContextTokens: 2097152,
+      model: 'anthropic/claude-opus-4-20250514',
+      maxContextTokens: 200000,
     },
-
-    'google/gemini-2.0-flash-exp': {
+    'anthropic/claude-3.7-sonnet': {
       provider: 'openrouter',
-      model: 'google/gemini-2.0-flash-exp',
-      maxContextTokens: 1000000,
+      model: 'anthropic/claude-3.7-sonnet',
+      maxContextTokens: 200000,
     },
-    'google/gemini-1.5-pro': {
+    'anthropic/claude-3-5-sonnet-20241022': {
       provider: 'openrouter',
-      model: 'google/gemini-1.5-pro',
-      maxContextTokens: 2097152,
+      model: 'anthropic/claude-3-5-sonnet-20241022',
+      maxContextTokens: 200000,
     },
-    // Google Gemini 3 models
+    'anthropic/claude-3-5-haiku-20241022': {
+      provider: 'openrouter',
+      model: 'anthropic/claude-3-5-haiku-20241022',
+      maxContextTokens: 200000,
+    },
+    // Google Gemini 3 Models
     'google/gemini-3-pro-preview': {
       provider: 'openrouter',
       model: 'google/gemini-3-pro-preview',
+      maxContextTokens: 1050000, // 1.05M context
+    },
+    'google/nano-banana-pro': {
+      provider: 'openrouter',
+      model: 'google/nano-banana-pro',
+      maxContextTokens: 66000,
+    },
+    // Google Gemini 2.5 Models (Fallback tier)
+    'google/gemini-2.5-pro-preview': {
+      provider: 'openrouter',
+      model: 'google/gemini-2.5-pro-preview',
       maxContextTokens: 2097152,
     },
-    'google/gemini-3-pro': {
+    'google/gemini-2.5-flash-preview': {
       provider: 'openrouter',
-      model: 'google/gemini-3-pro',
-      maxContextTokens: 2097152,
-    },
-    'google/gemini-3-flash': {
-      provider: 'openrouter',
-      model: 'google/gemini-3-flash',
+      model: 'google/gemini-2.5-flash-preview',
       maxContextTokens: 1000000,
     },
-    'openai/gpt-oss-120b:free': {
+    'google/gemini-2.5-flash-lite-preview': {
       provider: 'openrouter',
-      model: 'openai/gpt-oss-120b:free',
-      maxContextTokens: 128000,
+      model: 'google/gemini-2.5-flash-lite-preview',
+      maxContextTokens: 1000000,
     },
-    'z-ai/glm-4.5v': {
+    'google/gemini-2.0-flash-001': {
       provider: 'openrouter',
-      model: 'z-ai/glm-4.5v',
-      maxContextTokens: 128000,
+      model: 'google/gemini-2.0-flash-001',
+      maxContextTokens: 1000000,
     },
-    'z-ai/glm-4.5': {
+    // DeepSeek V3.2 Models
+    'deepseek/deepseek-v3.2-speciale': {
       provider: 'openrouter',
-      model: 'z-ai/glm-4.5',
-      maxContextTokens: 128000,
+      model: 'deepseek/deepseek-v3.2-speciale',
+      maxContextTokens: 131000,
     },
-    'z-ai/glm-4.6': {
+    'deepseek/deepseek-v3.2': {
       provider: 'openrouter',
-      model: 'z-ai/glm-4.6',
-      maxContextTokens: 128000,
-    },
-    'mistralai/mistral-large': {
-      provider: 'openrouter',
-      model: 'mistralai/mistral-large',
-      maxContextTokens: 128000,
-    },
-    'qwen/qwen3-next-80b-a3b-thinking': {
-      provider: 'openrouter',
-      model: 'qwen/qwen3-next-80b-a3b-thinking',
-      maxContextTokens: 128000,
-    },
-    'qwen/qwen3-coder:free': {
-      provider: 'openrouter',
-      model: 'qwen/qwen3-coder:free',
-      maxContextTokens: 128000,
-    },
-    'x-ai/grok-2': {
-      provider: 'openrouter',
-      model: 'x-ai/grok-2',
-      maxContextTokens: 128000,
-    },
-    'deepseek/deepseek-chat-v3.1:free': {
-      provider: 'openrouter',
-      model: 'deepseek/deepseek-chat-v3.1:free',
-      maxContextTokens: 128000,
-    },
-    'deepseek/deepseek-v3.1-terminus': {
-      provider: 'openrouter',
-      model: 'deepseek/deepseek-v3.1-terminus',
-      maxContextTokens: 128000,
+      model: 'deepseek/deepseek-v3.2',
+      maxContextTokens: 131000,
     },
     'deepseek/deepseek-v3.2-exp': {
       provider: 'openrouter',
       model: 'deepseek/deepseek-v3.2-exp',
-      maxContextTokens: 128000,
+      maxContextTokens: 131000,
+    },
+    'deepseek/deepseek-v3.1-terminus': {
+      provider: 'openrouter',
+      model: 'deepseek/deepseek-v3.1-terminus',
+      maxContextTokens: 131000,
+    },
+    'deepseek/deepseek-v3.1': {
+      provider: 'openrouter',
+      model: 'deepseek/deepseek-v3.1',
+      maxContextTokens: 131000,
+    },
+    'deepseek/deepseek-r1': {
+      provider: 'openrouter',
+      model: 'deepseek/deepseek-r1',
+      maxContextTokens: 131000,
+    },
+    'deepseek/deepseek-chat': {
+      provider: 'openrouter',
+      model: 'deepseek/deepseek-chat',
+      maxContextTokens: 131000,
+    },
+    // MoonshotAI Kimi K2 Models
+    'moonshotai/kimi-k2-thinking': {
+      provider: 'openrouter',
+      model: 'moonshotai/kimi-k2-thinking',
+      maxContextTokens: 262000,
     },
     'moonshotai/kimi-k2-0905': {
       provider: 'openrouter',
       model: 'moonshotai/kimi-k2-0905',
-      maxContextTokens: 128000,
+      maxContextTokens: 262000,
     },
-    'moonshotai/kimi-k2-0905:exacto': {
+    'moonshotai/kimi-linear-48b-a3b-instruct': {
       provider: 'openrouter',
-      model: 'moonshotai/kimi-k2-0905:exacto',
+      model: 'moonshotai/kimi-linear-48b-a3b-instruct',
+      maxContextTokens: 262000,
+    },
+    // Meta Llama 4 Models
+    'meta-llama/llama-4-scout-17b-16e-instruct': {
+      provider: 'openrouter',
+      model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+      maxContextTokens: 131072,
+    },
+    'meta-llama/llama-4-maverick-17b-128e-instruct': {
+      provider: 'openrouter',
+      model: 'meta-llama/llama-4-maverick-17b-128e-instruct',
+      maxContextTokens: 131072,
+    },
+    'meta-llama/llama-3.3-70b-instruct': {
+      provider: 'openrouter',
+      model: 'meta-llama/llama-3.3-70b-instruct',
+      maxContextTokens: 131072,
+    },
+    // Qwen Models
+    'qwen/qwen3-235b-a22b': {
+      provider: 'openrouter',
+      model: 'qwen/qwen3-235b-a22b',
       maxContextTokens: 128000,
     },
+    'qwen/qwen-2.5-coder-32b-instruct': {
+      provider: 'openrouter',
+      model: 'qwen/qwen-2.5-coder-32b-instruct',
+      maxContextTokens: 128000,
+    },
+    'qwen/qwq-32b': {
+      provider: 'openrouter',
+      model: 'qwen/qwq-32b',
+      maxContextTokens: 128000,
+    },
+    // Cost-effective fallbacks
     'minimax/minimax-m2': {
       provider: 'openrouter',
       model: 'minimax/minimax-m2',
       maxContextTokens: 200000,
     },
-    'qwen/qwen3-coder': {
-      provider: 'openrouter',
-      model: 'qwen/qwen3-coder',
-      maxContextTokens: 128000,
-    },
-    'x-ai/grok-4': {
-      provider: 'openrouter',
-      model: 'x-ai/grok-4',
-      maxContextTokens: 128000,
-    },
-    'x-ai/grok-3': {
-      provider: 'openrouter',
-      model: 'x-ai/grok-3',
-      maxContextTokens: 128000,
-    },
-    'x-ai/grok-3-mini': {
-      provider: 'openrouter',
-      model: 'x-ai/grok-3-mini',
-      maxContextTokens: 128000,
-    },
-    'x-ai/grok-4-fast': {
-      provider: 'openrouter',
-      model: 'x-ai/grok-4-fast',
-      maxContextTokens: 2000000,
-    },
-    'x-ai/grok-code-fast-1': {
-      provider: 'openrouter',
-      model: 'x-ai/grok-code-fast-1',
-      maxContextTokens: 128000,
-    },
-    'qwen/qwen3-coder-plus': {
-      provider: 'openrouter',
-      model: 'qwen/qwen3-coder-plus',
-      maxContextTokens: 128000,
-    },
-    '@preset/nikcli': {
-      provider: 'openrouter',
-      model: '@preset/nikcli',
-      maxContextTokens: 200000,
-    },
-    '@preset/nikcli-pro': {
-      provider: 'openrouter',
-      model: '@preset/nikcli-pro',
-      maxContextTokens: 200000,
-    },
-    '@preset/nikcli-research': {
-      provider: 'openrouter',
-      model: '@preset/nikcli-research',
-      maxContextTokens: 200000,
-    },
-    '@preset/nikcli-free': {
-      provider: 'openrouter',
-      model: '@preset/nikcli-free',
-      maxContextTokens: 200000,
-    },
   }
 
   private defaultEmbeddingModels: Record<string, z.infer<typeof EmbeddingModelConfigSchema>> = {
-    'openai/text-embedding-3-small': {
+    'qwen/qwen3-embedding-8b': {
       provider: 'openrouter',
-      model: 'openai/text-embedding-3-small',
-      dimensions: 1536,
-      maxTokens: 8191,
+      model: 'qwen/qwen3-embedding-8b',
+      dimensions: 4096, // Qwen3 Embedding 8B produces 4096-dimensional vectors
+      maxTokens: 32000, // 32K context as per OpenRouter API
       batchSize: 256,
-      costPer1KTokens: 0.00002,
+      costPer1KTokens: 0.00001, // $0.01/M input tokens = $0.00001 per 1K tokens
       baseURL: 'https://openrouter.ai/api/v1',
       headers: {
         'HTTP-Referer': 'https://nikcli.mintlify.app',
@@ -1593,8 +1336,8 @@ export class SimpleConfigManager {
   }
 
   private defaultConfig: ConfigType = {
-    currentModel: '@preset/nikcli',
-    currentEmbeddingModel: 'openai/text-embedding-3-small',
+    currentModel: 'minimax/minimax-m2', // Cost-effective fallback model (200K context)
+    currentEmbeddingModel: 'qwen/qwen3-embedding-8b',
     nikdrive: {
       enabled: true,
       endpoint: 'https://nikcli-drive-production.up.railway.app',
@@ -2270,7 +2013,7 @@ export class SimpleConfigManager {
   }
 
   getCurrentEmbeddingModel(): string {
-    return this.config.currentEmbeddingModel || 'openai/text-embedding-3-small'
+    return this.config.currentEmbeddingModel || 'qwen/qwen3-embedding-8b'
   }
 
   getCurrentRerankingModel(): string {
@@ -2310,7 +2053,7 @@ export class SimpleConfigManager {
         model,
         baseURL: 'https://openrouter.ai/api/v1',
         headers: {
-          'HTTP-Referer': 'https://nikcli.ai',
+          'HTTP-Referer': 'https://nikcli.mintlify.app',
           'X-Title': 'NikCLI',
         },
         topK: 10,
@@ -2470,7 +2213,16 @@ export class SimpleConfigManager {
       case 'anthropic':
         return 1536
       case 'openrouter':
-        return 1536
+        // Check current embedding model for OpenRouter to get correct dimensions
+        const currentModel = this.config.currentEmbeddingModel
+        if (currentModel && this.config.embeddingModels?.[currentModel]) {
+          const modelCfg = this.config.embeddingModels[currentModel]
+          if (modelCfg.dimensions) {
+            return modelCfg.dimensions
+          }
+        }
+        // Default for qwen/qwen3-embedding-8b (current default)
+        return 4096
       case 'openai':
       default:
         return 1536

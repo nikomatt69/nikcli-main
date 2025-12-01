@@ -78,9 +78,10 @@ graph TB
 ```typescript
 {
   provider: 'openrouter',
-  model: 'openai/text-embedding-3-small',
-  dimensions: 1536,
-  cost: 'Varies by model'
+  model: 'qwen/qwen3-embedding-8b',
+  dimensions: 4096, // Qwen3 Embedding 8B produces 4096-dimensional vectors
+  maxTokens: 32000, // 32K context
+  cost: '$0.01/M input tokens'
 }
 ```
 

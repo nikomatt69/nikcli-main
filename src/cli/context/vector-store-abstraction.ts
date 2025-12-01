@@ -7,6 +7,7 @@ import axios from 'axios'
 import chalk from 'chalk'
 import { ChromaClient, CloudClient } from 'chromadb'
 import { advancedUI } from '../ui/advanced-cli-ui'
+import { configManager } from '../core/config-manager'
 import { unifiedEmbeddingInterface } from './unified-embedding-interface'
 
 export interface VectorDocument {
@@ -1212,11 +1213,16 @@ export class VectorStoreManager {
 
 // Export convenience function to create vector store manager
 export function createVectorStoreManager(configs: Partial<VectorStoreConfig>[]): VectorStoreManager {
+  // Get current embedding model dimensions dynamically
+  const currentModel = configManager.getCurrentEmbeddingModel()
+  const embeddingCfg = currentModel ? configManager.getEmbeddingModelConfig(currentModel) : undefined
+  const defaultDimensions = embeddingCfg?.dimensions || unifiedEmbeddingInterface.getCurrentDimensions() || 4096
+
   const fullConfigs: VectorStoreConfig[] = configs.map((config) => ({
     provider: 'chromadb',
     connectionConfig: {},
     collectionName: 'nikcli_vectors',
-    embeddingDimensions: 1536,
+    embeddingDimensions: defaultDimensions,
     indexingBatchSize: 100,
     maxRetries: 3,
     healthCheckInterval: 300000,

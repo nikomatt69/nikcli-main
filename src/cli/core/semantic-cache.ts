@@ -94,7 +94,7 @@ export interface SemanticCacheConfig {
   embedding?: {
     model: string
     dimension: number
-    provider: 'openai' | 'huggingface' | 'local'
+    provider: 'openai' | 'huggingface' | 'openrouter' | 'local'
   }
 }
 
@@ -161,9 +161,9 @@ export class SemanticCache extends EventEmitter {
         compressionThreshold: 1024, // 1KB
       },
       embedding: {
-        model: 'text-embedding-3-small',
-        dimension: 1536, // OpenAI text-embedding-3-small dimensions
-        provider: 'openai',
+        model: 'qwen/qwen3-embedding-8b',
+        dimension: 4096, // Qwen3 Embedding 8B produces 4096-dimensional vectors
+        provider: 'openrouter',
       },
     }
 

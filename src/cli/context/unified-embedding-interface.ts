@@ -93,12 +93,16 @@ export class UnifiedEmbeddingInterface {
   constructor(config?: Partial<EmbeddingConfig>) {
     this.provider = aiSdkEmbeddingProvider
 
+    // Get default from current model config or use provider defaults
+    const currentModel = configManager.getCurrentEmbeddingModel()
+    const defaultCfg = currentModel ? configManager.getEmbeddingModelConfig(currentModel) : undefined
+    
     this.config = {
-      provider: 'openai',
-      model: 'text-embedding-3-small',
-      dimensions: 1536, // OpenAI default (Google would be 768)
-      maxTokens: 8191,
-      batchSize: Number(process.env.EMBED_BATCH_SIZE || 300), // Configurable via env
+      provider: defaultCfg?.provider || 'openrouter',
+      model: defaultCfg?.model || currentModel || 'qwen/qwen3-embedding-8b',
+      dimensions: defaultCfg?.dimensions || 4096, // Default to qwen3-embedding-8b (4096) or OpenAI (1536)
+      maxTokens: defaultCfg?.maxTokens || 32000, // Default to qwen3-embedding-8b (32K) or OpenAI (8191)
+      batchSize: defaultCfg?.batchSize || Number(process.env.EMBED_BATCH_SIZE || 300),
       cacheEnabled: true,
       persistenceEnabled: true,
       ...config,

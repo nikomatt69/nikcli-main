@@ -55,10 +55,20 @@ export class AiSdkEmbeddingProvider {
 
   private availableProviders: string[] = []
   private currentProvider: string | null = null
-  private lastUsedDimensions: number = 1536
+  private lastUsedDimensions: number = 4096 // Default to qwen3-embedding-8b dimensions
 
   constructor() {
     this.initializeProviders()
+    // Sync lastUsedDimensions with current model
+    this.syncLastUsedDimensions()
+  }
+
+  private syncLastUsedDimensions(): void {
+    const modelName = configManager.getCurrentEmbeddingModel()
+    const cfg = modelName ? configManager.getEmbeddingModelConfig(modelName) : undefined
+    if (cfg?.dimensions) {
+      this.lastUsedDimensions = cfg.dimensions
+    }
   }
 
   /**
@@ -97,7 +107,14 @@ export class AiSdkEmbeddingProvider {
       case 'anthropic':
         return 1536
       case 'openrouter':
-        return this.lastUsedDimensions || 1536
+        // Check current embedding model for correct dimensions
+        const modelName = configManager.getCurrentEmbeddingModel()
+        const cfg = modelName ? configManager.getEmbeddingModelConfig(modelName) : undefined
+        if (cfg?.dimensions) {
+          return cfg.dimensions
+        }
+        // Default for qwen/qwen3-embedding-8b (current default)
+        return this.lastUsedDimensions || 4096
       case 'openai':
       default:
         return 1536
@@ -245,7 +262,12 @@ export class AiSdkEmbeddingProvider {
   getCurrentDimensions(): number {
     const modelName = configManager.getCurrentEmbeddingModel()
     const cfg = modelName ? configManager.getEmbeddingModelConfig(modelName) : undefined
-    return cfg?.dimensions || this.lastUsedDimensions || 1536
+    if (cfg?.dimensions) {
+      return cfg.dimensions
+    }
+    // Fallback: use lastUsedDimensions or default based on provider
+    const provider = cfg?.provider || 'openrouter'
+    return this.lastUsedDimensions || this.getDefaultDimensions(provider)
   }
 
   setLastUsedDimensions(dim: number): void {
