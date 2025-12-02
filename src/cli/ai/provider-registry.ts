@@ -42,18 +42,8 @@ export const openrouterProvider = customProvider({
     'gpt-5.1-codex': openrouterBase('openai/gpt-5.1-codex') as any, // 400K context, coding optimized
     'gpt-5.1-codex-mini': openrouterBase('openai/gpt-5.1-codex-mini') as any, // 400K context, $0.25/M input
 
-    // === OpenAI GPT-5 Models (Fallback tier) ===
-    'gpt-5': openrouterBase('openai/gpt-5') as any,
-    'gpt-4.1': openrouterBase('openai/gpt-4.1') as any,
-    'gpt-4.1-mini': openrouterBase('openai/gpt-4.1-mini') as any,
-    'gpt-4.1-nano': openrouterBase('openai/gpt-4.1-nano') as any,
-    'gpt-4o': openrouterBase('openai/gpt-4o') as any,
-    'gpt-4o-mini': openrouterBase('openai/gpt-4o-mini') as any,
 
-    // === OpenAI Reasoning Models ===
-    'o3': openrouterBase('openai/o3') as any,
-    'o4-mini': openrouterBase('openai/o4-mini') as any,
-    'o1': openrouterBase('openai/o1') as any,
+
 
     // === Anthropic Claude 4.5 Models (Latest - 200K-1M context) ===
     'claude-opus-4.5': openrouterBase('anthropic/claude-opus-4.5') as any, // 200K context, $5/M input, $25/M output
@@ -69,49 +59,29 @@ export const openrouterProvider = customProvider({
 
     // === Google Gemini 3 Models (Latest - 1M context) ===
     'gemini-3-pro': openrouterBase('google/gemini-3-pro-preview') as any, // 1.05M context, $2/M input, $12/M output
-    'nano-banana-pro': openrouterBase('google/nano-banana-pro') as any, // Image generation, 66K context
 
     // === Google Gemini 2.5 Models (Fallback tier) ===
-    'gemini-2.5-pro': openrouterBase('google/gemini-2.5-pro-preview') as any,
-    'gemini-2.5-flash': openrouterBase('google/gemini-2.5-flash-preview') as any,
-    'gemini-2.5-flash-lite': openrouterBase('google/gemini-2.5-flash-lite-preview') as any,
-    'gemini-2.0-flash': openrouterBase('google/gemini-2.0-flash-001') as any,
+    'gemini-2.5-pro': openrouterBase('google/gemini-2.5-pro') as any,
+
 
     // === DeepSeek V3.2 Models (Latest - 131K context) ===
     'deepseek-v3.2-speciale': openrouterBase('deepseek/deepseek-v3.2-speciale') as any, // High-compute, max reasoning
     'deepseek-v3.2': openrouterBase('deepseek/deepseek-v3.2') as any, // 131K context, $0.28/M input
-    'deepseek-v3.2-exp': openrouterBase('deepseek/deepseek-v3.2-exp') as any, // Experimental
-    'deepseek-v3.1-terminus': openrouterBase('deepseek/deepseek-v3.1-terminus') as any, // Agent optimized
-    'deepseek-v3.1': openrouterBase('deepseek/deepseek-v3.1') as any, // 671B params, hybrid reasoning
-    'deepseek-r1': openrouterBase('deepseek/deepseek-r1') as any,
-    'deepseek-chat': openrouterBase('deepseek/deepseek-chat') as any,
+
 
     // === MoonshotAI Kimi K2 Models (Latest - 262K context) ===
     'kimi-k2-thinking': openrouterBase('moonshotai/kimi-k2-thinking') as any, // 262K context, long-horizon reasoning
     'kimi-k2-0905': openrouterBase('moonshotai/kimi-k2-0905') as any, // 1T params, 32B active
-    'kimi-linear-48b': openrouterBase('moonshotai/kimi-linear-48b-a3b-instruct') as any, // Hybrid linear attention
 
-    // === Meta Llama 4 Models ===
-    'llama-4-scout': openrouterBase('meta-llama/llama-4-scout-17b-16e-instruct') as any,
-    'llama-4-maverick': openrouterBase('meta-llama/llama-4-maverick-17b-128e-instruct') as any,
-    'llama-3.3-70b': openrouterBase('meta-llama/llama-3.3-70b-instruct') as any,
+
+
 
     // === xAI Grok Models (131K context) ===
-    'grok-4': openrouterBase('xai/grok-4') as any, // 131K context, frontier reasoning
-    'grok-4.1-fast': openrouterBase('xai/grok-4.1-fast') as any, // Fast inference
+    'grok-4-fast': openrouterBase('xai/grok-4-fast') as any, // 131K context, frontier reasoning
     'grok-4.1-fast:free': openrouterBase('xai/grok-4.1-fast:free') as any, // Free tier
-    'grok-3-beta': openrouterBase('xai/grok-3-beta') as any, // 131K context
+
 
     // === Mistral AI Models ===
-    'mistral-large': openrouterBase('mistralai/mistral-large-2411') as any, // 128K context
-    'mistral-medium': openrouterBase('mistralai/mistral-medium-2505') as any,
-    'codestral': openrouterBase('mistralai/codestral-2501') as any, // Coding optimized
-    'pixtral-large': openrouterBase('mistralai/pixtral-large-2411') as any, // Vision + text
-
-    // === Qwen Models ===
-    'qwen-3-235b': openrouterBase('qwen/qwen3-235b-a22b') as any,
-    'qwen-2.5-coder-32b': openrouterBase('qwen/qwen-2.5-coder-32b-instruct') as any,
-    'qwq-32b': openrouterBase('qwen/qwq-32b') as any,
 
     // === Model Aliases for common use cases ===
     // Fast tier - use Claude Haiku 4.5 (best price/performance)
@@ -358,20 +328,16 @@ export const MODEL_ALIASES: Record<string, { provider: string; model: string }> 
   // === DeepSeek V3.2 (cost-effective, high quality) ===
   deepseek: { provider: 'openrouter', model: 'deepseek/deepseek-v3.2' },
   'deepseek-speciale': { provider: 'openrouter', model: 'deepseek/deepseek-v3.2-speciale' },
-  'deepseek-agent': { provider: 'openrouter', model: 'deepseek/deepseek-v3.1-terminus' },
+
 
   // === MoonshotAI Kimi K2 (long-context reasoning) ===
   kimi: { provider: 'openrouter', model: 'moonshotai/kimi-k2-0905' },
   'kimi-thinking': { provider: 'openrouter', model: 'moonshotai/kimi-k2-thinking' },
 
   // === xAI Grok (fast reasoning) ===
-  grok: { provider: 'openrouter', model: 'xai/grok-4' },
-  'grok-fast': { provider: 'openrouter', model: 'xai/grok-4.1-fast' },
+  grok: { provider: 'openrouter', model: 'xai/grok-4-fast' },
   'grok-free': { provider: 'openrouter', model: 'xai/grok-4.1-fast:free' },
 
-  // === Mistral AI (European frontier) ===
-  mistral: { provider: 'openrouter', model: 'mistralai/mistral-large-2411' },
-  codestral: { provider: 'openrouter', model: 'mistralai/codestral-2501' },
 
   // === Auto (OpenRouter Auto Router) ===
   auto: { provider: 'openrouter', model: 'openrouter/auto' },

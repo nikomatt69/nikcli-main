@@ -1104,47 +1104,6 @@ export class SimpleConfigManager {
       model: 'openai/gpt-5',
       maxContextTokens: 400000,
     },
-    'openai/gpt-4.1': {
-      provider: 'openrouter',
-      model: 'openai/gpt-4.1',
-      maxContextTokens: 1000000,
-    },
-    'openai/gpt-4.1-mini': {
-      provider: 'openrouter',
-      model: 'openai/gpt-4.1-mini',
-      maxContextTokens: 128000,
-    },
-    'openai/gpt-4.1-nano': {
-      provider: 'openrouter',
-      model: 'openai/gpt-4.1-nano',
-      maxContextTokens: 128000,
-    },
-    'openai/gpt-4o': {
-      provider: 'openrouter',
-      model: 'openai/gpt-4o',
-      maxContextTokens: 128000,
-    },
-    'openai/gpt-4o-mini': {
-      provider: 'openrouter',
-      model: 'openai/gpt-4o-mini',
-      maxContextTokens: 128000,
-    },
-    // OpenAI Reasoning Models
-    'openai/o3': {
-      provider: 'openrouter',
-      model: 'openai/o3',
-      maxContextTokens: 200000,
-    },
-    'openai/o4-mini': {
-      provider: 'openrouter',
-      model: 'openai/o4-mini',
-      maxContextTokens: 200000,
-    },
-    'openai/o1': {
-      provider: 'openrouter',
-      model: 'openai/o1',
-      maxContextTokens: 200000,
-    },
     // Anthropic Claude 4.5 Models
     'anthropic/claude-opus-4.5': {
       provider: 'openrouter',
@@ -1193,66 +1152,16 @@ export class SimpleConfigManager {
       model: 'google/gemini-3-pro-preview',
       maxContextTokens: 1050000, // 1.05M context
     },
-    'google/nano-banana-pro': {
-      provider: 'openrouter',
-      model: 'google/nano-banana-pro',
-      maxContextTokens: 66000,
-    },
     // Google Gemini 2.5 Models (Fallback tier)
-    'google/gemini-2.5-pro-preview': {
+    'google/gemini-2.5-pro': {
       provider: 'openrouter',
-      model: 'google/gemini-2.5-pro-preview',
+      model: 'google/gemini-2.5-pro',
       maxContextTokens: 2097152,
     },
-    'google/gemini-2.5-flash-preview': {
-      provider: 'openrouter',
-      model: 'google/gemini-2.5-flash-preview',
-      maxContextTokens: 1000000,
-    },
-    'google/gemini-2.5-flash-lite-preview': {
-      provider: 'openrouter',
-      model: 'google/gemini-2.5-flash-lite-preview',
-      maxContextTokens: 1000000,
-    },
-    'google/gemini-2.0-flash-001': {
-      provider: 'openrouter',
-      model: 'google/gemini-2.0-flash-001',
-      maxContextTokens: 1000000,
-    },
-    // DeepSeek V3.2 Models
-    'deepseek/deepseek-v3.2-speciale': {
-      provider: 'openrouter',
-      model: 'deepseek/deepseek-v3.2-speciale',
-      maxContextTokens: 131000,
-    },
+
     'deepseek/deepseek-v3.2': {
       provider: 'openrouter',
       model: 'deepseek/deepseek-v3.2',
-      maxContextTokens: 131000,
-    },
-    'deepseek/deepseek-v3.2-exp': {
-      provider: 'openrouter',
-      model: 'deepseek/deepseek-v3.2-exp',
-      maxContextTokens: 131000,
-    },
-    'deepseek/deepseek-v3.1-terminus': {
-      provider: 'openrouter',
-      model: 'deepseek/deepseek-v3.1-terminus',
-      maxContextTokens: 131000,
-    },
-    'deepseek/deepseek-v3.1': {
-      provider: 'openrouter',
-      model: 'deepseek/deepseek-v3.1',
-      maxContextTokens: 131000,
-    },
-    'deepseek/deepseek-r1': {
-      provider: 'openrouter',
-      model: 'deepseek/deepseek-r1',
-      maxContextTokens: 131000,
-    },
-    'deepseek/deepseek-chat': {
-      provider: 'openrouter',
-      model: 'deepseek/deepseek-chat',
       maxContextTokens: 131000,
     },
     // MoonshotAI Kimi K2 Models
@@ -1266,43 +1175,7 @@ export class SimpleConfigManager {
       model: 'moonshotai/kimi-k2-0905',
       maxContextTokens: 262000,
     },
-    'moonshotai/kimi-linear-48b-a3b-instruct': {
-      provider: 'openrouter',
-      model: 'moonshotai/kimi-linear-48b-a3b-instruct',
-      maxContextTokens: 262000,
-    },
-    // Meta Llama 4 Models
-    'meta-llama/llama-4-scout-17b-16e-instruct': {
-      provider: 'openrouter',
-      model: 'meta-llama/llama-4-scout-17b-16e-instruct',
-      maxContextTokens: 131072,
-    },
-    'meta-llama/llama-4-maverick-17b-128e-instruct': {
-      provider: 'openrouter',
-      model: 'meta-llama/llama-4-maverick-17b-128e-instruct',
-      maxContextTokens: 131072,
-    },
-    'meta-llama/llama-3.3-70b-instruct': {
-      provider: 'openrouter',
-      model: 'meta-llama/llama-3.3-70b-instruct',
-      maxContextTokens: 131072,
-    },
-    // Qwen Models
-    'qwen/qwen3-235b-a22b': {
-      provider: 'openrouter',
-      model: 'qwen/qwen3-235b-a22b',
-      maxContextTokens: 128000,
-    },
-    'qwen/qwen-2.5-coder-32b-instruct': {
-      provider: 'openrouter',
-      model: 'qwen/qwen-2.5-coder-32b-instruct',
-      maxContextTokens: 128000,
-    },
-    'qwen/qwq-32b': {
-      provider: 'openrouter',
-      model: 'qwen/qwq-32b',
-      maxContextTokens: 128000,
-    },
+
     // Cost-effective fallbacks
     'minimax/minimax-m2': {
       provider: 'openrouter',

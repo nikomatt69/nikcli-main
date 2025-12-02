@@ -211,7 +211,7 @@ function getCharTokenRatio(provider: string): number {
     'openai-compatible': 3.7, // generic OpenAI-compatible endpoints
   }
 
-  return ratios[provider] || 4.0 // Default fallback
+  return ratios[provider] || 3.7 // Default fallback
 }
 
 /**

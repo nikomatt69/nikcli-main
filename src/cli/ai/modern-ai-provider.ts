@@ -596,7 +596,13 @@ export class ModernAIProvider {
       description?: string
       dependencies?: Record<string, string>
       devDependencies?: Record<string, string>
-    } | null = null
+    } | null = {
+      name: '',
+      version: '',
+      description: '',
+      dependencies: {},
+      devDependencies: {},
+    }
 
     if (existsSync(packageJsonPath)) {
       try {
@@ -632,12 +638,12 @@ export class ModernAIProvider {
     }
 
     const items = readdirSync(dirPath, { withFileTypes: true })
-    const result: any = {
-      directories: [],
-      files: [],
+    const result: { files: Array<{ name: string; path: string; size: number; modified: Date; extension?: string }>; directories: Array<{ name: string; path: string; size: number; modified: Date; extension?: string }> } = {
+      files: [] as Array<{ name: string; path: string; size: number; modified: Date }>,
+      directories: [] as Array<{ name: string; path: string; size: number; modified: Date; extension?: string }>,
     }
 
-    const skipDirs = ['node_modules', '.git', '.next', 'dist', 'build']
+    const skipDirs = ['node_modules', '.git', '.next', 'dist', 'build', 'target', 'bin', 'obj', '.cache', '.temp', '.tmp', 'coverage', '.nyc_output', '__pycache__', '.pytest_cache', 'venv', 'env', '.env', '.venv', 'vendor', 'Pods', 'DerivedData', '.gradle', '.idea', '.vscode', '.vs', 'logs', '*.log', '.DS_Store', 'Thumbs.db']
 
     for (const item of items) {
       if (skipDirs.includes(item.name)) continue
@@ -657,6 +663,8 @@ export class ModernAIProvider {
         result.files.push({
           name: item.name,
           path: relative(this.workingDirectory, itemPath),
+          size: statSync(itemPath).size,
+          modified: statSync(itemPath).mtime,
           extension: item.name.split('.').pop() || '',
         })
       }
@@ -1147,7 +1155,7 @@ export class ModernAIProvider {
         tools,
         maxSteps: 10,
         temperature: 1,
-        maxTokens: 8000,
+        maxTokens: 4000,
       }
 
       // OpenRouter-specific parameters support - dynamic based on model capabilities

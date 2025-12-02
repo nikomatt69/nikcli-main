@@ -58,10 +58,10 @@ export const TOKEN_LIMITS = {
 
   // Chat trimming & summarization window - Dynamic based on model context
   CHAT: {
-    MAX_CONTEXT_TOKENS: 100000, // DRASTICALLY reduced to 3k tokens (was 100k)
+    MAX_CONTEXT_TOKENS: 80000, // DRASTICALLY reduced to 8k tokens (was 100k)
     MAX_RECENT_NON_SYSTEM: 4, // Further reduced to 4 messages
     HEAD_TAIL_WINDOW: 2, // Reduced to 2 messages
-    EMERGENCY_TRUNCATE_AT: 120000, // HARD truncate at 120k tokens (80k safety margin)
+    EMERGENCY_TRUNCATE_AT: 60000, // HARD truncate at 60k tokens (60k safety margin)
   },
 
   // RAG chunking defaults - Optimized for cost efficiency
@@ -76,7 +76,7 @@ export const TOKEN_LIMITS = {
 
   // Progressive processing guardrails
   PROGRESSIVE: {
-    MAX_TOKENS_PER_CHUNK: 2500,
+    MAX_TOKENS_PER_CHUNK: 2000,
     MAX_RETRIES: 2,
   },
 }
@@ -480,7 +480,7 @@ export const MODEL_CONTEXT_LIMITS: Record<string, number> = {
   // Other models
   'codellama:7b': 16000,
   'gpt-oss:20b': 128000,
-  gemma3n: 8192,
+  'gemma3n': 8192,
   'gemma3n-large': 8192,
 
   // OpenRouter model variants
@@ -518,7 +518,7 @@ export const MODEL_CONTEXT_LIMITS: Record<string, number> = {
   'deepseek/deepseek-chat-v3.1:free': 128000,
   'deepseek/deepseek-v3.1-terminus': 128000,
   'deepseek/deepseek-v3.2-exp': 128000,
-  'moonshotai/kimi-k2-0905': 128000,
+  'moonshotai/kimi-k2-0905': 200000,
   '@preset/nikcli': 200000,
   '@preset/nikcli-pro': 200000,
 

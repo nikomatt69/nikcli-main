@@ -806,10 +806,10 @@ Respond in a helpful, professional manner with clear explanations and actionable
               formatter: validationResult?.formatter,
               validation: validationResult
                 ? {
-                    isValid: validationResult.isValid,
-                    errors: validationResult.errors,
-                    warnings: validationResult.warnings,
-                  }
+                  isValid: validationResult.isValid,
+                  errors: validationResult.errors,
+                  warnings: validationResult.warnings,
+                }
                 : null,
               reasoning: reasoning || `File ${backedUp ? 'updated' : 'created'} by agent`,
             }
@@ -1134,10 +1134,10 @@ Respond in a helpful, professional manner with clear explanations and actionable
         description:
           'Read multiple files safely with optional content search and context - preferred for batch operations',
         parameters: z.object({
-          files: z.array(z.string()).optional().describe('Explicit file paths to read'),
-          globs: z.array(z.string()).optional().describe('Glob patterns (e.g., src/**/*.ts)'),
+          files: z.union([z.string(), z.array(z.string())]).optional().describe('Explicit file paths to read - can be string or array'),
+          globs: z.union([z.string(), z.array(z.string())]).optional().describe('Glob patterns (e.g., "src/**/*.ts" or ["src/**/*.ts"])'),
           root: z.string().optional().describe('Root directory for search'),
-          exclude: z.array(z.string()).optional().describe('Patterns to exclude'),
+          exclude: z.union([z.string(), z.array(z.string())]).optional().describe('Patterns to exclude - can be string or array'),
           pattern: z.string().optional().describe('Search pattern within files'),
           useRegex: z.boolean().default(false).describe('Use regex for pattern'),
           caseSensitive: z.boolean().default(false).describe('Case sensitive search'),
@@ -1146,7 +1146,14 @@ Respond in a helpful, professional manner with clear explanations and actionable
         execute: async (params) => {
           const multiReadTool = this.toolRegistry.getTool('multi-read-tool')
           if (!multiReadTool) return { error: 'Multi-read tool not available' }
-          const result = await multiReadTool.execute(params)
+          // Normalize string inputs to arrays
+          const normalizedParams = {
+            ...params,
+            files: params.files ? (Array.isArray(params.files) ? params.files : [params.files]) : undefined,
+            globs: params.globs ? (Array.isArray(params.globs) ? params.globs : [params.globs]) : undefined,
+            exclude: params.exclude ? (Array.isArray(params.exclude) ? params.exclude : [params.exclude]) : undefined,
+          }
+          const result = await multiReadTool.execute(normalizedParams)
           return result.success ? result.data : { error: result.error }
         },
       }),
@@ -1249,15 +1256,21 @@ Respond in a helpful, professional manner with clear explanations and actionable
       find_files: tool({
         description: 'Find files matching glob patterns with intelligent filtering',
         parameters: z.object({
-          patterns: z.array(z.string()).describe('Glob patterns (e.g., **/*.ts, src/**/*.json)'),
+          patterns: z.union([z.string(), z.array(z.string())]).describe('Glob patterns - can be a single string or array (e.g., "**/*.ts" or ["**/*.ts", "src/**/*.json"])'),
           cwd: z.string().optional().describe('Working directory for search'),
-          exclude: z.array(z.string()).optional().describe('Patterns to exclude'),
+          exclude: z.union([z.string(), z.array(z.string())]).optional().describe('Patterns to exclude - can be a single string or array'),
           maxDepth: z.number().optional().describe('Maximum directory depth'),
         }),
         execute: async (params) => {
           const findTool = this.toolRegistry.getTool('find-files-tool')
           if (!findTool) return { error: 'Find files tool not available' }
-          const result = await findTool.execute(params)
+          // Normalize patterns to array
+          const normalizedParams = {
+            ...params,
+            patterns: Array.isArray(params.patterns) ? params.patterns : [params.patterns],
+            exclude: params.exclude ? (Array.isArray(params.exclude) ? params.exclude : [params.exclude]) : undefined,
+          }
+          const result = await findTool.execute(normalizedParams)
           return result.success ? result.data : { error: result.error }
         },
       }),
@@ -1366,7 +1379,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
             .union([z.string(), z.array(z.string())])
             .describe('Glob pattern(s) (e.g., "**/*.ts", ["*.ts", "*.tsx"])'),
           path: z.string().optional().describe('Base path for search'),
-          ignorePatterns: z.array(z.string()).optional().describe('Patterns to ignore'),
+          ignorePatterns: z.union([z.string(), z.array(z.string())]).optional().describe('Patterns to ignore - can be string or array'),
           onlyFiles: z.boolean().optional().describe('Return only files'),
           onlyDirectories: z.boolean().optional().describe('Return only directories'),
           followSymlinks: z.boolean().optional().describe('Follow symbolic links'),
@@ -1383,7 +1396,13 @@ Respond in a helpful, professional manner with clear explanations and actionable
         execute: async (params) => {
           const globTool = this.toolRegistry.getTool('glob-tool')
           if (!globTool) return { error: 'Glob tool not available' }
-          const result = await globTool.execute(params)
+          // Normalize string inputs to arrays
+          const normalizedParams = {
+            ...params,
+            pattern: Array.isArray(params.pattern) ? params.pattern : [params.pattern],
+            ignorePatterns: params.ignorePatterns ? (Array.isArray(params.ignorePatterns) ? params.ignorePatterns : [params.ignorePatterns]) : undefined,
+          }
+          const result = await globTool.execute(normalizedParams)
           return result.success ? result.data : { error: result.error }
         },
       }),
@@ -1419,7 +1438,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
           showHidden: z.boolean().default(false).describe('Include hidden files'),
           showSize: z.boolean().default(false).describe('Show file sizes'),
           showFullPath: z.boolean().default(false).describe('Show full paths'),
-          ignorePatterns: z.array(z.string()).optional().describe('Patterns to ignore'),
+          ignorePatterns: z.union([z.string(), z.array(z.string())]).optional().describe('Patterns to ignore - can be string or array'),
           onlyDirectories: z.boolean().default(false).describe('Show only directories'),
           sortBy: z.enum(['name', 'size', 'type']).optional().describe('Sort order'),
           useIcons: z.boolean().default(true).describe('Use file type icons'),
@@ -1427,7 +1446,12 @@ Respond in a helpful, professional manner with clear explanations and actionable
         execute: async (params) => {
           const treeTool = this.toolRegistry.getTool('tree-tool')
           if (!treeTool) return { error: 'Tree tool not available' }
-          const result = await treeTool.execute(params)
+          // Normalize string inputs to arrays
+          const normalizedParams = {
+            ...params,
+            ignorePatterns: params.ignorePatterns ? (Array.isArray(params.ignorePatterns) ? params.ignorePatterns : [params.ignorePatterns]) : undefined,
+          }
+          const result = await treeTool.execute(normalizedParams)
           return result.success ? result.data : { error: result.error }
         },
       }),
@@ -1440,8 +1464,8 @@ Respond in a helpful, professional manner with clear explanations and actionable
             .union([z.string(), z.array(z.string())])
             .optional()
             .describe('Path(s) to watch'),
-          patterns: z.array(z.string()).optional().describe('File patterns to watch'),
-          ignorePatterns: z.array(z.string()).optional().describe('Patterns to ignore'),
+          patterns: z.union([z.string(), z.array(z.string())]).optional().describe('File patterns to watch - can be string or array'),
+          ignorePatterns: z.union([z.string(), z.array(z.string())]).optional().describe('Patterns to ignore - can be string or array'),
           ignoreInitial: z.boolean().default(true).describe('Ignore initial file scan'),
           persistent: z.boolean().default(true).describe('Keep watching after first event'),
           depth: z.number().optional().describe('Maximum directory depth'),
@@ -1456,7 +1480,14 @@ Respond in a helpful, professional manner with clear explanations and actionable
         execute: async (params) => {
           const watchTool = this.toolRegistry.getTool('watch-tool')
           if (!watchTool) return { error: 'Watch tool not available' }
-          const result = await watchTool.execute(params)
+          // Normalize string inputs to arrays
+          const normalizedParams = {
+            ...params,
+            path: params.path ? (Array.isArray(params.path) ? params.path : [params.path]) : undefined,
+            patterns: params.patterns ? (Array.isArray(params.patterns) ? params.patterns : [params.patterns]) : undefined,
+            ignorePatterns: params.ignorePatterns ? (Array.isArray(params.ignorePatterns) ? params.ignorePatterns : [params.ignorePatterns]) : undefined,
+          }
+          const result = await watchTool.execute(normalizedParams)
           return result.success ? result.data : { error: result.error }
         },
       }),
@@ -1865,8 +1896,8 @@ Respond in a helpful, professional manner with clear explanations and actionable
             ? lastUserMessage.content
             : Array.isArray(lastUserMessage.content)
               ? lastUserMessage.content
-                  .map((part) => (typeof part === 'string' ? part : part.experimental_providerMetadata?.content || ''))
-                  .join('')
+                .map((part) => (typeof part === 'string' ? part : part.experimental_providerMetadata?.content || ''))
+                .join('')
               : String(lastUserMessage.content)
 
         // Use ToolRouter for intelligent tool analysis
@@ -1991,7 +2022,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
         maxToolRoundtrips: isAnalysisRequest ? 20 : 30, // Reduced to prevent token overflow
         temperature: params.temperature,
         abortSignal,
-        onStepFinish: (_evt: any) => {},
+        onStepFinish: (_evt: any) => { },
       }
 
       // OpenRouter and Anthropic models REQUIRE maxTokens
@@ -2235,10 +2266,10 @@ Respond in a helpful, professional manner with clear explanations and actionable
                     ? lastUserMessage.content
                     : Array.isArray(lastUserMessage.content)
                       ? lastUserMessage.content
-                          .map((part) =>
-                            typeof part === 'string' ? part : part.experimental_providerMetadata?.content || ''
-                          )
-                          .join('')
+                        .map((part) =>
+                          typeof part === 'string' ? part : part.experimental_providerMetadata?.content || ''
+                        )
+                        .join('')
                       : String(lastUserMessage.content)
 
                 // Salva nella cache intelligente
@@ -2989,8 +3020,8 @@ Requirements:
       const routingCfg = configManager.get('modelRouting')
       const resolved = routingCfg?.enabled
         ? await this.resolveAdaptiveModel('code_gen', [
-            { role: 'user', content: `${type}: ${description} (${language})` } as any,
-          ])
+          { role: 'user', content: `${type}: ${description} (${language})` } as any,
+        ])
         : undefined
       const model = this.getModel(resolved) as any
       const params = this.getProviderParams()
@@ -3064,7 +3095,7 @@ Requirements:
         const msg = `[Router] ${info.name} → ${decision.selectedModel} (${decision.tier}, ~${decision.estimatedTokens} tok)`
         if (nik?.advancedUI) nik.advancedUI.logInfo('model router', msg)
         else console.log(chalk.dim(msg))
-      } catch {}
+      } catch { }
 
       // The router returns a provider model id. Our config keys match these ids in default models.
       // If key is missing, fallback to current model name in config.
