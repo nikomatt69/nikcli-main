@@ -1,9 +1,10 @@
-import { type ChildProcess, spawn } from 'node:child_process'
 import { z } from 'zod'
 import { PromptManager } from '../prompts/prompt-manager'
 import { advancedUI } from '../ui/advanced-cli-ui'
 import { CliUI } from '../utils/cli-ui'
+import { readStreamWithLimit } from '../utils/bun-compat'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
+import { prometheusExporter } from '../monitoring'
 import {
   resolveShellConfig,
   type ShellConfiguration,
@@ -265,7 +266,7 @@ export class BashTool extends BaseTool {
   }
 
   /**
-   * Esegue il comando con timeout e monitoring
+   * Esegue il comando con Bun.spawn (5-10x più veloce di child_process)
    */
   private async executeCommand(
     command: string,
@@ -278,97 +279,106 @@ export class BashTool extends BaseTool {
   ): Promise<BashResult> {
     const startTime = Date.now()
 
-    return new Promise((resolve, reject) => {
-      let stdout = ''
-      let stderr = ''
-      let timedOut = false
-      let killed = false
+    let stdout = ''
+    let stderr = ''
+    let timedOut = false
+    let killed = false
 
-      // Prepara environment
-      const env = {
-        ...process.env,
-        ...options.environment,
-        PWD: options.workingDirectory,
-      }
+    // Prepara environment
+    const env = {
+      ...process.env,
+      ...options.environment,
+      PWD: options.workingDirectory,
+    }
 
-      // Spawn processo
-      const child: ChildProcess = spawn(options.shell.executable, [...options.shell.args, command], {
+    // Setup AbortController per timeout (Bun-native)
+    const controller = new AbortController()
+    const timeoutHandle = setTimeout(() => {
+      timedOut = true
+      killed = true
+      controller.abort()
+    }, options.timeout)
+
+    try {
+      // Bun.spawn con streaming output (molto più veloce di child_process)
+      const proc = Bun.spawn({
+        cmd: [options.shell.executable, ...options.shell.args, command],
         cwd: options.workingDirectory,
         env,
-        stdio: ['ignore', 'pipe', 'pipe'],
+        stdin: 'ignore',
+        stdout: 'pipe',
+        stderr: 'pipe',
       })
 
-      // Setup timeout
-      const timeoutHandle = setTimeout(() => {
+      // Leggi stdout e stderr in parallelo usando Web Streams
+      const [stdoutResult, stderrResult] = await Promise.all([
+        readStreamWithLimit(proc.stdout, MAX_OUTPUT_LENGTH, '\n... [output truncated]'),
+        readStreamWithLimit(proc.stderr, MAX_OUTPUT_LENGTH, '\n... [error output truncated]'),
+      ])
+
+      stdout = stdoutResult
+      stderr = stderrResult
+
+      // Check if aborted during stream reading
+      if (controller.signal.aborted) {
+        proc.kill()
         timedOut = true
         killed = true
-        child.kill('SIGTERM')
-
-        // Force kill dopo 5 secondi
-        setTimeout(() => {
-          if (!child.killed) {
-            child.kill('SIGKILL')
-          }
-        }, 5000)
-      }, options.timeout)
-
-      // Gestione output
-      if (child.stdout) {
-        child.stdout.on('data', (data: Buffer) => {
-          stdout += data.toString()
-
-          // Limita output per evitare memory overflow
-          if (stdout.length > MAX_OUTPUT_LENGTH) {
-            stdout = stdout.substring(0, MAX_OUTPUT_LENGTH) + '\n... [output truncated]'
-            child.kill('SIGTERM')
-          }
-        })
       }
 
-      if (child.stderr) {
-        child.stderr.on('data', (data: Buffer) => {
-          stderr += data.toString()
+      // Attendi completamento
+      const exitCode = await proc.exited
 
-          if (stderr.length > MAX_OUTPUT_LENGTH) {
-            stderr = stderr.substring(0, MAX_OUTPUT_LENGTH) + '\n... [error output truncated]'
-          }
-        })
+      clearTimeout(timeoutHandle)
+
+      const executionTime = Date.now() - startTime
+      const statusLabel = timedOut ? 'timeout' : exitCode === 0 ? 'success' : 'error'
+
+      prometheusExporter.bunSpawnDuration.observe(
+        { source: 'bash-tool', status: statusLabel },
+        executionTime / 1000
+      )
+
+      return {
+        command,
+        exitCode,
+        stdout: stdout.trim(),
+        stderr: stderr.trim(),
+        executionTime,
+        workingDirectory: options.workingDirectory,
+        timedOut,
+        killed,
+        shell: options.shell.name,
       }
 
-      // Gestione completamento
-      child.on('close', (exitCode: number | null) => {
-        clearTimeout(timeoutHandle)
+    } catch (error: any) {
+      clearTimeout(timeoutHandle)
 
-        const executionTime = Date.now() - startTime
-
-        const result: BashResult = {
+      if (error.name === 'AbortError' || controller.signal.aborted) {
+        // Timeout triggered
+        prometheusExporter.bunSpawnDuration.observe(
+          { source: 'bash-tool', status: 'timeout' },
+          (Date.now() - startTime) / 1000
+        )
+        return {
           command,
-          exitCode: exitCode || 0,
+          exitCode: -1,
           stdout: stdout.trim(),
-          stderr: stderr.trim(),
-          executionTime,
+          stderr: (stderr.trim() + `\nCommand timed out after ${options.timeout}ms`).trim(),
+          executionTime: Date.now() - startTime,
           workingDirectory: options.workingDirectory,
-          timedOut,
-          killed,
+          timedOut: true,
+          killed: true,
           shell: options.shell.name,
         }
+      }
 
-        if (timedOut) {
-          result.stderr += `\nCommand timed out after ${options.timeout}ms`
-        }
-
-        resolve(result)
-      })
-
-      // Gestione errori
-      child.on('error', (error: Error) => {
-        clearTimeout(timeoutHandle)
-        reject(new Error(`Failed to execute command: ${error.message}`))
-      })
-
-      // Log processo avviato
-      CliUI.logDebug(`Started process PID: ${child.pid}`)
-    })
+      prometheusExporter.bunSpawnDuration.observe(
+        { source: 'bash-tool', status: 'error' },
+        (Date.now() - startTime) / 1000
+      )
+      throw new Error(`Failed to execute command: ${error.message}`)
+    }
   }
 
   /**

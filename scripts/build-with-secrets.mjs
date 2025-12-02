@@ -24,6 +24,42 @@ const PRODUCTION_ENV_FILE = path.join(projectRoot, '.env.production')
 const SECRETS_CONFIG_FILE = path.join(projectRoot, 'src/cli/config/generated-embedded-secrets.ts')
 
 /**
+ * NAPI modules that use libuv and cause "uv_default_loop" crash in Bun standalone
+ * or have compatibility issues with Bun bundler
+ * These modules are marked as external and loaded lazily at runtime
+ */
+const NAPI_EXTERNAL_MODULES = [
+  // vscode-jsonrpc uses Node.js streams with libuv
+  'vscode-jsonrpc',
+  'vscode-jsonrpc/node',
+  // Sentry uses native bindings
+  '@sentry/node',
+  '@sentry/profiling-node',
+  // Playwright uses native bindings
+  'playwright',
+  'playwright-core',
+  // ChromaDB may use native bindings
+  'chromadb',
+  // OpenTelemetry uses native bindings
+  '@opentelemetry/auto-instrumentations-node',
+  '@opentelemetry/sdk-node',
+  // Zora SDK has export compatibility issues with protocol-deployments
+  '@zoralabs/coins-sdk',
+  '@zoralabs/protocol-deployments',
+  // Solana modules have parsing issues in Bun bundler (all @solana/* packages)
+  '@solana/*',
+  // Coinbase/abitype have parsing issues in Bun bundler
+  '@coinbase/cdp-sdk',
+  '@coinbase/agentkit',
+  '@coinbase/agentkit-vercel-ai-sdk',
+  'abitype',
+  // Blessed TUI library has dynamic require issues
+  'blessed',
+  // Task-master-ai has auto-executing entry point
+  'task-master-ai',
+]
+
+/**
  * WHITELIST RIGOROSO - TUTTE e SOLO LE ENV VARS DEL .env.production.template
  * ENTRANO NEL BUNDLE ENCRYPTATE
  *
@@ -486,8 +522,12 @@ function buildWithSecrets() {
       fs.mkdirSync(distDir, { recursive: true })
     }
 
+    // Build external flags for NAPI modules
+    const externalFlags = NAPI_EXTERNAL_MODULES.map(m => `--external=${m}`).join(' ')
+
     // Build with Bun using the same command as bun run build
     // This will include the generated-embedded-secrets.ts file automatically
+    // NAPI modules are marked as external to avoid libuv crashes
     const buildCommand = [
       'bun',
       'build',
@@ -495,11 +535,18 @@ function buildWithSecrets() {
       '--minify',
       '--sourcemap',
       'src/cli/index.ts',
-      '--packages=external',
+      externalFlags,
+      '--define:process.env.BUN_STANDALONE="true"',
       `--outfile=${path.join(distDir, 'nikcli')}`,
     ].join(' ')
 
     console.log(`🔨 Executing: ${buildCommand}\n`)
+    console.log('📦 External NAPI modules (loaded lazily at runtime):')
+    for (const mod of NAPI_EXTERNAL_MODULES) {
+      console.log(`   • ${mod}`)
+    }
+    console.log('')
+
     execSync(buildCommand, {
       cwd: projectRoot,
       stdio: 'inherit',
@@ -521,7 +568,11 @@ function buildWithoutSecrets() {
       fs.mkdirSync(distDir, { recursive: true })
     }
 
+    // Build external flags for NAPI modules
+    const externalFlags = NAPI_EXTERNAL_MODULES.map(m => `--external=${m}`).join(' ')
+
     // Build with Bun using the same command as bun run build
+    // NAPI modules are marked as external to avoid libuv crashes
     const buildCommand = [
       'bun',
       'build',
@@ -529,11 +580,18 @@ function buildWithoutSecrets() {
       '--minify',
       '--sourcemap',
       'src/cli/index.ts',
-      '--packages=external',
+      externalFlags,
+      '--define:process.env.BUN_STANDALONE="true"',
       `--outfile=${path.join(distDir, 'nikcli')}`,
     ].join(' ')
 
     console.log(`🔨 Executing: ${buildCommand}\n`)
+    console.log('📦 External NAPI modules (loaded lazily at runtime):')
+    for (const mod of NAPI_EXTERNAL_MODULES) {
+      console.log(`   • ${mod}`)
+    }
+    console.log('')
+
     execSync(buildCommand, {
       cwd: projectRoot,
       stdio: 'inherit',

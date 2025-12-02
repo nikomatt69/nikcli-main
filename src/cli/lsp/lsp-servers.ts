@@ -1,10 +1,17 @@
-import { type ChildProcess, spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { dirname, extname, join, resolve } from 'node:path'
+import { Readable, Writable } from 'node:stream'
 import chalk from 'chalk'
+import type { BunSubprocess } from '../utils/bun-compat'
+
+export interface LSPServerProcess {
+  stdin: NodeJS.WritableStream | null
+  stdout: NodeJS.ReadableStream | null
+  kill: (signal?: number) => void
+}
 
 export interface LSPServerHandle {
-  process: ChildProcess
+  process: LSPServerProcess
   initialization?: Record<string, any>
 }
 
@@ -39,11 +46,35 @@ function findWorkspaceRoot(startPath: string, patterns: string[]): string | unde
 // Check if command exists in PATH
 function commandExists(command: string): boolean {
   try {
-    const { execSync } = require('node:child_process')
-    execSync(`which ${command}`, { stdio: 'ignore' })
-    return true
+    return Boolean(Bun.which(command))
   } catch {
     return false
+  }
+}
+
+function toLSPProcess(proc: BunSubprocess): LSPServerProcess {
+  const stdout = proc.stdout ? (Readable.fromWeb(proc.stdout) as unknown as NodeJS.ReadableStream) : null
+  const stdin = proc.stdin ? (Writable.fromWeb(proc.stdin) as unknown as NodeJS.WritableStream) : null
+
+  return {
+    stdin,
+    stdout,
+    kill: (signal?: number) => {
+      proc.kill(signal)
+    },
+  }
+}
+
+async function runInstall(command: string, args: string[], cwd: string): Promise<void> {
+  const proc = Bun.spawn({
+    cmd: [command, ...args],
+    cwd,
+    stdout: 'inherit',
+    stderr: 'inherit',
+  })
+  const exitCode = await proc.exited
+  if (exitCode !== 0) {
+    throw new Error(`Installation failed with code ${exitCode}`)
   }
 }
 
@@ -58,26 +89,19 @@ export const LSP_SERVERS: Record<string, LSPServerInfo> = {
         // Try to find typescript-language-server
         if (!commandExists('typescript-language-server')) {
           console.log(chalk.yellow('📦 Installing typescript-language-server...'))
-          const installProcess = spawn('yarn', ['global', 'add', 'typescript-language-server', 'typescript'], {
-            cwd: workspaceRoot,
-            stdio: 'inherit',
-          })
-
-          await new Promise((resolve, reject) => {
-            installProcess.on('close', (code) => {
-              if (code === 0) resolve(undefined)
-              else reject(new Error(`Installation failed with code ${code}`))
-            })
-          })
+          await runInstall('yarn', ['global', 'add', 'typescript-language-server', 'typescript'], workspaceRoot)
         }
 
-        const process = spawn('typescript-language-server', ['--stdio'], {
+        const process = Bun.spawn({
+          cmd: ['typescript-language-server', '--stdio'],
           cwd: workspaceRoot,
-          stdio: ['pipe', 'pipe', 'inherit'],
+          stdin: 'pipe',
+          stdout: 'pipe',
+          stderr: 'inherit',
         })
 
         return {
-          process,
+          process: toLSPProcess(process),
           initialization: {
             preferences: {
               includeCompletionsForModuleExports: true,
@@ -107,26 +131,19 @@ export const LSP_SERVERS: Record<string, LSPServerInfo> = {
         // Check if pylsp is available
         if (!commandExists('pylsp')) {
           console.log(chalk.yellow('📦 Installing python-lsp-server...'))
-          const installProcess = spawn('pip', ['install', 'python-lsp-server[all]'], {
-            cwd: workspaceRoot,
-            stdio: 'inherit',
-          })
-
-          await new Promise((resolve, reject) => {
-            installProcess.on('close', (code) => {
-              if (code === 0) resolve(undefined)
-              else reject(new Error(`Installation failed with code ${code}`))
-            })
-          })
+          await runInstall('pip', ['install', 'python-lsp-server[all]'], workspaceRoot)
         }
 
-        const process = spawn('pylsp', [], {
+        const process = Bun.spawn({
+          cmd: ['pylsp'],
           cwd: workspaceRoot,
-          stdio: ['pipe', 'pipe', 'inherit'],
+          stdin: 'pipe',
+          stdout: 'pipe',
+          stderr: 'inherit',
         })
 
         return {
-          process,
+          process: toLSPProcess(process),
           initialization: {
             plugins: {
               pycodestyle: { enabled: false },
@@ -153,25 +170,18 @@ export const LSP_SERVERS: Record<string, LSPServerInfo> = {
       try {
         if (!commandExists('rust-analyzer')) {
           console.log(chalk.yellow('📦 Installing rust-analyzer...'))
-          const installProcess = spawn('rustup', ['component', 'add', 'rust-analyzer'], {
-            cwd: workspaceRoot,
-            stdio: 'inherit',
-          })
-
-          await new Promise((resolve, reject) => {
-            installProcess.on('close', (code) => {
-              if (code === 0) resolve(undefined)
-              else reject(new Error(`Installation failed with code ${code}`))
-            })
-          })
+          await runInstall('rustup', ['component', 'add', 'rust-analyzer'], workspaceRoot)
         }
 
-        const process = spawn('rust-analyzer', [], {
+        const process = Bun.spawn({
+          cmd: ['rust-analyzer'],
           cwd: workspaceRoot,
-          stdio: ['pipe', 'pipe', 'inherit'],
+          stdin: 'pipe',
+          stdout: 'pipe',
+          stderr: 'inherit',
         })
 
-        return { process }
+        return { process: toLSPProcess(process) }
       } catch (error) {
         console.log(chalk.red(`✖ Failed to start Rust Analyzer: ${error}`))
         return undefined
@@ -188,26 +198,18 @@ export const LSP_SERVERS: Record<string, LSPServerInfo> = {
       try {
         if (!commandExists('gopls')) {
           console.log(chalk.yellow('📦 Installing gopls...'))
-          const installProcess = spawn('go', ['install', 'golang.org/x/tools/gopls@latest'], {
-            cwd: workspaceRoot,
-            stdio: 'inherit',
-            env: { ...process.env, GO111MODULE: 'on' },
-          })
-
-          await new Promise((resolve, reject) => {
-            installProcess.on('close', (code) => {
-              if (code === 0) resolve(undefined)
-              else reject(new Error(`Installation failed with code ${code}`))
-            })
-          })
+          await runInstall('go', ['install', 'golang.org/x/tools/gopls@latest'], workspaceRoot)
         }
 
-        const goplsProcess = spawn('gopls', [], {
+        const goplsProcess = Bun.spawn({
+          cmd: ['gopls'],
           cwd: workspaceRoot,
-          stdio: ['pipe', 'pipe', 'inherit'],
+          stdin: 'pipe',
+          stdout: 'pipe',
+          stderr: 'inherit',
         })
 
-        return { process: goplsProcess }
+        return { process: toLSPProcess(goplsProcess) }
       } catch (error) {
         console.log(chalk.red(`✖ Failed to start Gopls: ${error}`))
         return undefined
@@ -241,25 +243,18 @@ export const LSP_SERVERS: Record<string, LSPServerInfo> = {
       try {
         if (!commandExists('ruby-lsp')) {
           console.log(chalk.yellow('📦 Installing ruby-lsp...'))
-          const installProcess = spawn('gem', ['install', 'ruby-lsp'], {
-            cwd: workspaceRoot,
-            stdio: 'inherit',
-          })
-
-          await new Promise((resolve, reject) => {
-            installProcess.on('close', (code) => {
-              if (code === 0) resolve(undefined)
-              else reject(new Error(`Installation failed with code ${code}`))
-            })
-          })
+          await runInstall('gem', ['install', 'ruby-lsp'], workspaceRoot)
         }
 
-        const process = spawn('ruby-lsp', ['--stdio'], {
+        const process = Bun.spawn({
+          cmd: ['ruby-lsp', '--stdio'],
           cwd: workspaceRoot,
-          stdio: ['pipe', 'pipe', 'inherit'],
+          stdin: 'pipe',
+          stdout: 'pipe',
+          stderr: 'inherit',
         })
 
-        return { process }
+        return { process: toLSPProcess(process) }
       } catch (error) {
         console.log(chalk.red(`✖ Failed to start Ruby LSP: ${error}`))
         return undefined
@@ -330,91 +325,30 @@ export async function ensureLSPDependencies(serverIds: string[]): Promise<void> 
 // Individual LSP installer functions
 async function installTypeScriptLSP(): Promise<void> {
   console.log(chalk.yellow('📦 Installing TypeScript Language Server...'))
-  return new Promise((resolve, reject) => {
-    const process = spawn('yarn', ['global', 'add', 'typescript-language-server', 'typescript'], {
-      stdio: 'inherit',
-    })
-    process.on('close', (code) => {
-      if (code === 0) {
-        console.log(chalk.green('✓ TypeScript LSP installed'))
-        resolve()
-      } else {
-        console.log(chalk.red('✖ TypeScript LSP installation failed'))
-        reject(new Error(`Installation failed with code ${code}`))
-      }
-    })
-  })
+  await runInstall('yarn', ['global', 'add', 'typescript-language-server', 'typescript'], process.cwd())
+  console.log(chalk.green('✓ TypeScript LSP installed'))
 }
 
 async function installPythonLSP(): Promise<void> {
   console.log(chalk.yellow('📦 Installing Python LSP Server...'))
-  return new Promise((resolve, reject) => {
-    const process = spawn('pip', ['install', 'python-lsp-server[all]'], {
-      stdio: 'inherit',
-    })
-    process.on('close', (code) => {
-      if (code === 0) {
-        console.log(chalk.green('✓ Python LSP installed'))
-        resolve()
-      } else {
-        console.log(chalk.red('✖ Python LSP installation failed'))
-        reject(new Error(`Installation failed with code ${code}`))
-      }
-    })
-  })
+  await runInstall('pip', ['install', 'python-lsp-server[all]'], process.cwd())
+  console.log(chalk.green('✓ Python LSP installed'))
 }
 
 async function installRustAnalyzer(): Promise<void> {
   console.log(chalk.yellow('📦 Installing Rust Analyzer...'))
-  return new Promise((resolve, reject) => {
-    const process = spawn('rustup', ['component', 'add', 'rust-analyzer'], {
-      stdio: 'inherit',
-    })
-    process.on('close', (code) => {
-      if (code === 0) {
-        console.log(chalk.green('✓ Rust Analyzer installed'))
-        resolve()
-      } else {
-        console.log(chalk.red('✖ Rust Analyzer installation failed'))
-        reject(new Error(`Installation failed with code ${code}`))
-      }
-    })
-  })
+  await runInstall('rustup', ['component', 'add', 'rust-analyzer'], process.cwd())
+  console.log(chalk.green('✓ Rust Analyzer installed'))
 }
 
 async function installGopls(): Promise<void> {
   console.log(chalk.yellow('📦 Installing Gopls...'))
-  return new Promise((resolve, reject) => {
-    const childProcess = spawn('go', ['install', 'golang.org/x/tools/gopls@latest'], {
-      stdio: 'inherit',
-      env: { NODE_ENV: process.env.NODE_ENV },
-    })
-    childProcess.on('close', (code: number) => {
-      if (code === 0) {
-        console.log(chalk.green('✓ Gopls installed'))
-        resolve()
-      } else {
-        console.log(chalk.red('✖ Gopls installation failed'))
-        reject(new Error(`Installation failed with code ${code}`))
-      }
-    })
-  })
+  await runInstall('go', ['install', 'golang.org/x/tools/gopls@latest'], process.cwd())
+  console.log(chalk.green('✓ Gopls installed'))
 }
 
 async function installRubyLSP(): Promise<void> {
   console.log(chalk.yellow('📦 Installing Ruby LSP...'))
-  return new Promise((resolve, reject) => {
-    const process = spawn('gem', ['install', 'ruby-lsp'], {
-      stdio: 'inherit',
-    })
-    process.on('close', (code) => {
-      if (code === 0) {
-        console.log(chalk.green('✓ Ruby LSP installed'))
-        resolve()
-      } else {
-        console.log(chalk.red('✖ Ruby LSP installation failed'))
-        reject(new Error(`Installation failed with code ${code}`))
-      }
-    })
-  })
+  await runInstall('gem', ['install', 'ruby-lsp'], process.cwd())
+  console.log(chalk.green('✓ Ruby LSP installed'))
 }

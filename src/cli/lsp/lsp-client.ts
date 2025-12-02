@@ -1,9 +1,19 @@
 import { readFileSync } from 'node:fs'
 import { relative, resolve } from 'node:path'
 import chalk from 'chalk'
-import { createMessageConnection, StreamMessageReader, StreamMessageWriter } from 'vscode-jsonrpc/node'
 import { detectLanguageFromExtension } from './language-detection'
 import type { LSPServerHandle, LSPServerInfo } from './lsp-servers'
+import { isNapiSafe, createLazyNapiLoader } from '../utils/runtime-detect'
+
+// Lazy load vscode-jsonrpc to avoid NAPI crash in Bun standalone
+const getJsonRpc = createLazyNapiLoader('vscode-jsonrpc', async () => {
+  const module = await import('vscode-jsonrpc/node')
+  return {
+    createMessageConnection: module.createMessageConnection,
+    StreamMessageReader: module.StreamMessageReader,
+    StreamMessageWriter: module.StreamMessageWriter,
+  }
+})
 
 export interface LSPDiagnostic {
   range: {
@@ -54,6 +64,7 @@ export class LSPClient {
   private openFiles: Map<string, number> = new Map() // file -> version
   private diagnostics: Map<string, LSPDiagnostic[]> = new Map()
   private isInitialized = false
+  private connectionInitialized = false
 
   // Cache system
   private hoverCache: Map<string, { result: any; timestamp: number }> = new Map()
@@ -69,17 +80,50 @@ export class LSPClient {
     this.server = server
     this.serverInfo = serverInfo
     this.workspaceRoot = workspaceRoot
+  }
 
-    // Create JSON-RPC connection
-    this.connection = createMessageConnection(
-      new StreamMessageReader(server.process.stdout!),
-      new StreamMessageWriter(server.process.stdin!)
-    )
+  /**
+   * Initialize the JSON-RPC connection lazily
+   * This avoids loading vscode-jsonrpc at module load time
+   */
+  private async initializeConnection(): Promise<boolean> {
+    if (this.connectionInitialized) return true
 
-    this.setupEventHandlers()
+    // Check if NAPI modules are safe to use
+    if (!isNapiSafe()) {
+      console.warn(
+        chalk.yellow(
+          `⚠️ LSP client unavailable in Bun standalone mode (vscode-jsonrpc uses libuv)`
+        )
+      )
+      return false
+    }
+
+    try {
+      const jsonRpc = await getJsonRpc()
+      if (!jsonRpc) {
+        console.warn(chalk.yellow(`⚠️ Failed to load vscode-jsonrpc module`))
+        return false
+      }
+
+      // Create JSON-RPC connection
+      this.connection = jsonRpc.createMessageConnection(
+        new jsonRpc.StreamMessageReader(this.server.process.stdout!),
+        new jsonRpc.StreamMessageWriter(this.server.process.stdin!)
+      )
+
+      this.setupEventHandlers()
+      this.connectionInitialized = true
+      return true
+    } catch (error: any) {
+      console.error(chalk.red(`✖ Failed to initialize LSP connection: ${error.message}`))
+      return false
+    }
   }
 
   private setupEventHandlers(): void {
+    if (!this.connection) return
+
     // Handle diagnostics
     this.connection.onNotification('textDocument/publishDiagnostics', (params: any) => {
       const uri = params.uri
@@ -135,6 +179,12 @@ export class LSPClient {
 
   async initialize(): Promise<void> {
     if (this.isInitialized) return
+
+    // Initialize connection first (lazy load vscode-jsonrpc)
+    const connectionReady = await this.initializeConnection()
+    if (!connectionReady) {
+      throw new Error('LSP connection not available (NAPI modules disabled in Bun standalone)')
+    }
 
     try {
       console.log(chalk.blue(`🚀 Initializing ${this.serverInfo.name}...`))
@@ -219,6 +269,10 @@ export class LSPClient {
       await this.initialize()
     }
 
+    if (!this.connection) {
+      throw new Error('LSP connection not available')
+    }
+
     const absolutePath = resolve(filePath)
     const uri = this.pathToUri(absolutePath)
 
@@ -253,6 +307,8 @@ export class LSPClient {
   }
 
   async getHover(filePath: string, line: number, character: number): Promise<LSPHoverInfo | null> {
+    if (!this.connection) return null
+
     const cacheKey = `${filePath}:${line}:${character}`
 
     // Check cache first
@@ -291,6 +347,8 @@ export class LSPClient {
   }
 
   async getCompletion(filePath: string, line: number, character: number): Promise<LSPCompletionItem[]> {
+    if (!this.connection) return []
+
     const cacheKey = `${filePath}:${line}:${character}`
 
     // Check cache first
@@ -331,6 +389,8 @@ export class LSPClient {
   }
 
   async getWorkspaceSymbols(query: string): Promise<LSPSymbol[]> {
+    if (!this.connection) return []
+
     try {
       const result = await this.connection.sendRequest('workspace/symbol', { query })
       return result || []
@@ -340,6 +400,8 @@ export class LSPClient {
   }
 
   async getDocumentSymbols(filePath: string): Promise<LSPSymbol[]> {
+    if (!this.connection) return []
+
     // Check cache first
     const cached = this.symbolsCache.get(filePath)
     if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
@@ -363,6 +425,8 @@ export class LSPClient {
   }
 
   async getDefinition(filePath: string, line: number, character: number): Promise<any> {
+    if (!this.connection) return null
+
     const uri = this.pathToUri(resolve(filePath))
 
     try {
@@ -378,6 +442,8 @@ export class LSPClient {
   }
 
   async getReferences(filePath: string, line: number, character: number): Promise<any[]> {
+    if (!this.connection) return []
+
     const uri = this.pathToUri(resolve(filePath))
 
     try {
@@ -434,7 +500,16 @@ export class LSPClient {
     return Array.from(this.openFiles.keys())
   }
 
+  /**
+   * Check if LSP client is available (connection initialized)
+   */
+  isAvailable(): boolean {
+    return this.connectionInitialized && this.connection !== null
+  }
+
   async closeFile(filePath: string): Promise<void> {
+    if (!this.connection) return
+
     const absolutePath = resolve(filePath)
 
     if (this.openFiles.has(absolutePath)) {
@@ -460,7 +535,7 @@ export class LSPClient {
       }
       this.pendingRequests.clear()
 
-      if (this.isInitialized) {
+      if (this.isInitialized && this.connection) {
         await this.connection.sendRequest('shutdown', null)
         await this.connection.sendNotification('exit', null)
       }
@@ -475,7 +550,9 @@ export class LSPClient {
         this.server.process.kill()
       } catch {}
       try {
-        this.connection.end()
+        if (this.connection) {
+          this.connection.end()
+        }
       } catch {}
 
       console.log(chalk.green(`🛑 ${this.serverInfo.name} shutdown`))
@@ -502,6 +579,13 @@ export class LSPClient {
     const client = new LSPClient(server, serverInfo, workspaceRoot)
     await client.initialize()
     return client
+  }
+
+  /**
+   * Check if LSP is available in current runtime
+   */
+  static isLspAvailable(): boolean {
+    return isNapiSafe()
   }
 }
 

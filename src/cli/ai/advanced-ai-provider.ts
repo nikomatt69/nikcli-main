@@ -3337,7 +3337,7 @@ Requirements:
         } else if (configData.model.includes('gemini') || configData.model.startsWith('google/')) {
           return { maxTokens: 4000, temperature: 0.7 } // Google models
         } else if (configData.model.startsWith('anthropic/')) {
-          return { maxTokens: 8000, temperature: 1 } // Anthropic models
+          return { maxTokens: 4000, temperature: 1 } // Anthropic models
         }
         return { maxTokens: 4000, temperature: 1 }
 

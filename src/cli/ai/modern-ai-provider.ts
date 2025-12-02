@@ -638,9 +638,9 @@ export class ModernAIProvider {
     }
 
     const items = readdirSync(dirPath, { withFileTypes: true })
-    const result: { files: Array<{ name: string; path: string; size: number; modified: Date; extension?: string }>; directories: Array<{ name: string; path: string; size: number; modified: Date; extension?: string }> } = {
+    const result: { files: Array<{ name: string; path: string; size: number; modified: Date }>; directories: Array<{ name: string; path: string; size: number; modified: Date }> } = {
       files: [] as Array<{ name: string; path: string; size: number; modified: Date }>,
-      directories: [] as Array<{ name: string; path: string; size: number; modified: Date; extension?: string }>,
+      directories: [] as Array<{ name: string; path: string; size: number; modified: Date }>,
     }
 
     const skipDirs = ['node_modules', '.git', '.next', 'dist', 'build', 'target', 'bin', 'obj', '.cache', '.temp', '.tmp', 'coverage', '.nyc_output', '__pycache__', '.pytest_cache', 'venv', 'env', '.env', '.venv', 'vendor', 'Pods', 'DerivedData', '.gradle', '.idea', '.vscode', '.vs', 'logs', '*.log', '.DS_Store', 'Thumbs.db']
@@ -665,7 +665,6 @@ export class ModernAIProvider {
           path: relative(this.workingDirectory, itemPath),
           size: statSync(itemPath).size,
           modified: statSync(itemPath).mtime,
-          extension: item.name.split('.').pop() || '',
         })
       }
     }
@@ -930,7 +929,7 @@ export class ModernAIProvider {
         messages,
         tools,
         temperature: 1,
-        maxTokens: 8000,
+        maxTokens: 4000,
         maxSteps: 10,
       }
 

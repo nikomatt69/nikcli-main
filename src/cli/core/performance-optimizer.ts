@@ -269,7 +269,7 @@ export class PerformanceOptimizer {
     for (let i = 0; i < optimized.length; i++) {
       if (typeof optimized[i].content === 'string') {
         const result = await this.tokenOptimizer.optimizePrompt(optimized[i].content as string)
-        ;(optimized[i] as any).content = result.content
+          ; (optimized[i] as any).content = result.content
       }
     }
 
@@ -394,7 +394,7 @@ export class UnifiedTokenBudget {
         high: 1.5,
         critical: 2.0,
       },
-      maxTokensPerTask: 8000,
+      maxTokensPerTask: 4000,
       reservePercentage: 0.1,
       ...strategy,
     }

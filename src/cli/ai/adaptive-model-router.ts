@@ -397,7 +397,7 @@ function pickOpenAI(
     // Filter by context size if toolchain tokens specified
     if (totalEstimatedTokens && totalEstimatedTokens > 0) {
       const withEnoughContext = candidates.filter(
-        (m) => (m.maxContextTokens || 128000) >= totalEstimatedTokens * 1.2
+        (m) => (m.maxContextTokens || 80000) >= totalEstimatedTokens * 1.2
       )
       if (withEnoughContext.length > 0) candidates = withEnoughContext
     }

@@ -61,7 +61,7 @@ const ConfigSchema = z.object({
   currentModel: z.string(),
   currentEmbeddingModel: z.string().default('qwen/qwen3-embedding-8b'),
   temperature: z.number().min(0).max(2).default(0.7),
-  maxTokens: z.number().min(1).max(8000).default(8000),
+  maxTokens: z.number().min(1).max(4000).default(4000),
   chatHistory: z.boolean().default(true),
   maxHistoryLength: z.number().min(1).max(1000).default(100),
   // Optional system prompt for general chat mode
@@ -1229,7 +1229,7 @@ export class SimpleConfigManager {
       cacheTtl: 300,
     },
     temperature: 1,
-    maxTokens: 8000,
+    maxTokens: 4000,
     chatHistory: true,
     maxHistoryLength: 100,
     systemPrompt: undefined,
@@ -2029,8 +2029,8 @@ export class SimpleConfigManager {
         return {
           provider: 'openrouter',
           model: model,
-          temperature: 0.7,
-          maxTokens: 8000,
+          temperature: 1,
+          maxTokens: 4000,
           maxContextTokens: this.getDefaultContextTokens(model),
         }
       }
@@ -2492,7 +2492,7 @@ export class SimpleConfigManager {
       const res = await fetch('https://openrouter.ai/api/v1/models', {
         headers: {
           Authorization: `Bearer ${apiKey}`,
-          'HTTP-Referer': process.env.OPENROUTER_HTTP_REFERER || 'https://github.com/nicomatt69/nikcli',
+          'HTTP-Referer': 'https://nikcli.mintlify.app',
           'X-Title': process.env.OPENROUTER_X_TITLE || 'NikCLI',
         },
       })

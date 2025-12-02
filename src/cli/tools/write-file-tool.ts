@@ -1,4 +1,4 @@
-import { copyFile, mkdir, readFile, unlink, writeFile } from 'node:fs/promises'
+import { mkdir, unlink } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { ContextAwareRAGSystem } from '../context/context-aware-rag'
 import { lspManager } from '../lsp/lsp-manager'
@@ -19,6 +19,7 @@ import { DiffViewer, type FileDiff } from '../ui/diff-viewer'
 import { CliUI } from '../utils/cli-ui'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
 import { isDirectory, sanitizePath } from './secure-file-tools'
+import { copyFile } from 'node:fs'
 
 /**
  * Production-ready Write File Tool
@@ -71,13 +72,17 @@ export class WriteFileTool extends BaseTool {
       // LSP + Context Analysis
       await this.performLSPContextAnalysis(sanitizedPath, content)
 
-      // Read existing content for diff display
+      // Read existing content for diff display using Bun.file
       let existingContent = ''
       let isNewFile = false
       try {
-        existingContent = await readFile(sanitizedPath, 'utf8')
+        const existingFile = Bun.file(sanitizedPath)
+        if (await existingFile.exists()) {
+          existingContent = await existingFile.text()
+        } else {
+          isNewFile = true
+        }
       } catch (_error) {
-        // File doesn't exist, it's a new file
         isNewFile = true
       }
 
@@ -126,14 +131,11 @@ export class WriteFileTool extends BaseTool {
         DiffViewer.showFileDiff(fileDiff, { compact: true })
       }
 
-      // Write file with specified encoding
-      const encoding = options.encoding || 'utf8'
-      await writeFile(sanitizedPath, processedContent, {
-        encoding: encoding as BufferEncoding,
-        mode: options.mode || 0o644,
-      })
+      // Write file using Bun.write (molto più veloce di fs.writeFile)
+      await Bun.write(sanitizedPath, processedContent)
 
       // Verify write if requested
+      const encoding = options.encoding || 'utf8'
       if (options.verifyWrite) {
         const verification = await this.verifyWrite(sanitizedPath, processedContent, encoding)
         if (!verification.success) {
@@ -332,7 +334,11 @@ export class WriteFileTool extends BaseTool {
       await mkdir(dirname(backupPath), { recursive: true })
 
       // Copy file to backup location
-      await copyFile(filePath, backupPath)
+      copyFile(filePath, backupPath, (err: any) => {
+        if (err) {
+          throw new Error(`Failed to copy file: ${err.message}`)
+        }
+      })
 
       advancedUI.logInfo(`Backup created: ${backupPath}`)
       return backupPath
@@ -348,7 +354,11 @@ export class WriteFileTool extends BaseTool {
   private async rollback(filePath: string, backupPath: string): Promise<void> {
     try {
       const sanitizedPath = sanitizePath(filePath, this.workingDirectory)
-      await copyFile(backupPath, sanitizedPath)
+      copyFile(backupPath, sanitizedPath, (err: any) => {
+        if (err) {
+          throw new Error(`Failed to copy file: ${err.message}`)
+        }
+      })
       await unlink(backupPath) // Clean up backup
     } catch (error: any) {
       throw new Error(`Rollback failed: ${error.message}`)
@@ -409,7 +419,7 @@ export class WriteFileTool extends BaseTool {
 
       for (const file of files) {
         if (typeof file === 'string' && file.endsWith('.backup')) {
-          const filePath = join(this.backupDirectory, file)
+          const filePath = join(this.backupDirectory, file) as string
           const stats = await fs.stat(filePath)
 
           if (now - stats.mtime.getTime() > maxAge) {
@@ -603,7 +613,7 @@ export class ContentValidators {
         }
 
         // Clean up temp file
-        await unlink(tempFilePath).catch(() => {})
+        await unlink(tempFilePath).catch(() => { })
       } catch (lspError: any) {
         warnings.push(`LSP validation unavailable: ${lspError.message}`)
 
