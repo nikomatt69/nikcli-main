@@ -1,9 +1,9 @@
-import { execSync } from 'node:child_process'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import chalk from 'chalk'
 // Import RAG and semantic search capabilities
 import { unifiedRAGSystem } from '../context/rag-system'
+import { bunExec } from '../utils/bun-compat'
 import { semanticSearchEngine } from '../context/semantic-search-engine'
 import { workspaceContext } from '../context/workspace-context'
 import { simpleConfigManager } from '../core/config-manager'
@@ -642,36 +642,38 @@ export class ToolService {
     timeout?: number
   }): Promise<{ stdout: string; stderr: string; exitCode: number }> {
     try {
-      const result = execSync(args.command, {
+      const { stdout, stderr, exitCode } = await bunExec(args.command, {
         cwd: this.workingDirectory,
-        encoding: 'utf8',
         timeout: args.timeout || 30000,
       })
 
       return {
-        stdout: result.toString(),
-        stderr: '',
-        exitCode: 0,
+        stdout,
+        stderr,
+        exitCode,
       }
     } catch (error: any) {
       return {
-        stdout: error.stdout?.toString() || '',
-        stderr: error.stderr?.toString() || error.message,
-        exitCode: error.status || 1,
+        stdout: '',
+        stderr: error.message,
+        exitCode: 1,
       }
     }
   }
 
   private async gitStatus(_args: {}): Promise<{ status: string; files: Array<{ path: string; status: string }> }> {
     try {
-      const result = execSync('git status --porcelain', {
+      const { stdout, exitCode } = await bunExec('git status --porcelain', {
         cwd: this.workingDirectory,
-        encoding: 'utf8',
       })
 
-      const files = result
+      if (exitCode !== 0) {
+        throw new Error('Not a git repository or git not available')
+      }
+
+      const files = stdout
         .trim()
-        .split('\\n')
+        .split('\n')
         .filter((line) => line)
         .map((line) => {
           const status = line.slice(0, 2)
@@ -691,12 +693,15 @@ export class ToolService {
   private async gitDiff(args: { staged?: boolean }): Promise<{ diff: string }> {
     try {
       const command = args.staged ? 'git diff --cached' : 'git diff'
-      const result = execSync(command, {
+      const { stdout, exitCode } = await bunExec(command, {
         cwd: this.workingDirectory,
-        encoding: 'utf8',
       })
 
-      return { diff: result }
+      if (exitCode !== 0) {
+        throw new Error('Failed to get git diff')
+      }
+
+      return { diff: stdout }
     } catch (_error) {
       throw new Error('Failed to get git diff')
     }
@@ -716,10 +721,16 @@ export class ToolService {
         }
       }
 
-      const _result = execSync(command, {
+      const { exitCode, stderr } = await bunExec(command, {
         cwd: this.workingDirectory,
-        encoding: 'utf8',
       })
+
+      if (exitCode !== 0) {
+        return {
+          installed: [],
+          error: stderr,
+        }
+      }
 
       return {
         installed: args.package ? [args.package] : ['dependencies'],

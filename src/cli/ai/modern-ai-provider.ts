@@ -1,6 +1,6 @@
-import { execSync } from 'node:child_process'
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join, relative, resolve } from 'node:path'
+import { bunExec } from '../utils/bun-compat'
 import { createAnthropic } from '@ai-sdk/anthropic'
 import { createCerebras } from '@ai-sdk/cerebras'
 import { createGateway } from '@ai-sdk/gateway'
@@ -431,18 +431,24 @@ export class ModernAIProvider {
           try {
             const fullCommand = args.length > 0 ? `${command} ${args.join(' ')}` : command
 
-            // Executing command
-
-            const output = execSync(fullCommand, {
+            // Executing command using Bun native
+            const { stdout, stderr, exitCode } = await bunExec(fullCommand, {
               cwd: this.workingDirectory,
-              encoding: 'utf-8',
-              maxBuffer: 1024 * 1024 * 10, // 10MB buffer
+              timeout: 60000,
             })
 
-            return {
-              command: fullCommand,
-              output: output.trim(),
-              success: true,
+            if (exitCode === 0) {
+              return {
+                command: fullCommand,
+                output: stdout.trim(),
+                success: true,
+              }
+            } else {
+              return {
+                command: fullCommand,
+                error: stderr || `Command exited with code ${exitCode}`,
+                success: false,
+              }
             }
           } catch (error: any) {
             // Command failed

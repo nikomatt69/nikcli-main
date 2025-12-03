@@ -23,6 +23,7 @@ const projectRoot = path.join(__dirname, '..')
 const PRODUCTION_ENV_FILE = path.join(projectRoot, '.env.production')
 const SECRETS_CONFIG_FILE = path.join(projectRoot, 'src/cli/config/generated-embedded-secrets.ts')
 
+
 /**
  * NAPI modules that use libuv and cause "uv_default_loop" crash in Bun standalone
  * or have compatibility issues with Bun bundler

@@ -1,7 +1,7 @@
-import { type ChildProcess, spawn } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { bunSpawn } from '../utils/bun-compat'
 
 export interface MenubarStatus {
   running: boolean
@@ -21,6 +21,14 @@ interface PidRecord {
   pid: number
   binary: string
   startedAt: number
+}
+
+// Define a minimal interface for the Bun subprocess
+interface BunSubprocess {
+  pid: number
+  kill: () => void
+  exited: Promise<number>
+  unref: () => void
 }
 
 const PID_FILE = path.join(os.homedir(), '.nikcli', 'menubar.pid')
@@ -123,7 +131,7 @@ function resolveBinary(): BinaryTarget | null {
 }
 
 export class TauriMenubarLauncher {
-  private child: ChildProcess | null = null
+  private child: BunSubprocess | null = null
 
   isSupported(): boolean {
     return process.platform === 'darwin'
@@ -165,12 +173,13 @@ export class TauriMenubarLauncher {
       }
     }
 
-    let child: ChildProcess
+    let child: BunSubprocess
 
     try {
-      child = spawn(binary.command, binary.args, {
-        detached: true,
-        stdio: 'ignore',
+      child = bunSpawn([binary.command, ...binary.args], {
+        stdout: 'ignore',
+        stderr: 'ignore',
+        stdin: 'ignore',
         env: { ...process.env, NIKCLI_MENUBAR: '1' },
       })
     } catch (error: any) {
@@ -181,7 +190,10 @@ export class TauriMenubarLauncher {
       return { running: false, message: 'Menubar process did not start' }
     }
 
-    child.unref()
+    // Unref the process so it can run independently
+    if (child.unref) {
+      child.unref()
+    }
     this.child = child
 
     if (child.pid) {

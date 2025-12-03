@@ -1,4 +1,4 @@
-import { execSync } from 'child_process'
+import { bunExec } from './bun-compat'
 
 export interface TerminalCapabilities {
   /** Terminal supports inline images (iTerm2, Kitty, WezTerm) */
@@ -48,7 +48,7 @@ export class TerminalCapabilityDetector {
     const capabilities: TerminalCapabilities = {
       supportsInlineImages: false,
       terminalType: TerminalCapabilityDetector.detectTerminalType(),
-      hasMermaidAsciiBinary: TerminalCapabilityDetector.checkMermaidAsciiBinary(),
+      hasMermaidAsciiBinary: false, // Will be updated async
       width: process.stdout.columns || 80,
       height: process.stdout.rows || 24,
     }
@@ -57,6 +57,9 @@ export class TerminalCapabilityDetector {
     const imageSupport = TerminalCapabilityDetector.detectImageSupport()
     capabilities.supportsInlineImages = imageSupport.supported
     capabilities.imageProtocol = imageSupport.protocol
+
+    // Check mermaid binary synchronously using Bun.spawnSync if available
+    capabilities.hasMermaidAsciiBinary = TerminalCapabilityDetector.checkMermaidAsciiBinarySync()
 
     return capabilities
   }
@@ -146,16 +149,34 @@ export class TerminalCapabilityDetector {
   }
 
   /**
-   * Check if mermaid-ascii binary is available in PATH
+   * Check if mermaid-ascii binary is available in PATH (sync version using Bun.spawnSync)
    */
-  private static checkMermaidAsciiBinary(): boolean {
+  private static checkMermaidAsciiBinarySync(): boolean {
     try {
-      // Try to find mermaid-ascii in PATH
-      execSync('which mermaid-ascii', {
-        encoding: 'utf8',
-        stdio: 'pipe',
-      })
+      if (typeof Bun !== 'undefined' && Bun.spawnSync) {
+        const result = Bun.spawnSync({
+          cmd: ['which', 'mermaid-ascii'],
+          stdout: 'pipe',
+          stderr: 'pipe',
+        })
+        return result.exitCode === 0
+      }
+      // Fallback for non-Bun environments
+      const { execSync } = require('child_process')
+      execSync('which mermaid-ascii', { encoding: 'utf8', stdio: 'pipe' })
       return true
+    } catch {
+      return false
+    }
+  }
+
+  /**
+   * Check if mermaid-ascii binary is available in PATH (async version)
+   */
+  static async checkMermaidAsciiBinaryAsync(): Promise<boolean> {
+    try {
+      const { exitCode } = await bunExec('which mermaid-ascii', { timeout: 3000 })
+      return exitCode === 0
     } catch {
       return false
     }

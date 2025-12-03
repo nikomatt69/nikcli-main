@@ -1,7 +1,6 @@
-import { exec } from 'node:child_process'
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, extname, join, relative, resolve } from 'node:path'
-import { promisify } from 'node:util'
+import { bunExec } from '../utils/bun-compat'
 import { createAnthropic } from '@ai-sdk/anthropic'
 import { createCerebras } from '@ai-sdk/cerebras'
 import { createGateway } from '@ai-sdk/gateway'
@@ -94,7 +93,7 @@ type Command = z.infer<typeof CommandSchema>
 type PackageSearchResult = z.infer<typeof PackageSearchResult>
 type CommandExecutionResult = z.infer<typeof CommandExecutionResult>
 
-const execAsync = promisify(exec)
+// execAsync replaced with bunExec from bun-compat
 
 export interface StreamEvent {
   type: 'start' | 'thinking' | 'tool_call' | 'tool_result' | 'text_delta' | 'complete' | 'error' | 'step'
@@ -901,10 +900,9 @@ Respond in a helpful, professional manner with clear explanations and actionable
             advancedUI.logFunctionUpdate('info', fullCommand, '●')
 
             const startTime = Date.now()
-            const { stdout, stderr } = await execAsync(fullCommand, {
+            const { stdout, stderr, exitCode } = await bunExec(fullCommand, {
               cwd: commandCwd,
               timeout,
-              maxBuffer: 1024 * 1024 * 10, // 10MB
             })
 
             const duration = Date.now() - startTime
@@ -923,6 +921,9 @@ Respond in a helpful, professional manner with clear explanations and actionable
             })
 
             // Command completed
+            if (exitCode !== 0) {
+              throw new Error(stderr || `Command exited with code ${exitCode}`)
+            }
 
             return {
               command: fullCommand,
@@ -1032,7 +1033,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
             advancedUI.logFunctionCall(`${action}packages`)
             advancedUI.logFunctionUpdate('info', `${packages.join(', ') || 'all'}`, '●')
 
-            const { stdout, stderr } = await execAsync(`${command} ${args.join(' ')}`, {
+            const { stdout, stderr, exitCode } = await bunExec(`${command} ${args.join(' ')}`, {
               cwd: this.workingDirectory,
               timeout: 120000, // 2 minutes for package operations
             })
@@ -1040,7 +1041,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
             return {
               action,
               packages,
-              success: true,
+              success: exitCode === 0,
               output: stdout.trim(),
               warnings: stderr.trim(),
             }
@@ -3915,7 +3916,7 @@ Use this cognitive understanding to provide more targeted and effective response
 
       // Execute NPM search with context-aware filtering
       const searchCommand = `npm search ${query} --json --long`
-      const { stdout } = await execAsync(searchCommand)
+      const { stdout } = await bunExec(searchCommand, { timeout: 30000 })
 
       let rawResults: any[] = []
       try {
@@ -4051,13 +4052,10 @@ Use this cognitive understanding to provide more targeted and effective response
       // Execute with timeout
       const timeout = command.estimatedDuration ? command.estimatedDuration * 1000 : 30000
 
-      const { stdout, stderr } = await Promise.race([
-        execAsync(fullCommand, {
-          cwd: command.workingDir || process.cwd(),
-          timeout,
-        }),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Command timeout')), timeout)),
-      ])
+      const { stdout, stderr, exitCode } = await bunExec(fullCommand, {
+        cwd: command.workingDir || process.cwd(),
+        timeout,
+      })
 
       const duration = Date.now() - startTime
 
@@ -4065,7 +4063,7 @@ Use this cognitive understanding to provide more targeted and effective response
       const workspaceState = await this.analyzeWorkspaceChanges(command)
 
       const result: CommandExecutionResult = {
-        success: true,
+        success: exitCode === 0,
         output: stdout || '',
         error: stderr || undefined,
         duration,

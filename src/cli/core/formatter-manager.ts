@@ -3,13 +3,10 @@
  * Automatically formats code based on language and project standards
  */
 
-import { exec } from 'node:child_process'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, extname, join } from 'node:path'
-import { promisify } from 'node:util'
 import { advancedUI } from '../ui/advanced-cli-ui'
-
-const execAsync = promisify(exec)
+import { bunExec } from '../utils/bun-compat'
 
 export interface FormatterConfig {
   enabled: boolean
@@ -318,13 +315,12 @@ export class FormatterManager {
   ): Promise<FormatResult> {
     try {
       // Check if formatter is available
-      try {
-        await execAsync(`which ${formatter.command}`)
-      } catch {
+      const { exitCode: whichExitCode } = await bunExec(`which ${formatter.command}`, { timeout: 3000 })
+      if (whichExitCode !== 0) {
         // Try to install if install command provided
         if (formatter.installCommand) {
           advancedUI.logInfo(`📦 Installing ${formatter.name}...`)
-          await execAsync(formatter.installCommand, { cwd: this.workingDirectory })
+          await bunExec(formatter.installCommand, { cwd: this.workingDirectory, timeout: 60000 })
         } else {
           return {
             success: false,
@@ -345,10 +341,12 @@ export class FormatterManager {
         const args = [...formatter.args, tempFile]
         const command = `${formatter.command} ${args.join(' ')}`
 
-        await execAsync(command, { cwd: this.workingDirectory })
+        await bunExec(command, { cwd: this.workingDirectory, timeout: 30000 })
 
         // Read formatted content
-        const formattedContent = readFileSync(tempFile, 'utf-8')
+        const formattedContent = typeof Bun !== 'undefined' 
+          ? await Bun.file(tempFile).text()
+          : readFileSync(tempFile, 'utf-8')
 
         return {
           success: true,

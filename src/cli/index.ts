@@ -51,9 +51,9 @@ process.on('warning', (warning: any) => {
   }
 })
 
-import { spawn } from 'node:child_process'
 import { EventEmitter } from 'node:events'
 import fs from 'node:fs'
+import { bunSpawn } from './utils/bun-compat'
 import path from 'node:path'
 // Import TUI Bridge instead of boxen for enhanced terminal UI
 import boxen from 'boxen'
@@ -1350,13 +1350,12 @@ class SystemModule {
           rl.close()
 
           if (!answer || answer.toLowerCase().startsWith('y')) {
-            const code: number = await new Promise<number>((resolve) => {
-              const child = spawn('ollama', ['pull', name], {
-                stdio: 'inherit',
-              })
-              child.on('close', (code) => resolve(code ?? 1))
-              child.on('error', () => resolve(1))
+            const proc = bunSpawn(['ollama', 'pull', name], {
+              stdout: 'inherit',
+              stderr: 'inherit',
+              stdin: 'inherit',
             })
+            const code = await proc.exited
             if (code === 0) {
               // Model pulled successfully - silent
             } else {
