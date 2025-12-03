@@ -79,7 +79,7 @@ function processAlive(pid: number): boolean {
 }
 
 function resolveProjectRoot(): string {
-  let current = __dirname
+  let current = import.meta.dir
   while (true) {
     if (fs.existsSync(path.join(current, 'package.json'))) return current
     const parent = path.dirname(current)

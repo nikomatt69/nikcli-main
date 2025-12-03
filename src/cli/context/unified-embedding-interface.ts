@@ -1,9 +1,8 @@
 import { createHash } from 'node:crypto'
-import { existsSync, mkdirSync } from 'node:fs'
-import { readFile, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import chalk from 'chalk'
+import { fileExists, mkdirp, readJson, writeJson } from '../utils/bun-compat'
 import { configManager } from '../core/config-manager'
 import { AiSdkEmbeddingProvider, aiSdkEmbeddingProvider } from './ai-sdk-embedding-provider'
 
@@ -520,8 +519,9 @@ export class UnifiedEmbeddingInterface {
     if (!this.config.persistenceEnabled) return
 
     try {
-      if (!existsSync(this.persistentCacheDir)) {
-        mkdirSync(this.persistentCacheDir, { recursive: true })
+      // Create directory using Bun
+      if (!(await fileExists(this.persistentCacheDir))) {
+        await mkdirp(this.persistentCacheDir)
       }
 
       await this.loadPersistentCache()
@@ -535,9 +535,8 @@ export class UnifiedEmbeddingInterface {
     const cacheFile = join(this.persistentCacheDir, 'unified-embeddings.json')
 
     try {
-      if (existsSync(cacheFile)) {
-        const data = await readFile(cacheFile, 'utf-8')
-        const cached = JSON.parse(data)
+      if (await fileExists(cacheFile)) {
+        const cached = await readJson<{ embeddings: Record<string, any>; stats: any }>(cacheFile)
 
         for (const [key, value] of Object.entries(cached.embeddings || {})) {
           const result = value as any
@@ -567,7 +566,7 @@ export class UnifiedEmbeddingInterface {
         lastSaved: new Date(),
       }
 
-      await writeFile(cacheFile, JSON.stringify(data, null, 2))
+      await writeJson(cacheFile, data)
       console.log(chalk.gray(`💾 Saved ${this.embeddingCache.size} embeddings to persistent cache`))
     } catch (error) {
       console.warn(chalk.yellow(`⚠︎ Failed to save persistent cache: ${error}`))
@@ -578,11 +577,8 @@ export class UnifiedEmbeddingInterface {
     const cacheFile = join(this.persistentCacheDir, 'unified-embeddings.json')
 
     try {
-      if (existsSync(cacheFile)) {
-        await writeFile(
-          cacheFile,
-          JSON.stringify({ embeddings: {}, stats: this.initializeStats(), lastSaved: new Date() })
-        )
+      if (await fileExists(cacheFile)) {
+        await writeJson(cacheFile, { embeddings: {}, stats: this.initializeStats(), lastSaved: new Date() })
       }
     } catch (error) {
       console.warn(chalk.yellow(`⚠︎ Failed to clear persistent cache: ${error}`))

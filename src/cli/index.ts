@@ -206,7 +206,7 @@ interface VersionInfo {
 
 function getCurrentVersion(): string {
   try {
-    const packagePath = path.join(__dirname, '../../package.json')
+    const packagePath = path.join(import.meta.dir, '../../package.json')
     const packageJson = JSON.parse(fs.readFileSync(packagePath, 'utf8'))
     return packageJson.version
   } catch (_error) {
@@ -2124,10 +2124,10 @@ async function main() {
 }
 
 // Start the application
-// Use Bun-compatible entry point detection
-const isMainModule = typeof Bun !== 'undefined'
-  ? Bun.main === import.meta.path || process.argv[1]?.includes('nikcli')
-  : require.main === module
+// Use Bun entry point detection
+const isMainModule = import.meta.main ||
+  Bun.main === import.meta.path ||
+  process.argv[1]?.includes('nikcli')
 
 if (isMainModule) {
   main().catch((error) => {

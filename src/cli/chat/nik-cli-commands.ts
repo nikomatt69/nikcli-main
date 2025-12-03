@@ -4,6 +4,7 @@ import { resolve } from 'node:path'
 import { generateText } from 'ai'
 import boxen from 'boxen'
 import chalk from 'chalk'
+import { bunExec } from '../utils/bun-compat'
 import { parse as parseDotenv } from 'dotenv'
 import { z } from 'zod'
 import { modelProvider } from '../ai/model-provider'
@@ -3402,7 +3403,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     return { shouldExit: false, shouldUpdatePrompt: false }
   }
 
-  private collectDashboardMetrics(): any {
+  private async collectDashboardMetrics(): Promise<any> {
     // Get immediate data only - no async operations
     const os = require('os')
     const memUsage = process.memoryUsage()
@@ -3470,16 +3471,16 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     // Get real git info
     const gitInfo = { branch: 'unknown', status: 'unknown', commits: 0, lastCommit: 'none', uncommittedFiles: 0 }
     try {
-      const { execSync } = require('child_process')
       const cwd = process.cwd()
 
       try {
-        gitInfo.branch = execSync('git rev-parse --abbrev-ref HEAD', { cwd, encoding: 'utf8' }).trim()
+        const result = await bunExec('git rev-parse --abbrev-ref HEAD', { cwd })
+        gitInfo.branch = result.stdout.trim()
       } catch (e) { }
 
       try {
-        const statusOutput = execSync('git status --porcelain', { cwd, encoding: 'utf8' })
-        gitInfo.uncommittedFiles = statusOutput
+        const result = await bunExec('git status --porcelain', { cwd })
+        gitInfo.uncommittedFiles = result.stdout
           .trim()
           .split('\n')
           .filter((l: string) => l).length
@@ -3487,11 +3488,13 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       } catch (e) { }
 
       try {
-        gitInfo.commits = parseInt(execSync('git rev-list --count HEAD', { cwd, encoding: 'utf8' }).trim())
+        const result = await bunExec('git rev-list --count HEAD', { cwd })
+        gitInfo.commits = parseInt(result.stdout.trim())
       } catch (e) { }
 
       try {
-        gitInfo.lastCommit = execSync('git log -1 --pretty=%B', { cwd, encoding: 'utf8' }).trim().split('\n')[0]
+        const result = await bunExec('git log -1 --pretty=%B', { cwd })
+        gitInfo.lastCommit = result.stdout.trim().split('\n')[0]
       } catch (e) { }
     } catch (e) {
       // Git not available or not a git repo, keep defaults
@@ -3594,12 +3597,17 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
   private async collectGitMetrics(): Promise<any> {
     try {
-      const { execSync } = require('child_process')
+      const cwd = process.cwd()
 
-      const branch = execSync('git branch --show-current', { encoding: 'utf8' }).trim()
-      const status = execSync('git status --porcelain', { encoding: 'utf8' }).trim()
-      const commits = execSync('git rev-list --count HEAD', { encoding: 'utf8' }).trim()
-      const lastCommit = execSync('git log -1 --format="%h %s"', { encoding: 'utf8' }).trim()
+      const branchResult = await bunExec('git branch --show-current', { cwd })
+      const statusResult = await bunExec('git status --porcelain', { cwd })
+      const commitsResult = await bunExec('git rev-list --count HEAD', { cwd })
+      const lastCommitResult = await bunExec('git log -1 --format="%h %s"', { cwd })
+
+      const branch = branchResult.stdout.trim()
+      const status = statusResult.stdout.trim()
+      const commits = commitsResult.stdout.trim()
+      const lastCommit = lastCommitResult.stdout.trim()
       const uncommittedFiles = status.split('\n').filter((line: string) => line.trim()).length
 
       return {
@@ -3637,9 +3645,11 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       }
 
       // Count TypeScript/JavaScript files
-      const { execSync } = require('child_process')
-      const tsFiles = execSync('find . -name "*.ts" -not -path "./node_modules/*" | wc -l', { encoding: 'utf8' }).trim()
-      const jsFiles = execSync('find . -name "*.js" -not -path "./node_modules/*" | wc -l', { encoding: 'utf8' }).trim()
+      const cwd = process.cwd()
+      const tsFilesResult = await bunExec('find . -name "*.ts" -not -path "./node_modules/*" | wc -l', { cwd })
+      const jsFilesResult = await bunExec('find . -name "*.js" -not -path "./node_modules/*" | wc -l', { cwd })
+      const tsFiles = tsFilesResult.stdout.trim()
+      const jsFiles = jsFilesResult.stdout.trim()
 
       return {
         name: (packageInfo as any).name || 'Unknown',
@@ -3695,8 +3705,6 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
   private async getRealCpuUsage(): Promise<number> {
     try {
-      const { execSync } = require('child_process')
-
       if (process.platform === 'darwin' || process.platform === 'linux') {
         // Use top to get real CPU usage for this process
         const pid = process.pid
@@ -3705,7 +3713,8 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
             ? `top -l 1 -pid ${pid} | grep -E "^${pid}" | awk '{print $3}' | sed 's/%//'`
             : `top -bn1 -p ${pid} | grep -E "^\\s*${pid}" | awk '{print $9}'`
 
-        const output = execSync(cmd, { encoding: 'utf8', timeout: 2000 }).trim()
+        const result = await bunExec(cmd, { timeout: 2000 })
+        const output = result.stdout.trim()
         const cpuPercent = parseFloat(output)
         return isNaN(cpuPercent) ? 0 : Math.min(cpuPercent, 100)
       }
@@ -3766,21 +3775,23 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       }
 
       // Check for recent npm/yarn logs
-      const { execSync } = require('child_process')
       const fs = require('fs')
+      const cwd = process.cwd()
 
       // Check npm debug logs
       try {
         const npmLogCmd =
           'find . -name "npm-debug.log*" -o -name "yarn-error.log*" -newermt "1 hour ago" 2>/dev/null | head -5'
-        const recentLogs = execSync(npmLogCmd, { encoding: 'utf8' }).trim().split('\n').filter(Boolean)
+        const result = await bunExec(npmLogCmd, { cwd })
+        const recentLogs = result.stdout.trim().split('\n').filter(Boolean)
         logs.errors += recentLogs.length
         logs.recent.push(...recentLogs.map((log: string) => `📁 ${log}`))
       } catch (e) { }
 
       // Check for TypeScript compilation errors
       try {
-        const tscOutput = execSync('npx tsc --noEmit 2>&1 || true', { encoding: 'utf8' })
+        const result = await bunExec('npx tsc --noEmit 2>&1 || true', { cwd })
+        const tscOutput = result.stdout
         const errorLines = tscOutput
           .split('\n')
           .filter((line: string) => line.includes('error TS') || line.includes('Warning:'))
@@ -3795,8 +3806,8 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       // Check for ESLint warnings/errors
       try {
-        const eslintOutput = execSync('npm run lint 2>&1 || true', { encoding: 'utf8' })
-        const eslintLines = eslintOutput.split('\n')
+        const eslintOutput = await bunExec('npm run lint 2>&1 || true', { cwd })
+        const eslintLines = eslintOutput.stdout.split('\n')
         const errorCount = eslintLines.filter((line: string) => line.includes('error')).length
         const warningCount = eslintLines.filter((line: string) => line.includes('warning')).length
 
@@ -3810,8 +3821,8 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       // Check for Git issues
       try {
-        const gitStatus = execSync('git status --porcelain 2>&1', { encoding: 'utf8' })
-        const conflictFiles = gitStatus.split('\n').filter((line: string) => line.startsWith('UU'))
+        const gitStatus = await bunExec('git status --porcelain 2>&1', { cwd })
+        const conflictFiles = gitStatus.stdout.split('\n').filter((line: string) => line.startsWith('UU'))
         if (conflictFiles.length > 0) {
           logs.errors += conflictFiles.length
           logs.recent.push(`🔀 Git conflicts: ${conflictFiles.length} files`)
@@ -3856,11 +3867,11 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     }
   }
 
-  private getDirectorySize(dirPath: string): number {
+  private async getDirectorySize(dirPath: string): Promise<number> {
     try {
-      const { execSync } = require('child_process')
-      const result = execSync(`du -sm ${dirPath} 2>/dev/null || echo 0`, { encoding: 'utf8' }).trim()
-      return parseInt(result.split('\t')[0]) || 0
+      const result = await bunExec(`du -sm ${dirPath} 2>/dev/null || echo 0`)
+      const output = result.stdout.trim()
+      return parseInt(output.split('\t')[0]) || 0
     } catch {
       return 0
     }

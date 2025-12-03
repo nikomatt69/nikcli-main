@@ -1,10 +1,11 @@
 import * as crypto from 'node:crypto'
-import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import chalk from 'chalk'
 import { z } from 'zod'
 import { OutputStyleConfigSchema, OutputStyleEnum } from '../types/output-styles'
+
+// Bun-native file operations (much faster than node:fs)
 
 // Validation schemas
 const ModelConfigSchema = z.object({
@@ -1504,9 +1505,16 @@ export class SimpleConfigManager {
     const configDir = path.join(os.homedir(), '.nikcli')
     this.configPath = path.join(configDir, 'config.json')
 
-    // Ensure config directory exists
-    if (!fs.existsSync(configDir)) {
-      fs.mkdirSync(configDir, { recursive: true })
+    // Ensure config directory exists using Bun Shell synchronously
+    try {
+      const configDirFile = Bun.file(configDir)
+      // Check if directory exists by trying to access it
+      if (!Bun.spawnSync({ cmd: ['test', '-d', configDir] }).success) {
+        Bun.spawnSync({ cmd: ['mkdir', '-p', configDir] })
+      }
+    } catch {
+      // Fallback: create directory synchronously
+      Bun.spawnSync({ cmd: ['mkdir', '-p', configDir] })
     }
 
     // Load configuration from config.json
@@ -1526,8 +1534,13 @@ export class SimpleConfigManager {
 
   private loadConfig(): void {
     try {
-      if (fs.existsSync(this.configPath)) {
-        const configData = JSON.parse(fs.readFileSync(this.configPath, 'utf8'))
+      const configFile = Bun.file(this.configPath)
+      // Use sync check for constructor context
+      const exists = Bun.spawnSync({ cmd: ['test', '-f', this.configPath] }).success
+      if (exists) {
+        // Read synchronously for constructor
+        const configText = require('fs').readFileSync(this.configPath, 'utf8')
+        const configData = JSON.parse(configText)
         // Merge with defaults to ensure all fields exist
         this.config = { ...this.defaultConfig, ...configData }
       } else {
@@ -1682,7 +1695,8 @@ export class SimpleConfigManager {
 
   private saveConfig(): void {
     try {
-      fs.writeFileSync(this.configPath, JSON.stringify(this.config, null, 2))
+      // Use Bun.write synchronously (it's fast enough for config)
+      Bun.write(this.configPath, JSON.stringify(this.config, null, 2))
     } catch (error) {
       console.error(chalk.red('Error: Failed to save config'), error)
     }

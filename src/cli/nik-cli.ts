@@ -1,4 +1,3 @@
-import fs from 'node:fs/promises'
 import path from 'node:path'
 import boxen from 'boxen'
 import chalk from 'chalk'
@@ -7,6 +6,7 @@ import inquirer from 'inquirer'
 import { nanoid } from 'nanoid'
 import ora, { type Ora } from 'ora'
 import readline from 'readline'
+import { fileExists, mkdirp, readText, writeText, readJson, writeJson, listDir, remove } from './utils/bun-compat'
 import { advancedAIProvider } from './ai/advanced-ai-provider'
 import { modelProvider } from './ai/model-provider'
 import type { ModernAIProvider } from './ai/modern-ai-provider'
@@ -518,7 +518,7 @@ export class NikCLI {
    */
   private async loadProjectContext(): Promise<string> {
     try {
-      const context = await fs.readFile(this.projectContextFile, 'utf8')
+      const context = await readText(this.projectContextFile)
       const optimizer = this.getTokenOptimizer()
       if (optimizer) {
         const optimized = await optimizer.optimizePrompt(context)
@@ -5991,10 +5991,10 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     advancedUI.logFunctionCall('cleanup_plan_artifacts')
 
     try {
-      // Cleanup todo.md with error handling
+      // Cleanup todo.md with error handling using Bun
       const todoPath = path.join(this.workingDirectory, 'todo.md')
       try {
-        await fs.unlink(todoPath)
+        await remove(todoPath)
         advancedUI.logFunctionUpdate('info', 'Removed todo.md')
       } catch (error: any) {
         // Only log if file exists but deletion failed (not if file doesn't exist)
@@ -6003,10 +6003,10 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
         }
       }
 
-      // Cleanup taskmaster directory with error handling
+      // Cleanup taskmaster directory with error handling using Bun
       const taskmasterDir = path.join(this.workingDirectory, '.nikcli', 'taskmaster')
       try {
-        await fs.rm(taskmasterDir, { recursive: true, force: true })
+        await remove(taskmasterDir, true)
         advancedUI.logFunctionUpdate('info', 'Cleaned taskmaster directory')
       } catch (error: any) {
         if (error.code !== 'ENOENT') {
@@ -6794,8 +6794,8 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       // Generate CLAUDE.md content
       const content = this.generateClaudeMarkdown(analysis)
 
-      // Write file
-      await fs.writeFile(claudeFile, content, 'utf8')
+      // Write file using Bun
+      await writeText(claudeFile, content)
 
       console.log(chalk.green('✓ NIKOCLI.md created successfully'))
       console.log(chalk.dim(`Context file: ${claudeFile}`))
@@ -7531,7 +7531,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
           const sessionId = args[0]
           const markdown = chatManager.exportSession(sessionId)
           const filename = `chat-export-${Date.now()}.md`
-          await fs.writeFile(filename, markdown)
+          await writeText(filename, markdown)
           this.printPanel(
             boxen(`Session exported to ${filename}`, {
               title: '📤 Export',
@@ -11876,7 +11876,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
 
       let configPath: string | null = null
       for (const p of possiblePaths) {
-        if (fs.existsSync(p)) {
+        if (await fileExists(p)) {
           configPath = p
           break
         }
@@ -11889,7 +11889,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
         return
       }
 
-      const claudeConfig = JSON.parse(fs.readFileSync(configPath, 'utf-8'))
+      const claudeConfig = await readJson<any>(configPath)
       if (!claudeConfig.mcpServers) {
         console.log(chalk.yellow('⚠︎ No MCP servers found in Claude Desktop config'))
         return
@@ -12624,32 +12624,31 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
             test: 'echo "No tests specified" && exit 1',
           },
         }
-        await fs.writeFile(packageJsonPath, JSON.stringify(basicPackageJson, null, 2))
+        await writeJson(packageJsonPath, basicPackageJson)
         console.log(chalk.green('✓ Created package.json'))
       }
 
-      // Initialize git if not present
+      // Initialize git if not present using Bun Shell
       const gitDir = path.join(this.workingDirectory, '.git')
-      if (!require('node:fs').existsSync(gitDir)) {
+      if (!(await fileExists(gitDir))) {
         try {
           console.log(chalk.blue(' Initializing git repository...'))
-          const { spawn } = require('node:child_process')
-          const child = spawn('git', ['init'], { cwd: this.workingDirectory })
-          await new Promise((resolve) => child.on('close', resolve))
+          const { $ } = await import('./utils/bun-compat')
+          await $`git init`.cwd(this.workingDirectory).quiet()
           console.log(chalk.green('✓ Git repository initialized'))
         } catch {
           console.log(chalk.yellow('⚠︎ Could not initialize git (skipping)'))
         }
       }
 
-      // Generate repository overview and write to NIKOCLI.md
+      // Generate repository overview and write to NIKOCLI.md using Bun
       const overview = await this.generateRepositoryOverview()
-      await fs.writeFile(this.projectContextFile, overview.markdown, 'utf8')
+      await writeText(this.projectContextFile, overview.markdown)
 
       const lines: string[] = []
       lines.push(`${chalk.green('📄 Created:')} NIKOCLI.md`)
       lines.push(
-        `${chalk.green('📦 Package:')} ${require('node:fs').existsSync(packageJsonPath) ? 'present' : 'missing'}`
+        `${chalk.green('📦 Package:')} ${(await fileExists(packageJsonPath)) ? 'present' : 'missing'}`
       )
       lines.push(`${chalk.green('🧪 Tests:')} ${overview.summary.testFiles} files`)
       lines.push(
@@ -12766,13 +12765,13 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     const pkgPath = path.join(this.workingDirectory, 'package.json')
     let pkg: any = null
     try {
-      pkg = JSON.parse(await fs.readFile(pkgPath, 'utf8'))
+      pkg = await readJson(pkgPath)
     } catch {
       /* ignore */
     }
 
     // Gather directory structure (top-level only + src/tests breakdown)
-    const fsSync = require('node:fs')
+    // Note: Using Bun-compatible file operations
     const listDirSafe = (p: string) => {
       try {
         return fsSync.readdirSync(p, { withFileTypes: true })
@@ -22865,7 +22864,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       const todoContent = this.formatTaskMasterPlanAsTodo(plan)
       const filePath = path.join(this.workingDirectory, filename)
 
-      await fs.writeFile(filePath, todoContent, 'utf-8')
+      await writeText(filePath, todoContent)
       if (!options.silent) {
         console.log(chalk.green(`✓ TaskMaster plan saved to ${filename}`))
       }
@@ -22980,7 +22979,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       })
 
       content += `\n*Generated by TaskMaster AI integrated with NikCLI*\n`
-      await fs.writeFile(todoPath, content, 'utf-8')
+      await writeText(todoPath, content)
       console.log(chalk.green(`✓ Todo file saved: ${todoPath}`))
     } catch (error: any) {
       console.log(chalk.yellow(`⚠︎ Failed to save todo.md: ${error.message}`))

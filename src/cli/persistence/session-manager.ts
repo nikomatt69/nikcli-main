@@ -1,5 +1,5 @@
-import { promises as fs } from 'node:fs'
 import path from 'node:path'
+import { $, fileExists, mkdirp, readJson, writeJson, globScan } from '../utils/bun-compat'
 
 /**
  * Represents a single chat message.
@@ -32,8 +32,11 @@ export class SessionManager {
 
   async loadSession(id: string): Promise<SessionData | null> {
     try {
-      const raw = await fs.readFile(this.getSessionPath(id), 'utf-8')
-      return JSON.parse(raw)
+      const sessionPath = this.getSessionPath(id)
+      if (!(await fileExists(sessionPath))) {
+        return null
+      }
+      return await readJson<SessionData>(sessionPath)
     } catch (e: any) {
       if (e.code === 'ENOENT') return null
       throw e
@@ -41,19 +44,27 @@ export class SessionManager {
   }
 
   async saveSession(session: SessionData): Promise<void> {
-    await fs.mkdir(this.baseDir, { recursive: true })
+    await mkdirp(this.baseDir)
     session.updatedAt = new Date().toISOString()
-    await fs.writeFile(this.getSessionPath(session.id), JSON.stringify(session, null, 2), 'utf-8')
+    await writeJson(this.getSessionPath(session.id), session)
   }
 
   async listSessions(): Promise<SessionData[]> {
     try {
-      const files = await fs.readdir(this.baseDir)
+      // Check if directory exists
+      if (!(await fileExists(this.baseDir))) {
+        return []
+      }
+      
+      const files = await globScan('*.json', { cwd: this.baseDir })
       const sessions: SessionData[] = []
+      
       for (const file of files) {
-        if (file.endsWith('.json')) {
-          const raw = await fs.readFile(path.join(this.baseDir, file), 'utf-8')
-          sessions.push(JSON.parse(raw))
+        try {
+          const session = await readJson<SessionData>(path.join(this.baseDir, file))
+          sessions.push(session)
+        } catch {
+          // Skip invalid session files
         }
       }
       return sessions
@@ -64,6 +75,6 @@ export class SessionManager {
   }
 
   async deleteSession(id: string): Promise<void> {
-    await fs.unlink(this.getSessionPath(id))
+    await $`rm -f ${this.getSessionPath(id)}`.quiet()
   }
 }

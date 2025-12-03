@@ -836,3 +836,293 @@ export function assertBunRuntime(): void {
     throw new Error('This module requires Bun runtime. Please run with: bun run')
   }
 }
+
+// ============================================================================
+// ADVANCED FILE OPERATIONS
+// ============================================================================
+
+/**
+ * Read file as text - simplified wrapper
+ *
+ * @param path - File path
+ * @returns File content as string
+ *
+ * @example
+ * const content = await readText('/path/to/file.txt')
+ */
+export async function readText(path: string): Promise<string> {
+  return await Bun.file(path).text()
+}
+
+/**
+ * Read file as JSON - with type safety
+ *
+ * @param path - File path
+ * @returns Parsed JSON content
+ *
+ * @example
+ * const config = await readJson<Config>('/path/to/config.json')
+ */
+export async function readJson<T = unknown>(path: string): Promise<T> {
+  return await Bun.file(path).json() as T
+}
+
+/**
+ * Read file as ArrayBuffer
+ *
+ * @param path - File path
+ * @returns File content as ArrayBuffer
+ */
+export async function readBuffer(path: string): Promise<ArrayBuffer> {
+  return await Bun.file(path).arrayBuffer()
+}
+
+/**
+ * Read file as Uint8Array
+ *
+ * @param path - File path
+ * @returns File content as bytes
+ */
+export async function readBytes(path: string): Promise<Uint8Array> {
+  return new Uint8Array(await Bun.file(path).arrayBuffer())
+}
+
+/**
+ * Write text to file
+ *
+ * @param path - File path
+ * @param content - Text content
+ *
+ * @example
+ * await writeText('/path/to/file.txt', 'Hello World')
+ */
+export async function writeText(path: string, content: string): Promise<void> {
+  await Bun.write(path, content)
+}
+
+/**
+ * Write JSON to file (formatted)
+ *
+ * @param path - File path
+ * @param data - Data to serialize
+ * @param pretty - Pretty print (default: true)
+ *
+ * @example
+ * await writeJson('/path/to/config.json', { key: 'value' })
+ */
+export async function writeJson(path: string, data: unknown, pretty = true): Promise<void> {
+  const content = pretty ? JSON.stringify(data, null, 2) : JSON.stringify(data)
+  await Bun.write(path, content)
+}
+
+/**
+ * Write binary data to file
+ *
+ * @param path - File path
+ * @param data - Binary data
+ */
+export async function writeBytes(path: string, data: ArrayBuffer | Uint8Array): Promise<void> {
+  await Bun.write(path, data)
+}
+
+/**
+ * Check if file exists
+ *
+ * @param path - File path
+ * @returns true if file exists
+ *
+ * @example
+ * if (await fileExists('/path/to/file.txt')) { ... }
+ */
+export async function fileExists(path: string): Promise<boolean> {
+  return await Bun.file(path).exists()
+}
+
+/**
+ * Get file size in bytes
+ *
+ * @param path - File path
+ * @returns File size in bytes
+ */
+export function fileSize(path: string): number {
+  return Bun.file(path).size
+}
+
+/**
+ * Get file MIME type
+ *
+ * @param path - File path
+ * @returns MIME type string
+ */
+export function fileMimeType(path: string): string {
+  return Bun.file(path).type
+}
+
+/**
+ * Get file last modified timestamp
+ *
+ * @param path - File path
+ * @returns Last modified timestamp (ms since epoch)
+ */
+export function fileLastModified(path: string): number {
+  return Bun.file(path).lastModified
+}
+
+/**
+ * Copy file using Bun
+ *
+ * @param src - Source path
+ * @param dest - Destination path
+ */
+export async function copyFile(src: string, dest: string): Promise<void> {
+  const content = await Bun.file(src).arrayBuffer()
+  await Bun.write(dest, content)
+}
+
+/**
+ * Append to file
+ *
+ * @param path - File path
+ * @param content - Content to append
+ */
+export async function appendFile(path: string, content: string): Promise<void> {
+  const existing = await Bun.file(path).exists()
+    ? await Bun.file(path).text()
+    : ''
+  await Bun.write(path, existing + content)
+}
+
+// ============================================================================
+// DIRECTORY OPERATIONS (using Shell)
+// ============================================================================
+
+/**
+ * Create directory recursively
+ *
+ * @param path - Directory path
+ */
+export async function mkdirp(path: string): Promise<void> {
+  await $`mkdir -p ${path}`.quiet()
+}
+
+/**
+ * Remove file or directory
+ *
+ * @param path - Path to remove
+ * @param recursive - Remove recursively (for directories)
+ */
+export async function remove(path: string, recursive = false): Promise<void> {
+  if (recursive) {
+    await $`rm -rf ${path}`.quiet()
+  } else {
+    await $`rm -f ${path}`.quiet()
+  }
+}
+
+/**
+ * List directory contents
+ *
+ * @param path - Directory path
+ * @returns Array of file/directory names
+ */
+export async function listDir(path: string): Promise<string[]> {
+  const result = await $`ls -1 ${path}`.quiet().text()
+  return result.trim().split('\n').filter(Boolean)
+}
+
+/**
+ * Check if path is a directory
+ *
+ * @param path - Path to check
+ * @returns true if path is a directory
+ */
+export async function isDirectory(path: string): Promise<boolean> {
+  try {
+    const result = await $`test -d ${path} && echo "yes" || echo "no"`.quiet().text()
+    return result.trim() === 'yes'
+  } catch {
+    return false
+  }
+}
+
+// ============================================================================
+// UUID GENERATION
+// ============================================================================
+
+/**
+ * Generate a random UUIDv7 (time-ordered)
+ * Better for database keys than UUIDv4
+ *
+ * @returns UUIDv7 string
+ *
+ * @example
+ * const id = bunUUID() // '0192a45c-7b2f-7f00-8c1d-...'
+ */
+export function bunUUID(): string {
+  return Bun.randomUUIDv7()
+}
+
+// ============================================================================
+// STRING UTILITIES
+// ============================================================================
+
+/**
+ * Escape HTML entities
+ *
+ * @param str - String to escape
+ * @returns Escaped string
+ */
+export function bunEscapeHTML(str: string): string {
+  return Bun.escapeHTML(str)
+}
+
+/**
+ * Get visual width of string (handles unicode)
+ *
+ * @param str - String to measure
+ * @returns Visual width in columns
+ */
+export function bunStringWidth(str: string): number {
+  return Bun.stringWidth(str)
+}
+
+// ============================================================================
+// DEEP COMPARISON
+// ============================================================================
+
+/**
+ * Deep equality check
+ *
+ * @param a - First value
+ * @param b - Second value
+ * @returns true if deeply equal
+ */
+export function bunDeepEquals(a: unknown, b: unknown): boolean {
+  return Bun.deepEquals(a, b)
+}
+
+/**
+ * Check if object matches a pattern (partial deep match)
+ *
+ * @param object - Object to check
+ * @param pattern - Pattern to match against
+ * @returns true if object matches pattern
+ */
+export function bunDeepMatch(object: unknown, pattern: unknown): boolean {
+  return Bun.deepMatch(object, pattern)
+}
+
+// ============================================================================
+// INSPECTION
+// ============================================================================
+
+/**
+ * Pretty-print any value (like console.log but returns string)
+ *
+ * @param value - Value to inspect
+ * @param options - Inspection options
+ * @returns Formatted string representation
+ */
+export function bunInspect(value: unknown, options?: { colors?: boolean; depth?: number }): string {
+  return Bun.inspect(value, options)
+}

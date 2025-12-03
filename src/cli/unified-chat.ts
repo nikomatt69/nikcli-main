@@ -928,7 +928,7 @@ async function main() {
 }
 
 // Start if run directly
-if (require.main === module) {
+if (import.meta.main) {
   main().catch((error) => {
     console.error(chalk.red('✖ Startup failed:'), error)
     process.exit(1)

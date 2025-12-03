@@ -1,5 +1,5 @@
 import chalk from 'chalk'
-import { spawn } from 'child_process'
+import { bunSpawn } from '../utils/bun-compat'
 import { mkdir, readFile, writeFile } from 'fs/promises'
 import { dirname, join } from 'path'
 
@@ -32,42 +32,27 @@ export class MultiLanguageCompiler {
    */
   private async compileTypeScript(): Promise<CompilationResult> {
     const startTime = Date.now()
-    const stdout: string[] = []
-    const stderr: string[] = []
 
-    return new Promise((resolve) => {
-      const tsc = spawn('npx', ['tsc', '--project', 'tsconfig.json'], {
-        cwd: this.workDir,
-        stdio: ['pipe', 'pipe', 'pipe'],
-      })
-
-      tsc.stdout?.on('data', (data) => stdout.push(data.toString()))
-      tsc.stderr?.on('data', (data) => stderr.push(data.toString()))
-
-      tsc.on('close', (code) => {
-        resolve({
-          success: code === 0,
-          language: 'typescript',
-          exitCode: code,
-          stdout: stdout.join(''),
-          stderr: stderr.join(''),
-          duration: Date.now() - startTime,
-          timestamp: new Date(),
-        })
-      })
-
-      tsc.on('error', (err) => {
-        resolve({
-          success: false,
-          language: 'typescript',
-          exitCode: 1,
-          stdout: stdout.join(''),
-          stderr: `Error spawning tsc: ${err.message}`,
-          duration: Date.now() - startTime,
-          timestamp: new Date(),
-        })
-      })
+    const tsc = bunSpawn(['npx', 'tsc', '--project', 'tsconfig.json'], {
+      cwd: this.workDir,
+      stdout: 'pipe',
+      stderr: 'pipe',
+      stdin: 'pipe',
     })
+
+    const stdout = await new Response(tsc.stdout).text()
+    const stderr = await new Response(tsc.stderr).text()
+    const exitCode = await tsc.exited
+
+    return {
+      success: exitCode === 0,
+      language: 'typescript',
+      exitCode,
+      stdout,
+      stderr,
+      duration: Date.now() - startTime,
+      timestamp: new Date(),
+    }
   }
 
   /**
@@ -75,42 +60,27 @@ export class MultiLanguageCompiler {
    */
   private async compilePython(): Promise<CompilationResult> {
     const startTime = Date.now()
-    const stdout: string[] = []
-    const stderr: string[] = []
 
-    return new Promise((resolve) => {
-      const python = spawn('python3', ['-m', 'py_compile', '.'], {
-        cwd: this.workDir,
-        stdio: ['pipe', 'pipe', 'pipe'],
-      })
-
-      python.stdout?.on('data', (data) => stdout.push(data.toString()))
-      python.stderr?.on('data', (data) => stderr.push(data.toString()))
-
-      python.on('close', (code) => {
-        resolve({
-          success: code === 0,
-          language: 'python',
-          exitCode: code,
-          stdout: stdout.join(''),
-          stderr: stderr.join(''),
-          duration: Date.now() - startTime,
-          timestamp: new Date(),
-        })
-      })
-
-      python.on('error', (err) => {
-        resolve({
-          success: false,
-          language: 'python',
-          exitCode: 1,
-          stdout: stdout.join(''),
-          stderr: `Error spawning python3: ${err.message}`,
-          duration: Date.now() - startTime,
-          timestamp: new Date(),
-        })
-      })
+    const python = bunSpawn(['python3', '-m', 'py_compile', '.'], {
+      cwd: this.workDir,
+      stdout: 'pipe',
+      stderr: 'pipe',
+      stdin: 'pipe',
     })
+
+    const stdout = await new Response(python.stdout).text()
+    const stderr = await new Response(python.stderr).text()
+    const exitCode = await python.exited
+
+    return {
+      success: exitCode === 0,
+      language: 'python',
+      exitCode,
+      stdout,
+      stderr,
+      duration: Date.now() - startTime,
+      timestamp: new Date(),
+    }
   }
 
   /**

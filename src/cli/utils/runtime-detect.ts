@@ -9,10 +9,11 @@
 
 /**
  * Check if running in Bun runtime
- * @returns true if running in Bun
+ * Since we're Bun-only now, this always returns true
+ * @returns true (always Bun runtime)
  */
 export function isBunRuntime(): boolean {
-  return typeof Bun !== 'undefined'
+  return true
 }
 
 /**
@@ -65,8 +66,8 @@ export function isNapiSafe(): boolean {
  */
 export function getRuntimeInfo(): RuntimeInfo {
   return {
-    runtime: isBunRuntime() ? 'bun' : 'node',
-    version: isBunRuntime() ? Bun.version : process.version,
+    runtime: 'bun',
+    version: Bun.version,
     isStandalone: isBunStandalone(),
     isNapiSafe: isNapiSafe(),
     platform: process.platform,
@@ -157,5 +158,6 @@ export interface RuntimeInfo {
 
 // Export singleton runtime info for quick access
 export const RUNTIME = getRuntimeInfo()
+
 
 

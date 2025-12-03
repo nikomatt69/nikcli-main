@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
 /**
  * Build Script with Embedded Secrets
@@ -10,15 +10,12 @@
  * Requires .env.production file with secrets to embed
  */
 
-import { execSync } from 'child_process'
 import fs from 'fs'
 import path from 'path'
 import crypto from 'crypto'
 import os from 'os'
-import { fileURLToPath } from 'url'
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const projectRoot = path.join(__dirname, '..')
+const projectRoot = path.join(import.meta.dir, '..')
 
 const PRODUCTION_ENV_FILE = path.join(projectRoot, '.env.production')
 const SECRETS_CONFIG_FILE = path.join(projectRoot, 'src/cli/config/generated-embedded-secrets.ts')
@@ -251,115 +248,123 @@ const SECRETS_TO_EMBED = [
 // Valida che solo le env vars whitelisted siano embeddate
 const WHITELIST_NAMES = new Set(SECRETS_TO_EMBED.map(s => s.name))
 
-console.log('🔐 NikCLI Build with Embedded Secrets\n')
+async function main() {
+  console.log('🔐 NikCLI Build with Embedded Secrets\n')
 
-// Check if .env.production exists
-if (!fs.existsSync(PRODUCTION_ENV_FILE)) {
-  console.warn(`⚠️  ${PRODUCTION_ENV_FILE} not found`)
-  console.warn('   Skipping secret embedding. Using environment variables or defaults.\n')
-  buildWithoutSecrets()
-  process.exit(0)
-}
-
-console.log('📖 Reading .env.production...')
-const envContent = fs.readFileSync(PRODUCTION_ENV_FILE, 'utf-8')
-const envVars = parseEnv(envContent)
-
-// Generate hardware fingerprint for build
-// In production, this would be based on the build machine's fingerprint
-const buildFingerprint = generateBuildFingerprint()
-
-// VALIDAZIONE RIGOROSA: Controlla che solo le whitelisted env vars siano in .env.production
-console.log('🔍 Validating .env.production against whitelist...\n')
-
-const envVarsFound = Object.keys(envVars)
-const nonWhitelistedVars = envVarsFound.filter(key => !WHITELIST_NAMES.has(key))
-
-if (nonWhitelistedVars.length > 0) {
-  console.warn('⚠️  ATTENTION: Non-whitelisted env vars found in .env.production:\n')
-  for (const varName of nonWhitelistedVars) {
-    console.warn(`   ❌ ${varName} - WILL NOT BE EMBEDDED`)
-  }
-  console.warn(
-    '\n   These variables are completely IGNORED and will NOT enter the bundle.\n' +
-    '   If you want to embed them, add them to SECRETS_TO_EMBED in this script.\n'
-  )
-}
-
-// Collect secrets to embed
-console.log('\n🔒 Embedding whitelisted secrets only:\n')
-const secretsToEmbed = []
-for (const secretConfig of SECRETS_TO_EMBED) {
-  const secretValue = envVars[secretConfig.name]
-
-  if (!secretValue) {
-    console.log(`⊘ Skipping ${secretConfig.name} (not found in .env.production)`)
-    continue
+  // Check if .env.production exists
+  if (!fs.existsSync(PRODUCTION_ENV_FILE)) {
+    console.warn(`⚠️  ${PRODUCTION_ENV_FILE} not found`)
+    console.warn('   Skipping secret embedding. Using environment variables or defaults.\n')
+    await buildWithoutSecrets()
+    process.exit(0)
   }
 
-  console.log(`🔒 Encrypting ${secretConfig.name}...`)
+  console.log('📖 Reading .env.production...')
+  const envContent = fs.readFileSync(PRODUCTION_ENV_FILE, 'utf-8')
+  const envVars = parseEnv(envContent)
 
-  // Encrypt the secret
-  const encrypted = encryptSecret(
-    secretConfig.id,
-    secretValue,
-    buildFingerprint,
-    secretConfig.quotaLimit,
-    secretConfig.rateLimitPerMinute
-  )
+  // Generate hardware fingerprint for build
+  // In production, this would be based on the build machine's fingerprint
+  const buildFingerprint = generateBuildFingerprint()
 
-  secretsToEmbed.push({
-    ...secretConfig,
-    encrypted: encrypted.encrypted,
-    iv: encrypted.iv,
-    authTag: encrypted.authTag,
-  })
+  // VALIDAZIONE RIGOROSA: Controlla che solo le whitelisted env vars siano in .env.production
+  console.log('🔍 Validating .env.production against whitelist...\n')
 
-  console.log(`✅ ${secretConfig.provider.toUpperCase()} encrypted successfully`)
-}
+  const envVarsFound = Object.keys(envVars)
+  const nonWhitelistedVars = envVarsFound.filter(key => !WHITELIST_NAMES.has(key))
 
-console.log(`\n📦 Embedded ${secretsToEmbed.length} secrets\n`)
-
-// Generate TypeScript configuration file
-generateSecretsConfigFile(secretsToEmbed)
-
-console.log('🔨 Building NikCLI...')
-buildWithSecrets()
-
-console.log('\n' + '='.repeat(70))
-console.log('✅ Build with embedded secrets completed!')
-console.log('='.repeat(70))
-
-console.log('\n📦 Binary Contents:')
-console.log('   ✅ EMBEDDED (encrypted):')
-for (const secret of secretsToEmbed) {
-  console.log(`      • ${secret.name}`)
-}
-
-if (nonWhitelistedVars.length > 0) {
-  console.log('\n   ❌ NOT EMBEDDED (completely excluded):')
-  for (const varName of nonWhitelistedVars) {
-    console.log(`      • ${varName}`)
+  if (nonWhitelistedVars.length > 0) {
+    console.warn('⚠️  ATTENTION: Non-whitelisted env vars found in .env.production:\n')
+    for (const varName of nonWhitelistedVars) {
+      console.warn(`   ❌ ${varName} - WILL NOT BE EMBEDDED`)
+    }
+    console.warn(
+      '\n   These variables are completely IGNORED and will NOT enter the bundle.\n' +
+      '   If you want to embed them, add them to SECRETS_TO_EMBED in this script.\n'
+    )
   }
+
+  // Collect secrets to embed
+  console.log('\n🔒 Embedding whitelisted secrets only:\n')
+  const secretsToEmbed = []
+  for (const secretConfig of SECRETS_TO_EMBED) {
+    const secretValue = envVars[secretConfig.name]
+
+    if (!secretValue) {
+      console.log(`⊘ Skipping ${secretConfig.name} (not found in .env.production)`)
+      continue
+    }
+
+    console.log(`🔒 Encrypting ${secretConfig.name}...`)
+
+    // Encrypt the secret
+    const encrypted = encryptSecret(
+      secretConfig.id,
+      secretValue,
+      buildFingerprint,
+      secretConfig.quotaLimit,
+      secretConfig.rateLimitPerMinute
+    )
+
+    secretsToEmbed.push({
+      ...secretConfig,
+      encrypted: encrypted.encrypted,
+      iv: encrypted.iv,
+      authTag: encrypted.authTag,
+    })
+
+    console.log(`✅ ${secretConfig.provider.toUpperCase()} encrypted successfully`)
+  }
+
+  console.log(`\n📦 Embedded ${secretsToEmbed.length} secrets\n`)
+
+  // Generate TypeScript configuration file
+  generateSecretsConfigFile(secretsToEmbed)
+
+  console.log('🔨 Building NikCLI...')
+  await buildWithSecrets()
+
+  console.log('\n' + '='.repeat(70))
+  console.log('✅ Build with embedded secrets completed!')
+  console.log('='.repeat(70))
+
+  console.log('\n📦 Binary Contents:')
+  console.log('   ✅ EMBEDDED (encrypted):')
+  for (const secret of secretsToEmbed) {
+    console.log(`      • ${secret.name}`)
+  }
+
+  if (nonWhitelistedVars.length > 0) {
+    console.log('\n   ❌ NOT EMBEDDED (completely excluded):')
+    for (const varName of nonWhitelistedVars) {
+      console.log(`      • ${varName}`)
+    }
+  }
+
+  console.log('\n🔒 Security:')
+  console.log('   • Keys encrypted with AES-256-GCM')
+  console.log('   • Decryption key hardware-locked (MAC + CPU + OS)')
+  console.log('   • Keys decrypted only in memory at runtime')
+  console.log('   • Zero plaintext secrets in binary')
+  console.log('\n' + '='.repeat(70) + '\n')
+
+  // Cleanup
+  console.log('🧹 Cleaning up temporary files...')
+  try {
+    // Keep the generated file for reference, but it's in .gitignore
+    console.log('✅ Cleanup completed\n')
+  } catch (error) {
+    console.error('⚠️  Cleanup warning:', error.message)
+  }
+
+  console.log('🚀 Ready to distribute!')
 }
 
-console.log('\n🔒 Security:')
-console.log('   • Keys encrypted with AES-256-GCM')
-console.log('   • Decryption key hardware-locked (MAC + CPU + OS)')
-console.log('   • Keys decrypted only in memory at runtime')
-console.log('   • Zero plaintext secrets in binary')
-console.log('\n' + '='.repeat(70) + '\n')
-
-// Cleanup
-console.log('🧹 Cleaning up temporary files...')
-try {
-  // Keep the generated file for reference, but it's in .gitignore
-  console.log('✅ Cleanup completed\n')
-} catch (error) {
-  console.error('⚠️  Cleanup warning:', error.message)
-}
-
-console.log('🚀 Ready to distribute!')
+// Run main function
+main().catch((error) => {
+  console.error('❌ Build script failed:', error.message)
+  process.exit(1)
+})
 
 // Helper functions
 
@@ -515,7 +520,7 @@ export default EMBEDDED_SECRETS_CONFIG
 /**
  * Execute build with Bun (same as bun run build but with secrets embedded)
  */
-function buildWithSecrets() {
+async function buildWithSecrets() {
   try {
     // Ensure dist/cli directory exists
     const distDir = path.join(projectRoot, 'dist', 'cli')
@@ -523,35 +528,37 @@ function buildWithSecrets() {
       fs.mkdirSync(distDir, { recursive: true })
     }
 
-    // Build external flags for NAPI modules
-    const externalFlags = NAPI_EXTERNAL_MODULES.map(m => `--external=${m}`).join(' ')
-
-    // Build with Bun using the same command as bun run build
-    // This will include the generated-embedded-secrets.ts file automatically
-    // NAPI modules are marked as external to avoid libuv crashes
-    const buildCommand = [
+    // Build arguments for Bun
+    const buildArgs = [
       'bun',
       'build',
       '--compile',
       '--minify',
       '--sourcemap',
       'src/cli/index.ts',
-      externalFlags,
+      ...NAPI_EXTERNAL_MODULES.map(m => `--external=${m}`),
       '--define:process.env.BUN_STANDALONE="true"',
       `--outfile=${path.join(distDir, 'nikcli')}`,
-    ].join(' ')
+    ]
 
-    console.log(`🔨 Executing: ${buildCommand}\n`)
+    console.log(`🔨 Executing: ${buildArgs.join(' ')}\n`)
     console.log('📦 External NAPI modules (loaded lazily at runtime):')
     for (const mod of NAPI_EXTERNAL_MODULES) {
       console.log(`   • ${mod}`)
     }
     console.log('')
 
-    execSync(buildCommand, {
+    const proc = Bun.spawn(buildArgs, {
       cwd: projectRoot,
-      stdio: 'inherit',
+      stdout: 'inherit',
+      stderr: 'inherit',
+      stdin: 'inherit',
     })
+
+    const exitCode = await proc.exited
+    if (exitCode !== 0) {
+      throw new Error(`Build process exited with code ${exitCode}`)
+    }
   } catch (error) {
     console.error('❌ Build failed:', error.message)
     process.exit(1)
@@ -561,7 +568,7 @@ function buildWithSecrets() {
 /**
  * Build without secrets (fallback)
  */
-function buildWithoutSecrets() {
+async function buildWithoutSecrets() {
   try {
     // Ensure dist/cli directory exists
     const distDir = path.join(projectRoot, 'dist', 'cli')
@@ -569,34 +576,37 @@ function buildWithoutSecrets() {
       fs.mkdirSync(distDir, { recursive: true })
     }
 
-    // Build external flags for NAPI modules
-    const externalFlags = NAPI_EXTERNAL_MODULES.map(m => `--external=${m}`).join(' ')
-
-    // Build with Bun using the same command as bun run build
-    // NAPI modules are marked as external to avoid libuv crashes
-    const buildCommand = [
+    // Build arguments for Bun
+    const buildArgs = [
       'bun',
       'build',
       '--compile',
       '--minify',
       '--sourcemap',
       'src/cli/index.ts',
-      externalFlags,
+      ...NAPI_EXTERNAL_MODULES.map(m => `--external=${m}`),
       '--define:process.env.BUN_STANDALONE="true"',
       `--outfile=${path.join(distDir, 'nikcli')}`,
-    ].join(' ')
+    ]
 
-    console.log(`🔨 Executing: ${buildCommand}\n`)
+    console.log(`🔨 Executing: ${buildArgs.join(' ')}\n`)
     console.log('📦 External NAPI modules (loaded lazily at runtime):')
     for (const mod of NAPI_EXTERNAL_MODULES) {
       console.log(`   • ${mod}`)
     }
     console.log('')
 
-    execSync(buildCommand, {
+    const proc = Bun.spawn(buildArgs, {
       cwd: projectRoot,
-      stdio: 'inherit',
+      stdout: 'inherit',
+      stderr: 'inherit',
+      stdin: 'inherit',
     })
+
+    const exitCode = await proc.exited
+    if (exitCode !== 0) {
+      throw new Error(`Build process exited with code ${exitCode}`)
+    }
   } catch (error) {
     console.error('❌ Build failed:', error.message)
     process.exit(1)
