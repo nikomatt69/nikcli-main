@@ -681,7 +681,7 @@ export class MainOrchestrator {
     }
 
     // Start if run directly
-    if (require.main === module) {
+    if (import.meta.main) {
       const orchestrator = new MainOrchestrator()
       orchestrator.start().catch((error) => {
         advancedUI.logError(' Startup failed:', error)

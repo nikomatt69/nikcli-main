@@ -2,6 +2,8 @@ import { EventEmitter } from 'node:events'
 import chalk from 'chalk'
 import { advancedUI } from '../ui/advanced-cli-ui'
 import { type ContainerConfig, ContainerManager, type ContainerStats } from '../virtualized-agents/container-manager'
+import { isNapiSafe } from '../utils/runtime-detect'
+import { bunExec } from '../utils/bun-compat'
 
 /**
  * BrowserContainerManager - Specialized container manager for browser automation
@@ -367,20 +369,25 @@ export class BrowserContainerManager extends ContainerManager {
 
   /**
    * Validate Docker environment and requirements
+   * Uses Bun.spawn for better performance
    */
   private async validateDockerEnvironment(): Promise<void> {
-    const { execSync } = require('child_process')
-
     try {
-      // Check Docker daemon
-      execSync('docker info', { timeout: 5000, stdio: 'ignore' })
+      // Check Docker daemon using Bun native
+      const { exitCode: infoExitCode } = await bunExec('docker info', { timeout: 5000 })
+      if (infoExitCode !== 0) {
+        throw new Error('Docker daemon is not running')
+      }
 
       // Check Docker version
-      const version = execSync('docker --version', { encoding: 'utf8', timeout: 3000 })
+      const { stdout: version, exitCode: versionExitCode } = await bunExec('docker --version', { timeout: 3000 })
+      if (versionExitCode !== 0) {
+        throw new Error('Failed to get Docker version')
+      }
       advancedUI.logFunctionUpdate('info', `Docker validated: ${version.trim()}`, '✓')
 
       // Check available disk space (minimum 2GB for browser images)
-      execSync('docker system df', { timeout: 3000, stdio: 'ignore' })
+      await bunExec('docker system df', { timeout: 3000 })
       advancedUI.logFunctionUpdate('info', 'Docker disk space checked', '💾')
     } catch (error: any) {
       if (error.message.includes('Cannot connect')) {
@@ -395,37 +402,41 @@ export class BrowserContainerManager extends ContainerManager {
 
   /**
    * Select best available browser image with fallback
+   * Uses Bun.spawn for better performance
    */
   private async selectBrowserImage(): Promise<string> {
-    const { execSync } = require('child_process')
-
     for (const image of this.browserImages) {
       try {
         advancedUI.logFunctionUpdate('info', `Checking image: ${image}`, '🔍')
 
         // Check if image exists locally first
-        try {
-          execSync(`docker inspect ${image}`, { timeout: 3000, stdio: 'ignore' })
+        const { exitCode: inspectExitCode } = await bunExec(`docker inspect ${image}`, { timeout: 3000 })
+
+        if (inspectExitCode === 0) {
           advancedUI.logFunctionUpdate('success', `Image available locally: ${image}`, '✓')
           return image
-        } catch {
-          // Image not available locally, try to pull
-          advancedUI.logFunctionUpdate('info', `Pulling image: ${image}...`, '⬇️')
+        }
 
-          try {
-            // Use docker pull with progress and retry logic
-            execSync(`docker pull ${image}`, {
-              timeout: 300000, // 5 minutes for large images
-              stdio: 'pipe',
-            })
+        // Image not available locally, try to pull
+        advancedUI.logFunctionUpdate('info', `Pulling image: ${image}...`, '⬇️')
 
+        try {
+          const { exitCode: pullExitCode } = await bunExec(`docker pull ${image}`, {
+            timeout: 300000, // 5 minutes for large images
+          })
+
+          if (pullExitCode === 0) {
             // Verify the pull was successful
-            execSync(`docker inspect ${image}`, { timeout: 3000, stdio: 'ignore' })
-            advancedUI.logFunctionUpdate('success', `Image pulled successfully: ${image}`, '✓')
-            return image
-          } catch (pullError: any) {
-            advancedUI.logFunctionUpdate('warning', `Failed to pull ${image}: ${pullError.message}`, '⚠︎')
+            const { exitCode: verifyExitCode } = await bunExec(`docker inspect ${image}`, { timeout: 3000 })
+            if (verifyExitCode === 0) {
+              advancedUI.logFunctionUpdate('success', `Image pulled successfully: ${image}`, '✓')
+              return image
+            }
           }
+
+          advancedUI.logFunctionUpdate('warning', `Failed to pull ${image}`, '⚠︎')
+        } catch (pullError: any) {
+          advancedUI.logFunctionUpdate('warning', `Failed to pull ${image}: ${pullError.message}`, '⚠︎')
         }
       } catch (error: any) {
         advancedUI.logFunctionUpdate('warning', `Image ${image} failed: ${error.message}`, '⚠︎')
@@ -485,13 +496,12 @@ export class BrowserContainerManager extends ContainerManager {
   }
 
   /**
-   * Check Docker availability
+   * Check Docker availability using Bun native
    */
   async checkDockerAvailability(): Promise<boolean> {
     try {
-      const { execSync } = require('child_process')
-      execSync('docker --version', { timeout: 5000, stdio: 'ignore' })
-      return true
+      const { exitCode } = await bunExec('docker --version', { timeout: 5000 })
+      return exitCode === 0
     } catch {
       return false
     }
@@ -500,9 +510,9 @@ export class BrowserContainerManager extends ContainerManager {
   // Private utility methods
 
   private async findAvailablePortAsync(startPort: number): Promise<number> {
-    const net = require('net')
-
+    // Use Bun's native net capabilities if available
     return new Promise((resolve, reject) => {
+      const net = require('net')
       const server = net.createServer()
 
       server.listen(startPort, () => {

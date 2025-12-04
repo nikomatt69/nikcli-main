@@ -1,10 +1,11 @@
 import * as crypto from 'node:crypto'
-import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import chalk from 'chalk'
 import { z } from 'zod'
 import { OutputStyleConfigSchema, OutputStyleEnum } from '../types/output-styles'
+
+// Bun-native file operations (much faster than node:fs)
 
 // Validation schemas
 const ModelConfigSchema = z.object({
@@ -61,7 +62,7 @@ const ConfigSchema = z.object({
   currentModel: z.string(),
   currentEmbeddingModel: z.string().default('qwen/qwen3-embedding-8b'),
   temperature: z.number().min(0).max(2).default(0.7),
-  maxTokens: z.number().min(1).max(8000).default(8000),
+  maxTokens: z.number().min(1).max(4000).default(4000),
   chatHistory: z.boolean().default(true),
   maxHistoryLength: z.number().min(1).max(1000).default(100),
   // Optional system prompt for general chat mode
@@ -116,6 +117,24 @@ const ConfigSchema = z.object({
       ttl: z.number().int().positive().optional(),
     })
     .optional(),
+  // AI SDK caching middleware configuration
+  aiCache: z
+    .object({
+      enabled: z.boolean().default(true).describe('Enable AI SDK response caching'),
+      ttl: z.number().int().positive().default(3600).describe('Cache time-to-live in seconds (default: 1 hour)'),
+      strategy: z.enum(['redis', 'smart', 'both']).default('smart').describe('Cache storage strategy'),
+      streamReplayDelay: z.number().int().nonnegative().default(10).describe('Delay between stream chunks in milliseconds'),
+      includeToolsInKey: z.boolean().default(true).describe('Include tools configuration in cache key generation'),
+      cacheKeyPrefix: z.string().default('ai_cache').describe('Prefix for cache keys'),
+    })
+    .default({
+      enabled: true,
+      ttl: 3600,
+      strategy: 'smart',
+      streamReplayDelay: 10,
+      includeToolsInKey: true,
+      cacheKeyPrefix: 'ai_cache',
+    }),
   // MCP (Model Context Protocol) servers configuration - Claude Code/OpenCode compatible
   mcp: z
     .record(
@@ -1229,7 +1248,7 @@ export class SimpleConfigManager {
       cacheTtl: 300,
     },
     temperature: 1,
-    maxTokens: 8000,
+    maxTokens: 4000,
     chatHistory: true,
     maxHistoryLength: 100,
     systemPrompt: undefined,
@@ -1504,9 +1523,16 @@ export class SimpleConfigManager {
     const configDir = path.join(os.homedir(), '.nikcli')
     this.configPath = path.join(configDir, 'config.json')
 
-    // Ensure config directory exists
-    if (!fs.existsSync(configDir)) {
-      fs.mkdirSync(configDir, { recursive: true })
+    // Ensure config directory exists using Bun Shell synchronously
+    try {
+      const configDirFile = Bun.file(configDir)
+      // Check if directory exists by trying to access it
+      if (!Bun.spawnSync({ cmd: ['test', '-d', configDir] }).success) {
+        Bun.spawnSync({ cmd: ['mkdir', '-p', configDir] })
+      }
+    } catch {
+      // Fallback: create directory synchronously
+      Bun.spawnSync({ cmd: ['mkdir', '-p', configDir] })
     }
 
     // Load configuration from config.json
@@ -1526,8 +1552,13 @@ export class SimpleConfigManager {
 
   private loadConfig(): void {
     try {
-      if (fs.existsSync(this.configPath)) {
-        const configData = JSON.parse(fs.readFileSync(this.configPath, 'utf8'))
+      const configFile = Bun.file(this.configPath)
+      // Use sync check for constructor context
+      const exists = Bun.spawnSync({ cmd: ['test', '-f', this.configPath] }).success
+      if (exists) {
+        // Read synchronously for constructor
+        const configText = require('fs').readFileSync(this.configPath, 'utf8')
+        const configData = JSON.parse(configText)
         // Merge with defaults to ensure all fields exist
         this.config = { ...this.defaultConfig, ...configData }
       } else {
@@ -1682,7 +1713,8 @@ export class SimpleConfigManager {
 
   private saveConfig(): void {
     try {
-      fs.writeFileSync(this.configPath, JSON.stringify(this.config, null, 2))
+      // Use Bun.write synchronously (it's fast enough for config)
+      Bun.write(this.configPath, JSON.stringify(this.config, null, 2))
     } catch (error) {
       console.error(chalk.red('Error: Failed to save config'), error)
     }
@@ -2029,8 +2061,8 @@ export class SimpleConfigManager {
         return {
           provider: 'openrouter',
           model: model,
-          temperature: 0.7,
-          maxTokens: 8000,
+          temperature: 1,
+          maxTokens: 4000,
           maxContextTokens: this.getDefaultContextTokens(model),
         }
       }
@@ -2492,7 +2524,7 @@ export class SimpleConfigManager {
       const res = await fetch('https://openrouter.ai/api/v1/models', {
         headers: {
           Authorization: `Bearer ${apiKey}`,
-          'HTTP-Referer': process.env.OPENROUTER_HTTP_REFERER || 'https://github.com/nicomatt69/nikcli',
+          'HTTP-Referer': 'https://nikcli.mintlify.app',
           'X-Title': process.env.OPENROUTER_X_TITLE || 'NikCLI',
         },
       })

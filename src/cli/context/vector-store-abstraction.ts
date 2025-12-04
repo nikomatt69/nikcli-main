@@ -1,11 +1,10 @@
-import { existsSync, mkdirSync } from 'node:fs'
-import { readFile, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { Redis } from '@upstash/redis'
 import axios from 'axios'
 import chalk from 'chalk'
 import { ChromaClient, CloudClient } from 'chromadb'
+import { fileExists, mkdirp, readJson, writeJson } from '../utils/bun-compat'
 import { advancedUI } from '../ui/advanced-cli-ui'
 import { configManager } from '../core/config-manager'
 import { unifiedEmbeddingInterface } from './unified-embedding-interface'
@@ -781,10 +780,10 @@ class LocalVectorStore extends VectorStore {
 
   async connect(): Promise<boolean> {
     try {
-      // Ensure directory exists
+      // Ensure directory exists using Bun
       const baseDir = this.config.connectionConfig.baseDir || join(homedir(), '.nikcli', 'vector-store')
-      if (!existsSync(baseDir)) {
-        mkdirSync(baseDir, { recursive: true })
+      if (!(await fileExists(baseDir))) {
+        await mkdirp(baseDir)
       }
 
       await this.loadDocuments()
@@ -932,9 +931,8 @@ class LocalVectorStore extends VectorStore {
 
   private async loadDocuments(): Promise<void> {
     try {
-      if (existsSync(this.documentsPath)) {
-        const data = await readFile(this.documentsPath, 'utf-8')
-        const docs = JSON.parse(data)
+      if (await fileExists(this.documentsPath)) {
+        const docs = await readJson<Record<string, any>>(this.documentsPath)
 
         for (const [id, doc] of Object.entries(docs)) {
           const document = doc as any
@@ -949,14 +947,14 @@ class LocalVectorStore extends VectorStore {
 
   private async saveDocuments(): Promise<void> {
     try {
-      // Ensure directory exists before saving
+      // Ensure directory exists before saving using Bun
       const dir = dirname(this.documentsPath)
-      if (!existsSync(dir)) {
-        mkdirSync(dir, { recursive: true })
+      if (!(await fileExists(dir))) {
+        await mkdirp(dir)
       }
 
       const data = Object.fromEntries(this.documents)
-      await writeFile(this.documentsPath, JSON.stringify(data, null, 2))
+      await writeJson(this.documentsPath, data)
     } catch (error) {
       console.warn(chalk.yellow(`⚠︎ Failed to save documents: ${error}`))
     }
@@ -964,9 +962,8 @@ class LocalVectorStore extends VectorStore {
 
   private async loadIndex(): Promise<void> {
     try {
-      if (existsSync(this.indexPath)) {
-        const data = await readFile(this.indexPath, 'utf-8')
-        const index = JSON.parse(data)
+      if (await fileExists(this.indexPath)) {
+        const index = await readJson<Record<string, number[]>>(this.indexPath)
         this.index = new Map(Object.entries(index))
       }
     } catch (error) {
@@ -976,14 +973,14 @@ class LocalVectorStore extends VectorStore {
 
   private async saveIndex(): Promise<void> {
     try {
-      // Ensure directory exists before saving
+      // Ensure directory exists before saving using Bun
       const dir = dirname(this.indexPath)
-      if (!existsSync(dir)) {
-        mkdirSync(dir, { recursive: true })
+      if (!(await fileExists(dir))) {
+        await mkdirp(dir)
       }
 
       const data = Object.fromEntries(this.index)
-      await writeFile(this.indexPath, JSON.stringify(data, null, 2))
+      await writeJson(this.indexPath, data)
     } catch (error) {
       console.warn(chalk.yellow(`⚠︎ Failed to save index: ${error}`))
     }

@@ -1,17 +1,10 @@
 // TODO: Consider refactoring for reduced complexity
 
-import { execFile } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
-import { promisify } from 'node:util'
 import chalk from 'chalk'
 import * as jsdiff from 'diff'
-
-const execFileAsync = promisify(execFile as any) as (
-  command: string,
-  args?: string[],
-  opts?: any
-) => Promise<{ stdout: string; stderr: string }>
+import { bunExec } from './bun-compat'
 
 export interface ShowDiffOptions {
   context?: number
@@ -21,8 +14,8 @@ export interface ShowDiffOptions {
 
 async function isGitAvailable(): Promise<boolean> {
   try {
-    await execFileAsync('git', ['--version'], { timeout: 2000 })
-    return true
+    const { exitCode } = await bunExec('git --version', { timeout: 2000 })
+    return exitCode === 0
   } catch (_e) {
     return false
   }
@@ -31,6 +24,9 @@ async function isGitAvailable(): Promise<boolean> {
 async function readFileSafe(filePath?: string): Promise<string> {
   if (!filePath) return ''
   try {
+    if (typeof Bun !== 'undefined') {
+      return await Bun.file(path.resolve(filePath)).text()
+    }
     return await fs.promises.readFile(path.resolve(filePath), 'utf8')
   } catch {
     return ''
@@ -56,16 +52,13 @@ export async function generateUnifiedDiff(
   if (!forceJs && (await isGitAvailable())) {
     // Use git diff --no-index to generate a unified diff similar to GitHub
     try {
-      const args = ['--no-pager', 'diff', '--no-index', `-U${context}`, '--', oldDisplay, newPath]
-      const { stdout } = await execFileAsync('git', args, {
-        cwd: process.cwd(),
-        timeout: 10000,
-      })
-      return stdout || ''
+      const { stdout, exitCode } = await bunExec(
+        `git --no-pager diff --no-index -U${context} -- "${oldDisplay}" "${newPath}"`,
+        { timeout: 10000, cwd: process.cwd() }
+      )
+      // git exit code for diffs can be non-zero when there are differences
+      if (stdout) return stdout
     } catch (err: any) {
-      // git exit code for diffs can be non-zero; capture stderr/stdout if present
-      if (err.stdout) return err.stdout as string
-      if (err.stderr) return err.stderr as string
       // Fall through to JS diff
     }
   }

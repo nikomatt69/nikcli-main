@@ -21,39 +21,39 @@ export const ToolExecutionResultSchema = z.object({
 })
 
 export const WriteFileOptionsSchema = z.object({
-  encoding: z.string().optional(),
-  mode: z.number().int().optional(),
-  createBackup: z.boolean().optional(),
-  autoRollback: z.boolean().optional(),
-  verifyWrite: z.boolean().optional(),
-  stopOnFirstError: z.boolean().optional(),
-  rollbackOnPartialFailure: z.boolean().optional(),
-  showDiff: z.boolean().optional(),
-  skipFormatting: z.boolean().optional(),
-  validators: z.array(z.function().returns(z.promise(ValidationResultSchema))).optional(),
-  transformers: z.array(z.function().returns(z.promise(z.string()))).optional(),
+  encoding: z.string().optional().describe('Character encoding for the file (e.g., "utf8", "ascii", "base64")'),
+  mode: z.number().int().optional().describe('Unix file permissions as octal number (e.g., 0o644)'),
+  createBackup: z.boolean().optional().describe('Create a backup of existing file before overwriting'),
+  autoRollback: z.boolean().optional().describe('Automatically rollback changes if write fails'),
+  verifyWrite: z.boolean().optional().describe('Verify file contents after writing'),
+  stopOnFirstError: z.boolean().optional().describe('Stop batch writes on first error'),
+  rollbackOnPartialFailure: z.boolean().optional().describe('Rollback all changes if any write fails'),
+  showDiff: z.boolean().optional().describe('Display diff of changes before writing'),
+  skipFormatting: z.boolean().optional().describe('Skip automatic code formatting'),
+  validators: z.array(z.function().returns(z.promise(ValidationResultSchema))).optional().describe('Custom validation functions to run before writing'),
+  transformers: z.array(z.function().returns(z.promise(z.string()))).optional().describe('Content transformation functions to apply before writing'),
 })
 
 export const WriteFileResultSchema = z.object({
-  success: z.boolean(),
-  filePath: z.string(),
-  bytesWritten: z.number().int().min(0),
-  backupPath: z.string().optional(),
-  duration: z.number().min(0),
-  error: z.string().optional(),
+  success: z.boolean().describe('Whether the file was successfully written'),
+  filePath: z.string().describe('Absolute path to the written file'),
+  bytesWritten: z.number().int().min(0).describe('Number of bytes written to the file'),
+  backupPath: z.string().optional().describe('Path to backup file if backup was created'),
+  duration: z.number().min(0).describe('Time taken to write the file in milliseconds'),
+  error: z.string().optional().describe('Error message if write failed'),
   metadata: z.object({
-    encoding: z.string(),
-    lines: z.number().int().min(0),
-    created: z.boolean(),
-    mode: z.number().int(),
+    encoding: z.string().describe('Character encoding used'),
+    lines: z.number().int().min(0).describe('Number of lines in the file'),
+    created: z.boolean().describe('Whether a new file was created'),
+    mode: z.number().int().describe('Unix file permissions'),
   }),
 })
 
 export const AppendOptionsSchema = z.object({
-  encoding: z.string().optional(),
-  separator: z.string().optional(),
-  createBackup: z.boolean().optional(),
-  verifyWrite: z.boolean().optional(),
+  encoding: z.string().optional().describe('Character encoding for the file'),
+  separator: z.string().optional().describe('Separator to add before appended content (e.g., newline)'),
+  createBackup: z.boolean().optional().describe('Create backup before appending'),
+  verifyWrite: z.boolean().optional().describe('Verify content was appended correctly'),
 })
 
 export const WriteMultipleResultSchema = z.object({
@@ -76,73 +76,73 @@ export const VerificationResultSchema = z.object({
 })
 
 export const ReadFileOptionsSchema = z.object({
-  encoding: z.string().optional(),
-  maxSize: z.number().int().min(1).optional(),
-  maxLines: z.number().int().min(1).optional(),
-  stripComments: z.boolean().optional(),
-  parseJson: z.boolean().optional(),
-  startLine: z.number().int().min(1).optional(),
-  maxTokens: z.number().int().min(512).optional(),
-  disableChunking: z.boolean().optional(),
+  encoding: z.string().optional().describe('Character encoding to use when reading (e.g., "utf8", "latin1")'),
+  maxSize: z.number().int().min(1).optional().describe('Maximum file size in bytes to read'),
+  maxLines: z.number().int().min(1).optional().describe('Maximum number of lines to read'),
+  stripComments: z.boolean().optional().describe('Remove code comments from output'),
+  parseJson: z.boolean().optional().describe('Parse file content as JSON and return object'),
+  startLine: z.number().int().min(1).optional().describe('Line number to start reading from (1-indexed)'),
+  maxTokens: z.number().int().min(512).optional().describe('Maximum tokens to return for LLM context management'),
+  disableChunking: z.boolean().optional().describe('Disable automatic chunking for large files'),
 })
 
 export const ReadFileResultSchema = z.object({
-  success: z.boolean(),
-  filePath: z.string(),
-  content: z.union([z.string(), z.instanceof(Buffer)]),
-  size: z.number().int().min(0),
-  encoding: z.string(),
-  error: z.string().optional(),
+  success: z.boolean().describe('Whether the file was successfully read'),
+  filePath: z.string().describe('Absolute path to the file that was read'),
+  content: z.union([z.string(), z.instanceof(Buffer)]).describe('File content as string or binary buffer'),
+  size: z.number().int().min(0).describe('File size in bytes'),
+  encoding: z.string().describe('Character encoding used to read the file'),
+  error: z.string().optional().describe('Error message if read failed'),
   metadata: z.object({
-    lines: z.number().int().min(0).optional(),
-    isEmpty: z.boolean(),
-    isBinary: z.boolean(),
-    extension: z.string(),
-    truncated: z.boolean().optional(),
-    chunked: z.boolean().optional(),
-    startLine: z.number().int().min(1).optional(),
-    endLine: z.number().int().min(0).optional(),
-    totalLines: z.number().int().min(0).optional(),
-    nextStartLine: z.number().int().min(1).nullable().optional(),
-    remainingLines: z.number().int().min(0).optional(),
-    approxTokens: z.number().int().min(0).optional(),
-    totalApproxTokens: z.number().int().min(0).optional(),
-    chunkReason: z.string().optional(),
-    hasMore: z.boolean().optional(),
+    lines: z.number().int().min(0).optional().describe('Total number of lines in the file'),
+    isEmpty: z.boolean().describe('Whether the file is empty'),
+    isBinary: z.boolean().describe('Whether the file contains binary data'),
+    extension: z.string().describe('File extension without the dot'),
+    truncated: z.boolean().optional().describe('Whether content was truncated due to size limits'),
+    chunked: z.boolean().optional().describe('Whether content was automatically chunked'),
+    startLine: z.number().int().min(1).optional().describe('Starting line number of returned content'),
+    endLine: z.number().int().min(0).optional().describe('Ending line number of returned content'),
+    totalLines: z.number().int().min(0).optional().describe('Total lines in the original file'),
+    nextStartLine: z.number().int().min(1).nullable().optional().describe('Next line to read for continuation'),
+    remainingLines: z.number().int().min(0).optional().describe('Lines remaining to be read'),
+    approxTokens: z.number().int().min(0).optional().describe('Approximate token count of returned content'),
+    totalApproxTokens: z.number().int().min(0).optional().describe('Approximate total tokens in file'),
+    chunkReason: z.string().optional().describe('Reason for chunking (e.g., "token_limit", "line_limit")'),
+    hasMore: z.boolean().optional().describe('Whether there is more content to read'),
   }),
-  truncated: z.boolean().optional(),
+  truncated: z.boolean().optional().describe('Whether content was truncated'),
 })
 
 export const CommandOptionsSchema = z.object({
-  cwd: z.string().optional(),
-  timeout: z.number().int().min(100).optional(),
-  skipConfirmation: z.boolean().optional(),
-  env: z.record(z.string()).optional(),
-  shell: z.enum(SUPPORTED_SHELL_NAMES).optional(),
+  cwd: z.string().optional().describe('Working directory to execute the command in'),
+  timeout: z.number().int().min(100).optional().describe('Command timeout in milliseconds'),
+  skipConfirmation: z.boolean().optional().describe('Skip user confirmation for potentially dangerous commands'),
+  env: z.record(z.string()).optional().describe('Environment variables to set for the command'),
+  shell: z.enum(SUPPORTED_SHELL_NAMES).optional().describe('Shell to use for command execution'),
 })
 
 export const CommandResultSchema = z.object({
-  success: z.boolean(),
-  stdout: z.string(),
-  stderr: z.string(),
-  exitCode: z.number().int(),
-  command: z.string(),
-  duration: z.number().min(0),
-  workingDirectory: z.string(),
-  shell: z.enum(SUPPORTED_SHELL_NAMES).optional(),
+  success: z.boolean().describe('Whether the command executed successfully (exit code 0)'),
+  stdout: z.string().describe('Standard output from the command'),
+  stderr: z.string().describe('Standard error output from the command'),
+  exitCode: z.number().int().describe('Command exit code (0 = success)'),
+  command: z.string().describe('The command that was executed'),
+  duration: z.number().min(0).describe('Execution time in milliseconds'),
+  workingDirectory: z.string().describe('Directory where command was executed'),
+  shell: z.enum(SUPPORTED_SHELL_NAMES).optional().describe('Shell used for execution'),
 })
 
 export const EditOperationSchema = z.object({
-  oldString: z.string().min(1),
-  newString: z.string(),
-  replaceAll: z.boolean().optional(),
+  oldString: z.string().min(1).describe('The exact text to search for and replace'),
+  newString: z.string().describe('The text to replace oldString with'),
+  replaceAll: z.boolean().optional().describe('Replace all occurrences instead of just the first'),
 })
 
 export const MultiEditOptionsSchema = z.object({
-  createBackup: z.boolean().optional(),
-  showDiff: z.boolean().optional(),
-  validateSyntax: z.boolean().optional(),
-  autoFormat: z.boolean().optional(),
+  createBackup: z.boolean().optional().describe('Create backup of original file before editing'),
+  showDiff: z.boolean().optional().describe('Display diff of all changes'),
+  validateSyntax: z.boolean().optional().describe('Validate syntax after edits (language-specific)'),
+  autoFormat: z.boolean().optional().describe('Auto-format code after edits'),
 })
 
 export const MultiEditResultSchema = z.object({
@@ -155,11 +155,11 @@ export const MultiEditResultSchema = z.object({
 })
 
 export const FileSearchOptionsSchema = z.object({
-  maxResults: z.number().int().min(1).max(1000).optional(),
-  includeHidden: z.boolean().optional(),
-  extensions: z.array(z.string()).optional(),
-  excludePatterns: z.array(z.string()).optional(),
-  caseSensitive: z.boolean().optional(),
+  maxResults: z.number().int().min(1).max(1000).optional().describe('Maximum number of results to return'),
+  includeHidden: z.boolean().optional().describe('Include hidden files and directories (starting with .)'),
+  extensions: z.array(z.string()).optional().describe('File extensions to include (e.g., [".ts", ".js"])'),
+  excludePatterns: z.array(z.string()).optional().describe('Glob patterns to exclude from search'),
+  caseSensitive: z.boolean().optional().describe('Whether search pattern is case-sensitive'),
 })
 
 export const FileSearchResultSchema = z.object({

@@ -41,7 +41,7 @@ process.on('uncaughtException', (error) => {
 })
 
 // Run CLI
-if (require.main === module) {
+if (import.meta.main) {
   main().catch((error) => {
     console.error(chalk.red('CLI Error:'), error.message)
     process.exit(1)

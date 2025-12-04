@@ -1,18 +1,15 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
 /**
  * Build All Platforms
  * Builds binaries with embedded secrets for all platforms
  */
 
-import { execSync } from 'child_process'
 import fs from 'fs'
 import path from 'path'
-import { fileURLToPath } from 'url'
 import { getExternalArgs } from './external-deps.mjs'
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const projectRoot = path.join(__dirname, '..')
+const projectRoot = path.join(import.meta.dir, '..')
 const distDir = path.join(projectRoot, 'public', 'bin')
 
 console.log('🔨 Building NikCLI for all platforms\n')
@@ -24,10 +21,13 @@ if (!fs.existsSync(distDir)) {
 
 // First run build-with-secrets to generate embedded secrets
 console.log('🔐 Generating embedded secrets...')
-execSync('bun scripts/build-with-secrets.mjs', {
+const secretsBuild = Bun.spawn(['bun', 'scripts/build-with-secrets.mjs'], {
   cwd: projectRoot,
-  stdio: 'inherit',
+  stdout: 'inherit',
+  stderr: 'inherit',
+  stdin: 'inherit',
 })
+await secretsBuild.exited
 
 // Get external args
 const externalArgs = getExternalArgs()
@@ -74,10 +74,16 @@ for (const platform of platforms) {
   ]
 
   try {
-    execSync(buildArgs.join(' '), {
+    const proc = Bun.spawn(buildArgs, {
       cwd: projectRoot,
-      stdio: 'inherit',
+      stdout: 'inherit',
+      stderr: 'inherit',
+      stdin: 'inherit',
     })
+    const exitCode = await proc.exited
+    if (exitCode !== 0) {
+      throw new Error(`Build exited with code ${exitCode}`)
+    }
     console.log(`✅ ${platform.name} built successfully\n`)
   } catch (error) {
     console.error(`❌ Failed to build ${platform.name}`)

@@ -1,9 +1,9 @@
-import { type ChildProcess, spawn } from 'node:child_process'
 import { EventEmitter } from 'node:events'
 import http from 'node:http'
 import https from 'node:https'
 import chalk from 'chalk'
 import { IDEDiagnosticMcpServer } from '../mcp/ide-diagnostic-server'
+import { bunSpawn, readStreamToString } from '../utils/bun-compat'
 import { completionCache } from './completion-protocol-cache'
 import { simpleConfigManager } from './config-manager'
 
@@ -437,62 +437,60 @@ export class McpClient extends EventEmitter {
       params: request.params,
     }
 
-    return new Promise((resolve, reject) => {
-      const [command, ...args] = server.command as string[]
+    const [command, ...args] = server.command as string[]
 
-      // Set up environment variables
-      const env = {
-        ...process.env,
-        ...server.environment,
-      }
+    // Set up environment variables
+    const env = {
+      ...process.env,
+      ...server.environment,
+    }
 
-      const process_spawn = spawn(command, args, {
-        stdio: ['pipe', 'pipe', 'pipe'],
-        env,
-      })
-
-      let stdout = ''
-      let stderr = ''
-
-      process_spawn.stdout.on('data', (data) => {
-        stdout += data.toString()
-      })
-
-      process_spawn.stderr.on('data', (data) => {
-        stderr += data.toString()
-      })
-
-      process_spawn.on('close', (code) => {
-        if (code === 0) {
-          try {
-            const response = JSON.parse(stdout)
-            if (response.error) {
-              reject(new Error(`MCP Local Error: ${response.error.message}`))
-            } else {
-              resolve({ result: response.result, id: response.id })
-            }
-          } catch (_error) {
-            reject(new Error('Invalid JSON response from MCP local server'))
-          }
-        } else {
-          reject(new Error(`MCP local server failed with code ${code}: ${stderr}`))
-        }
-      })
-
-      process_spawn.on('error', reject)
-
-      // Send request
-      process_spawn.stdin.write(JSON.stringify(payload))
-      process_spawn.stdin.end()
-
-      // Timeout handling
-      setTimeout(() => {
-        if (!process_spawn.killed) {
-          process_spawn.kill()
-          reject(new Error('MCP local server timeout'))
-        }
-      }, server.timeout || this.DEFAULT_TIMEOUT)
+    const proc = bunSpawn([command, ...args], {
+      stdout: 'pipe',
+      stderr: 'pipe',
+      stdin: 'pipe',
+      env,
     })
+
+    // Write request to stdin
+    if (proc.stdin) {
+      const writer = proc.stdin.getWriter()
+      await writer.write(new TextEncoder().encode(JSON.stringify(payload)))
+      await writer.close()
+    }
+
+    // Set up timeout
+    const timeoutMs = server.timeout || this.DEFAULT_TIMEOUT
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => {
+        proc.kill()
+        reject(new Error('MCP local server timeout'))
+      }, timeoutMs)
+    })
+
+    // Wait for process to complete with timeout
+    const [stdout, stderr, exitCode] = await Promise.race([
+      Promise.all([
+        proc.stdout ? readStreamToString(proc.stdout) : Promise.resolve(''),
+        proc.stderr ? readStreamToString(proc.stderr) : Promise.resolve(''),
+        proc.exited,
+      ]),
+      timeoutPromise,
+    ])
+
+    if (exitCode === 0) {
+      try {
+        const response = JSON.parse(stdout)
+        if (response.error) {
+          throw new Error(`MCP Local Error: ${response.error.message}`)
+        }
+        return { result: response.result, id: response.id }
+      } catch (_error) {
+        throw new Error('Invalid JSON response from MCP local server')
+      }
+    } else {
+      throw new Error(`MCP local server failed with code ${exitCode}: ${stderr}`)
+    }
   }
 
   /**
@@ -593,65 +591,57 @@ export class McpClient extends EventEmitter {
       params: request.params,
     }
 
-    return new Promise((resolve, reject) => {
-      // Handle command format
-      const commandStr = typeof server.command === 'string' ? server.command : server.command![0]
-      const commandArgs = typeof server.command === 'string' ? server.args || [] : server.command!.slice(1)
+    // Handle command format
+    const commandStr = typeof server.command === 'string' ? server.command : server.command![0]
+    const commandArgs = typeof server.command === 'string' ? server.args || [] : server.command!.slice(1)
 
-      const process_spawn = spawn(commandStr, commandArgs, {
-        stdio: ['pipe', 'pipe', 'pipe'],
-      })
-
-      let stdout = ''
-      let stderr = ''
-
-      if (process_spawn.stdout) {
-        process_spawn.stdout.on('data', (data) => {
-          stdout += data.toString()
-        })
-      }
-
-      if (process_spawn.stderr) {
-        process_spawn.stderr.on('data', (data) => {
-          stderr += data.toString()
-        })
-      }
-
-      process_spawn.on('close', (code) => {
-        if (code === 0) {
-          try {
-            const response = JSON.parse(stdout)
-            if (response.error) {
-              reject(new Error(`MCP Command Error: ${response.error.message}`))
-            } else {
-              resolve({ result: response.result, id: response.id })
-            }
-          } catch (_error) {
-            reject(new Error('Invalid JSON response from MCP command'))
-          }
-        } else {
-          reject(new Error(`MCP command failed with code ${code}: ${stderr}`))
-        }
-      })
-
-      process_spawn.on('error', reject)
-
-      // Send request
-      if (process_spawn.stdin) {
-        process_spawn.stdin.write(JSON.stringify(payload))
-        process_spawn.stdin.end()
-      } else {
-        reject(new Error('Failed to access stdin of MCP command'))
-      }
-
-      // Timeout handling
-      setTimeout(() => {
-        if (!process_spawn.killed) {
-          process_spawn.kill()
-          reject(new Error('MCP command timeout'))
-        }
-      }, server.timeout || this.DEFAULT_TIMEOUT)
+    const proc = bunSpawn([commandStr, ...commandArgs], {
+      stdout: 'pipe',
+      stderr: 'pipe',
+      stdin: 'pipe',
     })
+
+    // Write request to stdin
+    if (proc.stdin) {
+      const writer = proc.stdin.getWriter()
+      await writer.write(new TextEncoder().encode(JSON.stringify(payload)))
+      await writer.close()
+    } else {
+      throw new Error('Failed to access stdin of MCP command')
+    }
+
+    // Set up timeout
+    const timeoutMs = server.timeout || this.DEFAULT_TIMEOUT
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => {
+        proc.kill()
+        reject(new Error('MCP command timeout'))
+      }, timeoutMs)
+    })
+
+    // Wait for process to complete with timeout
+    const [stdout, stderr, exitCode] = await Promise.race([
+      Promise.all([
+        proc.stdout ? readStreamToString(proc.stdout) : Promise.resolve(''),
+        proc.stderr ? readStreamToString(proc.stderr) : Promise.resolve(''),
+        proc.exited,
+      ]),
+      timeoutPromise,
+    ])
+
+    if (exitCode === 0) {
+      try {
+        const response = JSON.parse(stdout)
+        if (response.error) {
+          throw new Error(`MCP Command Error: ${response.error.message}`)
+        }
+        return { result: response.result, id: response.id }
+      } catch (_error) {
+        throw new Error('Invalid JSON response from MCP command')
+      }
+    } else {
+      throw new Error(`MCP command failed with code ${exitCode}: ${stderr}`)
+    }
   }
 
   /**

@@ -1,13 +1,10 @@
-import { exec } from 'node:child_process'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { extname, join, relative } from 'node:path'
-import { promisify } from 'node:util'
 import { tool } from 'ai'
 import chalk from 'chalk'
 import { z } from 'zod'
 import { advancedUI } from '../ui/advanced-cli-ui'
-
-const execAsync = promisify(exec)
+import { bunExec } from '../utils/bun-compat'
 
 export interface IDEContext {
   editor: string
@@ -161,9 +158,11 @@ export class IDEContextEnricher {
   // Get Git information
   private async getGitInfo(): Promise<any> {
     try {
-      const { stdout: branch } = await execAsync('git branch --show-current')
-      const { stdout: remote } = await execAsync('git remote get-url origin')
-      const { stdout: status } = await execAsync('git status --porcelain')
+      const { stdout: branch, exitCode: branchExitCode } = await bunExec('git branch --show-current', { timeout: 5000 })
+      if (branchExitCode !== 0) return null
+
+      const { stdout: remote } = await bunExec('git remote get-url origin', { timeout: 5000 })
+      const { stdout: status } = await bunExec('git status --porcelain', { timeout: 5000 })
 
       return {
         branch: branch.trim(),
@@ -179,9 +178,12 @@ export class IDEContextEnricher {
   // Get recently modified files
   private async getRecentFiles(): Promise<string[]> {
     try {
-      const { stdout } = await execAsync(
-        'find . -type f -name "*.ts" -o -name "*.js" -o -name "*.tsx" -o -name "*.jsx" | head -10'
+      const { stdout, exitCode } = await bunExec(
+        'find . -type f \\( -name "*.ts" -o -name "*.js" -o -name "*.tsx" -o -name "*.jsx" \\) | head -10',
+        { timeout: 10000 }
       )
+      if (exitCode !== 0) return []
+      
       return stdout
         .split('\n')
         .filter((file) => file.trim())
@@ -195,10 +197,6 @@ export class IDEContextEnricher {
   private async getOpenFiles(): Promise<string[]> {
     try {
       // This is an approximation - in a real implementation you'd integrate with the IDE's API
-      // Use safer approach by avoiding shell metacharacters and using spawn instead of exec
-      const { spawn } = await import('node:child_process')
-      const { promisify } = await import('node:util')
-
       // Safer implementation: read directory instead of using lsof with shell pipes
       const workspaceFiles = this.getWorkspaceFiles('.', ['.ts', '.js', '.tsx', '.jsx']).slice(0, 5)
       return workspaceFiles

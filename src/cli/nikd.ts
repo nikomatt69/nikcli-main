@@ -181,7 +181,7 @@ process.on('uncaughtException', (error) => {
 })
 
 // Run daemon CLI
-if (require.main === module) {
+if (import.meta.main) {
   main().catch((error) => {
     console.error(chalk.red('nikd Error:'), error.message)
     process.exit(1)

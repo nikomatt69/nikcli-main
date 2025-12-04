@@ -1,9 +1,6 @@
-import { exec } from 'node:child_process'
 import { EventEmitter } from 'node:events'
-import { promisify } from 'node:util'
+import { bunExec } from '../utils/bun-compat'
 import { advancedUI } from '../ui/advanced-cli-ui'
-
-const execAsync = promisify(exec)
 
 /**
  * ContainerManager - Docker interface for secure container operations
@@ -72,8 +69,11 @@ export class ContainerManager extends EventEmitter {
 
       advancedUI.logInfo(`Docker command: ${args.join(' ')}`)
 
-      // Execute Docker run command
-      const { stdout, stderr } = await execAsync(args.join(' '), { timeout: 120000 })
+      // Execute Docker run command usando Bun.spawn (molto più veloce)
+      const { stdout, stderr } = await bunExec(args.join(' '), {
+        timeout: 120000,
+        metricsSource: 'container:create',
+      })
 
       // Docker outputs image pull progress to stderr, which is not an error
       // Only treat as error if stderr contains actual error indicators
@@ -113,7 +113,7 @@ export class ContainerManager extends EventEmitter {
     try {
       advancedUI.logInfo(`▶️ Starting container: ${containerId.slice(0, 12)}`)
 
-      const { stderr } = await execAsync(`docker start ${containerId}`)
+      const { stderr } = await bunExec(`docker start ${containerId}`, { metricsSource: 'container:start' })
 
       if (stderr) {
         throw new Error(`Docker start failed: ${stderr}`)
@@ -138,7 +138,7 @@ export class ContainerManager extends EventEmitter {
       advancedUI.logInfo(`⏹️ Stopping container: ${containerId.slice(0, 12)}`)
 
       // Give container 10 seconds to stop gracefully
-      const { stderr } = await execAsync(`docker stop -t 10 ${containerId}`)
+      const { stderr } = await bunExec(`docker stop -t 10 ${containerId}`, { metricsSource: 'container:stop' })
 
       if (stderr && !stderr.includes('Warning')) {
         advancedUI.logError(`Warning stopping container: ${stderr}`)
@@ -151,7 +151,10 @@ export class ContainerManager extends EventEmitter {
 
       // Force kill if graceful stop fails
       try {
-        await execAsync(`docker kill ${containerId}`)
+        const { stderr } = await bunExec(`docker kill ${containerId}`, { metricsSource: 'container:kill' })
+        if (stderr && !stderr.includes('Warning')) {
+          advancedUI.logError(`⚠︎ Kill stderr: ${stderr}`)
+        }
         advancedUI.logWarning(`⚠︎ Container force killed: ${containerId.slice(0, 12)}`)
       } catch (killError: any) {
         advancedUI.logError(`✖ Failed to kill container: ${killError.message}`)
@@ -167,7 +170,7 @@ export class ContainerManager extends EventEmitter {
       advancedUI.logInfo(`🗑️ Removing container: ${containerId.slice(0, 12)}`)
 
       // Remove container and associated volumes
-      const { stderr } = await execAsync(`docker rm -v ${containerId}`)
+      const { stderr } = await bunExec(`docker rm -v ${containerId}`, { metricsSource: 'container:remove' })
 
       if (stderr && !stderr.includes('Warning')) {
         advancedUI.logError(`Warning removing container: ${stderr}`)
@@ -190,8 +193,9 @@ export class ContainerManager extends EventEmitter {
       advancedUI.logInfo(`🔧 Executing: ${command}`)
       advancedUI.logInfo(`📋 Docker command: ${dockerExecCommand}`)
 
-      const { stdout, stderr } = await execAsync(dockerExecCommand, {
+      const { stdout, stderr } = await bunExec(dockerExecCommand, {
         timeout: 180000, // 180 second timeout to accommodate installs
+        metricsSource: 'container:exec',
       })
 
       if (stdout) {
@@ -217,7 +221,9 @@ export class ContainerManager extends EventEmitter {
     try {
       advancedUI.logInfo(`📋 Getting logs for container ${containerId.slice(0, 12)}`)
 
-      const { stdout, stderr } = await execAsync(`docker logs --tail ${lines} ${containerId}`)
+      const { stdout, stderr } = await bunExec(`docker logs --tail ${lines} ${containerId}`, {
+        metricsSource: 'container:logs',
+      })
 
       if (stderr) {
         advancedUI.logError(`⚠︎ Docker logs stderr: ${stderr}`)
@@ -235,8 +241,9 @@ export class ContainerManager extends EventEmitter {
    */
   async getContainerStats(containerId: string): Promise<ContainerStats> {
     try {
-      const { stdout } = await execAsync(
-        `docker stats ${containerId} --no-stream --format "table {{.MemUsage}}\t{{.CPUPerc}}\t{{.NetIO}}\t{{.BlockIO}}"`
+      const { stdout } = await bunExec(
+        `docker stats ${containerId} --no-stream --format "table {{.MemUsage}}\t{{.CPUPerc}}\t{{.NetIO}}\t{{.BlockIO}}"`,
+        { metricsSource: 'container:stats' }
       )
 
       const lines = stdout.trim().split('\n')
@@ -271,7 +278,7 @@ export class ContainerManager extends EventEmitter {
    */
   async checkDockerAvailability(): Promise<boolean> {
     try {
-      await execAsync('docker version --format "{{.Server.Version}}"')
+      await bunExec('docker version --format "{{.Server.Version}}"', { metricsSource: 'container:check' })
       return true
     } catch (_error) {
       advancedUI.logError('✖ Docker is not available or not running')
@@ -285,12 +292,14 @@ export class ContainerManager extends EventEmitter {
   private async ensureDockerNetwork(): Promise<void> {
     try {
       // Check if network exists
-      await execAsync(`docker network inspect ${this.networkName}`)
+      await bunExec(`docker network inspect ${this.networkName}`, { metricsSource: 'container:network:inspect' })
       advancedUI.logInfo(`Docker network ${this.networkName} already exists`)
     } catch (_error) {
       // Network doesn't exist, create it
       try {
-        await execAsync(`docker network create --driver bridge ${this.networkName}`)
+        await bunExec(`docker network create --driver bridge ${this.networkName}`, {
+          metricsSource: 'container:network:create',
+        })
         advancedUI.logSuccess(`✓ Created secure Docker network: ${this.networkName}`)
       } catch (createError: any) {
         advancedUI.logError(`✖ Failed to create Docker network: ${createError.message}`)
@@ -304,7 +313,9 @@ export class ContainerManager extends EventEmitter {
   private async waitForContainer(containerId: string, maxAttempts: number = 30): Promise<void> {
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
-        const { stdout } = await execAsync(`docker inspect ${containerId} --format="{{.State.Status}}"`)
+        const { stdout } = await bunExec(`docker inspect ${containerId} --format="{{.State.Status}}"`, {
+          metricsSource: 'container:status',
+        })
 
         if (stdout.trim() === 'running') {
           return
@@ -325,7 +336,9 @@ export class ContainerManager extends EventEmitter {
    */
   private async getContainerUptime(containerId: string): Promise<number> {
     try {
-      const { stdout } = await execAsync(`docker inspect ${containerId} --format="{{.State.StartedAt}}"`)
+      const { stdout } = await bunExec(`docker inspect ${containerId} --format="{{.State.StartedAt}}"`, {
+        metricsSource: 'container:startedAt',
+      })
 
       const startTime = new Date(stdout.trim())
       const now = new Date()
@@ -429,7 +442,9 @@ export class ContainerManager extends EventEmitter {
  */
 class DockerClient {
   async version(): Promise<string> {
-    const { stdout } = await execAsync('docker version --format "{{.Server.Version}}"')
+    const { stdout } = await bunExec('docker version --format "{{.Server.Version}}"', {
+      metricsSource: 'container:version',
+    })
     return stdout.trim()
   }
 }

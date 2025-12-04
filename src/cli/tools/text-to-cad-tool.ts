@@ -3,11 +3,13 @@
  * Converts text descriptions into CAD elements and models
  */
 
-import fs from 'node:fs/promises'
 import path from 'node:path'
+import { promises as fs } from 'node:fs'
+
 import boxen from 'boxen'
 import chalk from 'chalk'
 import { z } from 'zod'
+import { fileExists, mkdirp, writeText, writeJson } from '../utils/bun-compat'
 import { convertCadElementsToSTL } from '../converters/cad-to-stl'
 import { type AICadSdkBridge, createAICadSdkBridge } from '../integrations/ai-cad-sdk-bridge'
 import { type CADCamFunBridge, createCADCamFunBridge } from '../integrations/cadcamfun-bridge'
@@ -341,14 +343,14 @@ export class TextToCADTool extends BaseTool {
         this.activeBridge = 'ai-cad-sdk'
         return
       }
-    } catch {}
+    } catch { }
     try {
       const cadOk = await this.cadBridge.initialize()
       if (cadOk && this.cadBridge.isAvailable()) {
         this.activeBridge = 'cadcamfun'
         return
       }
-    } catch {}
+    } catch { }
     this.activeBridge = null
   }
 

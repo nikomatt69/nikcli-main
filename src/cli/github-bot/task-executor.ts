@@ -1,10 +1,9 @@
 // src/cli/github-bot/task-executor.ts
 
-import { execSync } from 'node:child_process'
-import { existsSync, mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { Octokit } from '@octokit/rest'
+import { $, bunShellSync, fileExists, mkdirp } from '../utils/bun-compat'
 import { backgroundAgentService } from '../background-agents/background-agent-service'
 import { advancedUI } from '../ui/advanced-cli-ui'
 import { CommentProcessor } from './comment-processor'
@@ -49,9 +48,10 @@ export class TaskExecutor {
     // Determine if background agents are available
     this.useBackgroundAgents = this.detectBackgroundAgentAvailability()
 
-    // Ensure working directory exists for local execution fallback
-    if (!existsSync(this.workingDir)) {
-      mkdirSync(this.workingDir, { recursive: true })
+    // Ensure working directory exists for local execution fallback using Bun Shell
+    const dirExists = Bun.spawnSync({ cmd: ['test', '-d', this.workingDir] }).success
+    if (!dirExists) {
+      Bun.spawnSync({ cmd: ['mkdir', '-p', this.workingDir] })
     }
 
     // Initialize Slack service if configured
@@ -424,16 +424,11 @@ export class TaskExecutor {
     console.log(`📥 Cloning repository to ${repoContext.clonePath}`)
 
     try {
-      // Clone repository
-      execSync(`git clone --depth 1 -b ${repoContext.defaultBranch} ${cloneUrl} ${repoContext.clonePath}`, {
-        stdio: 'pipe',
-      })
+      // Clone repository using Bun Shell
+      await $`git clone --depth 1 -b ${repoContext.defaultBranch} ${cloneUrl} ${repoContext.clonePath}`.quiet()
 
       // Create and switch to new branch
-      execSync(`git checkout -b ${branchName}`, {
-        cwd: repoContext.clonePath,
-        stdio: 'pipe',
-      })
+      await $`git checkout -b ${branchName}`.cwd(repoContext.clonePath).quiet()
 
       console.log(`✓ Repository cloned and branch ${branchName} created`)
     } catch (error) {
@@ -486,13 +481,10 @@ export class TaskExecutor {
     }
 
     try {
-      // Run NikCLI fix command in the repository
+      // Run NikCLI fix command in the repository using Bun Shell
       const nikCliCommand = this.buildNikCLICommand('fix', command, context)
-      const output = execSync(nikCliCommand, {
-        cwd: context.workingDirectory,
-        encoding: 'utf8',
-        stdio: 'pipe',
-      })
+      const shellResult = await $`${nikCliCommand}`.cwd(context.workingDirectory).quiet()
+      const output = await shellResult.text()
 
       // Parse NikCLI output to determine modified files
       result.files = this.parseModifiedFiles(output)
@@ -526,11 +518,8 @@ export class TaskExecutor {
 
     try {
       const nikCliCommand = this.buildNikCLICommand('implement', command, context)
-      const output = execSync(nikCliCommand, {
-        cwd: context.workingDirectory,
-        encoding: 'utf8',
-        stdio: 'pipe',
-      })
+      const shellResult = await $`${nikCliCommand}`.cwd(context.workingDirectory).quiet()
+      const output = await shellResult.text()
 
       result.files = this.parseModifiedFiles(output)
       result.analysis = `Implemented new feature with ${result.files.length} files modified`
@@ -556,11 +545,8 @@ export class TaskExecutor {
     }
 
     const nikCliCommand = this.buildNikCLICommand('optimize', command, context)
-    const output = execSync(nikCliCommand, {
-      cwd: context.workingDirectory,
-      encoding: 'utf8',
-      stdio: 'pipe',
-    })
+    const shellResult = await $`${nikCliCommand}`.cwd(context.workingDirectory).quiet()
+    const output = await shellResult.text()
 
     result.files = this.parseModifiedFiles(output)
     result.analysis = `Optimized performance in ${result.files.length} files`
@@ -581,13 +567,10 @@ export class TaskExecutor {
     }
 
     try {
-      // Run analysis without modifications
+      // Run analysis without modifications using Bun Shell
       const nikCliCommand = this.buildNikCLICommand('analyze', command, context)
-      const output = execSync(nikCliCommand, {
-        cwd: context.workingDirectory,
-        encoding: 'utf8',
-        stdio: 'pipe',
-      })
+      const shellResult = await $`${nikCliCommand}`.cwd(context.workingDirectory).quiet()
+      const output = await shellResult.text()
 
       result.analysis = this.extractAnalysisReport(output)
     } catch (error) {

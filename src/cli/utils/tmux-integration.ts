@@ -1,8 +1,8 @@
-import { execSync } from 'node:child_process'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import chalk from 'chalk'
+import { bunExec } from './bun-compat'
 
 export interface TmuxSession {
   id: string
@@ -24,6 +24,7 @@ export interface TmuxConfig {
 /**
  * Tmux Integration for Session Persistence
  * Provides seamless session management for SSH connections
+ * Uses Bun.spawn for better performance
  */
 export class TmuxIntegration {
   private configPath: string
@@ -34,25 +35,35 @@ export class TmuxIntegration {
   constructor() {
     this.configPath = join(homedir(), '.nikcli', 'tmux-config.json')
     this.config = this.loadConfig()
-    this.tmuxAvailable = this.checkTmuxAvailability()
-
-    if (this.isAvailable()) {
-      this.setupTmuxConfig()
-    }
+    this.checkTmuxAvailability()
   }
 
   /**
    * Check if tmux is available on the system
    */
-  private checkTmuxAvailability(): boolean {
+  private async checkTmuxAvailability(): Promise<void> {
     try {
-      execSync('which tmux', { stdio: 'ignore' })
-      const version = execSync('tmux -V', { encoding: 'utf-8' }).trim()
-      console.log(chalk.gray(`✓ tmux available: ${version}`))
-      return true
+      const { exitCode: whichExitCode } = await bunExec('which tmux', { timeout: 5000 })
+      if (whichExitCode !== 0) {
+        console.log(chalk.yellow('⚠︎ tmux not found - session persistence limited'))
+        this.tmuxAvailable = false
+        return
+      }
+
+      const { stdout: version, exitCode: versionExitCode } = await bunExec('tmux -V', { timeout: 3000 })
+      if (versionExitCode === 0) {
+        console.log(chalk.gray(`✓ tmux available: ${version.trim()}`))
+        this.tmuxAvailable = true
+
+        if (this.isAvailable()) {
+          await this.setupTmuxConfig()
+        }
+      } else {
+        this.tmuxAvailable = false
+      }
     } catch {
       console.log(chalk.yellow('⚠︎ tmux not found - session persistence limited'))
-      return false
+      this.tmuxAvailable = false
     }
   }
 
@@ -99,7 +110,7 @@ export class TmuxIntegration {
   /**
    * Setup tmux configuration for NikCLI
    */
-  private setupTmuxConfig(): void {
+  private async setupTmuxConfig(): Promise<void> {
     if (!this.tmuxAvailable) return
 
     const tmuxConfigPath = join(homedir(), '.tmux.conf')
@@ -119,7 +130,7 @@ export class TmuxIntegration {
 
         // Reload tmux config if tmux is running
         try {
-          execSync('tmux source-file ~/.tmux.conf', { stdio: 'ignore' })
+          await bunExec('tmux source-file ~/.tmux.conf', { timeout: 3000 })
         } catch {
           // tmux not running, config will be loaded on next start
         }
@@ -199,7 +210,7 @@ set -g renumber-windows on
 
     try {
       // Check if session already exists
-      if (this.sessionExists(sessionName)) {
+      if (await this.sessionExists(sessionName)) {
         console.log(chalk.yellow(`⚠︎ Session '${sessionName}' already exists`))
         return sessionName
       }
@@ -215,11 +226,14 @@ set -g renumber-windows on
         createCmd += ` "${command}"`
       }
 
-      execSync(createCmd, { stdio: 'ignore' })
-      this.currentSessionId = sessionName
+      const { exitCode } = await bunExec(createCmd, { timeout: 5000 })
+      if (exitCode === 0) {
+        this.currentSessionId = sessionName
+        console.log(chalk.green(`✓ tmux session created: ${sessionName}`))
+        return sessionName
+      }
 
-      console.log(chalk.green(`✓ tmux session created: ${sessionName}`))
-      return sessionName
+      return null
     } catch (error: any) {
       console.log(chalk.red(`✖ Failed to create tmux session: ${error.message}`))
       return null
@@ -230,16 +244,18 @@ set -g renumber-windows on
    * Attach to existing tmux session
    */
   async attachSession(sessionName: string): Promise<boolean> {
-    if (!this.isAvailable || !this.sessionExists(sessionName)) {
+    if (!this.isAvailable() || !(await this.sessionExists(sessionName))) {
       return false
     }
 
     try {
       // If we're already in tmux, switch session instead of attaching
       if (process.env.TMUX) {
-        execSync(`tmux switch-client -t "${sessionName}"`, { stdio: 'ignore' })
+        const { exitCode } = await bunExec(`tmux switch-client -t "${sessionName}"`, { timeout: 5000 })
+        if (exitCode !== 0) return false
       } else {
-        execSync(`tmux attach-session -t "${sessionName}"`, { stdio: 'ignore' })
+        const { exitCode } = await bunExec(`tmux attach-session -t "${sessionName}"`, { timeout: 5000 })
+        if (exitCode !== 0) return false
       }
 
       this.currentSessionId = sessionName
@@ -255,14 +271,17 @@ set -g renumber-windows on
    * Detach from current tmux session
    */
   async detachSession(): Promise<boolean> {
-    if (!this.isAvailable || !process.env.TMUX) {
+    if (!this.isAvailable() || !process.env.TMUX) {
       return false
     }
 
     try {
-      execSync('tmux detach-client', { stdio: 'ignore' })
-      console.log(chalk.blue('📱 Detached from tmux session'))
-      return true
+      const { exitCode } = await bunExec('tmux detach-client', { timeout: 5000 })
+      if (exitCode === 0) {
+        console.log(chalk.blue('📱 Detached from tmux session'))
+        return true
+      }
+      return false
     } catch (error: any) {
       console.log(chalk.yellow(`⚠︎ Failed to detach: ${error.message}`))
       return false
@@ -273,19 +292,21 @@ set -g renumber-windows on
    * Kill tmux session
    */
   async killSession(sessionName: string): Promise<boolean> {
-    if (!this.isAvailable || !this.sessionExists(sessionName)) {
+    if (!this.isAvailable() || !(await this.sessionExists(sessionName))) {
       return false
     }
 
     try {
-      execSync(`tmux kill-session -t "${sessionName}"`, { stdio: 'ignore' })
+      const { exitCode } = await bunExec(`tmux kill-session -t "${sessionName}"`, { timeout: 5000 })
 
-      if (this.currentSessionId === sessionName) {
-        this.currentSessionId = null
+      if (exitCode === 0) {
+        if (this.currentSessionId === sessionName) {
+          this.currentSessionId = null
+        }
+        console.log(chalk.green(`✓ tmux session killed: ${sessionName}`))
+        return true
       }
-
-      console.log(chalk.green(`✓ tmux session killed: ${sessionName}`))
-      return true
+      return false
     } catch (error: any) {
       console.log(chalk.red(`✖ Failed to kill session: ${error.message}`))
       return false
@@ -295,29 +316,32 @@ set -g renumber-windows on
   /**
    * List all tmux sessions
    */
-  listSessions(): TmuxSession[] {
-    if (!this.isAvailable) return []
+  async listSessions(): Promise<TmuxSession[]> {
+    if (!this.isAvailable()) return []
 
     try {
-      const output = execSync(
+      const { stdout, exitCode } = await bunExec(
         'tmux list-sessions -F "#{session_id}|#{session_name}|#{session_windows}|#{session_created}|#{session_attached}|#{session_activity}"',
-        { encoding: 'utf-8' }
-      ).trim()
+        { timeout: 5000 }
+      )
 
-      if (!output) return []
+      if (exitCode !== 0 || !stdout.trim()) return []
 
-      return output.split('\n').map((line) => {
-        const [id, name, windows, created, attached, activity] = line.split('|')
+      return stdout
+        .trim()
+        .split('\n')
+        .map((line) => {
+          const [id, name, windows, created, attached, activity] = line.split('|')
 
-        return {
-          id,
-          name,
-          windows: parseInt(windows, 10),
-          created: new Date(parseInt(created, 10) * 1000),
-          attached: attached !== '0',
-          lastActivity: new Date(parseInt(activity, 10) * 1000),
-        }
-      })
+          return {
+            id,
+            name,
+            windows: parseInt(windows, 10),
+            created: new Date(parseInt(created, 10) * 1000),
+            attached: attached !== '0',
+            lastActivity: new Date(parseInt(activity, 10) * 1000),
+          }
+        })
     } catch {
       return []
     }
@@ -326,12 +350,12 @@ set -g renumber-windows on
   /**
    * Check if a session exists
    */
-  sessionExists(sessionName: string): boolean {
-    if (!this.isAvailable) return false
+  async sessionExists(sessionName: string): Promise<boolean> {
+    if (!this.isAvailable()) return false
 
     try {
-      execSync(`tmux has-session -t "${sessionName}"`, { stdio: 'ignore' })
-      return true
+      const { exitCode } = await bunExec(`tmux has-session -t "${sessionName}"`, { timeout: 3000 })
+      return exitCode === 0
     } catch {
       return false
     }
@@ -340,16 +364,18 @@ set -g renumber-windows on
   /**
    * Get current tmux session info
    */
-  getCurrentSession(): TmuxSession | null {
-    if (!this.isAvailable || !process.env.TMUX) return null
+  async getCurrentSession(): Promise<TmuxSession | null> {
+    if (!this.isAvailable() || !process.env.TMUX) return null
 
     try {
-      const output = execSync(
+      const { stdout, exitCode } = await bunExec(
         'tmux display-message -p "#{session_id}|#{session_name}|#{session_windows}|#{session_created}|#{session_attached}|#{session_activity}"',
-        { encoding: 'utf-8' }
-      ).trim()
+        { timeout: 3000 }
+      )
 
-      const [id, name, windows, created, attached, activity] = output.split('|')
+      if (exitCode !== 0) return null
+
+      const [id, name, windows, created, attached, activity] = stdout.trim().split('|')
 
       return {
         id,
@@ -368,13 +394,16 @@ set -g renumber-windows on
    * Send command to tmux session
    */
   async sendCommand(sessionName: string, command: string, windowIndex = 0): Promise<boolean> {
-    if (!this.isAvailable || !this.sessionExists(sessionName)) {
+    if (!this.isAvailable() || !(await this.sessionExists(sessionName))) {
       return false
     }
 
     try {
-      execSync(`tmux send-keys -t "${sessionName}:${windowIndex}" "${command}" Enter`, { stdio: 'ignore' })
-      return true
+      const { exitCode } = await bunExec(
+        `tmux send-keys -t "${sessionName}:${windowIndex}" "${command}" Enter`,
+        { timeout: 5000 }
+      )
+      return exitCode === 0
     } catch {
       return false
     }
@@ -384,7 +413,7 @@ set -g renumber-windows on
    * Create a new window in session
    */
   async createWindow(sessionName: string, name?: string, command?: string): Promise<boolean> {
-    if (!this.isAvailable || !this.sessionExists(sessionName)) {
+    if (!this.isAvailable() || !(await this.sessionExists(sessionName))) {
       return false
     }
 
@@ -399,8 +428,8 @@ set -g renumber-windows on
         cmd += ` "${command}"`
       }
 
-      execSync(cmd, { stdio: 'ignore' })
-      return true
+      const { exitCode } = await bunExec(cmd, { timeout: 5000 })
+      return exitCode === 0
     } catch {
       return false
     }
@@ -410,20 +439,22 @@ set -g renumber-windows on
    * Save session layout and state
    */
   async saveSessionState(sessionName: string): Promise<string | null> {
-    if (!this.isAvailable || !this.sessionExists(sessionName)) {
+    if (!this.isAvailable() || !(await this.sessionExists(sessionName))) {
       return null
     }
 
     try {
       // Get session layout
-      const layout = execSync(
+      const { stdout: layout, exitCode } = await bunExec(
         `tmux list-windows -t "${sessionName}" -F "#{window_index}:#{window_name}:#{window_layout}"`,
-        { encoding: 'utf-8' }
-      ).trim()
+        { timeout: 5000 }
+      )
+
+      if (exitCode !== 0) return null
 
       // Save to file
       const statePath = join(homedir(), '.nikcli', 'tmux-sessions', `${sessionName}.state`)
-      writeFileSync(statePath, layout)
+      writeFileSync(statePath, layout.trim())
 
       return statePath
     } catch {
@@ -455,12 +486,12 @@ set -g renumber-windows on
   /**
    * Update configuration
    */
-  updateConfig(updates: Partial<TmuxConfig>): void {
+  async updateConfig(updates: Partial<TmuxConfig>): Promise<void> {
     this.config = { ...this.config, ...updates }
     this.saveConfig()
 
     if (this.isAvailable()) {
-      this.setupTmuxConfig()
+      await this.setupTmuxConfig()
     }
   }
 
@@ -475,12 +506,12 @@ set -g renumber-windows on
    * Auto-resume session on connect (for SSH)
    */
   async autoResumeSession(): Promise<string | null> {
-    if (!this.isAvailable || !this.config.autoAttach) {
+    if (!this.isAvailable() || !this.config.autoAttach) {
       return null
     }
 
     // Look for existing NikCLI sessions
-    const sessions = this.listSessions()
+    const sessions = await this.listSessions()
     const nikcliSessions = sessions.filter((s) => s.name.startsWith(this.config.sessionPrefix))
 
     if (nikcliSessions.length > 0) {

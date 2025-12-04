@@ -38,7 +38,7 @@ services:
       - redis
       - postgres
     restart: unless-stopped
-    command: ["node", "--import", "tsx", "src/cli/background-agents/api/index.ts"]
+    command: ["bun", "run", "src/cli/background-agents/api/index.ts"]
 
   # nikCLI Background Agents Runner (additional instances)
   nikd-runner-1:
@@ -60,10 +60,10 @@ services:
       - redis
       - nikd-api
     restart: unless-stopped
-    command: ["node", "dist/cli/background-agents/runner.js"]
+    command: ["bun", "run", "dist/cli/background-agents/runner.js"]
 
   nikd-runner-2:
-    build: 
+    build:
       context: .
       target: runtime
     container_name: nikd-runner-2
@@ -81,7 +81,7 @@ services:
       - redis
       - nikd-api
     restart: unless-stopped
-    command: ["node", "dist/cli/background-agents/runner.js"]
+    command: ["bun", "run", "dist/cli/background-agents/runner.js"]
 
   # Redis for job queue and caching
   redis:

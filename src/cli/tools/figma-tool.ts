@@ -8,7 +8,6 @@
  * - Design token extraction and component library access
  */
 
-import { spawn } from 'node:child_process'
 import { EventEmitter } from 'node:events'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -16,6 +15,7 @@ import axios, { type AxiosInstance } from 'axios'
 import chalk from 'chalk'
 import { imageGenerator } from '../providers/image'
 import { approvalSystem } from '../ui/approval-system'
+import { bunSpawn } from '../utils/bun-compat'
 
 // import { figmaService, type FigmaOperationResult } from '../services/figma-service'
 // Define our own context interface for this tool
@@ -474,21 +474,14 @@ export default FigmaComponent`
           throw new Error(`Unknown desktop action: ${action}`)
       }
 
-      return new Promise((resolve, reject) => {
-        const osascript = spawn('osascript', ['-e', appleScript])
-
-        osascript.on('close', (code) => {
-          if (code === 0) {
-            resolve(true)
-          } else {
-            reject(new Error(`AppleScript failed with code ${code}`))
-          }
-        })
-
-        osascript.on('error', (error) => {
-          reject(new Error(`Failed to execute AppleScript: ${error.message}`))
-        })
-      })
+      const proc = bunSpawn(['osascript', '-e', appleScript])
+      const exitCode = await proc.exited
+      
+      if (exitCode === 0) {
+        return true
+      } else {
+        throw new Error(`AppleScript failed with code ${exitCode}`)
+      }
     } catch (error: any) {
       throw new Error(`Desktop automation failed: ${error.message}`)
     }

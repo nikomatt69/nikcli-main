@@ -1,19 +1,18 @@
-# nikCLI Backend API Server - Production Docker build
+# NikCLI Backend API Server - Production Docker build (Bun-only)
 
 # Stage 1: Dependencies
-FROM node:22-alpine AS deps
+FROM oven/bun:1.3-alpine AS deps
 
 WORKDIR /app
 
 # Copy package files
-COPY package.json ./
+COPY package.json bun.lockb* ./
 
-# Install dependencies (tsx is already in package.json)
-# Use --legacy-peer-deps to handle peer dependency conflicts
-RUN npm install --production=false --legacy-peer-deps
+# Install dependencies
+RUN bun install --production
 
 # Stage 2: Runtime
-FROM node:22-alpine AS runtime
+FROM oven/bun:1.3-alpine AS runtime
 
 # Install minimal runtime dependencies
 RUN apk add --no-cache \
@@ -29,9 +28,9 @@ ENV NODE_ENV=production
 
 # Copy dependencies
 COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/package*.json ./
+COPY --from=deps /app/package.json ./
 
-# Copy source code (tsx compiles TypeScript at runtime)
+# Copy source code (Bun compiles TypeScript at runtime)
 COPY src ./src
 COPY tsconfig*.json ./
 
@@ -42,6 +41,5 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD curl -f http://localhost:${PORT:-8080}/health || exit 1
 
-# Start API server with tsx (Node 22+ requires --import instead of --loader)
-CMD ["node", "--import", "tsx", "src/cli/background-agents/api/index.ts"]
-
+# Start API server with Bun (no need for tsx - Bun handles TypeScript natively)
+CMD ["bun", "run", "src/cli/background-agents/api/index.ts"]

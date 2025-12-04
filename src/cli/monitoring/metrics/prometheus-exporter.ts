@@ -15,6 +15,8 @@ export class PrometheusExporter {
   readonly redisCommandDuration: Histogram<string>
   readonly memoryUsageBytes: Gauge<string>
   readonly cpuUsagePercent: Gauge<string>
+  readonly bunSpawnDuration: Histogram<string>
+  readonly bunFileReadDuration: Histogram<string>
 
   constructor() {
     this.registry = new Registry()
@@ -102,6 +104,22 @@ export class PrometheusExporter {
     this.cpuUsagePercent = new Gauge({
       name: 'nikcli_cpu_usage_percent',
       help: 'CPU usage percentage',
+      registers: [this.registry],
+    })
+
+    this.bunSpawnDuration = new Histogram({
+      name: 'nikcli_bun_spawn_duration_seconds',
+      help: 'Duration of Bun.spawn executions',
+      labelNames: ['source', 'status'] as const,
+      buckets: [0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2, 5],
+      registers: [this.registry],
+    })
+
+    this.bunFileReadDuration = new Histogram({
+      name: 'nikcli_bun_file_read_duration_seconds',
+      help: 'Duration of Bun.file reads',
+      labelNames: ['source', 'status'] as const,
+      buckets: [0.0005, 0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2],
       registers: [this.registry],
     })
 

@@ -5,6 +5,7 @@ export { modernAIProvider } from './modern-ai-provider'
 export { adaptiveModelRouter } from './adaptive-model-router'
 export { ReasoningDetector } from './reasoning-detector'
 export { openRouterRegistry } from './openrouter-model-registry'
+export { createAICacheMiddleware, getAICacheStats, clearAICache } from './ai-cache-middleware'
 
 // Provider registry exports
 export { 

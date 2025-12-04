@@ -1565,7 +1565,7 @@ export class StreamingOrchestrator extends StreamingOrchestratorImpl {
 }
 
 // Start the orchestrator if this file is run directly
-if (require.main === module) {
+if (import.meta.main) {
   const orchestrator = new StreamingOrchestrator()
   orchestrator.start().catch(console.error)
 }

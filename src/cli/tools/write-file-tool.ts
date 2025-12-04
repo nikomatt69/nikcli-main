@@ -1,4 +1,3 @@
-import { copyFile, mkdir, readFile, unlink, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { ContextAwareRAGSystem } from '../context/context-aware-rag'
 import { lspManager } from '../lsp/lsp-manager'
@@ -16,6 +15,7 @@ import {
 import { advancedUI } from '../ui/advanced-cli-ui'
 import { diffManager } from '../ui/diff-manager'
 import { DiffViewer, type FileDiff } from '../ui/diff-viewer'
+import { $, fileExists, mkdirp, readText, copyFile as bunCopyFile } from '../utils/bun-compat'
 import { CliUI } from '../utils/cli-ui'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
 import { isDirectory, sanitizePath } from './secure-file-tools'
@@ -71,13 +71,17 @@ export class WriteFileTool extends BaseTool {
       // LSP + Context Analysis
       await this.performLSPContextAnalysis(sanitizedPath, content)
 
-      // Read existing content for diff display
+      // Read existing content for diff display using Bun.file
       let existingContent = ''
       let isNewFile = false
       try {
-        existingContent = await readFile(sanitizedPath, 'utf8')
+        const existingFile = Bun.file(sanitizedPath)
+        if (await existingFile.exists()) {
+          existingContent = await existingFile.text()
+        } else {
+          isNewFile = true
+        }
       } catch (_error) {
-        // File doesn't exist, it's a new file
         isNewFile = true
       }
 
@@ -86,9 +90,9 @@ export class WriteFileTool extends BaseTool {
         backupPath = await this.createBackup(sanitizedPath)
       }
 
-      // Ensure directory exists
+      // Ensure directory exists using Bun Shell
       const dir = dirname(sanitizedPath)
-      await mkdir(dir, { recursive: true })
+      await mkdirp(dir)
 
       // Apply content transformations
       let processedContent = content
@@ -126,14 +130,11 @@ export class WriteFileTool extends BaseTool {
         DiffViewer.showFileDiff(fileDiff, { compact: true })
       }
 
-      // Write file with specified encoding
-      const encoding = options.encoding || 'utf8'
-      await writeFile(sanitizedPath, processedContent, {
-        encoding: encoding as BufferEncoding,
-        mode: options.mode || 0o644,
-      })
+      // Write file using Bun.write (molto più veloce di fs.writeFile)
+      await Bun.write(sanitizedPath, processedContent)
 
       // Verify write if requested
+      const encoding = options.encoding || 'utf8'
       if (options.verifyWrite) {
         const verification = await this.verifyWrite(sanitizedPath, processedContent, encoding)
         if (!verification.success) {
@@ -288,11 +289,12 @@ export class WriteFileTool extends BaseTool {
     try {
       const sanitizedPath = sanitizePath(filePath, this.workingDirectory)
 
-      // Read existing content if file exists
+      // Read existing content if file exists using Bun
       let existingContent = ''
       try {
-        const fs = await import('node:fs/promises')
-        existingContent = await fs.readFile(sanitizedPath, 'utf8')
+        if (await fileExists(sanitizedPath)) {
+          existingContent = await readText(sanitizedPath)
+        }
       } catch {
         // File doesn't exist, will be created
       }
@@ -317,11 +319,13 @@ export class WriteFileTool extends BaseTool {
    */
   private async createBackup(filePath: string): Promise<string | undefined> {
     try {
-      const fs = await import('node:fs/promises')
-      await fs.access(filePath) // Check if file exists
+      // Check if file exists using Bun
+      if (!(await fileExists(filePath))) {
+        return undefined
+      }
 
-      // Ensure backup directory exists
-      await mkdir(this.backupDirectory, { recursive: true })
+      // Ensure backup directory exists using Bun Shell
+      await mkdirp(this.backupDirectory)
 
       // Generate backup filename with timestamp
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
@@ -329,10 +333,10 @@ export class WriteFileTool extends BaseTool {
       const backupPath = join(this.backupDirectory, `${fileName}.${timestamp}.backup`)
 
       // Ensure backup subdirectories exist
-      await mkdir(dirname(backupPath), { recursive: true })
+      await mkdirp(dirname(backupPath))
 
-      // Copy file to backup location
-      await copyFile(filePath, backupPath)
+      // Copy file to backup location using Bun
+      await bunCopyFile(filePath, backupPath)
 
       advancedUI.logInfo(`Backup created: ${backupPath}`)
       return backupPath
@@ -348,8 +352,10 @@ export class WriteFileTool extends BaseTool {
   private async rollback(filePath: string, backupPath: string): Promise<void> {
     try {
       const sanitizedPath = sanitizePath(filePath, this.workingDirectory)
-      await copyFile(backupPath, sanitizedPath)
-      await unlink(backupPath) // Clean up backup
+      // Copy backup to original location using Bun
+      await bunCopyFile(backupPath, sanitizedPath)
+      // Clean up backup using Bun Shell
+      await $`rm -f ${backupPath}`.quiet()
     } catch (error: any) {
       throw new Error(`Rollback failed: ${error.message}`)
     }
@@ -376,10 +382,10 @@ export class WriteFileTool extends BaseTool {
   /**
    * Verify that file was written correctly
    */
-  private async verifyWrite(filePath: string, expectedContent: string, encoding: string): Promise<VerificationResult> {
+  private async verifyWrite(filePath: string, expectedContent: string, _encoding: string): Promise<VerificationResult> {
     try {
-      const fs = await import('node:fs/promises')
-      const actualContent = await fs.readFile(filePath, encoding as BufferEncoding)
+      // Read file using Bun
+      const actualContent = await readText(filePath)
 
       if (actualContent === expectedContent) {
         return { success: true }
@@ -402,20 +408,23 @@ export class WriteFileTool extends BaseTool {
    */
   async cleanBackups(maxAge: number = 7 * 24 * 60 * 60 * 1000): Promise<number> {
     try {
-      const fs = await import('node:fs/promises')
-      const files = await fs.readdir(this.backupDirectory, { recursive: true })
+      // Find all backup files using Bun Shell
+      const result = await $`find ${this.backupDirectory} -name "*.backup" -type f 2>/dev/null || true`.quiet().text()
+      const files = result.trim().split('\n').filter(Boolean)
       const now = Date.now()
       let deletedCount = 0
 
-      for (const file of files) {
-        if (typeof file === 'string' && file.endsWith('.backup')) {
-          const filePath = join(this.backupDirectory, file)
-          const stats = await fs.stat(filePath)
+      for (const filePath of files) {
+        try {
+          const file = Bun.file(filePath)
+          const lastModified = file.lastModified
 
-          if (now - stats.mtime.getTime() > maxAge) {
-            await unlink(filePath)
+          if (now - lastModified > maxAge) {
+            await $`rm -f ${filePath}`.quiet()
             deletedCount++
           }
+        } catch {
+          // Skip files that can't be accessed
         }
       }
 
@@ -577,11 +586,10 @@ export class ContentValidators {
     if (filePath.match(/\.(ts|tsx)$/)) {
       try {
         // Use LSP for TypeScript validation
-        const { writeFile, unlink } = await import('node:fs/promises')
         const tempFilePath = `${filePath}.temp`
 
-        // Write content to temp file for LSP analysis
-        await writeFile(tempFilePath, content, 'utf8')
+        // Write content to temp file for LSP analysis using Bun
+        await Bun.write(tempFilePath, content)
 
         // Get LSP diagnostics for the temp file
         const { mcp__ide__getDiagnostics } = require('../../core/lsp-client')
@@ -602,8 +610,8 @@ export class ContentValidators {
           }
         }
 
-        // Clean up temp file
-        await unlink(tempFilePath).catch(() => {})
+        // Clean up temp file using Bun Shell
+        await $`rm -f ${tempFilePath}`.quiet().catch(() => { })
       } catch (lspError: any) {
         warnings.push(`LSP validation unavailable: ${lspError.message}`)
 

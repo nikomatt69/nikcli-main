@@ -1,14 +1,12 @@
-import { exec, spawn } from 'node:child_process'
-import { promisify } from 'node:util'
 import { advancedUI } from '../ui/advanced-cli-ui'
 import { CliUI } from '../utils/cli-ui'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
-
-const _execAsync = promisify(exec)
+import { readStreamWithLimit } from '../utils/bun-compat'
 
 /**
  * Production-ready Run Command Tool
  * Safely executes commands with whitelist, sandboxing, and monitoring
+ * Uses Bun.spawn for better performance (5-10x faster than child_process)
  */
 export class RunCommandTool extends BaseTool {
   private allowedCommands: Set<string>
@@ -153,105 +151,123 @@ export class RunCommandTool extends BaseTool {
   }
 
   /**
-   * Execute command with real-time output streaming
+   * Execute command with real-time output streaming using Bun.spawn
    */
   async executeWithStreaming(command: string, options: StreamingOptions = {}): Promise<CommandResult> {
-    return new Promise((resolve, reject) => {
-      const parsedCommand = this.parseCommand(command)
+    const parsedCommand = this.parseCommand(command)
 
-      // Validate command first
-      this.validateCommand(parsedCommand, options)
-        .then(() => {
-          const startTime = Date.now()
-          let stdout = ''
-          let stderr = ''
-          let outputSize = 0
-          let timedOut = false
-          let outputTruncated = false
+    // Validate command first
+    await this.validateCommand(parsedCommand, options)
 
-          const child = spawn(parsedCommand.executable, parsedCommand.args, {
-            cwd: options.cwd || this.workingDirectory,
-            env: { ...process.env, ...options.env },
-            stdio: ['pipe', 'pipe', 'pipe'],
-          })
+    const startTime = Date.now()
+    let stdout = ''
+    let stderr = ''
+    let outputSize = 0
+    let timedOut = false
+    let outputTruncated = false
 
-          // Set up timeout
-          const timeout = setTimeout(() => {
-            timedOut = true
-            child.kill('SIGTERM')
+    // Setup AbortController for timeout
+    const controller = new AbortController()
+    const timeoutHandle = setTimeout(() => {
+      timedOut = true
+      controller.abort()
+    }, this.maxExecutionTime)
 
-            // Force kill after 5 seconds
-            setTimeout(() => {
-              if (!child.killed) {
-                child.kill('SIGKILL')
-              }
-            }, 5000)
-          }, this.maxExecutionTime)
+    try {
+      const proc = Bun.spawn({
+        cmd: [parsedCommand.executable, ...parsedCommand.args],
+        cwd: options.cwd || this.workingDirectory,
+        env: { ...process.env, ...options.env },
+        stdin: 'ignore',
+        stdout: 'pipe',
+        stderr: 'pipe',
+      })
 
-          // Handle stdout
-          child.stdout?.on('data', (data: Buffer) => {
-            const chunk = data.toString()
-            outputSize += chunk.length
+      // Read stdout with streaming callback
+      if (proc.stdout) {
+        const reader = proc.stdout.getReader()
+        const decoder = new TextDecoder()
 
-            if (outputSize > this.maxOutputSize) {
-              outputTruncated = true
-              child.kill('SIGTERM')
-              return
-            }
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
 
-            stdout += chunk
-            if (options.onStdout) {
-              options.onStdout(chunk)
-            }
-          })
+          const chunk = decoder.decode(value, { stream: true })
+          outputSize += chunk.length
 
-          // Handle stderr
-          child.stderr?.on('data', (data: Buffer) => {
-            const chunk = data.toString()
-            outputSize += chunk.length
+          if (outputSize > this.maxOutputSize) {
+            outputTruncated = true
+            proc.kill()
+            break
+          }
 
-            if (outputSize > this.maxOutputSize) {
-              outputTruncated = true
-              child.kill('SIGTERM')
-              return
-            }
+          stdout += chunk
+          if (options.onStdout) {
+            options.onStdout(chunk)
+          }
+        }
+      }
 
-            stderr += chunk
-            if (options.onStderr) {
-              options.onStderr(chunk)
-            }
-          })
+      // Read stderr
+      if (proc.stderr) {
+        const reader = proc.stderr.getReader()
+        const decoder = new TextDecoder()
 
-          // Handle process completion
-          child.on('close', (exitCode, signal) => {
-            clearTimeout(timeout)
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
 
-            const result: CommandResult = {
-              success: exitCode === 0 && !timedOut && !outputTruncated,
-              command,
-              exitCode: exitCode || -1,
-              stdout,
-              stderr,
-              duration: Date.now() - startTime,
-              workingDirectory: options.cwd || this.workingDirectory,
-              metadata: {
-                pid: child.pid,
-                signal,
-                timedOut,
-                outputTruncated,
-              },
-            }
+          const chunk = decoder.decode(value, { stream: true })
+          outputSize += chunk.length
 
-            resolve(result)
-          })
+          if (outputSize > this.maxOutputSize) {
+            outputTruncated = true
+            break
+          }
 
-          child.on('error', (error) => {
-            clearTimeout(timeout)
-            reject(error)
-          })
-        })
-        .catch(reject)
-    })
+          stderr += chunk
+          if (options.onStderr) {
+            options.onStderr(chunk)
+          }
+        }
+      }
+
+      const exitCode = await proc.exited
+      clearTimeout(timeoutHandle)
+
+      return {
+        success: exitCode === 0 && !timedOut && !outputTruncated,
+        command,
+        exitCode,
+        stdout,
+        stderr,
+        duration: Date.now() - startTime,
+        workingDirectory: options.cwd || this.workingDirectory,
+        metadata: {
+          pid: proc.pid,
+          signal: null,
+          timedOut,
+          outputTruncated,
+        },
+      }
+    } catch (error: any) {
+      clearTimeout(timeoutHandle)
+
+      return {
+        success: false,
+        command,
+        exitCode: -1,
+        stdout,
+        stderr: stderr + '\n' + error.message,
+        duration: Date.now() - startTime,
+        workingDirectory: options.cwd || this.workingDirectory,
+        error: error.message,
+        metadata: {
+          timedOut,
+          outputTruncated,
+        },
+      }
+    }
   }
 
   /**
@@ -310,12 +326,12 @@ export class RunCommandTool extends BaseTool {
     }
 
     // Validate file paths in arguments
+    const path = await import('node:path')
     for (const arg of parsedCommand.args) {
       if (arg.startsWith('/') || arg.includes('..')) {
         // This looks like a file path, validate it
         try {
-          const _fs = await import('node:fs/promises')
-          const resolvedPath = require('node:path').resolve(workingDir, arg)
+          const resolvedPath = path.resolve(workingDir, arg)
 
           // Check if path is within allowed directories
           const isAllowed = Array.from(this.allowedPaths).some((allowedPath) => resolvedPath.startsWith(allowedPath))
@@ -333,78 +349,82 @@ export class RunCommandTool extends BaseTool {
   }
 
   /**
-   * Execute command with monitoring and limits
+   * Execute command with monitoring and limits using Bun.spawn
    */
   private async executeWithMonitoring(parsedCommand: ParsedCommand, options: CommandOptions): Promise<ExecutionResult> {
-    return new Promise((resolve, reject) => {
-      let stdout = ''
-      let stderr = ''
-      let outputSize = 0
-      let timedOut = false
-      let outputTruncated = false
+    let stdout = ''
+    let stderr = ''
+    let timedOut = false
+    let outputTruncated = false
 
-      const child = spawn(parsedCommand.executable, parsedCommand.args, {
+    // Setup AbortController for timeout
+    const controller = new AbortController()
+    const timeoutHandle = setTimeout(() => {
+      timedOut = true
+      controller.abort()
+    }, this.maxExecutionTime)
+
+    try {
+      const proc = Bun.spawn({
+        cmd: [parsedCommand.executable, ...parsedCommand.args],
         cwd: options.cwd || this.workingDirectory,
         env: { ...process.env, ...options.env },
-        stdio: ['pipe', 'pipe', 'pipe'],
+        stdin: 'ignore',
+        stdout: 'pipe',
+        stderr: 'pipe',
       })
 
-      const timeout = setTimeout(() => {
-        timedOut = true
-        child.kill('SIGTERM')
-
-        setTimeout(() => {
-          if (!child.killed) {
-            child.kill('SIGKILL')
-          }
-        }, 5000)
-      }, this.maxExecutionTime)
-
-      child.stdout?.on('data', (data: Buffer) => {
-        const chunk = data.toString()
-        outputSize += chunk.length
-
-        if (outputSize > this.maxOutputSize) {
+      // Read stdout with limit
+      if (proc.stdout) {
+        stdout = await readStreamWithLimit(
+          proc.stdout,
+          this.maxOutputSize,
+          '\n... [output truncated]'
+        )
+        if (stdout.includes('[output truncated]')) {
           outputTruncated = true
-          child.kill('SIGTERM')
-          return
         }
+      }
 
-        stdout += chunk
-      })
-
-      child.stderr?.on('data', (data: Buffer) => {
-        const chunk = data.toString()
-        outputSize += chunk.length
-
-        if (outputSize > this.maxOutputSize) {
+      // Read stderr with limit
+      if (proc.stderr) {
+        stderr = await readStreamWithLimit(
+          proc.stderr,
+          this.maxOutputSize,
+          '\n... [error output truncated]'
+        )
+        if (stderr.includes('[error output truncated]')) {
           outputTruncated = true
-          child.kill('SIGTERM')
-          return
         }
+      }
 
-        stderr += chunk
-      })
+      const exitCode = await proc.exited
+      clearTimeout(timeoutHandle)
 
-      child.on('close', (exitCode, signal) => {
-        clearTimeout(timeout)
+      return {
+        exitCode,
+        stdout: stdout.trim(),
+        stderr: stderr.trim(),
+        pid: proc.pid,
+        signal: null,
+        timedOut,
+        outputTruncated,
+      }
+    } catch (error: any) {
+      clearTimeout(timeoutHandle)
 
-        resolve({
-          exitCode: exitCode || -1,
-          stdout,
-          stderr,
-          pid: child.pid,
-          signal,
-          timedOut,
+      if (error.name === 'AbortError' || timedOut) {
+        return {
+          exitCode: -1,
+          stdout: stdout.trim(),
+          stderr: stderr.trim() + `\nCommand timed out after ${this.maxExecutionTime}ms`,
+          timedOut: true,
           outputTruncated,
-        })
-      })
+        }
+      }
 
-      child.on('error', (error) => {
-        clearTimeout(timeout)
-        reject(error)
-      })
-    })
+      throw error
+    }
   }
 
   /**

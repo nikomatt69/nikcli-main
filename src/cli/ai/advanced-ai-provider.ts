@@ -1,7 +1,6 @@
-import { exec } from 'node:child_process'
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, extname, join, relative, resolve } from 'node:path'
-import { promisify } from 'node:util'
+import { bunExec } from '../utils/bun-compat'
 import { createAnthropic } from '@ai-sdk/anthropic'
 import { createCerebras } from '@ai-sdk/cerebras'
 import { createGateway } from '@ai-sdk/gateway'
@@ -46,6 +45,7 @@ import { DiffViewer, type FileDiff } from '../ui/diff-viewer'
 import { compactAnalysis, safeStringifyContext } from '../utils/analysis-utils'
 import { CliUI } from '../utils/cli-ui'
 import { adaptiveModelRouter, type ModelScope } from './adaptive-model-router'
+import { workflowPatterns } from './workflow-patterns'
 
 const cognitiveColor = chalk.hex('#3a3a3a')
 
@@ -94,10 +94,10 @@ type Command = z.infer<typeof CommandSchema>
 type PackageSearchResult = z.infer<typeof PackageSearchResult>
 type CommandExecutionResult = z.infer<typeof CommandExecutionResult>
 
-const execAsync = promisify(exec)
+// execAsync replaced with bunExec from bun-compat
 
 export interface StreamEvent {
-  type: 'start' | 'thinking' | 'tool_call' | 'tool_result' | 'text_delta' | 'complete' | 'error' | 'step'
+  type: 'start' | 'thinking' | 'tool_call' | 'tool_result' | 'text_delta' | 'complete' | 'error' | 'step' | 'usage'
   content?: string
   toolName?: string
   toolArgs?: any
@@ -105,6 +105,12 @@ export interface StreamEvent {
   error?: string
   metadata?: any
   stepId?: string
+  // Real token usage from AI SDK (not estimates)
+  usage?: {
+    promptTokens: number
+    completionTokens: number
+    totalTokens: number
+  }
 }
 
 export interface AutonomousProvider {
@@ -165,6 +171,183 @@ export class AdvancedAIProvider implements AutonomousProvider {
     toolResults: any[]
   }> {
     throw new Error('Method not implemented.')
+  }
+
+  /**
+   * Create a tool call repair handler for AI SDK
+   * Reference: https://v4.ai-sdk.dev/docs/ai-sdk-core/tools-and-tool-calling#tool-call-repair
+   * 
+   * This handler attempts to fix invalid tool calls by re-asking the model
+   */
+  private createToolCallRepairHandler(model: any, tools: Record<string, CoreTool>) {
+    return async ({ toolCall, error, messages, system }: {
+      toolCall: { toolName: string; args: unknown };
+      error: Error;
+      messages: CoreMessage[];
+      system?: string;
+    }) => {
+      try {
+        const tool = tools[toolCall.toolName]
+        if (!tool) {
+          advancedUI.logWarning(`[ToolRepair] Unknown tool: ${toolCall.toolName}`)
+          return null
+        }
+
+        advancedUI.logInfo(`[ToolRepair] Attempting to fix invalid tool call: ${toolCall.toolName}`)
+
+        // Ask the model to fix the tool call
+        const repairResult = await generateText({
+          model,
+          system: system || 'You are a helpful assistant that fixes invalid tool calls.',
+          messages: [
+            ...messages,
+            {
+              role: 'user',
+              content: `The tool call "${toolCall.toolName}" failed with error: ${error.message}
+
+Invalid arguments: ${JSON.stringify(toolCall.args, null, 2)}
+
+Please provide corrected arguments for this tool. Only output the corrected JSON arguments, nothing else.`,
+            },
+          ],
+          maxTokens: 1000,
+        })
+
+        // Try to parse the corrected arguments
+        const fixedArgsText = repairResult.text.trim()
+        const jsonMatch = fixedArgsText.match(/```(?:json)?\s*([\s\S]*?)\s*```/) ||
+          fixedArgsText.match(/^\{[\s\S]*\}$/)
+
+        if (jsonMatch) {
+          const fixedArgs = JSON.parse(jsonMatch[1] || jsonMatch[0])
+          advancedUI.logSuccess(`[ToolRepair] Successfully repaired tool call: ${toolCall.toolName}`)
+          return { toolName: toolCall.toolName, args: fixedArgs }
+        }
+
+        const fixedArgs = JSON.parse(fixedArgsText)
+        advancedUI.logSuccess(`[ToolRepair] Successfully repaired tool call: ${toolCall.toolName}`)
+        return { toolName: toolCall.toolName, args: fixedArgs }
+      } catch (repairError: any) {
+        advancedUI.logWarning(`[ToolRepair] Failed to repair tool call: ${repairError.message}`)
+        return null
+      }
+    }
+  }
+
+  /**
+   * Active Tools Pattern - Intelligently select relevant tools based on context
+   * Reference: https://ai-sdk.dev/docs/agents best practices
+   * 
+   * Analyzes the user's message to determine intent and returns only the most
+   * relevant tools (limit: 5-7) to improve model performance and reduce tokens.
+   */
+  private selectActiveTools(
+    message: string,
+    allTools: Record<string, CoreTool>,
+    maxTools = 5
+  ): Record<string, CoreTool> {
+    const lowerMessage = message.toLowerCase()
+
+    // Tool categories with priority keywords
+    const toolCategories: Record<string, { tools: string[]; keywords: string[]; priority: number }> = {
+      file_reading: {
+        tools: ['read_file', 'view_file', 'cat_file', 'list_directory', 'find_files'],
+        keywords: ['read', 'show', 'view', 'content', 'look', 'check', 'see', 'file', 'what', 'open'],
+        priority: 1,
+      },
+      file_writing: {
+        tools: ['write_file', 'edit_file', 'create_file', 'patch_file', 'replace_in_file'],
+        keywords: ['write', 'create', 'edit', 'modify', 'update', 'change', 'fix', 'add', 'save', 'patch'],
+        priority: 2,
+      },
+      file_search: {
+        tools: ['search_files', 'find_files', 'grep', 'ripgrep', 'search_codebase'],
+        keywords: ['search', 'find', 'where', 'grep', 'locate', 'pattern', 'regex'],
+        priority: 3,
+      },
+      execution: {
+        tools: ['execute_command', 'run_command', 'bash', 'shell', 'terminal'],
+        keywords: ['run', 'execute', 'command', 'terminal', 'shell', 'npm', 'pnpm', 'bun', 'yarn', 'install', 'build', 'test', 'start'],
+        priority: 4,
+      },
+      git: {
+        tools: ['git_status', 'git_diff', 'git_commit', 'git_log', 'git_branch'],
+        keywords: ['git', 'commit', 'push', 'pull', 'branch', 'merge', 'diff', 'status'],
+        priority: 5,
+      },
+      analysis: {
+        tools: ['analyze_workspace', 'analyze_code', 'code_analysis', 'workspace_context'],
+        keywords: ['analyze', 'explain', 'understand', 'structure', 'architecture', 'project', 'overview'],
+        priority: 6,
+      },
+      workflows: {
+        tools: ['workflow_code_review', 'workflow_optimize_code', 'workflow_smart_route', 'workflow_implement_feature', 'workflow_translate', 'workflow_generate_code'],
+        keywords: ['workflow', 'pipeline', 'review', 'optimize', 'implement', 'feature', 'translate', 'generate', 'quality', 'parallel', 'orchestrate', 'iterate'],
+        priority: 7,
+      },
+    }
+
+    // Score each category based on keyword matches
+    const categoryScores: { category: string; score: number; priority: number }[] = []
+
+    for (const [category, config] of Object.entries(toolCategories)) {
+      let score = 0
+      for (const keyword of config.keywords) {
+        if (lowerMessage.includes(keyword)) {
+          score += 1
+        }
+      }
+      if (score > 0) {
+        categoryScores.push({ category, score, priority: config.priority })
+      }
+    }
+
+    // Sort by score (desc) then priority (asc)
+    categoryScores.sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score
+      return a.priority - b.priority
+    })
+
+    // Collect tools from top categories
+    const selectedTools: Record<string, CoreTool> = {}
+    const selectedToolNames = new Set<string>()
+
+    for (const { category } of categoryScores) {
+      const categoryTools = toolCategories[category].tools
+      for (const toolName of categoryTools) {
+        if (allTools[toolName] && !selectedToolNames.has(toolName)) {
+          selectedTools[toolName] = allTools[toolName]
+          selectedToolNames.add(toolName)
+
+          if (selectedToolNames.size >= maxTools) break
+        }
+      }
+      if (selectedToolNames.size >= maxTools) break
+    }
+
+    // Default core tools if no specific category matched
+    if (selectedToolNames.size === 0) {
+      const coreTools = ['read_file', 'write_file', 'list_directory', 'execute_command', 'search_files']
+      for (const toolName of coreTools) {
+        if (allTools[toolName]) {
+          selectedTools[toolName] = allTools[toolName]
+          if (Object.keys(selectedTools).length >= maxTools) break
+        }
+      }
+    }
+
+    // Always include read_file for context gathering
+    if (!selectedTools['read_file'] && allTools['read_file']) {
+      selectedTools['read_file'] = allTools['read_file']
+    }
+
+    advancedUI.logFunctionUpdate(
+      'info',
+      `Active tools: ${Object.keys(selectedTools).join(', ')}`,
+      '🔧'
+    )
+
+    return selectedTools
   }
 
   // Truncate long free-form strings to keep prompts safe
@@ -901,10 +1084,9 @@ Respond in a helpful, professional manner with clear explanations and actionable
             advancedUI.logFunctionUpdate('info', fullCommand, '●')
 
             const startTime = Date.now()
-            const { stdout, stderr } = await execAsync(fullCommand, {
+            const { stdout, stderr, exitCode } = await bunExec(fullCommand, {
               cwd: commandCwd,
               timeout,
-              maxBuffer: 1024 * 1024 * 10, // 10MB
             })
 
             const duration = Date.now() - startTime
@@ -923,6 +1105,9 @@ Respond in a helpful, professional manner with clear explanations and actionable
             })
 
             // Command completed
+            if (exitCode !== 0) {
+              throw new Error(stderr || `Command exited with code ${exitCode}`)
+            }
 
             return {
               command: fullCommand,
@@ -1032,7 +1217,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
             advancedUI.logFunctionCall(`${action}packages`)
             advancedUI.logFunctionUpdate('info', `${packages.join(', ') || 'all'}`, '●')
 
-            const { stdout, stderr } = await execAsync(`${command} ${args.join(' ')}`, {
+            const { stdout, stderr, exitCode } = await bunExec(`${command} ${args.join(' ')}`, {
               cwd: this.workingDirectory,
               timeout: 120000, // 2 minutes for package operations
             })
@@ -1040,7 +1225,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
             return {
               action,
               packages,
-              success: true,
+              success: exitCode === 0,
               output: stdout.trim(),
               warnings: stderr.trim(),
             }
@@ -1879,7 +2064,19 @@ Respond in a helpful, professional manner with clear explanations and actionable
       ? await this.resolveAdaptiveModel('chat_default', truncatedMessages)
       : undefined
     const model = this.getModel(effectiveModelName) as any
-    const tools = this.getAdvancedTools()
+    const allTools = this.getAdvancedTools()
+
+    // Get last user message for active tools selection
+    const lastUserMsg = truncatedMessages.filter((m) => m.role === 'user').pop()
+    const userContent = typeof lastUserMsg?.content === 'string'
+      ? lastUserMsg.content
+      : Array.isArray(lastUserMsg?.content)
+        ? lastUserMsg.content.map((p: any) => 'text' in p ? p.text : '').join(' ')
+        : ''
+
+    // Active Tools Pattern: Select relevant tools based on user's message
+    // Reference: https://ai-sdk.dev/docs/agents - best practices
+    const tools = this.selectActiveTools(userContent, allTools, 7) // Allow up to 7 tools for autonomous mode
 
     try {
       // ADVANCED: Check completion protocol cache first (ultra-efficient)
@@ -2015,6 +2212,12 @@ Respond in a helpful, professional manner with clear explanations and actionable
             : msg.content,
       })) as CoreMessage[]
 
+      // Track step progress for loop control
+      let stepCount = 0
+      let totalToolCalls = 0
+      let consecutiveEmptySteps = 0
+      const maxConsecutiveEmptySteps = 3 // Stop after 3 empty steps (loop detection)
+
       const streamOpts: any = {
         model,
         messages: finalMessages,
@@ -2022,7 +2225,76 @@ Respond in a helpful, professional manner with clear explanations and actionable
         maxToolRoundtrips: isAnalysisRequest ? 20 : 30, // Reduced to prevent token overflow
         temperature: params.temperature,
         abortSignal,
-        onStepFinish: (_evt: any) => { },
+        // AI SDK toolChoice: 'auto' (default), 'none', 'required', or { type: 'tool', toolName: 'specific-tool' }
+        // For autonomous operations, use 'auto' to let model decide tool usage
+        toolChoice: 'auto',
+        // AI SDK Tool Call Repair - automatically fix invalid tool calls
+        experimental_repairToolCall: this.createToolCallRepairHandler(model, tools),
+        // AI SDK Agent Loop Control - onStepFinish callback
+        // Reference: https://ai-sdk.dev/docs/agents/loop-control
+        onStepFinish: (step: {
+          stepType: 'initial' | 'continue' | 'tool-result';
+          text: string;
+          toolCalls: Array<{ toolName: string; args: unknown }>;
+          toolResults: Array<{ toolName: string; result: unknown }>;
+          usage: { promptTokens: number; completionTokens: number; totalTokens: number };
+          finishReason: 'stop' | 'length' | 'tool-calls' | 'content-filter' | 'error' | 'other';
+          isContinued: boolean;
+        }) => {
+          stepCount++
+
+          // Track tool call usage for intelligent loop control
+          const toolCallsInStep = step.toolCalls?.length || 0
+          totalToolCalls += toolCallsInStep
+
+          // Loop detection: track consecutive empty steps
+          if (!step.text && toolCallsInStep === 0) {
+            consecutiveEmptySteps++
+          } else {
+            consecutiveEmptySteps = 0
+          }
+
+          // Log step progress
+          const stepInfo = {
+            step: stepCount,
+            type: step.stepType,
+            toolCalls: toolCallsInStep,
+            totalToolCalls,
+            tokens: step.usage?.totalTokens || 0,
+            finishReason: step.finishReason,
+          }
+
+          // Emit step event for UI updates
+          advancedUI.logFunctionUpdate(
+            'info',
+            `Step ${stepCount}: ${step.stepType} | Tools: ${toolCallsInStep} | Tokens: ${step.usage?.totalTokens || 0}`,
+            '⚡'
+          )
+
+          // Loop control: warn if stuck in loop
+          if (consecutiveEmptySteps >= maxConsecutiveEmptySteps) {
+            advancedUI.logWarning(`[LoopControl] Detected ${consecutiveEmptySteps} consecutive empty steps - potential loop`)
+          }
+
+          // Log tool results for debugging
+          if (step.toolResults?.length > 0) {
+            for (const result of step.toolResults) {
+              advancedUI.logFunctionUpdate(
+                'success',
+                `Tool result: ${result.toolName}`,
+                '✓'
+              )
+            }
+          }
+        },
+      }
+
+      // Get current model config for provider-specific settings
+      const cfg = this.getCurrentModelInfo().config as any
+
+      // Override toolChoice from config if specified
+      if (cfg?.toolChoice) {
+        streamOpts.toolChoice = cfg.toolChoice
       }
 
       // OpenRouter and Anthropic models REQUIRE maxTokens
@@ -2286,6 +2558,18 @@ Respond in a helpful, professional manner with clear explanations and actionable
                   )
                 } catch (_cacheError: any) {
                   // Continue without caching - don't fail the stream
+                }
+
+                // Emit REAL token usage from AI SDK (not estimates)
+                if (delta.usage) {
+                  yield {
+                    type: 'usage',
+                    usage: {
+                      promptTokens: delta.usage.promptTokens || 0,
+                      completionTokens: delta.usage.completionTokens || 0,
+                      totalTokens: delta.usage.totalTokens || 0,
+                    },
+                  }
                 }
 
                 yield {
@@ -3337,7 +3621,7 @@ Requirements:
         } else if (configData.model.includes('gemini') || configData.model.startsWith('google/')) {
           return { maxTokens: 4000, temperature: 0.7 } // Google models
         } else if (configData.model.startsWith('anthropic/')) {
-          return { maxTokens: 8000, temperature: 1 } // Anthropic models
+          return { maxTokens: 4000, temperature: 1 } // Anthropic models
         }
         return { maxTokens: 4000, temperature: 1 }
 
@@ -3915,7 +4199,7 @@ Use this cognitive understanding to provide more targeted and effective response
 
       // Execute NPM search with context-aware filtering
       const searchCommand = `npm search ${query} --json --long`
-      const { stdout } = await execAsync(searchCommand)
+      const { stdout } = await bunExec(searchCommand, { timeout: 30000 })
 
       let rawResults: any[] = []
       try {
@@ -4051,13 +4335,10 @@ Use this cognitive understanding to provide more targeted and effective response
       // Execute with timeout
       const timeout = command.estimatedDuration ? command.estimatedDuration * 1000 : 30000
 
-      const { stdout, stderr } = await Promise.race([
-        execAsync(fullCommand, {
-          cwd: command.workingDir || process.cwd(),
-          timeout,
-        }),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Command timeout')), timeout)),
-      ])
+      const { stdout, stderr, exitCode } = await bunExec(fullCommand, {
+        cwd: command.workingDir || process.cwd(),
+        timeout,
+      })
 
       const duration = Date.now() - startTime
 
@@ -4065,7 +4346,7 @@ Use this cognitive understanding to provide more targeted and effective response
       const workspaceState = await this.analyzeWorkspaceChanges(command)
 
       const result: CommandExecutionResult = {
-        success: true,
+        success: exitCode === 0,
         output: stdout || '',
         error: stderr || undefined,
         duration,

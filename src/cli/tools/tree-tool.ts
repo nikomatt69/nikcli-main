@@ -1,6 +1,6 @@
-import { readdir, stat } from 'node:fs/promises'
 import { join, relative } from 'node:path'
 import chalk from 'chalk'
+import { listDir, fileExists, isDirectory } from '../utils/bun-compat'
 import { PromptManager } from '../prompts/prompt-manager'
 import { advancedUI } from '../ui/advanced-cli-ui'
 import { CliUI } from '../utils/cli-ui'
@@ -188,25 +188,30 @@ export class TreeTool extends BaseTool {
   }
 
   /**
-   * Build tree structure recursively
+   * Build tree structure recursively using Bun
    */
   private async buildTree(path: string, depth: number, maxDepth: number, params: TreeToolParams): Promise<TreeNode> {
-    const stats = await stat(path)
-    const name = require('node:path').basename(path)
+    const pathModule = require('node:path')
+    const name = pathModule.basename(path)
+    const isDir = await isDirectory(path)
+
+    // Get file size for files using Bun
+    const file = Bun.file(path)
+    const size = isDir ? 0 : file.size
 
     this.currentMaxDepth = Math.max(this.currentMaxDepth, depth)
 
     const node: TreeNode = {
       name,
       path,
-      isDirectory: stats.isDirectory(),
-      size: stats.size,
+      isDirectory: isDir,
+      size,
       depth,
     }
 
-    if (stats.isFile()) {
+    if (!isDir) {
       this.totalFiles++
-      this.totalSize += stats.size
+      this.totalSize += size
       return node
     }
 
@@ -218,12 +223,12 @@ export class TreeTool extends BaseTool {
     }
 
     // Only show directories if requested
-    if (params.onlyDirectories && !stats.isDirectory()) {
+    if (params.onlyDirectories && !isDir) {
       return node
     }
 
     try {
-      const entries = await readdir(path)
+      const entries = await listDir(path)
       const children: TreeNode[] = []
 
       for (const entry of entries) {

@@ -1,6 +1,13 @@
-import { type ChildProcess, spawn } from 'node:child_process'
 import * as fs from 'node:fs'
 import chalk from 'chalk'
+import { bunSpawn } from '../utils/bun-compat'
+
+// Define a minimal interface for the Bun subprocess
+interface BunSubprocess {
+  pid: number
+  kill: () => void
+  exited: Promise<number>
+}
 
 export interface LSPServerInfo {
   name: string
@@ -8,7 +15,7 @@ export interface LSPServerInfo {
   args: string[]
   filetypes: string[]
   status: 'stopped' | 'starting' | 'running' | 'error'
-  process?: ChildProcess
+  process?: BunSubprocess
 }
 
 export class LSPService {
@@ -69,12 +76,14 @@ export class LSPService {
       server.status = 'starting'
       console.log(chalk.blue(`🚀 Starting ${server.name}...`))
 
-      const process = spawn(server.command, server.args, {
+      const proc = bunSpawn([server.command, ...server.args], {
         cwd: this.workingDirectory,
-        stdio: 'pipe',
+        stdout: 'pipe',
+        stderr: 'pipe',
+        stdin: 'pipe',
       })
 
-      server.process = process
+      server.process = proc
 
       // Startup timeout guard (10s)
       const startupTimeout = setTimeout(() => {
@@ -88,33 +97,32 @@ export class LSPService {
       }, 10000)
       this.startupTimers.set(serverName, startupTimeout)
 
-      process.on('spawn', () => {
-        server.status = 'running'
-        console.log(chalk.green(`✓ ${server.name} started successfully`))
-        clearTimeout(startupTimeout)
-        this.startupTimers.delete(serverName)
-      })
+      // Mark as running immediately since Bun.spawn is synchronous
+      server.status = 'running'
+      console.log(chalk.green(`✓ ${server.name} started successfully`))
+      clearTimeout(startupTimeout)
+      this.startupTimers.delete(serverName)
 
-      process.on('error', (error) => {
-        server.status = 'error'
-        console.log(chalk.red(`✖ Failed to start ${server.name}: ${error.message}`))
-        clearTimeout(startupTimeout)
+      // Handle process exit asynchronously
+      proc.exited.then((code) => {
+        const timer = this.startupTimers.get(serverName)
+        if (timer) clearTimeout(timer)
         this.startupTimers.delete(serverName)
-      })
-
-      process.on('exit', (code, signal) => {
-        if (startupTimeout) clearTimeout(startupTimeout)
-        this.startupTimers.delete(serverName)
-        const abnormal = (code !== 0 && code !== null) || !!signal
+        
+        const abnormal = code !== 0 && code !== null
         server.process = undefined
         if (abnormal) {
           server.status = 'error'
-          const cause = signal ? `signal: ${signal}` : `code: ${code}`
-          console.log(chalk.red(`⛔ ${server.name} exited (${cause})`))
+          console.log(chalk.red(`⛔ ${server.name} exited (code: ${code})`))
         } else {
           server.status = 'stopped'
           console.log(chalk.yellow(`⏹️  ${server.name} stopped (code: ${code})`))
         }
+      }).catch((error) => {
+        server.status = 'error'
+        console.log(chalk.red(`✖ Failed to start ${server.name}: ${error.message}`))
+        clearTimeout(startupTimeout)
+        this.startupTimers.delete(serverName)
       })
 
       return true

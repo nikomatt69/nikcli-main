@@ -3,7 +3,8 @@
 // Designed for cloud deployment (Railway, Render, etc.)
 
 import dotenv from 'dotenv'
-import { type APIServerConfig, BackgroundAgentsAPIServer } from './server'
+import { type APIServerConfig } from './server'
+import { UnifiedAPIServer } from './server-adapter'
 
 // Load environment variables
 dotenv.config()
@@ -305,7 +306,7 @@ async function startServer() {
   })
 
   // Create and start server
-  const server = new BackgroundAgentsAPIServer(config)
+  const server = new UnifiedAPIServer(config)
 
   try {
     await server.start()

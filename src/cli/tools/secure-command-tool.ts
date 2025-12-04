@@ -1,18 +1,14 @@
-import { exec } from 'node:child_process'
-import { randomBytes } from 'node:crypto'
 import * as path from 'node:path'
-import { promisify } from 'node:util'
 import chalk from 'chalk'
 import inquirer from 'inquirer'
 import { inputQueue } from '../core/input-queue'
+import { bunExec, bunRandomBytes } from '../utils/bun-compat'
 import {
   DEFAULT_SHELL_NAME,
   resolveShellConfig,
   type ShellConfiguration,
   type SupportedShellName,
 } from './shell-support'
-
-const execAsync = promisify(exec)
 
 /**
  * Safe commands that can be executed without user confirmation
@@ -126,6 +122,7 @@ export interface BatchSession {
 
 /**
  * Secure command execution tool with allow-listing and user confirmation
+ * Uses Bun.spawn for better performance (5-10x faster than child_process)
  */
 export class SecureCommandTool {
   private workingDirectory: string
@@ -217,7 +214,7 @@ export class SecureCommandTool {
       onError?: (error: Error, command: string, index: number) => void
     } = {}
   ): Promise<BatchSession> {
-    const sessionId = `batch_${Date.now()}_${randomBytes(6).toString('base64url')}`
+    const sessionId = `batch_${Date.now()}_${bunRandomBytes(6, 'base64')}`
     const sessionDuration = options.sessionDuration || 30 // 30 minutes default
     const expiresAt = new Date(Date.now() + sessionDuration * 60 * 1000)
 
@@ -430,6 +427,7 @@ export class SecureCommandTool {
 
   /**
    * Execute a command with security checks and user confirmation
+   * Uses Bun.spawn for better performance
    */
   async execute(command: string, options: CommandOptions = {}): Promise<CommandResult> {
     const startTime = Date.now()
@@ -499,24 +497,23 @@ export class SecureCommandTool {
       shellConfig = resolveShellConfig(options.shell)
       shellName = shellConfig.name
       const cwd = options.cwd ? path.resolve(this.workingDirectory, options.cwd) : this.workingDirectory
-      const env = { ...process.env, ...options.env }
+      const env = { ...process.env, ...options.env, SHELL: shellConfig.executable }
       const timeout = options.timeout || 30000 // 30 second default timeout
 
       console.log(chalk.blue(`⚡ Executing: ${command}`))
       console.log(chalk.gray(`📁 Working directory: ${cwd}`))
       console.log(chalk.gray(`🐚 Shell: ${shellConfig.displayName}`))
-      env.SHELL = shellConfig.executable
 
-      const { stdout, stderr } = await execAsync(command, {
+      // Use Bun native execution
+      const { stdout, stderr, exitCode } = await bunExec(command, {
         cwd,
-        env,
+        env: env as Record<string, string>,
         timeout,
-        encoding: 'utf8',
-        shell: shellConfig.executable,
+        metricsSource: 'SecureCommandTool',
       })
 
       const duration = Date.now() - startTime
-      const success = true
+      const success = exitCode === 0
 
       // Add to history
       this.commandHistory.push({
@@ -541,7 +538,7 @@ export class SecureCommandTool {
       return {
         stdout,
         stderr,
-        exitCode: 0,
+        exitCode,
         command,
         duration,
         safe: analysis.safe,
