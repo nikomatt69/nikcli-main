@@ -392,4 +392,12 @@ export const EventTypes = {
   FILE_CHANGED: 'file.changed',
   FILE_CREATED: 'file.created',
   FILE_DELETED: 'file.deleted',
+
+  // SDK Agent events (AI SDK Agent class integration)
+  SDK_AGENT_STEP: 'sdk_agent.step',
+  SDK_AGENT_TOOL_CALL: 'sdk_agent.tool_call',
+  SDK_AGENT_TOOL_RESULT: 'sdk_agent.tool_result',
+  SDK_AGENT_STREAM_CHUNK: 'sdk_agent.stream_chunk',
+  SDK_AGENT_COMPLETE: 'sdk_agent.complete',
+  SDK_AGENT_ERROR: 'sdk_agent.error',
 } as const
