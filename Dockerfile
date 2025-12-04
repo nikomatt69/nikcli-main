@@ -29,6 +29,7 @@ ENV NODE_ENV=production
 # Copy dependencies
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/package.json ./
+COPY --from=deps /app/bun.lockb* ./
 
 # Copy source code (Bun compiles TypeScript at runtime)
 COPY src ./src

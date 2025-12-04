@@ -402,6 +402,104 @@ export abstract class BaseAgent implements AgentInstance {
 
     return results
   }
+
+  // ============================================================================
+  // Agentic Execution Support (Multi-step Tool Usage)
+  // Reference: https://v4.ai-sdk.dev/docs/foundations/agents
+  // ============================================================================
+
+  /**
+   * Execute an agentic task using AI SDK's multi-step tool usage
+   * Provides autonomous behavior with the agent's specialization context
+   */
+  protected async executeAgenticTask(
+    prompt: string,
+    tools: Record<string, any>,
+    options?: {
+      maxSteps?: number
+      temperature?: number
+      onStepFinish?: (step: { stepNumber: number; text: string; toolCalls: any[] }) => void
+    }
+  ): Promise<{
+    success: boolean
+    text: string
+    steps: any[]
+    totalSteps: number
+    allToolCalls: any[]
+    error?: string
+  }> {
+    const steps: any[] = []
+    let stepNumber = 0
+
+    try {
+      const { generateText } = await import('ai')
+      const { getLanguageModel } = await import('../../ai/provider-registry')
+
+      const model = getLanguageModel('openrouter', 'anthropic/claude-sonnet-4.5')
+
+      const result = await generateText({
+        model,
+        system: `You are a ${this.specialization} agent with capabilities: ${this.capabilities.join(', ')}.
+Complete tasks efficiently using the available tools. Be thorough but concise.`,
+        prompt,
+        tools,
+        maxSteps: options?.maxSteps || 10,
+        temperature: options?.temperature,
+        onStepFinish: async (stepData: any) => {
+          stepNumber++
+          const stepInfo = {
+            stepNumber,
+            text: stepData.text || '',
+            toolCalls: stepData.toolCalls || [],
+            toolResults: stepData.toolResults || [],
+            finishReason: stepData.finishReason,
+          }
+          steps.push(stepInfo)
+
+          // Publish step event
+          await this.eventBus.publish(EventTypes.SDK_AGENT_STEP, {
+            agentId: this.id,
+            stepNumber,
+            toolCalls: stepInfo.toolCalls.length,
+          }, { source: this.id })
+
+          if (options?.onStepFinish) {
+            options.onStepFinish(stepInfo)
+          }
+        },
+      })
+
+      // Publish completion event
+      await this.eventBus.publish(EventTypes.SDK_AGENT_COMPLETE, {
+        agentId: this.id,
+        totalSteps: steps.length,
+        allToolCalls: steps.flatMap(s => s.toolCalls).length,
+      }, { source: this.id })
+
+      return {
+        success: true,
+        text: result.text,
+        steps,
+        totalSteps: steps.length,
+        allToolCalls: steps.flatMap(s => s.toolCalls),
+      }
+    } catch (error: any) {
+      await this.eventBus.publish(EventTypes.SDK_AGENT_ERROR, {
+        agentId: this.id,
+        error: error.message,
+        stepsCompleted: steps.length,
+      }, { source: this.id })
+
+      return {
+        success: false,
+        text: '',
+        steps,
+        totalSteps: steps.length,
+        allToolCalls: steps.flatMap(s => s.toolCalls),
+        error: error.message,
+      }
+    }
+  }
 }
 
 // Type definitions

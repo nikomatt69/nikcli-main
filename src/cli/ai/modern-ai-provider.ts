@@ -1974,6 +1974,148 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
   setDefaultOutputStyle(style: OutputStyle): void {
     simpleConfigManager.setDefaultOutputStyle(style)
   }
+
+  // ============================================================================
+  // Agentic Execution (Multi-step Tool Usage)
+  // Reference: https://v4.ai-sdk.dev/docs/foundations/agents
+  // ============================================================================
+
+  /**
+   * Execute an agentic workflow with multi-step tool usage
+   * Uses generateText with maxSteps for autonomous behavior
+   */
+  async executeAgentic(
+    prompt: string,
+    tools: Record<string, CoreTool>,
+    options?: {
+      system?: string
+      maxSteps?: number
+      temperature?: number
+      onStepFinish?: (step: {
+        stepNumber: number
+        text: string
+        toolCalls: any[]
+        toolResults: any[]
+        finishReason: string
+      }) => void | Promise<void>
+    }
+  ): Promise<{
+    success: boolean
+    text: string
+    steps: any[]
+    totalSteps: number
+    allToolCalls: any[]
+    usage: { promptTokens: number; completionTokens: number; totalTokens: number }
+    finishReason: string
+    error?: string
+  }> {
+    const steps: any[] = []
+    let stepNumber = 0
+
+    try {
+      const config = simpleConfigManager.getCurrentModel() as any
+      const model = this.createModelInstance(config)
+
+      const result = await generateText({
+        model,
+        system: options?.system || 'You are a helpful coding assistant. Complete tasks efficiently using the available tools.',
+        prompt,
+        tools,
+        maxSteps: options?.maxSteps || 10,
+        temperature: options?.temperature,
+        onStepFinish: async (stepData: any) => {
+          stepNumber++
+          const stepInfo = {
+            stepNumber,
+            text: stepData.text || '',
+            toolCalls: stepData.toolCalls || [],
+            toolResults: stepData.toolResults || [],
+            finishReason: stepData.finishReason || 'unknown',
+          }
+          steps.push(stepInfo)
+
+          if (options?.onStepFinish) {
+            await options.onStepFinish(stepInfo)
+          }
+        },
+      })
+
+      return {
+        success: true,
+        text: result.text,
+        steps,
+        totalSteps: steps.length,
+        allToolCalls: steps.flatMap(s => s.toolCalls),
+        usage: {
+          promptTokens: result.usage?.promptTokens || 0,
+          completionTokens: result.usage?.completionTokens || 0,
+          totalTokens: result.usage?.totalTokens || 0,
+        },
+        finishReason: result.finishReason || 'stop',
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        text: '',
+        steps,
+        totalSteps: steps.length,
+        allToolCalls: steps.flatMap(s => s.toolCalls),
+        usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+        finishReason: 'error',
+        error: error.message,
+      }
+    }
+  }
+
+  /**
+   * Execute an agentic workflow with streaming output
+   */
+  async *streamAgentic(
+    prompt: string,
+    tools: Record<string, CoreTool>,
+    options?: {
+      system?: string
+      maxSteps?: number
+      temperature?: number
+    }
+  ): AsyncGenerator<{ type: 'text' | 'step' | 'finish' | 'error'; content: string; metadata?: any }> {
+    let stepNumber = 0
+
+    try {
+      const config = simpleConfigManager.getCurrentModel() as any
+      const model = this.createModelInstance(config)
+
+      const result = streamText({
+        model,
+        system: options?.system || 'You are a helpful coding assistant.',
+        prompt,
+        tools,
+        maxSteps: options?.maxSteps || 10,
+        temperature: options?.temperature,
+        onStepFinish: async () => {
+          stepNumber++
+        },
+      })
+
+      for await (const chunk of result.textStream) {
+        yield { type: 'text', content: chunk, metadata: { stepNumber } }
+      }
+
+      const finalResult = await result
+
+      yield {
+        type: 'finish',
+        content: finalResult.text,
+        metadata: {
+          totalSteps: stepNumber,
+          finishReason: finalResult.finishReason,
+          usage: finalResult.usage,
+        },
+      }
+    } catch (error: any) {
+      yield { type: 'error', content: error.message }
+    }
+  }
 }
 
 export const modernAIProvider = new ModernAIProvider()
