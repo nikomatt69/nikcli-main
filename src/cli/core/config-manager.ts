@@ -5,6 +5,9 @@ import chalk from 'chalk'
 import { z } from 'zod'
 import { OutputStyleConfigSchema, OutputStyleEnum } from '../types/output-styles'
 
+import { writeJson } from '../utils/bun-compat'
+import { getModelContextLimit } from '../config/token-limits'
+
 // Bun-native file operations (much faster than node:fs)
 
 // Validation schemas
@@ -117,24 +120,6 @@ const ConfigSchema = z.object({
       ttl: z.number().int().positive().optional(),
     })
     .optional(),
-  // AI SDK caching middleware configuration
-  aiCache: z
-    .object({
-      enabled: z.boolean().default(true).describe('Enable AI SDK response caching'),
-      ttl: z.number().int().positive().default(3600).describe('Cache time-to-live in seconds (default: 1 hour)'),
-      strategy: z.enum(['redis', 'smart', 'both']).default('smart').describe('Cache storage strategy'),
-      streamReplayDelay: z.number().int().nonnegative().default(10).describe('Delay between stream chunks in milliseconds'),
-      includeToolsInKey: z.boolean().default(true).describe('Include tools configuration in cache key generation'),
-      cacheKeyPrefix: z.string().default('ai_cache').describe('Prefix for cache keys'),
-    })
-    .default({
-      enabled: true,
-      ttl: 3600,
-      strategy: 'smart',
-      streamReplayDelay: 10,
-      includeToolsInKey: true,
-      cacheKeyPrefix: 'ai_cache',
-    }),
   // MCP (Model Context Protocol) servers configuration - Claude Code/OpenCode compatible
   mcp: z
     .record(
@@ -2597,8 +2582,38 @@ export class SimpleConfigManager {
   }
 }
 
-// Create and export singleton instance
-export const simpleConfigManager = new SimpleConfigManager()
+// Singleton instance with lazy initialization
+let _instance: SimpleConfigManager | null = null
+let _initPromise: Promise<void> | null = null
+
+/**
+ * Get or create the singleton instance with lazy initialization
+ */
+export async function getConfigManager(): Promise<SimpleConfigManager> {
+  if (_instance) return _instance
+
+  if (!_initPromise) {
+    _instance = new SimpleConfigManager()
+  }
+
+  await _initPromise
+  return _instance!
+}
+
+/**
+ * Get the singleton instance synchronously (may not be initialized)
+ * Use getConfigManager() for guaranteed initialization
+ */
+export function getConfigManagerSync(): SimpleConfigManager {
+  if (!_instance) {
+    _instance = new SimpleConfigManager()
+    // Start async init in background but don't wait
+  }
+  return _instance
+}
+
+// Export singleton instance for backward compatibility (lazy initialization)
+export const simpleConfigManager = getConfigManagerSync()
 
 // Export aliases for compatibility
 export const ConfigManager = SimpleConfigManager
