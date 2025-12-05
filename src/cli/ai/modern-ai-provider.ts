@@ -9,12 +9,11 @@ import { createGroq } from '@ai-sdk/groq'
 import { createOpenAI } from '@ai-sdk/openai'
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import { createVercel } from '@ai-sdk/vercel'
-import { type CoreMessage, type CoreTool, generateText, streamText, tool, experimental_wrapLanguageModel } from 'ai'
+import { type CoreMessage, type CoreTool, generateText, streamText, tool } from 'ai'
 import { createOllama } from 'ollama-ai-provider'
 import { z } from 'zod'
 
 import { simpleConfigManager } from '../core/config-manager'
-import { createAICacheMiddleware } from './ai-cache-middleware'
 import { type PromptContext, PromptManager } from '../prompts/prompt-manager'
 import { streamttyService } from '../services/streamtty-service'
 import type { OutputStyle } from '../types/output-styles'
@@ -1115,34 +1114,27 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
       throw new Error(`No API key found for model ${model}`)
     }
 
-    let baseModel: any
-
     switch (config.provider) {
       case 'openai': {
         // OpenAI provider is already response-API compatible via model options; no chainable helper here.
         const openaiProvider = createOpenAI({ apiKey, compatibility: 'strict' })
-        baseModel = openaiProvider(config.model)
-        break
+        return openaiProvider(config.model)
       }
       case 'anthropic': {
         const anthropicProvider = createAnthropic({ apiKey })
-        baseModel = anthropicProvider(config.model)
-        break
+        return anthropicProvider(config.model)
       }
       case 'google': {
         const googleProvider = createGoogleGenerativeAI({ apiKey })
-        baseModel = googleProvider(config.model)
-        break
+        return googleProvider(config.model)
       }
       case 'vercel': {
         const vercelProvider = createVercel({ apiKey })
-        baseModel = vercelProvider(config.model)
-        break
+        return vercelProvider(config.model)
       }
       case 'gateway': {
         const gatewayProvider = createGateway({ apiKey })
-        baseModel = gatewayProvider(config.model)
-        break
+        return gatewayProvider(config.model)
       }
       case 'openrouter': {
         const openrouterProvider = createOpenAI({
@@ -1159,24 +1151,20 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
         if ((config as any).enableWebSearch && !modelId.endsWith(':online')) {
           modelId = `${modelId}:online`
         }
-        baseModel = openrouterProvider(modelId)
-        break
+        return openrouterProvider(modelId)
       }
       case 'ollama': {
         // Ollama does not require API keys; assumes local daemon at default endpoint
         const ollamaProvider = createOllama({})
-        baseModel = ollamaProvider(config.model)
-        break
+        return ollamaProvider(config.model)
       }
       case 'cerebras': {
         const cerebrasProvider = createCerebras({ apiKey })
-        baseModel = cerebrasProvider(config.model)
-        break
+        return cerebrasProvider(config.model)
       }
       case 'groq': {
         const groqProvider = createGroq({ apiKey })
-        baseModel = groqProvider(config.model)
-        break
+        return groqProvider(config.model)
       }
       case 'llamacpp': {
         // LlamaCpp uses OpenAI-compatible API; assumes local server at default endpoint
@@ -1185,8 +1173,7 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
           apiKey: 'llamacpp', // LlamaCpp doesn't require a real API key for local server
           baseURL: process.env.LLAMACPP_BASE_URL || 'http://localhost:8080/v1',
         })
-        baseModel = llamacppProvider(config.model)
-        break
+        return llamacppProvider(config.model)
       }
       case 'lmstudio': {
         // LMStudio uses OpenAI-compatible API; assumes local server at default endpoint
@@ -1195,8 +1182,7 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
           apiKey: 'lm-studio', // LMStudio doesn't require a real API key
           baseURL: process.env.LMSTUDIO_BASE_URL || 'http://localhost:1234/v1',
         })
-        baseModel = lmstudioProvider(config.model)
-        break
+        return lmstudioProvider(config.model)
       }
       case 'openai-compatible': {
         const baseURL = (config as any).baseURL || process.env.OPENAI_COMPATIBLE_BASE_URL
@@ -1211,24 +1197,11 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
           baseURL,
           headers: (config as any).headers,
         })
-        baseModel = compatProvider(config.model)
-        break
+        return compatProvider(config.model)
       }
       default:
         throw new Error(`Unsupported provider: ${config.provider}`)
     }
-
-    // Apply AI caching middleware if enabled
-    const cacheConfig = simpleConfigManager.get('aiCache') as any
-    if (cacheConfig?.enabled !== false) {
-      const cacheMiddleware = createAICacheMiddleware(cacheConfig)
-      return experimental_wrapLanguageModel({
-        model: baseModel,
-        middleware: cacheMiddleware,
-      })
-    }
-
-    return baseModel
   }
 
   // Claude Code style streaming with tool support
@@ -1973,148 +1946,6 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
    */
   setDefaultOutputStyle(style: OutputStyle): void {
     simpleConfigManager.setDefaultOutputStyle(style)
-  }
-
-  // ============================================================================
-  // Agentic Execution (Multi-step Tool Usage)
-  // Reference: https://v4.ai-sdk.dev/docs/foundations/agents
-  // ============================================================================
-
-  /**
-   * Execute an agentic workflow with multi-step tool usage
-   * Uses generateText with maxSteps for autonomous behavior
-   */
-  async executeAgentic(
-    prompt: string,
-    tools: Record<string, CoreTool>,
-    options?: {
-      system?: string
-      maxSteps?: number
-      temperature?: number
-      onStepFinish?: (step: {
-        stepNumber: number
-        text: string
-        toolCalls: any[]
-        toolResults: any[]
-        finishReason: string
-      }) => void | Promise<void>
-    }
-  ): Promise<{
-    success: boolean
-    text: string
-    steps: any[]
-    totalSteps: number
-    allToolCalls: any[]
-    usage: { promptTokens: number; completionTokens: number; totalTokens: number }
-    finishReason: string
-    error?: string
-  }> {
-    const steps: any[] = []
-    let stepNumber = 0
-
-    try {
-      const config = simpleConfigManager.getCurrentModel() as any
-      const model = this.createModelInstance(config)
-
-      const result = await generateText({
-        model,
-        system: options?.system || 'You are a helpful coding assistant. Complete tasks efficiently using the available tools.',
-        prompt,
-        tools,
-        maxSteps: options?.maxSteps || 10,
-        temperature: options?.temperature,
-        onStepFinish: async (stepData: any) => {
-          stepNumber++
-          const stepInfo = {
-            stepNumber,
-            text: stepData.text || '',
-            toolCalls: stepData.toolCalls || [],
-            toolResults: stepData.toolResults || [],
-            finishReason: stepData.finishReason || 'unknown',
-          }
-          steps.push(stepInfo)
-
-          if (options?.onStepFinish) {
-            await options.onStepFinish(stepInfo)
-          }
-        },
-      })
-
-      return {
-        success: true,
-        text: result.text,
-        steps,
-        totalSteps: steps.length,
-        allToolCalls: steps.flatMap(s => s.toolCalls),
-        usage: {
-          promptTokens: result.usage?.promptTokens || 0,
-          completionTokens: result.usage?.completionTokens || 0,
-          totalTokens: result.usage?.totalTokens || 0,
-        },
-        finishReason: result.finishReason || 'stop',
-      }
-    } catch (error: any) {
-      return {
-        success: false,
-        text: '',
-        steps,
-        totalSteps: steps.length,
-        allToolCalls: steps.flatMap(s => s.toolCalls),
-        usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
-        finishReason: 'error',
-        error: error.message,
-      }
-    }
-  }
-
-  /**
-   * Execute an agentic workflow with streaming output
-   */
-  async *streamAgentic(
-    prompt: string,
-    tools: Record<string, CoreTool>,
-    options?: {
-      system?: string
-      maxSteps?: number
-      temperature?: number
-    }
-  ): AsyncGenerator<{ type: 'text' | 'step' | 'finish' | 'error'; content: string; metadata?: any }> {
-    let stepNumber = 0
-
-    try {
-      const config = simpleConfigManager.getCurrentModel() as any
-      const model = this.createModelInstance(config)
-
-      const result = streamText({
-        model,
-        system: options?.system || 'You are a helpful coding assistant.',
-        prompt,
-        tools,
-        maxSteps: options?.maxSteps || 10,
-        temperature: options?.temperature,
-        onStepFinish: async () => {
-          stepNumber++
-        },
-      })
-
-      for await (const chunk of result.textStream) {
-        yield { type: 'text', content: chunk, metadata: { stepNumber } }
-      }
-
-      const finalResult = await result
-
-      yield {
-        type: 'finish',
-        content: finalResult.text,
-        metadata: {
-          totalSteps: stepNumber,
-          finishReason: finalResult.finishReason,
-          usage: finalResult.usage,
-        },
-      }
-    } catch (error: any) {
-      yield { type: 'error', content: error.message }
-    }
   }
 }
 

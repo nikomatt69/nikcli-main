@@ -5,7 +5,7 @@ import { createGroq } from '@ai-sdk/groq'
 import { createOpenAI } from '@ai-sdk/openai'
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import { createVercel } from '@ai-sdk/vercel'
-import { generateObject, generateText, streamText, experimental_wrapLanguageModel } from 'ai'
+import { generateObject, generateText, streamText } from 'ai'
 
 import { createOllama } from 'ollama-ai-provider'
 import { z } from 'zod'
@@ -15,7 +15,6 @@ import { streamttyService } from '../services/streamtty-service'
 import { adaptiveModelRouter, type ModelScope } from './adaptive-model-router'
 import { ReasoningDetector } from './reasoning-detector'
 import { openRouterRegistry } from './openrouter-model-registry'
-import { createAICacheMiddleware } from './ai-cache-middleware'
 
 // ====================== ⚡︎ ZOD VALIDATION SCHEMAS ======================
 
@@ -236,30 +235,18 @@ export class ModelProvider {
     return false
   }
 
-  private getModel(config: ModelConfig) {
+  private async getModel(config: ModelConfig) {
     const currentModelName = configManager.get('currentModel')
 
     // Try provider registry first (optional, experimental)
     if (process.env.USE_PROVIDER_REGISTRY === 'true') {
       try {
-        const { getLanguageModel } = require('./provider-registry')
-        const baseModel = getLanguageModel(config.provider, config.model)
-        // Apply caching middleware if enabled
-        const cacheConfig = configManager.get('aiCache') as any
-        if (cacheConfig?.enabled !== false) {
-          const cacheMiddleware = createAICacheMiddleware(cacheConfig)
-          return experimental_wrapLanguageModel({
-            model: baseModel,
-            middleware: cacheMiddleware,
-          })
-        }
-        return baseModel
+        const { getLanguageModel } = await import('./provider-registry')
+        return getLanguageModel(config.provider, config.model)
       } catch (error) {
         // Fall through to legacy implementation
       }
     }
-
-    let baseModel: any
 
     switch (config.provider) {
       case 'openai': {
@@ -268,8 +255,7 @@ export class ModelProvider {
           throw new Error(`API key not found for model: ${currentModelName} (OpenAI). Use /set-key to configure.`)
         }
         const openaiProvider = createOpenAI({ apiKey, compatibility: 'strict' })
-        baseModel = openaiProvider(config.model)
-        break
+        return openaiProvider(config.model)
       }
       case 'anthropic': {
         const apiKey = configManager.getApiKey(currentModelName)
@@ -277,8 +263,7 @@ export class ModelProvider {
           throw new Error(`API key not found for model: ${currentModelName} (Anthropic). Use /set-key to configure.`)
         }
         const anthropicProvider = createAnthropic({ apiKey })
-        baseModel = anthropicProvider(config.model)
-        break
+        return anthropicProvider(config.model)
       }
       case 'vercel': {
         const apiKey = configManager.getApiKey(currentModelName)
@@ -288,8 +273,7 @@ export class ModelProvider {
           )
         }
         const vercelProvider = createVercel({ apiKey })
-        baseModel = vercelProvider(config.model)
-        break
+        return vercelProvider(config.model)
       }
       case 'google': {
         const apiKey = configManager.getApiKey(currentModelName)
@@ -297,8 +281,7 @@ export class ModelProvider {
           throw new Error(`API key not found for model: ${currentModelName} (Google). Use /set-key to configure.`)
         }
         const googleProvider = createGoogleGenerativeAI({ apiKey })
-        baseModel = googleProvider(config.model)
-        break
+        return googleProvider(config.model)
       }
       case 'gateway': {
         const apiKey = configManager.getApiKey(currentModelName)
@@ -310,8 +293,7 @@ export class ModelProvider {
           apiKey,
           baseURL: 'https://ai-gateway.vercel.sh/v1',
         })
-        baseModel = gatewayProvider(config.model)
-        break
+        return gatewayProvider(config.model)
       }
       case 'openrouter': {
         let apiKey = configManager.getApiKey(currentModelName)
@@ -369,14 +351,12 @@ export class ModelProvider {
         if ((config as any).enableWebSearch && !modelId.endsWith(':online')) {
           modelId = `${modelId}:online`
         }
-        baseModel = provider(modelId)
-        break
+        return provider(modelId)
       }
       case 'ollama': {
         // Ollama does not require API keys; assumes local daemon at default endpoint
         const ollamaProvider = createOllama({})
-        baseModel = ollamaProvider(config.model)
-        break
+        return ollamaProvider(config.model)
       }
       case 'cerebras': {
         const apiKey = configManager.getApiKey(currentModelName)
@@ -384,8 +364,7 @@ export class ModelProvider {
           throw new Error(`API key not found for model: ${currentModelName} (Cerebras). Use /set-key to configure.`)
         }
         const cerebrasProvider = createCerebras({ apiKey })
-        baseModel = cerebrasProvider(config.model)
-        break
+        return cerebrasProvider(config.model)
       }
       case 'groq': {
         const apiKey = configManager.getApiKey(currentModelName)
@@ -393,8 +372,7 @@ export class ModelProvider {
           throw new Error(`API key not found for model: ${currentModelName} (Groq). Use /set-key to configure.`)
         }
         const groqProvider = createGroq({ apiKey })
-        baseModel = groqProvider(config.model)
-        break
+        return groqProvider(config.model)
       }
       case 'llamacpp': {
         // LlamaCpp uses OpenAI-compatible API; assumes local server at default endpoint
@@ -403,8 +381,7 @@ export class ModelProvider {
           apiKey: 'llamacpp', // LlamaCpp doesn't require a real API key for local server
           baseURL: process.env.LLAMACPP_BASE_URL || 'http://localhost:8080/v1',
         })
-        baseModel = llamacppProvider(config.model)
-        break
+        return llamacppProvider(config.model)
       }
       case 'lmstudio': {
         // LMStudio uses OpenAI-compatible API; assumes local server at default endpoint
@@ -413,8 +390,7 @@ export class ModelProvider {
           apiKey: 'lm-studio', // LMStudio doesn't require a real API key
           baseURL: process.env.LMSTUDIO_BASE_URL || 'http://localhost:1234/v1',
         })
-        baseModel = lmstudioProvider(config.model)
-        break
+        return lmstudioProvider(config.model)
       }
       case 'openai-compatible': {
         const apiKey = configManager.getApiKey(currentModelName)
@@ -435,24 +411,11 @@ export class ModelProvider {
           baseURL,
           headers: (config as any).headers,
         })
-        baseModel = compatProvider(config.model)
-        break
+        return compatProvider(config.model)
       }
       default:
         throw new Error(`Unsupported provider: ${config.provider}`)
     }
-
-    // Apply AI caching middleware if enabled
-    const cacheConfig = configManager.get('aiCache') as any
-    if (cacheConfig?.enabled !== false) {
-      const cacheMiddleware = createAICacheMiddleware(cacheConfig)
-      return experimental_wrapLanguageModel({
-        model: baseModel,
-        middleware: cacheMiddleware,
-      })
-    }
-
-    return baseModel
   }
 
   async generateResponse(options: GenerateOptions): Promise<string> {
