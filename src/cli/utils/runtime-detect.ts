@@ -83,8 +83,8 @@ export function assertNapiSafe(moduleName: string): void {
   if (!isNapiSafe()) {
     throw new Error(
       `Cannot use NAPI module "${moduleName}" in Bun standalone binary. ` +
-        `This module uses libuv which is not supported. ` +
-        `Please use the development version or run with: bun run src/cli/index.ts`
+      `This module uses libuv which is not supported. ` +
+      `Please use the development version or run with: bun run src/cli/index.ts`
     )
   }
 }

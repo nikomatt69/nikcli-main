@@ -278,7 +278,7 @@ export const bunFile = (filePath: string): any => {
       },
       get size(): number {
         try {
-          return fs.statSync(filePath).size;
+          return (await fs.stat(filePath)).size;
         } catch {
           return 0;
         }
@@ -571,7 +571,7 @@ function createShellProxy() {
         return (...args: any[]) => {
           if (typeof prop === 'string') {
             const strings = [''];
-            return shell([prop as string, ''], ...args);
+            return shell({ raw: [prop as string, ''] as TemplateStringsArray }, ...args);
           }
           return () => Promise.resolve('');
         };
