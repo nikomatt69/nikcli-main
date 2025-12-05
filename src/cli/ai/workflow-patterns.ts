@@ -827,6 +827,264 @@ export async function composedWorkflow<T>(
 }
 
 // ============================================================================
+// Pattern 6: Agentic Execution (Multi-step Tool Usage)
+// Reference: https://v4.ai-sdk.dev/docs/foundations/agents
+// ============================================================================
+
+export interface AgenticConfig {
+    system: string
+    tools: Record<string, any>
+    maxSteps?: number
+    temperature?: number
+    onStepFinish?: (step: AgenticStepInfo) => void | Promise<void>
+}
+
+export interface AgenticStepInfo {
+    stepNumber: number
+    text: string
+    toolCalls: Array<{ toolName: string; args: any }>
+    toolResults: any[]
+    finishReason: string
+    usage?: { promptTokens: number; completionTokens: number; totalTokens: number }
+}
+
+export interface AgenticResult {
+    success: boolean
+    text: string
+    steps: AgenticStepInfo[]
+    totalSteps: number
+    allToolCalls: Array<{ toolName: string; args: any }>
+    usage: { promptTokens: number; completionTokens: number; totalTokens: number }
+    finishReason: string
+    error?: string
+}
+
+/**
+ * Execute an agentic workflow with multi-step tool usage
+ * Uses AI SDK's generateText with maxSteps for autonomous behavior
+ */
+export async function agenticExecution(
+    prompt: string,
+    config: AgenticConfig
+): Promise<AgenticResult> {
+    const model = getModel('medium')
+    const steps: AgenticStepInfo[] = []
+    let stepNumber = 0
+
+    try {
+        const result = await generateText({
+            model,
+            system: config.system,
+            prompt,
+            tools: config.tools,
+            maxSteps: config.maxSteps || 10,
+            temperature: config.temperature,
+            onStepFinish: async (stepData: any) => {
+                stepNumber++
+                const stepInfo: AgenticStepInfo = {
+                    stepNumber,
+                    text: stepData.text || '',
+                    toolCalls: (stepData.toolCalls || []).map((tc: any) => ({
+                        toolName: tc.toolName,
+                        args: tc.args,
+                    })),
+                    toolResults: stepData.toolResults || [],
+                    finishReason: stepData.finishReason || 'unknown',
+                    usage: stepData.usage,
+                }
+                steps.push(stepInfo)
+
+                if (config.onStepFinish) {
+                    await config.onStepFinish(stepInfo)
+                }
+            },
+        })
+
+        const allToolCalls = steps.flatMap(s => s.toolCalls)
+
+        return {
+            success: true,
+            text: result.text,
+            steps,
+            totalSteps: steps.length,
+            allToolCalls,
+            usage: {
+                promptTokens: result.usage?.promptTokens || 0,
+                completionTokens: result.usage?.completionTokens || 0,
+                totalTokens: result.usage?.totalTokens || 0,
+            },
+            finishReason: result.finishReason || 'stop',
+        }
+    } catch (error: any) {
+        return {
+            success: false,
+            text: '',
+            steps,
+            totalSteps: steps.length,
+            allToolCalls: steps.flatMap(s => s.toolCalls),
+            usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+            finishReason: 'error',
+            error: error.message,
+        }
+    }
+}
+
+/**
+ * Execute an agentic workflow with streaming output
+ */
+export async function* agenticStream(
+    prompt: string,
+    config: AgenticConfig
+): AsyncGenerator<{ type: 'text' | 'step' | 'finish' | 'error'; content: string; metadata?: any }> {
+    const model = getModel('medium')
+    let stepNumber = 0
+
+    try {
+        const { streamText } = await import('ai')
+
+        // streamText returns a thenable with textStream directly accessible
+        const streamResult = streamText({
+            model,
+            system: config.system,
+            prompt,
+            tools: config.tools,
+            maxSteps: config.maxSteps || 10,
+            temperature: config.temperature,
+            onStepFinish: async (_stepData: any) => {
+                stepNumber++
+            },
+        }) as any // Type assertion for thenable with properties
+
+        // Stream text chunks as they arrive
+        for await (const chunk of streamResult.textStream) {
+            yield { type: 'text', content: chunk, metadata: { stepNumber } }
+        }
+
+        // Wait for completion to get final result
+        const finalResult = await streamResult
+
+        yield {
+            type: 'finish',
+            content: finalResult.text,
+            metadata: {
+                totalSteps: stepNumber,
+                finishReason: finalResult.finishReason,
+                usage: finalResult.usage,
+            },
+        }
+    } catch (error: any) {
+        yield { type: 'error', content: error.message }
+    }
+}
+
+/**
+ * Pre-built agentic tool sets using Bun native APIs
+ */
+export const agenticToolSets = {
+    fileOps: {
+        readFile: {
+            description: 'Read the contents of a file',
+            parameters: z.object({
+                path: z.string().describe('Path to the file'),
+            }),
+            execute: async ({ path }: { path: string }) => {
+                try {
+                    const content = await Bun.file(path).text()
+                    return { success: true, content, path }
+                } catch (e: any) {
+                    return { success: false, error: e.message, path }
+                }
+            },
+        },
+        writeFile: {
+            description: 'Write content to a file',
+            parameters: z.object({
+                path: z.string().describe('Path to the file'),
+                content: z.string().describe('Content to write'),
+            }),
+            execute: async ({ path, content }: { path: string; content: string }) => {
+                try {
+                    await Bun.write(path, content)
+                    return { success: true, path, bytesWritten: content.length }
+                } catch (e: any) {
+                    return { success: false, error: e.message, path }
+                }
+            },
+        },
+        listFiles: {
+            description: 'List files in a directory',
+            parameters: z.object({
+                directory: z.string().describe('Directory path'),
+                pattern: z.string().optional().describe('Glob pattern'),
+            }),
+            execute: async ({ directory, pattern }: { directory: string; pattern?: string }) => {
+                try {
+                    const glob = new Bun.Glob(pattern || '*')
+                    const files = await Array.fromAsync(glob.scan({ cwd: directory }))
+                    return { success: true, files, count: files.length }
+                } catch (e: any) {
+                    return { success: false, error: e.message }
+                }
+            },
+        },
+    },
+    execution: {
+        runCommand: {
+            description: 'Execute a shell command',
+            parameters: z.object({
+                command: z.string().describe('Command to execute'),
+                cwd: z.string().optional().describe('Working directory'),
+            }),
+            execute: async ({ command, cwd }: { command: string; cwd?: string }) => {
+                try {
+                    const proc = Bun.spawn(['sh', '-c', command], {
+                        cwd: cwd || process.cwd(),
+                        stdout: 'pipe',
+                        stderr: 'pipe',
+                    })
+                    const stdout = await new Response(proc.stdout).text()
+                    const stderr = await new Response(proc.stderr).text()
+                    const exitCode = await proc.exited
+                    return { success: exitCode === 0, stdout: stdout.trim(), stderr: stderr.trim(), exitCode }
+                } catch (e: any) {
+                    return { success: false, error: e.message }
+                }
+            },
+        },
+    },
+    codeAnalysis: {
+        searchCode: {
+            description: 'Search for a pattern in code files',
+            parameters: z.object({
+                pattern: z.string().describe('Pattern to search'),
+                directory: z.string().describe('Directory to search'),
+                filePattern: z.string().optional().describe('File glob pattern'),
+            }),
+            execute: async ({ pattern, directory, filePattern }: { pattern: string; directory: string; filePattern?: string }) => {
+                try {
+                    const glob = new Bun.Glob(filePattern || '**/*.{ts,js,tsx,jsx}')
+                    const matches: Array<{ file: string; line: number; content: string }> = []
+
+                    for await (const file of glob.scan({ cwd: directory })) {
+                        const fullPath = `${directory}/${file}`
+                        const content = await Bun.file(fullPath).text()
+                        content.split('\n').forEach((line, idx) => {
+                            if (line.includes(pattern)) {
+                                matches.push({ file, line: idx + 1, content: line.trim().slice(0, 150) })
+                            }
+                        })
+                    }
+
+                    return { success: true, matches, count: matches.length }
+                } catch (e: any) {
+                    return { success: false, error: e.message }
+                }
+            },
+        },
+    },
+}
+
+// ============================================================================
 // Export all patterns
 // ============================================================================
 
@@ -848,6 +1106,11 @@ export const workflowPatterns = {
 
     // Composition
     compose: composedWorkflow,
+
+    // Agentic execution (multi-step tool usage)
+    agentic: agenticExecution,
+    agenticStream: agenticStream,
+    agenticTools: agenticToolSets,
 }
 
 export default workflowPatterns

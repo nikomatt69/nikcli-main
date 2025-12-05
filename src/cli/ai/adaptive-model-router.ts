@@ -501,25 +501,36 @@ async function pickOpenRouterAsync(
   if (!providerMatch) return baseModel
 
   const providerPrefix = providerMatch[1]
+  const configModels = getConfigOpenRouterModelsByPrefix(providerPrefix)
+
+  // If no configured models for this provider prefix, keep the base model
+  if (configModels.length === 0) {
+    return baseModel
+  }
 
   try {
-    // Fetch all models from OpenRouter API
+    // Fetch all models from OpenRouter API and build lookup map
     const allModels = await openRouterRegistry.fetchAllModels()
+    const modelMap = new Map<string, OpenRouterModel>()
+    for (const model of allModels) {
+      modelMap.set(model.id, model)
+    }
 
-    // Filter models by provider prefix
-    const providerModels = allModels.filter(m => m.id.startsWith(providerPrefix))
-    if (providerModels.length === 0) return baseModel
+    // Keep only models that are configured AND present in OpenRouter listing
+    const allowedModels = configModels.filter((id) => modelMap.has(id))
+    if (allowedModels.length === 0) return baseModel
 
     // Classify models by tier based on their actual capabilities
-    const modelsByTier: { light: OpenRouterModel[]; medium: OpenRouterModel[]; heavy: OpenRouterModel[] } = {
+    const modelsByTier: { light: string[]; medium: string[]; heavy: string[] } = {
       light: [],
       medium: [],
       heavy: [],
     }
 
-    for (const model of providerModels) {
+    for (const modelId of allowedModels) {
+      const model = modelMap.get(modelId)!
       const modelTier = classifyOpenRouterModelTier(model)
-      modelsByTier[modelTier].push(model)
+      modelsByTier[modelTier].push(modelId)
     }
 
     // Select candidates based on tier
@@ -537,28 +548,36 @@ async function pickOpenRouterAsync(
     // Filter by context size if specified
     if (totalEstimatedTokens && totalEstimatedTokens > 0) {
       const withEnoughContext = candidates.filter(
-        m => m.context_length >= totalEstimatedTokens * 1.2
+        (id) => {
+          const contextLength = modelMap.get(id)?.context_length ?? 0
+          return contextLength >= totalEstimatedTokens * 1.2
+        }
       )
       if (withEnoughContext.length > 0) candidates = withEnoughContext
     }
 
     // Filter by vision capability if needed
     if (needsVision) {
-      const visionCapable = candidates.filter(
-        m => m.architecture?.modality?.includes('image') ||
-          m.id.includes('vision') ||
-          m.id.includes('image')
-      )
+      const visionCapable = candidates.filter((id) => {
+        const m = modelMap.get(id)
+        return (
+          m?.architecture?.modality?.includes('image') ||
+          id.includes('vision') ||
+          id.includes('image')
+        )
+      })
       if (visionCapable.length > 0) candidates = visionCapable
     }
 
     // Sort by context length (larger first for heavy tier, smaller for light)
     candidates.sort((a, b) => {
-      if (tier === 'light') return a.context_length - b.context_length
-      return b.context_length - a.context_length
+      const contextA = modelMap.get(a)?.context_length ?? 0
+      const contextB = modelMap.get(b)?.context_length ?? 0
+      if (tier === 'light') return contextA - contextB
+      return contextB - contextA
     })
 
-    return candidates[0].id
+    return candidates[0]
   } catch {
     // Fallback to sync version if API fails
     return pickOpenRouter(baseModel, tier, needsVision, totalEstimatedTokens)
@@ -594,6 +613,47 @@ function classifyOpenRouterModelTier(model: OpenRouterModel): 'light' | 'medium'
   if (contextLength < 32000) return 'light'
 
   return 'medium'
+}
+
+/**
+ * Retrieve OpenRouter models from user configuration filtered by provider prefix.
+ * This prevents routing toward models that are not explicitly configured.
+ */
+function getConfigOpenRouterModelsByPrefix(providerPrefix: string): string[] {
+  try {
+    const allModels = simpleConfigManager.getAllModels()
+    const models = Object.values(allModels)
+      .filter(
+        (config: any) =>
+          config.provider === 'openrouter' &&
+          typeof config.model === 'string' &&
+          config.model.startsWith(providerPrefix)
+      )
+      .map((config: any) => config.model as string)
+
+    return Array.from(new Set(models))
+  } catch (error) {
+    structuredLogger.warning(
+      'Failed to read OpenRouter models from config',
+      JSON.stringify({ error: String(error), providerPrefix })
+    )
+    return []
+  }
+}
+
+/**
+ * Keep only models that are configured locally, preserving order and uniqueness.
+ */
+function filterConfiguredModels(models?: string[]): string[] | undefined {
+  if (!models) return undefined
+  const configured = simpleConfigManager.getAllModels()
+  const result: string[] = []
+  for (const model of models) {
+    if (configured[model] && !result.includes(model)) {
+      result.push(model)
+    }
+  }
+  return result
 }
 
 function pickOpenRouter(
@@ -919,8 +979,8 @@ export class AdaptiveModelRouter {
       // Use OpenRouter's 'models' parameter for automatic fallback
       // Reference: https://openrouter.ai/docs/guides/features/model-routing
       selected = input.baseModel
-      fallbackModels = input.fallbackModels || FALLBACK_CHAINS.openrouter?.[tier] || []
-      reason = `openrouter fallback-chain (${method}, ${fallbackModels.length} fallbacks)`
+      fallbackModels = filterConfiguredModels(input.fallbackModels || FALLBACK_CHAINS.openrouter?.[tier] || [])
+      reason = `openrouter fallback-chain (${method}, ${fallbackModels?.length ?? 0} fallbacks)`
 
       structuredLogger.info(
         'Using OpenRouter fallback chain',
@@ -963,7 +1023,7 @@ export class AdaptiveModelRouter {
             selected = pickOpenRouter(input.baseModel, tier, input.needsVision, totalEstimatedTokens, registry)
           }
           // Always include fallback models for OpenRouter adaptive routing
-          fallbackModels = FALLBACK_CHAINS.openrouter?.[tier]
+          fallbackModels = filterConfiguredModels(FALLBACK_CHAINS.openrouter?.[tier])
           reason = `openrouter ${tier} (${method}${toolchainReserve > 0 ? `, toolchain: ${toolchainReserve} tok` : ''})`
           break
         case 'groq':

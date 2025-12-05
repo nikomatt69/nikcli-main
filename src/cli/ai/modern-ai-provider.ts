@@ -9,11 +9,12 @@ import { createGroq } from '@ai-sdk/groq'
 import { createOpenAI } from '@ai-sdk/openai'
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import { createVercel } from '@ai-sdk/vercel'
-import { type CoreMessage, type CoreTool, generateText, streamText, tool } from 'ai'
+import { type CoreMessage, type CoreTool, generateText, streamText, tool, experimental_wrapLanguageModel } from 'ai'
 import { createOllama } from 'ollama-ai-provider'
 import { z } from 'zod'
 
 import { simpleConfigManager } from '../core/config-manager'
+
 import { type PromptContext, PromptManager } from '../prompts/prompt-manager'
 import { streamttyService } from '../services/streamtty-service'
 import type { OutputStyle } from '../types/output-styles'
@@ -1114,27 +1115,34 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
       throw new Error(`No API key found for model ${model}`)
     }
 
+    let baseModel: any
+
     switch (config.provider) {
       case 'openai': {
         // OpenAI provider is already response-API compatible via model options; no chainable helper here.
         const openaiProvider = createOpenAI({ apiKey, compatibility: 'strict' })
-        return openaiProvider(config.model)
+        baseModel = openaiProvider(config.model)
+        break
       }
       case 'anthropic': {
         const anthropicProvider = createAnthropic({ apiKey })
-        return anthropicProvider(config.model)
+        baseModel = anthropicProvider(config.model)
+        break
       }
       case 'google': {
         const googleProvider = createGoogleGenerativeAI({ apiKey })
-        return googleProvider(config.model)
+        baseModel = googleProvider(config.model)
+        break
       }
       case 'vercel': {
         const vercelProvider = createVercel({ apiKey })
-        return vercelProvider(config.model)
+        baseModel = vercelProvider(config.model)
+        break
       }
       case 'gateway': {
         const gatewayProvider = createGateway({ apiKey })
-        return gatewayProvider(config.model)
+        baseModel = gatewayProvider(config.model)
+        break
       }
       case 'openrouter': {
         const openrouterProvider = createOpenAI({
@@ -1151,20 +1159,24 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
         if ((config as any).enableWebSearch && !modelId.endsWith(':online')) {
           modelId = `${modelId}:online`
         }
-        return openrouterProvider(modelId)
+        baseModel = openrouterProvider(modelId)
+        break
       }
       case 'ollama': {
         // Ollama does not require API keys; assumes local daemon at default endpoint
         const ollamaProvider = createOllama({})
-        return ollamaProvider(config.model)
+        baseModel = ollamaProvider(config.model)
+        break
       }
       case 'cerebras': {
         const cerebrasProvider = createCerebras({ apiKey })
-        return cerebrasProvider(config.model)
+        baseModel = cerebrasProvider(config.model)
+        break
       }
       case 'groq': {
         const groqProvider = createGroq({ apiKey })
-        return groqProvider(config.model)
+        baseModel = groqProvider(config.model)
+        break
       }
       case 'llamacpp': {
         // LlamaCpp uses OpenAI-compatible API; assumes local server at default endpoint
@@ -1173,7 +1185,8 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
           apiKey: 'llamacpp', // LlamaCpp doesn't require a real API key for local server
           baseURL: process.env.LLAMACPP_BASE_URL || 'http://localhost:8080/v1',
         })
-        return llamacppProvider(config.model)
+        baseModel = llamacppProvider(config.model)
+        break
       }
       case 'lmstudio': {
         // LMStudio uses OpenAI-compatible API; assumes local server at default endpoint
@@ -1182,7 +1195,8 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
           apiKey: 'lm-studio', // LMStudio doesn't require a real API key
           baseURL: process.env.LMSTUDIO_BASE_URL || 'http://localhost:1234/v1',
         })
-        return lmstudioProvider(config.model)
+        baseModel = lmstudioProvider(config.model)
+        break
       }
       case 'openai-compatible': {
         const baseURL = (config as any).baseURL || process.env.OPENAI_COMPATIBLE_BASE_URL
@@ -1197,11 +1211,17 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
           baseURL,
           headers: (config as any).headers,
         })
-        return compatProvider(config.model)
+        baseModel = compatProvider(config.model)
+        break
       }
       default:
         throw new Error(`Unsupported provider: ${config.provider}`)
     }
+
+    // Apply AI caching middleware if enabled
+
+
+    return baseModel
   }
 
   // Claude Code style streaming with tool support

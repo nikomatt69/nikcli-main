@@ -5,7 +5,7 @@ import { createGroq } from '@ai-sdk/groq'
 import { createOpenAI } from '@ai-sdk/openai'
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import { createVercel } from '@ai-sdk/vercel'
-import { generateObject, generateText, streamText } from 'ai'
+import { generateObject, generateText, streamText, experimental_wrapLanguageModel } from 'ai'
 
 import { createOllama } from 'ollama-ai-provider'
 import { z } from 'zod'
@@ -235,18 +235,21 @@ export class ModelProvider {
     return false
   }
 
-  private async getModel(config: ModelConfig) {
+  private getModel(config: ModelConfig) {
     const currentModelName = configManager.get('currentModel')
 
     // Try provider registry first (optional, experimental)
     if (process.env.USE_PROVIDER_REGISTRY === 'true') {
       try {
-        const { getLanguageModel } = await import('./provider-registry')
-        return getLanguageModel(config.provider, config.model)
+        const { getLanguageModel } = require('./provider-registry')
+        const baseModel = getLanguageModel(config.provider, config.model)
+        return baseModel
       } catch (error) {
         // Fall through to legacy implementation
       }
     }
+
+    let baseModel: any
 
     switch (config.provider) {
       case 'openai': {
@@ -255,7 +258,8 @@ export class ModelProvider {
           throw new Error(`API key not found for model: ${currentModelName} (OpenAI). Use /set-key to configure.`)
         }
         const openaiProvider = createOpenAI({ apiKey, compatibility: 'strict' })
-        return openaiProvider(config.model)
+        baseModel = openaiProvider(config.model)
+        break
       }
       case 'anthropic': {
         const apiKey = configManager.getApiKey(currentModelName)
@@ -263,7 +267,8 @@ export class ModelProvider {
           throw new Error(`API key not found for model: ${currentModelName} (Anthropic). Use /set-key to configure.`)
         }
         const anthropicProvider = createAnthropic({ apiKey })
-        return anthropicProvider(config.model)
+        baseModel = anthropicProvider(config.model)
+        break
       }
       case 'vercel': {
         const apiKey = configManager.getApiKey(currentModelName)
@@ -273,7 +278,8 @@ export class ModelProvider {
           )
         }
         const vercelProvider = createVercel({ apiKey })
-        return vercelProvider(config.model)
+        baseModel = vercelProvider(config.model)
+        break
       }
       case 'google': {
         const apiKey = configManager.getApiKey(currentModelName)
@@ -281,7 +287,8 @@ export class ModelProvider {
           throw new Error(`API key not found for model: ${currentModelName} (Google). Use /set-key to configure.`)
         }
         const googleProvider = createGoogleGenerativeAI({ apiKey })
-        return googleProvider(config.model)
+        baseModel = googleProvider(config.model)
+        break
       }
       case 'gateway': {
         const apiKey = configManager.getApiKey(currentModelName)
@@ -293,7 +300,8 @@ export class ModelProvider {
           apiKey,
           baseURL: 'https://ai-gateway.vercel.sh/v1',
         })
-        return gatewayProvider(config.model)
+        baseModel = gatewayProvider(config.model)
+        break
       }
       case 'openrouter': {
         let apiKey = configManager.getApiKey(currentModelName)
@@ -351,12 +359,14 @@ export class ModelProvider {
         if ((config as any).enableWebSearch && !modelId.endsWith(':online')) {
           modelId = `${modelId}:online`
         }
-        return provider(modelId)
+        baseModel = provider(modelId)
+        break
       }
       case 'ollama': {
         // Ollama does not require API keys; assumes local daemon at default endpoint
         const ollamaProvider = createOllama({})
-        return ollamaProvider(config.model)
+        baseModel = ollamaProvider(config.model)
+        break
       }
       case 'cerebras': {
         const apiKey = configManager.getApiKey(currentModelName)
@@ -364,7 +374,8 @@ export class ModelProvider {
           throw new Error(`API key not found for model: ${currentModelName} (Cerebras). Use /set-key to configure.`)
         }
         const cerebrasProvider = createCerebras({ apiKey })
-        return cerebrasProvider(config.model)
+        baseModel = cerebrasProvider(config.model)
+        break
       }
       case 'groq': {
         const apiKey = configManager.getApiKey(currentModelName)
@@ -372,7 +383,8 @@ export class ModelProvider {
           throw new Error(`API key not found for model: ${currentModelName} (Groq). Use /set-key to configure.`)
         }
         const groqProvider = createGroq({ apiKey })
-        return groqProvider(config.model)
+        baseModel = groqProvider(config.model)
+        break
       }
       case 'llamacpp': {
         // LlamaCpp uses OpenAI-compatible API; assumes local server at default endpoint
@@ -381,7 +393,8 @@ export class ModelProvider {
           apiKey: 'llamacpp', // LlamaCpp doesn't require a real API key for local server
           baseURL: process.env.LLAMACPP_BASE_URL || 'http://localhost:8080/v1',
         })
-        return llamacppProvider(config.model)
+        baseModel = llamacppProvider(config.model)
+        break
       }
       case 'lmstudio': {
         // LMStudio uses OpenAI-compatible API; assumes local server at default endpoint
@@ -390,7 +403,8 @@ export class ModelProvider {
           apiKey: 'lm-studio', // LMStudio doesn't require a real API key
           baseURL: process.env.LMSTUDIO_BASE_URL || 'http://localhost:1234/v1',
         })
-        return lmstudioProvider(config.model)
+        baseModel = lmstudioProvider(config.model)
+        break
       }
       case 'openai-compatible': {
         const apiKey = configManager.getApiKey(currentModelName)
@@ -411,11 +425,14 @@ export class ModelProvider {
           baseURL,
           headers: (config as any).headers,
         })
-        return compatProvider(config.model)
+        baseModel = compatProvider(config.model)
+        break
       }
       default:
         throw new Error(`Unsupported provider: ${config.provider}`)
     }
+
+    return baseModel
   }
 
   async generateResponse(options: GenerateOptions): Promise<string> {
