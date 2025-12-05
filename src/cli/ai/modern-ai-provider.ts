@@ -9,12 +9,17 @@ import { createGroq } from '@ai-sdk/groq'
 import { createOpenAI } from '@ai-sdk/openai'
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import { createVercel } from '@ai-sdk/vercel'
-import { type CoreMessage, type CoreTool, generateText, streamText, tool, experimental_wrapLanguageModel } from 'ai'
+import { type CoreMessage, type CoreTool, generateText, streamText, tool } from 'ai'
 import { createOllama } from 'ollama-ai-provider'
 import { z } from 'zod'
 
 import { simpleConfigManager } from '../core/config-manager'
-
+import {
+  convertToolRegistryToAISDKTools,
+  filterToolsByCriteria,
+  type ToolParameterSchema,
+} from '../tools/ai-sdk-tool-adapter'
+import type { ToolRegistry } from '../tools/tool-registry'
 import { type PromptContext, PromptManager } from '../prompts/prompt-manager'
 import { streamttyService } from '../services/streamtty-service'
 import type { OutputStyle } from '../types/output-styles'
@@ -70,6 +75,18 @@ export interface AIProviderOptions {
   parallelToolCalls?: boolean
   // OpenRouter transforms (e.g., ["middle-out"] for context compression)
   transforms?: string[]
+  // Tool calling configuration
+  toolOptions?: {
+    maxRiskLevel?: 'low' | 'medium' | 'high'
+    categories?: string[]
+    excludeCategories?: string[]
+    tags?: string[]
+    excludeTags?: string[]
+    whitelist?: string[] // Only include these specific tools
+    maxTools?: number // Maximum number of tools to include (for active tools pattern)
+    enableRepair?: boolean // Enable tool call repair (default: true)
+    useRegistry?: boolean // Use registry tools via adapter (default: true)
+  }
 }
 
 /**
@@ -169,10 +186,55 @@ export class ModernAIProvider {
   private currentModel: string
   private workingDirectory: string = process.cwd()
   private promptManager: PromptManager
+  private toolRegistry: ToolRegistry | null = null
 
   constructor() {
     this.currentModel = simpleConfigManager.get('currentModel')
     this.promptManager = PromptManager.getInstance(process.cwd())
+  }
+
+  /**
+   * Get or create ToolRegistry instance
+   */
+  private getToolRegistry(): ToolRegistry {
+    if (!this.toolRegistry) {
+      const { ToolRegistry } = require('../tools/tool-registry')
+      this.toolRegistry = new ToolRegistry(this.workingDirectory)
+    }
+    if (!this.toolRegistry) {
+      throw new Error('Failed to create ToolRegistry')
+    }
+    return this.toolRegistry as ToolRegistry
+  }
+
+  /**
+   * Get AI SDK tools from ToolRegistry using the adapter
+   * @param parameterSchemas Optional custom parameter schemas
+   * @param filterCriteria Optional criteria to filter tools
+   * @returns Record of tool names to AI SDK CoreTool instances
+   */
+  getAISDKToolsFromRegistry(
+    parameterSchemas?: ToolParameterSchema,
+    filterCriteria?: {
+      maxRiskLevel?: 'low' | 'medium' | 'high'
+      categories?: string[]
+      excludeCategories?: string[]
+      tags?: string[]
+      excludeTags?: string[]
+    }
+  ): Record<string, CoreTool> {
+    const registry = this.getToolRegistry()
+    if (!registry) {
+      throw new Error('ToolRegistry not available')
+    }
+    let tools = convertToolRegistryToAISDKTools(registry, parameterSchemas)
+
+    // Apply filters if provided
+    if (filterCriteria) {
+      tools = filterToolsByCriteria(tools, registry, filterCriteria)
+    }
+
+    return tools
   }
 
   /**
@@ -516,7 +578,25 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
   }
 
   // Core file operations tools - Claude Code style
+  // Uses ToolRegistry tools via AI SDK adapter for unified tool management
   private getFileOperationsTools(): Record<string, CoreTool> {
+    // Use ToolRegistry tools via adapter (recommended for production)
+    // This provides consistent tool definitions, metadata, and error handling
+    const registryTools = this.getAISDKToolsFromRegistry(undefined, {
+      maxRiskLevel: 'high', // Include all tools up to high risk
+      excludeCategories: [], // Include all categories
+    })
+
+    // Merge with legacy inline tools for backwards compatibility
+    // Note: Registry tools take precedence if names conflict
+    return { ...this.getLegacyFileTools(), ...registryTools }
+  }
+
+  /**
+   * Legacy inline tools for backwards compatibility
+   * These are kept for tools that may not be in the registry yet
+   */
+  private getLegacyFileTools(): Record<string, CoreTool> {
     const tools: Record<string, CoreTool> = {
       read_file: tool({
         description: 'Read the contents of a file',
@@ -923,6 +1003,49 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
     return tools
   }
 
+  /**
+   * Get tools with optional filtering and whitelisting
+   * @param options Configuration for tool selection
+   * @returns Filtered set of tools
+   */
+  getToolsWithOptions(options?: {
+    maxRiskLevel?: 'low' | 'medium' | 'high'
+    categories?: string[]
+    excludeCategories?: string[]
+    tags?: string[]
+    excludeTags?: string[]
+    whitelist?: string[] // Only include these specific tools
+    useRegistry?: boolean // Use registry tools (default: true)
+  }): Record<string, CoreTool> {
+    const useRegistry = options?.useRegistry !== false
+
+    if (useRegistry) {
+      const registryTools = this.getAISDKToolsFromRegistry(undefined, {
+        maxRiskLevel: options?.maxRiskLevel,
+        categories: options?.categories,
+        excludeCategories: options?.excludeCategories,
+        tags: options?.tags,
+        excludeTags: options?.excludeTags,
+      })
+
+      // Apply whitelist if specified
+      if (options?.whitelist && options.whitelist.length > 0) {
+        const filtered: Record<string, CoreTool> = {}
+        for (const toolName of options.whitelist) {
+          if (registryTools[toolName]) {
+            filtered[toolName] = registryTools[toolName]
+          }
+        }
+        return filtered
+      }
+
+      return registryTools
+    }
+
+    // Fallback to legacy tools
+    return this.getLegacyFileTools()
+  }
+
   private async analyzeWorkspaceStructure(rootPath: string, maxDepth: number): Promise<any> {
     const packageJsonPath = join(rootPath, 'package.json')
     let packageInfo: {
@@ -1115,34 +1238,27 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
       throw new Error(`No API key found for model ${model}`)
     }
 
-    let baseModel: any
-
     switch (config.provider) {
       case 'openai': {
         // OpenAI provider is already response-API compatible via model options; no chainable helper here.
         const openaiProvider = createOpenAI({ apiKey, compatibility: 'strict' })
-        baseModel = openaiProvider(config.model)
-        break
+        return openaiProvider(config.model)
       }
       case 'anthropic': {
         const anthropicProvider = createAnthropic({ apiKey })
-        baseModel = anthropicProvider(config.model)
-        break
+        return anthropicProvider(config.model)
       }
       case 'google': {
         const googleProvider = createGoogleGenerativeAI({ apiKey })
-        baseModel = googleProvider(config.model)
-        break
+        return googleProvider(config.model)
       }
       case 'vercel': {
         const vercelProvider = createVercel({ apiKey })
-        baseModel = vercelProvider(config.model)
-        break
+        return vercelProvider(config.model)
       }
       case 'gateway': {
         const gatewayProvider = createGateway({ apiKey })
-        baseModel = gatewayProvider(config.model)
-        break
+        return gatewayProvider(config.model)
       }
       case 'openrouter': {
         const openrouterProvider = createOpenAI({
@@ -1159,24 +1275,20 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
         if ((config as any).enableWebSearch && !modelId.endsWith(':online')) {
           modelId = `${modelId}:online`
         }
-        baseModel = openrouterProvider(modelId)
-        break
+        return openrouterProvider(modelId)
       }
       case 'ollama': {
         // Ollama does not require API keys; assumes local daemon at default endpoint
         const ollamaProvider = createOllama({})
-        baseModel = ollamaProvider(config.model)
-        break
+        return ollamaProvider(config.model)
       }
       case 'cerebras': {
         const cerebrasProvider = createCerebras({ apiKey })
-        baseModel = cerebrasProvider(config.model)
-        break
+        return cerebrasProvider(config.model)
       }
       case 'groq': {
         const groqProvider = createGroq({ apiKey })
-        baseModel = groqProvider(config.model)
-        break
+        return groqProvider(config.model)
       }
       case 'llamacpp': {
         // LlamaCpp uses OpenAI-compatible API; assumes local server at default endpoint
@@ -1185,8 +1297,7 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
           apiKey: 'llamacpp', // LlamaCpp doesn't require a real API key for local server
           baseURL: process.env.LLAMACPP_BASE_URL || 'http://localhost:8080/v1',
         })
-        baseModel = llamacppProvider(config.model)
-        break
+        return llamacppProvider(config.model)
       }
       case 'lmstudio': {
         // LMStudio uses OpenAI-compatible API; assumes local server at default endpoint
@@ -1195,8 +1306,7 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
           apiKey: 'lm-studio', // LMStudio doesn't require a real API key
           baseURL: process.env.LMSTUDIO_BASE_URL || 'http://localhost:1234/v1',
         })
-        baseModel = lmstudioProvider(config.model)
-        break
+        return lmstudioProvider(config.model)
       }
       case 'openai-compatible': {
         const baseURL = (config as any).baseURL || process.env.OPENAI_COMPATIBLE_BASE_URL
@@ -1211,21 +1321,18 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
           baseURL,
           headers: (config as any).headers,
         })
-        baseModel = compatProvider(config.model)
-        break
+        return compatProvider(config.model)
       }
       default:
         throw new Error(`Unsupported provider: ${config.provider}`)
     }
-
-    // Apply AI caching middleware if enabled
-
-
-    return baseModel
   }
 
   // Claude Code style streaming with tool support
-  async *streamChatWithTools(messages: CoreMessage[]): AsyncGenerator<
+  async *streamChatWithTools(
+    messages: CoreMessage[],
+    options: AIProviderOptions = {}
+  ): AsyncGenerator<
     {
       type: 'text' | 'tool_call' | 'tool_call_complete' | 'tool_result' | 'finish' | 'reasoning' | 'error' | 'usage'
       content?: string
@@ -1242,8 +1349,29 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
     unknown
   > {
     const model = this.getModel() as any
-    const allTools = this.getFileOperationsTools()
     const reasoningEnabled = this.shouldEnableReasoning()
+
+    // Get tools based on options
+    const toolOptions = options.toolOptions || {}
+    const useRegistry = toolOptions.useRegistry !== false
+    const maxTools = toolOptions.maxTools || 5
+
+    let allTools: Record<string, CoreTool>
+    if (useRegistry) {
+      // Use registry tools via adapter
+      allTools = this.getToolsWithOptions({
+        maxRiskLevel: toolOptions.maxRiskLevel,
+        categories: toolOptions.categories,
+        excludeCategories: toolOptions.excludeCategories,
+        tags: toolOptions.tags,
+        excludeTags: toolOptions.excludeTags,
+        whitelist: toolOptions.whitelist,
+        useRegistry: true,
+      })
+    } else {
+      // Use legacy inline tools
+      allTools = this.getFileOperationsTools()
+    }
 
     // Active Tools Pattern: Select relevant tools based on user's last message
     // Reference: https://ai-sdk.dev/docs/agents - best practices
@@ -1254,8 +1382,10 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
         ? lastUserMessage.content.map(p => 'text' in p ? p.text : '').join(' ')
         : ''
 
-    // Select 5 most relevant tools based on message context
-    const tools = this.selectActiveTools(userContent, allTools, 5)
+    // Select relevant tools based on message context (unless whitelist is specified)
+    const tools = toolOptions.whitelist
+      ? allTools // Use all whitelisted tools
+      : this.selectActiveTools(userContent, allTools, maxTools)
 
     // Yield reasoning summary before streaming if enabled - format as markdown
     if (reasoningEnabled) {
@@ -1309,7 +1439,13 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
         toolChoice: 'auto',
         // AI SDK Tool Call Repair - automatically fix invalid tool calls
         // Reference: https://v4.ai-sdk.dev/docs/ai-sdk-core/tools-and-tool-calling#tool-call-repair
-        experimental_repairToolCall: this.createToolCallRepairHandler(model, tools),
+        experimental_repairToolCall: (toolOptions.enableRepair !== false)
+          ? this.createToolCallRepairHandler(model, tools)
+          : undefined,
+        // AI SDK Active Tools - limit available tools to improve performance
+        // Reference: https://v4.ai-sdk.dev/docs/ai-sdk-core/tools-and-tool-calling#active-tools
+        // Only include tools that were selected by selectActiveTools
+        experimental_activeTools: Object.keys(tools),
         // AI SDK Agent Loop Control - onStepFinish callback
         // Reference: https://ai-sdk.dev/docs/agents/loop-control
         onStepFinish: (step: {
@@ -1544,7 +1680,10 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
   }
 
   // Generate complete response with tools
-  async generateWithTools(messages: CoreMessage[]): Promise<{
+  async generateWithTools(
+    messages: CoreMessage[],
+    options: AIProviderOptions = {}
+  ): Promise<{
     text: string
     toolCalls: any[]
     toolResults: any[]
@@ -1552,8 +1691,29 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
     reasoningText?: string
   }> {
     const model = this.getModel() as any
-    const allTools = this.getFileOperationsTools()
     const reasoningEnabled = this.shouldEnableReasoning()
+
+    // Get tools based on options
+    const toolOptions = options.toolOptions || {}
+    const useRegistry = toolOptions.useRegistry !== false
+    const maxTools = toolOptions.maxTools || 5
+
+    let allTools: Record<string, CoreTool>
+    if (useRegistry) {
+      // Use registry tools via adapter
+      allTools = this.getToolsWithOptions({
+        maxRiskLevel: toolOptions.maxRiskLevel,
+        categories: toolOptions.categories,
+        excludeCategories: toolOptions.excludeCategories,
+        tags: toolOptions.tags,
+        excludeTags: toolOptions.excludeTags,
+        whitelist: toolOptions.whitelist,
+        useRegistry: true,
+      })
+    } else {
+      // Use legacy inline tools
+      allTools = this.getFileOperationsTools()
+    }
 
     // Active Tools Pattern: Select relevant tools based on user's last message
     const lastUserMessage = messages.slice().reverse().find(m => m.role === 'user')
@@ -1563,7 +1723,10 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
         ? lastUserMessage.content.map(p => 'text' in p ? p.text : '').join(' ')
         : ''
 
-    const tools = this.selectActiveTools(userContent, allTools, 5)
+    // Select relevant tools based on message context (unless whitelist is specified)
+    const tools = toolOptions.whitelist
+      ? allTools // Use all whitelisted tools
+      : this.selectActiveTools(userContent, allTools, maxTools)
 
     this.logReasoningStatus(reasoningEnabled)
 
@@ -1581,8 +1744,14 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
         maxTokens: 4000,
         // AI SDK toolChoice: 'auto' (default), 'none', 'required', or { type: 'tool', toolName: 'specific-tool' }
         toolChoice: 'auto',
+        // AI SDK Active Tools - limit available tools to improve performance
+        // Reference: https://v4.ai-sdk.dev/docs/ai-sdk-core/tools-and-tool-calling#active-tools
+        experimental_activeTools: Object.keys(tools),
         // AI SDK Tool Call Repair - automatically fix invalid tool calls
-        experimental_repairToolCall: this.createToolCallRepairHandler(model, tools),
+        // Reference: https://v4.ai-sdk.dev/docs/ai-sdk-core/tools-and-tool-calling#tool-call-repair
+        experimental_repairToolCall: (toolOptions.enableRepair !== false)
+          ? this.createToolCallRepairHandler(model, tools)
+          : undefined,
         // AI SDK Agent Loop Control - onStepFinish callback
         onStepFinish: (step: {
           stepType: 'initial' | 'continue' | 'tool-result';

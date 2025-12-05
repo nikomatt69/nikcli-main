@@ -435,6 +435,7 @@ export class ModelProvider {
         throw new Error(`Unsupported provider: ${config.provider}`)
     }
 
+    // Apply AI caching middleware if enabled 
 
 
     return baseModel

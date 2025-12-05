@@ -25,7 +25,7 @@ const isNode = typeof process !== 'undefined' && process.versions?.node;
 // Prometheus exporter (mock for compatibility)
 const prometheusExporter = {
   bunSpawnDuration: {
-    observe: (_labels: any, _value: number) => {},
+    observe: (_labels: any, _value: number) => { },
   },
 };
 
@@ -51,7 +51,7 @@ export async function shell(
     return acc + str + (i < values.length ? String(values[i]) : '');
   }, '');
 
-  return await execShell(command);
+  return (await execShell(command)).stdout as string;
 }
 
 /**
@@ -149,7 +149,7 @@ export async function globScan(
     return await glob(pattern, {
       cwd: options?.cwd,
       absolute: options?.absolute,
-      onlyFiles: options?.onlyFiles,
+
     });
   }
 }
@@ -178,7 +178,7 @@ export function globScanSync(
     return glob.sync(pattern, {
       cwd: options?.cwd,
       absolute: options?.absolute,
-      onlyFiles: options?.onlyFiles,
+
     });
   }
 }
@@ -219,7 +219,7 @@ export function bunNanoseconds(): number {
   if (isBun && (globalThis as any).Bun?.nanoseconds) {
     return (globalThis as any).Bun.nanoseconds();
   } else {
-    return process.hrtime.bigint();
+    return Number(process.hrtime.bigint());
   }
 }
 
@@ -267,7 +267,7 @@ export const bunFile = (filePath: string): any => {
       json: async <T = any>(): Promise<T> =>
         JSON.parse(await fs.readFile(filePath, 'utf8')),
       arrayBuffer: async (): Promise<ArrayBuffer> =>
-        await fs.readFile(filePath),
+        await fs.readFile(filePath) as unknown as ArrayBuffer,
       exists: async (): Promise<boolean> => {
         try {
           await fs.access(filePath);
@@ -296,12 +296,14 @@ export const bunFile = (filePath: string): any => {
         };
         return mimeTypes[ext] || 'application/octet-stream';
       },
-      get lastModified(): number {
-        try {
-          return fs.statSync(filePath).mtimeMs;
-        } catch {
-          return 0;
-        }
+      get lastModified(): Promise<number> {
+        return (async () => {
+          try {
+            return (await fs.stat(filePath)).mtimeMs;
+          } catch {
+            return 0;
+          }
+        })();
       },
     };
   }
@@ -318,7 +320,7 @@ export const bunWrite = async (
     if (isBun && (globalThis as any).Bun?.write) {
       await (globalThis as any).Bun.write(filePath, data);
     } else {
-      await fs.writeFile(filePath, data);
+      await fs.writeFile(filePath as string, data as Uint8Array);
     }
   }
 };
@@ -331,19 +333,19 @@ export const bunWrite = async (
  * Cross-runtime process spawning
  */
 export const bunSpawn = (
-  options: string[] | { cmd: string[]; [key: string]: any },
+  options: string[] | { cmd: string[];[key: string]: any },
 ): any => {
   if (isBun && (globalThis as any).Bun?.spawn) {
     return (globalThis as any).Bun.spawn(options);
   } else {
     // Return a mock subprocess that mimics Bun.spawn interface
     const cmd = Array.isArray(options) ? options : options.cmd;
-    const child = spawn(cmd[0], cmd.slice(1), options);
+    const child = spawn(cmd[0], cmd.slice(1), options as any);
 
     return {
-      stdout: child.stdout,
-      stderr: child.stderr,
-      exited: new Promise((resolve) => child.on('close', resolve)),
+      stdout: child.stdout as any,
+      stderr: child.stderr as any,
+      exited: new Promise((resolve) => (child as any).on('close', resolve)),
       kill: () => child.kill(),
       exitCode: child.exitCode || 0,
     };
@@ -363,7 +365,7 @@ export async function bunHash(
   encoding: 'hex' | 'base64' = 'hex',
 ): Promise<string> {
   const hash = crypto.createHash(algorithm);
-  hash.update(data);
+  hash.update(data as string);
   return hash.digest(encoding);
 }
 
@@ -376,7 +378,7 @@ export function bunHashSync(
   encoding: 'hex' | 'base64' = 'hex',
 ): string {
   const hash = crypto.createHash(algorithm);
-  hash.update(data);
+  hash.update(data as string);
   return hash.digest(encoding);
 }
 
@@ -569,7 +571,7 @@ function createShellProxy() {
         return (...args: any[]) => {
           if (typeof prop === 'string') {
             const strings = [''];
-            return shell([prop, ''], ...args);
+            return shell([prop as string, ''], ...args);
           }
           return () => Promise.resolve('');
         };

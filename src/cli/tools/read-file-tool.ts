@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises'
 import chalk from 'chalk'
 import { z } from 'zod'
 import { ContextAwareRAGSystem } from '../context/context-aware-rag'
@@ -13,7 +14,6 @@ import { advancedUI } from '../ui/advanced-cli-ui'
 import { CliUI } from '../utils/cli-ui'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
 import { sanitizePath } from './secure-file-tools'
-import { prometheusExporter } from '../monitoring'
 
 /**
  * Production-ready Read File Tool
@@ -62,9 +62,6 @@ export class ReadFileTool extends BaseTool {
   }
 
   private async executeInternal(filePath: string, options: ReadFileOptions = {}): Promise<ReadFileResult> {
-    let readStart = Date.now()
-    let metricRecorded = false
-
     try {
       // Zod validation for input parameters
       const validatedOptions = ReadFileOptionsSchema.parse(options)
@@ -76,31 +73,17 @@ export class ReadFileTool extends BaseTool {
       // Sanitize and validate file path
       const sanitizedPath = sanitizePath(filePath, this.workingDirectory)
 
-      readStart = Date.now()
-
-      // Read file using Bun.file (molto più veloce di fs.readFile)
-      const file = Bun.file(sanitizedPath)
-
       // Check file size if maxSize is specified
-      if (validatedOptions.maxSize && file.size > validatedOptions.maxSize) {
-        throw new Error(`File too large: ${file.size} bytes (max: ${validatedOptions.maxSize})`)
+      if (validatedOptions.maxSize) {
+        const stats = await import('node:fs/promises').then((fs) => fs.stat(sanitizedPath))
+        if (stats.size > validatedOptions.maxSize) {
+          throw new Error(`File too large: ${stats.size} bytes (max: ${validatedOptions.maxSize})`)
+        }
       }
 
+      // Read file with specified encoding
       const encoding = validatedOptions.encoding || 'utf8'
-
-      // Read file content
-      let content: string
-      if (encoding === 'utf8' || encoding === 'utf-8') {
-        content = await file.text()
-      } else {
-        const buffer = await file.arrayBuffer()
-        content = Buffer.from(buffer).toString(encoding as BufferEncoding)
-      }
-      prometheusExporter.bunFileReadDuration.observe(
-        { source: 'read-file-tool', status: 'success' },
-        (Date.now() - readStart) / 1000
-      )
-      metricRecorded = true
+      const content = await readFile(sanitizedPath, encoding as BufferEncoding)
 
       // Check if this is an image file and perform vision analysis
       const imageAnalysis = await this.performImageAnalysis(sanitizedPath)
@@ -126,8 +109,8 @@ export class ReadFileTool extends BaseTool {
 
       const chunkLineCount =
         typeof processedContent === 'string' &&
-        typeof chunkMetadata.startLine === 'number' &&
-        typeof chunkMetadata.endLine === 'number'
+          typeof chunkMetadata.startLine === 'number' &&
+          typeof chunkMetadata.endLine === 'number'
           ? Math.max(0, chunkMetadata.endLine - chunkMetadata.startLine + 1)
           : typeof processedContent === 'string'
             ? processedContent.split('\n').length
@@ -187,12 +170,6 @@ export class ReadFileTool extends BaseTool {
 
       // Log error for debugging
       CliUI.logError(`Failed to read file ${filePath}: ${error.message}`)
-      if (!metricRecorded) {
-        prometheusExporter.bunFileReadDuration.observe(
-          { source: 'read-file-tool', status: 'error' },
-          (Date.now() - readStart) / 1000
-        )
-      }
 
       return errorResult
     }

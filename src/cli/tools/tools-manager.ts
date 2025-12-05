@@ -1,8 +1,11 @@
+import { type ChildProcess, exec, spawn } from 'node:child_process'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
+import { promisify } from 'node:util'
 import chalk from 'chalk'
-import { bunExec, bunSpawn, readStreamToString } from '../utils/bun-compat'
+
+const execAsync = promisify(exec)
 
 export interface FileInfo {
   path: string
@@ -174,7 +177,7 @@ export class ToolsManager {
             })
           }
         })
-      } catch (_error) {}
+      } catch (_error) { }
     }
 
     return results
@@ -206,30 +209,30 @@ export class ToolsManager {
       if (options.stream || options.interactive) {
         return await this.runCommandStream(fullCommand, { cwd, env, interactive: options.interactive })
       } else {
-        const { stdout, stderr, exitCode } = await bunExec(fullCommand, {
+        const { stdout, stderr } = await execAsync(fullCommand, {
           cwd,
           timeout: options.timeout || 60000,
           env,
+          maxBuffer: 1024 * 1024 * 10, // 10MB buffer
         })
 
         const duration = Date.now() - startTime
-        this.addToHistory(fullCommand, exitCode === 0, stdout + stderr)
+        this.addToHistory(fullCommand, true, stdout + stderr)
 
-        if (exitCode === 0) {
-          console.log(chalk.green(`✓ Command completed in ${duration}ms`))
-        }
-        return { stdout, stderr, code: exitCode }
+        console.log(chalk.green(`✓ Command completed in ${duration}ms`))
+        return { stdout, stderr, code: 0 }
       }
     } catch (error: any) {
+      const _duration = Date.now() - Date.now()
       this.addToHistory(fullCommand, false, error.message)
 
       console.log(chalk.red(`✖ Command failed: ${fullCommand}`))
       console.log(chalk.gray(`Error: ${error.message}`))
 
       return {
-        stdout: '',
-        stderr: error.message,
-        code: 1,
+        stdout: error.stdout || '',
+        stderr: error.stderr || error.message,
+        code: error.code || 1,
       }
     }
   }
@@ -238,58 +241,64 @@ export class ToolsManager {
     command: string,
     options: { cwd: string; env: any; interactive?: boolean }
   ): Promise<{ stdout: string; stderr: string; code: number; pid: number }> {
-    const proc = bunSpawn(['sh', '-c', command], {
-      cwd: options.cwd,
-      env: options.env,
-      stdout: options.interactive ? 'inherit' : 'pipe',
-      stderr: options.interactive ? 'inherit' : 'pipe',
-      stdin: options.interactive ? 'inherit' : 'pipe',
+    return new Promise((resolve) => {
+      let stdout = ''
+      let stderr = ''
+
+      const child = spawn('sh', ['-c', command], {
+        cwd: options.cwd,
+        env: options.env,
+        stdio: options.interactive ? 'inherit' : 'pipe',
+      })
+
+      const processInfo: ProcessInfo = {
+        pid: child.pid!,
+        command: command.split(' ')[0],
+        args: command.split(' ').slice(1),
+        cwd: options.cwd,
+        startTime: new Date(),
+        status: 'running',
+      }
+
+      this.runningProcesses.set(child.pid!, processInfo)
+
+      if (!options.interactive && child.stdout && child.stderr) {
+        child.stdout.on('data', (data) => {
+          const output = data.toString()
+          stdout += output
+          process.stdout.write(chalk.cyan(output))
+        })
+
+        child.stderr.on('data', (data) => {
+          const output = data.toString()
+          stderr += output
+          process.stderr.write(chalk.yellow(output))
+        })
+      }
+
+      child.on('close', (code) => {
+        processInfo.status = code === 0 ? 'completed' : 'failed'
+        processInfo.exitCode = code || 0
+        this.runningProcesses.delete(child.pid!)
+
+        this.addToHistory(command, code === 0, stdout + stderr)
+
+        if (code === 0) {
+          console.log(chalk.green(`✓ Process completed (PID: ${child.pid})`))
+        } else {
+          console.log(chalk.red(`✖ Process failed with code ${code} (PID: ${child.pid})`))
+        }
+
+        resolve({ stdout, stderr, code: code || 0, pid: child.pid! })
+      })
+
+      child.on('error', (error) => {
+        console.log(chalk.red(`✖ Process error: ${error.message}`))
+        processInfo.status = 'failed'
+        this.runningProcesses.delete(child.pid!)
+        resolve({ stdout, stderr: error.message, code: 1, pid: child.pid! })
+      })
     })
-
-    const pid = proc.pid
-
-    const processInfo: ProcessInfo = {
-      pid,
-      command: command.split(' ')[0],
-      args: command.split(' ').slice(1),
-      cwd: options.cwd,
-      startTime: new Date(),
-      status: 'running',
-    }
-
-    this.runningProcesses.set(pid, processInfo)
-
-    let stdout = ''
-    let stderr = ''
-
-    if (!options.interactive && proc.stdout && proc.stderr) {
-      // Read stdout and stderr in parallel
-      const [stdoutResult, stderrResult] = await Promise.all([
-        readStreamToString(proc.stdout),
-        readStreamToString(proc.stderr),
-      ])
-      stdout = stdoutResult
-      stderr = stderrResult
-      
-      if (stdout) process.stdout.write(chalk.cyan(stdout))
-      if (stderr) process.stderr.write(chalk.yellow(stderr))
-    }
-
-    const code = await proc.exited
-
-    processInfo.status = code === 0 ? 'completed' : 'failed'
-    processInfo.exitCode = code
-    this.runningProcesses.delete(pid)
-
-    this.addToHistory(command, code === 0, stdout + stderr)
-
-    if (code === 0) {
-      console.log(chalk.green(`✓ Process completed (PID: ${pid})`))
-    } else {
-      console.log(chalk.red(`✖ Process failed with code ${code} (PID: ${pid})`))
-    }
-
-    return { stdout, stderr, code, pid }
   }
 
   async installPackage(
@@ -526,17 +535,17 @@ export class ToolsManager {
     try {
       const npmResult = await this.runCommand('npm', ['--version'])
       npmVersion = npmResult.stdout.trim()
-    } catch {}
+    } catch { }
 
     try {
       const gitResult = await this.runCommand('git', ['--version'])
       gitVersion = gitResult.stdout.match(/git version ([\d.]+)/)?.[1]
-    } catch {}
+    } catch { }
 
     try {
       const dockerResult = await this.runCommand('docker', ['--version'])
       dockerVersion = dockerResult.stdout.match(/Docker version ([\d.]+)/)?.[1]
-    } catch {}
+    } catch { }
 
     return {
       platform,
@@ -596,7 +605,7 @@ export class ToolsManager {
       if (!options.file) {
         try {
           fs.unlinkSync(tempFile)
-        } catch {}
+        } catch { }
       }
 
       return {
@@ -700,63 +709,26 @@ export class ToolsManager {
     return { success, path: projectPath, commands }
   }
 
-  async monitorLogs(logFile: string, callback?: (line: string) => void): Promise<{ kill: () => void; pid: number }> {
+  async monitorLogs(logFile: string, callback?: (line: string) => void): Promise<ChildProcess> {
     console.log(chalk.blue(`👀 Monitoring logs: ${logFile}`))
 
-    const proc = bunSpawn(['tail', '-f', logFile], {
+    const child = spawn('tail', ['-f', logFile], {
       cwd: this.workingDirectory,
-      stdout: 'pipe',
-      stderr: 'pipe',
     })
 
-    // Process stdout asynchronously
-    ;(async () => {
-      if (proc.stdout) {
-        const reader = proc.stdout.getReader()
-        const decoder = new TextDecoder()
-        
-        try {
-          while (true) {
-            const { done, value } = await reader.read()
-            if (done) break
-            
-            const text = decoder.decode(value)
-            const lines = text.split('\n').filter(Boolean)
-            lines.forEach((line: string) => {
-              console.log(chalk.cyan(`📝 ${line}`))
-              callback?.(line)
-            })
-          }
-        } catch {
-          // Stream closed
-        }
-      }
-    })()
+    child.stdout?.on('data', (data) => {
+      const lines = data.toString().split('\n').filter(Boolean)
+      lines.forEach((line: string) => {
+        console.log(chalk.cyan(`📝 ${line}`))
+        callback?.(line)
+      })
+    })
 
-    // Process stderr asynchronously
-    ;(async () => {
-      if (proc.stderr) {
-        const reader = proc.stderr.getReader()
-        const decoder = new TextDecoder()
-        
-        try {
-          while (true) {
-            const { done, value } = await reader.read()
-            if (done) break
-            
-            const text = decoder.decode(value)
-            console.log(chalk.red(`✖ Log monitor error: ${text}`))
-          }
-        } catch {
-          // Stream closed
-        }
-      }
-    })()
+    child.stderr?.on('data', (data) => {
+      console.log(chalk.red(`✖ Log monitor error: ${data}`))
+    })
 
-    return { 
-      kill: () => proc.kill(),
-      pid: proc.pid
-    }
+    return child
   }
 
   // Helper Methods

@@ -7,6 +7,7 @@ import { CliUI } from '../utils/cli-ui'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
 import { IGNORE_PATTERNS } from './list-tool'
 import { sanitizePath, validateIsDirectory } from './secure-file-tools'
+import { readdir, stat } from 'node:fs/promises'
 
 /**
  * TreeTool - Directory structure visualization
@@ -188,30 +189,25 @@ export class TreeTool extends BaseTool {
   }
 
   /**
-   * Build tree structure recursively using Bun
+   * Build tree structure recursively
    */
   private async buildTree(path: string, depth: number, maxDepth: number, params: TreeToolParams): Promise<TreeNode> {
-    const pathModule = require('node:path')
-    const name = pathModule.basename(path)
-    const isDir = await isDirectory(path)
-
-    // Get file size for files using Bun
-    const file = Bun.file(path)
-    const size = isDir ? 0 : file.size
+    const stats = await stat(path)
+    const name = require('node:path').basename(path)
 
     this.currentMaxDepth = Math.max(this.currentMaxDepth, depth)
 
     const node: TreeNode = {
       name,
       path,
-      isDirectory: isDir,
-      size,
+      isDirectory: stats.isDirectory(),
+      size: stats.size,
       depth,
     }
 
-    if (!isDir) {
+    if (stats.isFile()) {
       this.totalFiles++
-      this.totalSize += size
+      this.totalSize += stats.size
       return node
     }
 
@@ -223,12 +219,12 @@ export class TreeTool extends BaseTool {
     }
 
     // Only show directories if requested
-    if (params.onlyDirectories && !isDir) {
+    if (params.onlyDirectories && !stats.isDirectory()) {
       return node
     }
 
     try {
-      const entries = await listDir(path)
+      const entries = await readdir(path)
       const children: TreeNode[] = []
 
       for (const entry of entries) {

@@ -1,11 +1,11 @@
 import { createHash } from 'node:crypto'
-import * as fs from 'node:fs' // Keep for sync operations (FSWatcher, readdirSync, etc.)
+import * as fs from 'node:fs'
+import * as fsPromises from 'node:fs/promises'
 import * as path from 'node:path'
 
 import { tool } from 'ai'
 import chalk from 'chalk'
 import { z } from 'zod'
-import { $, fileExists, globScan, readText, bunHashSync } from '../utils/bun-compat'
 import { toolsManager } from '../tools/tools-manager'
 import { advancedUI } from '../ui/advanced-cli-ui'
 // Import new unified components
@@ -96,7 +96,7 @@ export interface ContextSearchResult {
 
 export class WorkspaceContextManager {
   private context: WorkspaceContext
-  private watchers: Map<string, any> = new Map() // FSWatcher placeholder for file watching
+  private watchers: Map<string, fs.FSWatcher> = new Map()
   private analysisCache: Map<string, any> = new Map()
 
   // Enhanced caching and performance
@@ -115,12 +115,12 @@ export class WorkspaceContextManager {
     path: string
     max?: number
   }> = [
-    { kind: 'directory', path: 'src/cli/background-agents', max: 8 },
-    { kind: 'directory', path: 'src/cli/cloud', max: 6 },
-    { kind: 'directory', path: 'src/cli/github-bot', max: 4 },
-    { kind: 'file', path: 'src/cli/core/api-key-manager.ts' },
-    { kind: 'file', path: 'src/cli/core/config-manager.ts' },
-  ]
+      { kind: 'directory', path: 'src/cli/background-agents', max: 8 },
+      { kind: 'directory', path: 'src/cli/cloud', max: 6 },
+      { kind: 'directory', path: 'src/cli/github-bot', max: 4 },
+      { kind: 'file', path: 'src/cli/core/api-key-manager.ts' },
+      { kind: 'file', path: 'src/cli/core/config-manager.ts' },
+    ]
 
   // Integrated components
   private fileFilter: FileFilterSystem
