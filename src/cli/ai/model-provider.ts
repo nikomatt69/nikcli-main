@@ -15,7 +15,7 @@ import { streamttyService } from '../services/streamtty-service'
 import { adaptiveModelRouter, type ModelScope } from './adaptive-model-router'
 import { ReasoningDetector } from './reasoning-detector'
 import { openRouterRegistry } from './openrouter-model-registry'
-import { createAICacheMiddleware } from './ai-cache-middleware'
+
 
 // ====================== ⚡︎ ZOD VALIDATION SCHEMAS ======================
 
@@ -245,14 +245,7 @@ export class ModelProvider {
         const { getLanguageModel } = require('./provider-registry')
         const baseModel = getLanguageModel(config.provider, config.model)
         // Apply caching middleware if enabled
-        const cacheConfig = configManager.get('aiCache') as any
-        if (cacheConfig?.enabled !== false) {
-          const cacheMiddleware = createAICacheMiddleware(cacheConfig)
-          return experimental_wrapLanguageModel({
-            model: baseModel,
-            middleware: cacheMiddleware,
-          })
-        }
+
         return baseModel
       } catch (error) {
         // Fall through to legacy implementation
@@ -442,15 +435,7 @@ export class ModelProvider {
         throw new Error(`Unsupported provider: ${config.provider}`)
     }
 
-    // Apply AI caching middleware if enabled
-    const cacheConfig = configManager.get('aiCache') as any
-    if (cacheConfig?.enabled !== false) {
-      const cacheMiddleware = createAICacheMiddleware(cacheConfig)
-      return experimental_wrapLanguageModel({
-        model: baseModel,
-        middleware: cacheMiddleware,
-      })
-    }
+
 
     return baseModel
   }
