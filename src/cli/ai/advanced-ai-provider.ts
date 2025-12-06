@@ -1,7 +1,5 @@
-import { exec } from 'node:child_process'
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, extname, join, relative, resolve } from 'node:path'
-import { promisify } from 'node:util'
 import { createAnthropic } from '@ai-sdk/anthropic'
 import { createCerebras } from '@ai-sdk/cerebras'
 import { createGateway } from '@ai-sdk/gateway'
@@ -23,7 +21,6 @@ import { ContextEnhancer } from '../core/context-enhancer'
 import { docLibrary } from '../core/documentation-library'
 import { documentationTools } from '../core/documentation-tool'
 import { IDEContextEnricher } from '../core/ide-context-enricher'
-import { streamttyService } from '../services/streamtty-service'
 import {
   PerformanceOptimizer,
   QuietCacheLogger,
@@ -35,17 +32,20 @@ import { smartCache } from '../core/smart-cache-manager'
 import { ToolRouter } from '../core/tool-router'
 import { type ValidationContext, validatorManager } from '../core/validator-manager'
 import { WebSearchProvider } from '../core/web-search-provider'
-import { ToolRegistry } from '../tools/tool-registry'
 import { PromptManager } from '../prompts/prompt-manager'
+import { streamttyService } from '../services/streamtty-service'
 import { aiDocsTools } from '../tools/docs-request-tool'
 import { aiMemoryTools } from '../tools/memory-search-tool'
 import { smartDocsTools } from '../tools/smart-docs-tool'
+import { ToolRegistry } from '../tools/tool-registry'
 import { advancedUI } from '../ui/advanced-cli-ui'
 import { diffManager } from '../ui/diff-manager'
 import { DiffViewer, type FileDiff } from '../ui/diff-viewer'
-import { CliUI } from '../utils/cli-ui'
 import { compactAnalysis, safeStringifyContext } from '../utils/analysis-utils'
+import { CliUI } from '../utils/cli-ui'
 import { adaptiveModelRouter, type ModelScope } from './adaptive-model-router'
+import { workflowPatterns } from './workflow-patterns'
+import { execSync } from 'node:child_process'
 
 const cognitiveColor = chalk.hex('#3a3a3a')
 
@@ -94,10 +94,10 @@ type Command = z.infer<typeof CommandSchema>
 type PackageSearchResult = z.infer<typeof PackageSearchResult>
 type CommandExecutionResult = z.infer<typeof CommandExecutionResult>
 
-const execAsync = promisify(exec)
+// execAsync replaced with bunExec from bun-compat
 
 export interface StreamEvent {
-  type: 'start' | 'thinking' | 'tool_call' | 'tool_result' | 'text_delta' | 'complete' | 'error' | 'step'
+  type: 'start' | 'thinking' | 'tool_call' | 'tool_result' | 'text_delta' | 'complete' | 'error' | 'step' | 'usage'
   content?: string
   toolName?: string
   toolArgs?: any
@@ -105,6 +105,12 @@ export interface StreamEvent {
   error?: string
   metadata?: any
   stepId?: string
+  // Real token usage from AI SDK (not estimates)
+  usage?: {
+    promptTokens: number
+    completionTokens: number
+    totalTokens: number
+  }
 }
 
 export interface AutonomousProvider {
@@ -165,6 +171,183 @@ export class AdvancedAIProvider implements AutonomousProvider {
     toolResults: any[]
   }> {
     throw new Error('Method not implemented.')
+  }
+
+  /**
+   * Create a tool call repair handler for AI SDK
+   * Reference: https://v4.ai-sdk.dev/docs/ai-sdk-core/tools-and-tool-calling#tool-call-repair
+   * 
+   * This handler attempts to fix invalid tool calls by re-asking the model
+   */
+  private createToolCallRepairHandler(model: any, tools: Record<string, CoreTool>) {
+    return async ({ toolCall, error, messages, system }: {
+      toolCall: { toolName: string; args: unknown };
+      error: Error;
+      messages: CoreMessage[];
+      system?: string;
+    }) => {
+      try {
+        const tool = tools[toolCall.toolName]
+        if (!tool) {
+          advancedUI.logWarning(`[ToolRepair] Unknown tool: ${toolCall.toolName}`)
+          return null
+        }
+
+        advancedUI.logInfo(`[ToolRepair] Attempting to fix invalid tool call: ${toolCall.toolName}`)
+
+        // Ask the model to fix the tool call
+        const repairResult = await generateText({
+          model,
+          system: system || 'You are a helpful assistant that fixes invalid tool calls.',
+          messages: [
+            ...messages,
+            {
+              role: 'user',
+              content: `The tool call "${toolCall.toolName}" failed with error: ${error.message}
+
+Invalid arguments: ${JSON.stringify(toolCall.args, null, 2)}
+
+Please provide corrected arguments for this tool. Only output the corrected JSON arguments, nothing else.`,
+            },
+          ],
+          maxTokens: 1000,
+        })
+
+        // Try to parse the corrected arguments
+        const fixedArgsText = repairResult.text.trim()
+        const jsonMatch = fixedArgsText.match(/```(?:json)?\s*([\s\S]*?)\s*```/) ||
+          fixedArgsText.match(/^\{[\s\S]*\}$/)
+
+        if (jsonMatch) {
+          const fixedArgs = JSON.parse(jsonMatch[1] || jsonMatch[0])
+          advancedUI.logSuccess(`[ToolRepair] Successfully repaired tool call: ${toolCall.toolName}`)
+          return { toolName: toolCall.toolName, args: fixedArgs }
+        }
+
+        const fixedArgs = JSON.parse(fixedArgsText)
+        advancedUI.logSuccess(`[ToolRepair] Successfully repaired tool call: ${toolCall.toolName}`)
+        return { toolName: toolCall.toolName, args: fixedArgs }
+      } catch (repairError: any) {
+        advancedUI.logWarning(`[ToolRepair] Failed to repair tool call: ${repairError.message}`)
+        return null
+      }
+    }
+  }
+
+  /**
+   * Active Tools Pattern - Intelligently select relevant tools based on context
+   * Reference: https://ai-sdk.dev/docs/agents best practices
+   * 
+   * Analyzes the user's message to determine intent and returns only the most
+   * relevant tools (limit: 5-7) to improve model performance and reduce tokens.
+   */
+  private selectActiveTools(
+    message: string,
+    allTools: Record<string, CoreTool>,
+    maxTools = 5
+  ): Record<string, CoreTool> {
+    const lowerMessage = message.toLowerCase()
+
+    // Tool categories with priority keywords
+    const toolCategories: Record<string, { tools: string[]; keywords: string[]; priority: number }> = {
+      file_reading: {
+        tools: ['read_file', 'view_file', 'cat_file', 'list_directory', 'find_files'],
+        keywords: ['read', 'show', 'view', 'content', 'look', 'check', 'see', 'file', 'what', 'open'],
+        priority: 1,
+      },
+      file_writing: {
+        tools: ['write_file', 'edit_file', 'create_file', 'patch_file', 'replace_in_file'],
+        keywords: ['write', 'create', 'edit', 'modify', 'update', 'change', 'fix', 'add', 'save', 'patch'],
+        priority: 2,
+      },
+      file_search: {
+        tools: ['search_files', 'find_files', 'grep', 'ripgrep', 'search_codebase'],
+        keywords: ['search', 'find', 'where', 'grep', 'locate', 'pattern', 'regex'],
+        priority: 3,
+      },
+      execution: {
+        tools: ['execute_command', 'run_command', 'bash', 'shell', 'terminal'],
+        keywords: ['run', 'execute', 'command', 'terminal', 'shell', 'npm', 'pnpm', 'bun', 'yarn', 'install', 'build', 'test', 'start'],
+        priority: 4,
+      },
+      git: {
+        tools: ['git_status', 'git_diff', 'git_commit', 'git_log', 'git_branch'],
+        keywords: ['git', 'commit', 'push', 'pull', 'branch', 'merge', 'diff', 'status'],
+        priority: 5,
+      },
+      analysis: {
+        tools: ['analyze_workspace', 'analyze_code', 'code_analysis', 'workspace_context'],
+        keywords: ['analyze', 'explain', 'understand', 'structure', 'architecture', 'project', 'overview'],
+        priority: 6,
+      },
+      workflows: {
+        tools: ['workflow_code_review', 'workflow_optimize_code', 'workflow_smart_route', 'workflow_implement_feature', 'workflow_translate', 'workflow_generate_code'],
+        keywords: ['workflow', 'pipeline', 'review', 'optimize', 'implement', 'feature', 'translate', 'generate', 'quality', 'parallel', 'orchestrate', 'iterate'],
+        priority: 7,
+      },
+    }
+
+    // Score each category based on keyword matches
+    const categoryScores: { category: string; score: number; priority: number }[] = []
+
+    for (const [category, config] of Object.entries(toolCategories)) {
+      let score = 0
+      for (const keyword of config.keywords) {
+        if (lowerMessage.includes(keyword)) {
+          score += 1
+        }
+      }
+      if (score > 0) {
+        categoryScores.push({ category, score, priority: config.priority })
+      }
+    }
+
+    // Sort by score (desc) then priority (asc)
+    categoryScores.sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score
+      return a.priority - b.priority
+    })
+
+    // Collect tools from top categories
+    const selectedTools: Record<string, CoreTool> = {}
+    const selectedToolNames = new Set<string>()
+
+    for (const { category } of categoryScores) {
+      const categoryTools = toolCategories[category].tools
+      for (const toolName of categoryTools) {
+        if (allTools[toolName] && !selectedToolNames.has(toolName)) {
+          selectedTools[toolName] = allTools[toolName]
+          selectedToolNames.add(toolName)
+
+          if (selectedToolNames.size >= maxTools) break
+        }
+      }
+      if (selectedToolNames.size >= maxTools) break
+    }
+
+    // Default core tools if no specific category matched
+    if (selectedToolNames.size === 0) {
+      const coreTools = ['read_file', 'write_file', 'list_directory', 'execute_command', 'search_files']
+      for (const toolName of coreTools) {
+        if (allTools[toolName]) {
+          selectedTools[toolName] = allTools[toolName]
+          if (Object.keys(selectedTools).length >= maxTools) break
+        }
+      }
+    }
+
+    // Always include read_file for context gathering
+    if (!selectedTools['read_file'] && allTools['read_file']) {
+      selectedTools['read_file'] = allTools['read_file']
+    }
+
+    advancedUI.logFunctionUpdate(
+      'info',
+      `Active tools: ${Object.keys(selectedTools).join(', ')}`,
+      '🔧'
+    )
+
+    return selectedTools
   }
 
   // Truncate long free-form strings to keep prompts safe
@@ -901,10 +1084,9 @@ Respond in a helpful, professional manner with clear explanations and actionable
             advancedUI.logFunctionUpdate('info', fullCommand, '●')
 
             const startTime = Date.now()
-            const { stdout, stderr } = await execAsync(fullCommand, {
+            const output = execSync(fullCommand, {
               cwd: commandCwd,
               timeout,
-              maxBuffer: 1024 * 1024 * 10, // 10MB
             })
 
             const duration = Date.now() - startTime
@@ -915,19 +1097,17 @@ Respond in a helpful, professional manner with clear explanations and actionable
             // Store execution context
             this.executionContext.set(`cmd:${command}`, {
               command: fullCommand,
-              stdout,
-              stderr,
+              stdout: output.toString().trim(),
+              stderr: output.toString().trim(),
               duration,
               executed: new Date(),
               cwd: commandCwd,
             })
 
             // Command completed
-
             return {
               command: fullCommand,
-              stdout: stdout.trim(),
-              stderr: stderr.trim(),
+              stdout: output.toString().trim(),
               success: true,
               duration,
               cwd: commandCwd,
@@ -955,7 +1135,11 @@ Respond in a helpful, professional manner with clear explanations and actionable
         execute: async ({ includeMetrics, analyzeDependencies, securityScan }) => {
           try {
             // Load tool-specific prompt for context
-            const toolPrompt = await this.getToolPrompt('analyze_project', { includeMetrics, analyzeDependencies, securityScan })
+            const toolPrompt = await this.getToolPrompt('analyze_project', {
+              includeMetrics,
+              analyzeDependencies,
+              securityScan,
+            })
             CliUI.logDebug(`Using system prompt: ${toolPrompt.substring(0, 100)}...`)
 
             advancedUI.logFunctionUpdate('info', 'Starting comprehensive project analysis...', 'ℹ')
@@ -1028,7 +1212,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
             advancedUI.logFunctionCall(`${action}packages`)
             advancedUI.logFunctionUpdate('info', `${packages.join(', ') || 'all'}`, '●')
 
-            const { stdout, stderr } = await execAsync(`${command} ${args.join(' ')}`, {
+            const output = execSync(`${command} ${args.join(' ')}`, {
               cwd: this.workingDirectory,
               timeout: 120000, // 2 minutes for package operations
             })
@@ -1037,8 +1221,8 @@ Respond in a helpful, professional manner with clear explanations and actionable
               action,
               packages,
               success: true,
-              output: stdout.trim(),
-              warnings: stderr.trim(),
+              output: output.toString().trim(),
+              warnings: output.toString().trim(),
             }
           } catch (error: any) {
             return {
@@ -1093,8 +1277,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
       }),
 
       // Web search capabilities (native OpenAI web_search_preview when available)
-      web_search_preview:
-        this.webSearchProvider.getNativeWebSearchTool() || this.webSearchProvider.getWebSearchTool(),
+      web_search_preview: this.webSearchProvider.getNativeWebSearchTool() || this.webSearchProvider.getWebSearchTool(),
       web_search: this.webSearchProvider.getWebSearchTool(),
 
       // IDE context enrichment
@@ -1120,7 +1303,6 @@ Respond in a helpful, professional manner with clear explanations and actionable
       docs_request: aiDocsTools.request,
       docs_gap_report: aiDocsTools.gapReport,
 
-
       // AI memory search tools
       memory_search: aiMemoryTools.search,
       memory_get_context: aiMemoryTools.getContext,
@@ -1129,12 +1311,13 @@ Respond in a helpful, professional manner with clear explanations and actionable
 
       // 1. MULTI-READ: Batch file reading con search/context (Priority 8)
       multi_read: tool({
-        description: 'Read multiple files safely with optional content search and context - preferred for batch operations',
+        description:
+          'Read multiple files safely with optional content search and context - preferred for batch operations',
         parameters: z.object({
-          files: z.array(z.string()).optional().describe('Explicit file paths to read'),
-          globs: z.array(z.string()).optional().describe('Glob patterns (e.g., src/**/*.ts)'),
+          files: z.union([z.string(), z.array(z.string())]).optional().describe('Explicit file paths to read - can be string or array'),
+          globs: z.union([z.string(), z.array(z.string())]).optional().describe('Glob patterns (e.g., "src/**/*.ts" or ["src/**/*.ts"])'),
           root: z.string().optional().describe('Root directory for search'),
-          exclude: z.array(z.string()).optional().describe('Patterns to exclude'),
+          exclude: z.union([z.string(), z.array(z.string())]).optional().describe('Patterns to exclude - can be string or array'),
           pattern: z.string().optional().describe('Search pattern within files'),
           useRegex: z.boolean().default(false).describe('Use regex for pattern'),
           caseSensitive: z.boolean().default(false).describe('Case sensitive search'),
@@ -1143,23 +1326,57 @@ Respond in a helpful, professional manner with clear explanations and actionable
         execute: async (params) => {
           const multiReadTool = this.toolRegistry.getTool('multi-read-tool')
           if (!multiReadTool) return { error: 'Multi-read tool not available' }
-          const result = await multiReadTool.execute(params)
+          // Normalize string inputs to arrays
+          const normalizedParams = {
+            ...params,
+            files: params.files ? (Array.isArray(params.files) ? params.files : [params.files]) : undefined,
+            globs: params.globs ? (Array.isArray(params.globs) ? params.globs : [params.globs]) : undefined,
+            exclude: params.exclude ? (Array.isArray(params.exclude) ? params.exclude : [params.exclude]) : undefined,
+          }
+          const result = await multiReadTool.execute(normalizedParams)
           return result.success ? result.data : { error: result.error }
-        }
+        },
       }),
 
       // 2. GREP: Advanced pattern search (Priority 9 - HIGHEST)
       grep: tool({
-        description: 'Search for text patterns in codebase - ripgrep-like search for finding specific strings, function names, TODOs, imports, etc. Always preferred over web_search for local code search. Examples: "search for TODO comments", "find all imports of React", "locate function definitions"',
+        description:
+          'Search for text patterns in codebase - ripgrep-like search for finding specific strings, function names, TODOs, imports, etc. Always preferred over web_search for local code search. Examples: "search for TODO comments", "find all imports of React", "locate function definitions"',
         parameters: z.object({
-          pattern: z.string().describe('The text or string to search for (literal string by default, use useRegex:true for regex patterns). Examples: "TODO", "export function", "import React"'),
-          path: z.string().optional().describe('Search directory (defaults to current working directory). Examples: "src", "src/components", "." for all'),
-          include: z.string().optional().describe('File pattern to include (glob pattern like "*.ts", "*.tsx", "*.js"). Leave empty to search all files'),
-          exclude: z.array(z.string()).optional().describe('Array of patterns to exclude. Examples: ["node_modules", "dist", "*.test.ts"]'),
-          caseSensitive: z.boolean().default(false).describe('Case sensitive search - default false (case insensitive)'),
+          pattern: z
+            .string()
+            .describe(
+              'The text or string to search for (literal string by default, use useRegex:true for regex patterns). Examples: "TODO", "export function", "import React"'
+            ),
+          path: z
+            .string()
+            .optional()
+            .describe(
+              'Search directory (defaults to current working directory). Examples: "src", "src/components", "." for all'
+            ),
+          include: z
+            .string()
+            .optional()
+            .describe(
+              'File pattern to include (glob pattern like "*.ts", "*.tsx", "*.js"). Leave empty to search all files'
+            ),
+          exclude: z
+            .array(z.string())
+            .optional()
+            .describe('Array of patterns to exclude. Examples: ["node_modules", "dist", "*.test.ts"]'),
+          caseSensitive: z
+            .boolean()
+            .default(false)
+            .describe('Case sensitive search - default false (case insensitive)'),
           wholeWord: z.boolean().default(false).describe('Match whole words only - prevents partial matches'),
-          useRegex: z.boolean().default(false).describe('Treat pattern as regex - set true for regex patterns like "^export"'),
-          contextLines: z.number().default(0).describe('Number of lines to show before/after match for context (0 = just the line)'),
+          useRegex: z
+            .boolean()
+            .default(false)
+            .describe('Treat pattern as regex - set true for regex patterns like "^export"'),
+          contextLines: z
+            .number()
+            .default(0)
+            .describe('Number of lines to show before/after match for context (0 = just the line)'),
           maxResults: z.number().default(100).describe('Maximum number of results to return (default 100)'),
         }),
         execute: async (params) => {
@@ -1167,18 +1384,22 @@ Respond in a helpful, professional manner with clear explanations and actionable
           if (!grepTool) return { error: 'Grep tool not available' }
           const result = await grepTool.execute(params)
           return result.success ? result.data : { error: result.error }
-        }
+        },
       }),
 
       // 3. MULTI-EDIT: Atomic batch edits (Priority 8)
       multi_edit: tool({
         description: 'Apply multiple edits atomically with rollback - preferred for batch modifications',
         parameters: z.object({
-          edits: z.array(z.object({
-            file: z.string().describe('File path to edit'),
-            search: z.string().describe('Text to search for'),
-            replace: z.string().describe('Replacement text'),
-          })).describe('Array of edit operations'),
+          edits: z
+            .array(
+              z.object({
+                file: z.string().describe('File path to edit'),
+                search: z.string().describe('Text to search for'),
+                replace: z.string().describe('Replacement text'),
+              })
+            )
+            .describe('Array of edit operations'),
           dryRun: z.boolean().default(false).describe('Preview changes without applying'),
         }),
         execute: async (params) => {
@@ -1208,24 +1429,30 @@ Respond in a helpful, professional manner with clear explanations and actionable
             createBackup: true,
           })
           return result.success ? result.data : { error: result.error }
-        }
+        },
       }),
 
       // 4. FIND-FILES: Glob pattern matching (Priority 5)
       find_files: tool({
         description: 'Find files matching glob patterns with intelligent filtering',
         parameters: z.object({
-          patterns: z.array(z.string()).describe('Glob patterns (e.g., **/*.ts, src/**/*.json)'),
+          patterns: z.union([z.string(), z.array(z.string())]).describe('Glob patterns - can be a single string or array (e.g., "**/*.ts" or ["**/*.ts", "src/**/*.json"])'),
           cwd: z.string().optional().describe('Working directory for search'),
-          exclude: z.array(z.string()).optional().describe('Patterns to exclude'),
+          exclude: z.union([z.string(), z.array(z.string())]).optional().describe('Patterns to exclude - can be a single string or array'),
           maxDepth: z.number().optional().describe('Maximum directory depth'),
         }),
         execute: async (params) => {
           const findTool = this.toolRegistry.getTool('find-files-tool')
           if (!findTool) return { error: 'Find files tool not available' }
-          const result = await findTool.execute(params)
+          // Normalize patterns to array
+          const normalizedParams = {
+            ...params,
+            patterns: Array.isArray(params.patterns) ? params.patterns : [params.patterns],
+            exclude: params.exclude ? (Array.isArray(params.exclude) ? params.exclude : [params.exclude]) : undefined,
+          }
+          const result = await findTool.execute(normalizedParams)
           return result.success ? result.data : { error: result.error }
-        }
+        },
       }),
 
       // 5. EDIT-FILE: Edit with diff preview (Priority 6)
@@ -1253,7 +1480,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
             createBackup: params.backup,
           })
           return result.success ? result.data : { error: result.error }
-        }
+        },
       }),
 
       // 6. REPLACE-IN-FILE: Regex replace with validation (Priority 6)
@@ -1280,7 +1507,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
             requireMatch: true,
           })
           return result.success ? result.data : { error: result.error }
-        }
+        },
       }),
 
       // 7. LIST: Advanced directory listing (Priority 4)
@@ -1297,16 +1524,19 @@ Respond in a helpful, professional manner with clear explanations and actionable
           if (!listTool) return { error: 'List tool not available' }
           const result = await listTool.execute(params)
           return result.success ? result.data : { error: result.error }
-        }
+        },
       }),
 
       // ==================== SEARCH & ANALYSIS TOOLS ====================
 
       // 8. RAG_SEARCH: Semantic search in RAG system (Priority 8)
       rag_search: tool({
-        description: 'Perform semantic search in the RAG system to find relevant code and documentation using embeddings',
+        description:
+          'Perform semantic search in the RAG system to find relevant code and documentation using embeddings',
         parameters: z.object({
-          query: z.string().describe('What to search for semantically (e.g., "authentication logic", "error handling patterns")'),
+          query: z
+            .string()
+            .describe('What to search for semantically (e.g., "authentication logic", "error handling patterns")'),
           limit: z.number().min(1).max(50).default(10).describe('Maximum number of results'),
           semanticOnly: z.boolean().default(false).describe('Use pure semantic search (embedding-based) vs hybrid'),
           threshold: z.number().min(0).max(1).default(0.3).describe('Minimum similarity score (0-1)'),
@@ -1318,16 +1548,18 @@ Respond in a helpful, professional manner with clear explanations and actionable
           if (!ragSearchTool) return { error: 'RAG search tool not available' }
           const result = await ragSearchTool.execute(params)
           return result.success ? result.data : { error: result.error }
-        }
+        },
       }),
 
       // 9. GLOB: Fast glob pattern matching (Priority 6)
       glob: tool({
         description: 'Fast file pattern matching with glob support, sorting, and filtering',
         parameters: z.object({
-          pattern: z.union([z.string(), z.array(z.string())]).describe('Glob pattern(s) (e.g., "**/*.ts", ["*.ts", "*.tsx"])'),
+          pattern: z
+            .union([z.string(), z.array(z.string())])
+            .describe('Glob pattern(s) (e.g., "**/*.ts", ["*.ts", "*.tsx"])'),
           path: z.string().optional().describe('Base path for search'),
-          ignorePatterns: z.array(z.string()).optional().describe('Patterns to ignore'),
+          ignorePatterns: z.union([z.string(), z.array(z.string())]).optional().describe('Patterns to ignore - can be string or array'),
           onlyFiles: z.boolean().optional().describe('Return only files'),
           onlyDirectories: z.boolean().optional().describe('Return only directories'),
           followSymlinks: z.boolean().optional().describe('Follow symbolic links'),
@@ -1344,9 +1576,15 @@ Respond in a helpful, professional manner with clear explanations and actionable
         execute: async (params) => {
           const globTool = this.toolRegistry.getTool('glob-tool')
           if (!globTool) return { error: 'Glob tool not available' }
-          const result = await globTool.execute(params)
+          // Normalize string inputs to arrays
+          const normalizedParams = {
+            ...params,
+            pattern: Array.isArray(params.pattern) ? params.pattern : [params.pattern],
+            ignorePatterns: params.ignorePatterns ? (Array.isArray(params.ignorePatterns) ? params.ignorePatterns : [params.ignorePatterns]) : undefined,
+          }
+          const result = await globTool.execute(normalizedParams)
           return result.success ? result.data : { error: result.error }
-        }
+        },
       }),
 
       // 10. DIFF: File comparison tool (Priority 5)
@@ -1368,7 +1606,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
           if (!diffTool) return { error: 'Diff tool not available' }
           const result = await diffTool.execute(params)
           return result.success ? result.data : { error: result.error }
-        }
+        },
       }),
 
       // 11. TREE: Directory tree visualization (Priority 4)
@@ -1380,7 +1618,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
           showHidden: z.boolean().default(false).describe('Include hidden files'),
           showSize: z.boolean().default(false).describe('Show file sizes'),
           showFullPath: z.boolean().default(false).describe('Show full paths'),
-          ignorePatterns: z.array(z.string()).optional().describe('Patterns to ignore'),
+          ignorePatterns: z.union([z.string(), z.array(z.string())]).optional().describe('Patterns to ignore - can be string or array'),
           onlyDirectories: z.boolean().default(false).describe('Show only directories'),
           sortBy: z.enum(['name', 'size', 'type']).optional().describe('Sort order'),
           useIcons: z.boolean().default(true).describe('Use file type icons'),
@@ -1388,32 +1626,50 @@ Respond in a helpful, professional manner with clear explanations and actionable
         execute: async (params) => {
           const treeTool = this.toolRegistry.getTool('tree-tool')
           if (!treeTool) return { error: 'Tree tool not available' }
-          const result = await treeTool.execute(params)
+          // Normalize string inputs to arrays
+          const normalizedParams = {
+            ...params,
+            ignorePatterns: params.ignorePatterns ? (Array.isArray(params.ignorePatterns) ? params.ignorePatterns : [params.ignorePatterns]) : undefined,
+          }
+          const result = await treeTool.execute(normalizedParams)
           return result.success ? result.data : { error: result.error }
-        }
+        },
       }),
 
       // 12. WATCH: File system monitoring (Priority 3)
       watch: tool({
         description: 'Monitor file system changes in real-time with pattern filtering',
         parameters: z.object({
-          path: z.union([z.string(), z.array(z.string())]).optional().describe('Path(s) to watch'),
-          patterns: z.array(z.string()).optional().describe('File patterns to watch'),
-          ignorePatterns: z.array(z.string()).optional().describe('Patterns to ignore'),
+          path: z
+            .union([z.string(), z.array(z.string())])
+            .optional()
+            .describe('Path(s) to watch'),
+          patterns: z.union([z.string(), z.array(z.string())]).optional().describe('File patterns to watch - can be string or array'),
+          ignorePatterns: z.union([z.string(), z.array(z.string())]).optional().describe('Patterns to ignore - can be string or array'),
           ignoreInitial: z.boolean().default(true).describe('Ignore initial file scan'),
           persistent: z.boolean().default(true).describe('Keep watching after first event'),
           depth: z.number().optional().describe('Maximum directory depth'),
           awaitWriteFinish: z.boolean().default(false).describe('Wait for write operations to finish'),
           debounceDelay: z.number().optional().describe('Debounce delay in milliseconds'),
-          events: z.array(z.enum(['add', 'change', 'unlink', 'addDir', 'unlinkDir'])).optional().describe('Event types to watch'),
+          events: z
+            .array(z.enum(['add', 'change', 'unlink', 'addDir', 'unlinkDir']))
+            .optional()
+            .describe('Event types to watch'),
           maxEvents: z.number().optional().describe('Maximum number of events to collect'),
         }),
         execute: async (params) => {
           const watchTool = this.toolRegistry.getTool('watch-tool')
           if (!watchTool) return { error: 'Watch tool not available' }
-          const result = await watchTool.execute(params)
+          // Normalize string inputs to arrays
+          const normalizedParams = {
+            ...params,
+            path: params.path ? (Array.isArray(params.path) ? params.path : [params.path]) : undefined,
+            patterns: params.patterns ? (Array.isArray(params.patterns) ? params.patterns : [params.patterns]) : undefined,
+            ignorePatterns: params.ignorePatterns ? (Array.isArray(params.ignorePatterns) ? params.ignorePatterns : [params.ignorePatterns]) : undefined,
+          }
+          const result = await watchTool.execute(normalizedParams)
           return result.success ? result.data : { error: result.error }
-        }
+        },
       }),
 
       // ==================== AI & VISION TOOLS ====================
@@ -1437,7 +1693,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
             cache: params.cache,
           })
           return result.success ? result.data : { error: result.error }
-        }
+        },
       }),
 
       // 14. IMAGE_GENERATION: AI image generation (Priority 6)
@@ -1445,8 +1701,21 @@ Respond in a helpful, professional manner with clear explanations and actionable
         description: 'Generate images from text prompts using DALL-E 3, GPT-Image-1, or other AI models',
         parameters: z.object({
           prompt: z.string().min(1).describe('Text description of image to generate'),
-          model: z.enum(['dall-e-3', 'dall-e-2', 'gpt-image-1', 'google/gemini-2.5-flash-image', 'openai/gpt-5-image-mini', 'openai/gpt-5-image']).optional().describe('Image generation model'),
-          size: z.enum(['1024x1024', '1792x1024', '1024x1792', '512x512', '256x256']).optional().describe('Image dimensions'),
+          model: z
+            .enum([
+              'dall-e-3',
+              'dall-e-2',
+              'gpt-image-1',
+              'google/gemini-2.5-flash-image',
+              'openai/gpt-5-image-mini',
+              'openai/gpt-5-image',
+            ])
+            .optional()
+            .describe('Image generation model'),
+          size: z
+            .enum(['1024x1024', '1792x1024', '1024x1792', '512x512', '256x256'])
+            .optional()
+            .describe('Image dimensions'),
           quality: z.enum(['standard', 'hd']).optional().describe('Image quality'),
           style: z.enum(['vivid', 'natural']).optional().describe('Image style'),
           n: z.number().min(1).max(10).optional().describe('Number of images to generate'),
@@ -1458,14 +1727,15 @@ Respond in a helpful, professional manner with clear explanations and actionable
           if (!imageGenTool) return { error: 'Image generation tool not available' }
           const result = await imageGenTool.execute(params)
           return result.success ? result.data : { error: result.error }
-        }
+        },
       }),
 
       // ==================== BLOCKCHAIN TOOLS ====================
 
       // 15. COINBASE_AGENTKIT: Coinbase blockchain operations (Priority 7)
       coinbase_agentkit: tool({
-        description: 'Execute blockchain operations using official Coinbase AgentKit (WETH, Pyth, ERC20, CDP Smart Wallet)',
+        description:
+          'Execute blockchain operations using official Coinbase AgentKit (WETH, Pyth, ERC20, CDP Smart Wallet)',
         parameters: z.object({
           action: z.string().describe('Action: init, chat, wallet-info, transfer, balance, status, reset'),
           params: z.record(z.any()).optional().describe('Action-specific parameters'),
@@ -1476,7 +1746,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
           // Coinbase tool takes action as first param, params as second
           const result = await coinbaseTool.execute(params.action, params.params || {})
           return result.success ? result.data : { error: result.error }
-        }
+        },
       }),
 
       // 16. GOAT_TOOL: GOAT SDK blockchain operations (Priority 7)
@@ -1492,7 +1762,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
           // GOAT tool takes action as first param, params as second
           const result = await goatTool.execute(params.action, params.params || {})
           return result.success ? result.data : { error: result.error }
-        }
+        },
       }),
 
       // ==================== BROWSER AUTOMATION TOOLS ====================
@@ -1510,7 +1780,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
           // Browserbase tool takes action as first param, params as second
           const result = await browserbaseTool.execute(params.action, params.params || {})
           return result.success ? result.data : { error: result.error }
-        }
+        },
       }),
 
       // 18. BROWSER_NAVIGATE: Navigate to URL (Priority 5)
@@ -1527,7 +1797,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
           if (!browserNavTool) return { error: 'Browser navigate tool not available' }
           const result = await browserNavTool.execute(params)
           return result.success ? result.data : { error: result.error }
-        }
+        },
       }),
 
       // 19. BROWSER_CLICK: Click elements (Priority 5)
@@ -1546,7 +1816,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
           if (!browserClickTool) return { error: 'Browser click tool not available' }
           const result = await browserClickTool.execute(params)
           return result.success ? result.data : { error: result.error }
-        }
+        },
       }),
 
       // 20. BROWSER_TYPE: Type text (Priority 5)
@@ -1564,7 +1834,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
           if (!browserTypeTool) return { error: 'Browser type tool not available' }
           const result = await browserTypeTool.execute(params)
           return result.success ? result.data : { error: result.error }
-        }
+        },
       }),
 
       // 21. BROWSER_SCREENSHOT: Take screenshots (Priority 4)
@@ -1581,7 +1851,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
           if (!browserScreenshotTool) return { error: 'Browser screenshot tool not available' }
           const result = await browserScreenshotTool.execute(params)
           return result.success ? result.data : { error: result.error }
-        }
+        },
       }),
 
       // 22. BROWSER_EXTRACT_TEXT: Extract text content (Priority 4)
@@ -1597,7 +1867,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
           if (!browserExtractTool) return { error: 'Browser extract text tool not available' }
           const result = await browserExtractTool.execute(params)
           return result.success ? result.data : { error: result.error }
-        }
+        },
       }),
 
       // 23. BROWSER_WAIT_FOR_ELEMENT: Wait for elements (Priority 4)
@@ -1614,7 +1884,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
           if (!browserWaitTool) return { error: 'Browser wait for element tool not available' }
           const result = await browserWaitTool.execute(params)
           return result.success ? result.data : { error: result.error }
-        }
+        },
       }),
 
       // 24. BROWSER_SCROLL: Scroll page (Priority 3)
@@ -1631,7 +1901,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
           if (!browserScrollTool) return { error: 'Browser scroll tool not available' }
           const result = await browserScrollTool.execute(params)
           return result.success ? result.data : { error: result.error }
-        }
+        },
       }),
 
       // 25. BROWSER_EXECUTE_SCRIPT: Execute JavaScript (Priority 5)
@@ -1647,7 +1917,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
           if (!browserScriptTool) return { error: 'Browser execute script tool not available' }
           const result = await browserScriptTool.execute(params)
           return result.success ? result.data : { error: result.error }
-        }
+        },
       }),
 
       // 26. BROWSER_GET_PAGE_INFO: Get page information (Priority 3)
@@ -1661,7 +1931,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
           if (!browserInfoTool) return { error: 'Browser get page info tool not available' }
           const result = await browserInfoTool.execute(params)
           return result.success ? result.data : { error: result.error }
-        }
+        },
       }),
 
       // ==================== MANUFACTURING TOOLS ====================
@@ -1681,7 +1951,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
           if (!cadTool) return { error: 'Text to CAD tool not available' }
           const result = await cadTool.execute(params)
           return result.success ? result.data : { error: result.error }
-        }
+        },
       }),
 
       // 28. TEXT_TO_GCODE: Text to G-code conversion (Priority 5)
@@ -1695,7 +1965,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
           if (!gcodeTool) return { error: 'Text to G-code tool not available' }
           const result = await gcodeTool.execute(params)
           return result.success ? result.data : { error: result.error }
-        }
+        },
       }),
 
       // ==================== SYSTEM TOOLS ====================
@@ -1717,7 +1987,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
           if (!bashTool) return { error: 'Bash tool not available' }
           const result = await bashTool.execute(params)
           return result.success ? result.data : { error: result.error }
-        }
+        },
       }),
 
       // 30. JSON_PATCH: JSON patch operations (Priority 6)
@@ -1725,11 +1995,15 @@ Respond in a helpful, professional manner with clear explanations and actionable
         description: 'Apply RFC6902-like JSON patches with diff/backup to configuration files',
         parameters: z.object({
           filePath: z.string().describe('Path to JSON/YAML file to patch'),
-          operations: z.array(z.object({
-            op: z.enum(['add', 'replace', 'remove']).describe('Operation type'),
-            path: z.string().describe('JSON path (e.g., "/scripts/build")'),
-            value: z.any().optional().describe('Value for add/replace operations'),
-          })).describe('Array of patch operations'),
+          operations: z
+            .array(
+              z.object({
+                op: z.enum(['add', 'replace', 'remove']).describe('Operation type'),
+                path: z.string().describe('JSON path (e.g., "/scripts/build")'),
+                value: z.any().optional().describe('Value for add/replace operations'),
+              })
+            )
+            .describe('Array of patch operations'),
           createBackup: z.boolean().default(true).describe('Create backup before patching'),
           previewOnly: z.boolean().default(false).describe('Preview changes without applying'),
           allowMissing: z.boolean().default(false).describe('Allow patching non-existent files'),
@@ -1740,7 +2014,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
           if (!jsonPatchTool) return { error: 'JSON patch tool not available' }
           const result = await jsonPatchTool.execute(params)
           return result.success ? result.data : { error: result.error }
-        }
+        },
       }),
 
       // 31. GIT_TOOLS: Git operations (Priority 6)
@@ -1755,7 +2029,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
           if (!gitTools) return { error: 'Git tools not available' }
           const result = await gitTools.execute(params)
           return result.success ? result.data : { error: result.error }
-        }
+        },
       }),
     }
   }
@@ -1785,7 +2059,19 @@ Respond in a helpful, professional manner with clear explanations and actionable
       ? await this.resolveAdaptiveModel('chat_default', truncatedMessages)
       : undefined
     const model = this.getModel(effectiveModelName) as any
-    const tools = this.getAdvancedTools()
+    const allTools = this.getAdvancedTools()
+
+    // Get last user message for active tools selection
+    const lastUserMsg = truncatedMessages.filter((m) => m.role === 'user').pop()
+    const userContent = typeof lastUserMsg?.content === 'string'
+      ? lastUserMsg.content
+      : Array.isArray(lastUserMsg?.content)
+        ? lastUserMsg.content.map((p: any) => 'text' in p ? p.text : '').join(' ')
+        : ''
+
+    // Active Tools Pattern: Select relevant tools based on user's message
+    // Reference: https://ai-sdk.dev/docs/agents - best practices
+    const tools = this.selectActiveTools(userContent, allTools, 7) // Allow up to 7 tools for autonomous mode
 
     try {
       // ADVANCED: Check completion protocol cache first (ultra-efficient)
@@ -1921,6 +2207,12 @@ Respond in a helpful, professional manner with clear explanations and actionable
             : msg.content,
       })) as CoreMessage[]
 
+      // Track step progress for loop control
+      let stepCount = 0
+      let totalToolCalls = 0
+      let consecutiveEmptySteps = 0
+      const maxConsecutiveEmptySteps = 3 // Stop after 3 empty steps (loop detection)
+
       const streamOpts: any = {
         model,
         messages: finalMessages,
@@ -1928,10 +2220,77 @@ Respond in a helpful, professional manner with clear explanations and actionable
         maxToolRoundtrips: isAnalysisRequest ? 20 : 30, // Reduced to prevent token overflow
         temperature: params.temperature,
         abortSignal,
-        onStepFinish: (_evt: any) => { },
+        // AI SDK toolChoice: 'auto' (default), 'none', 'required', or { type: 'tool', toolName: 'specific-tool' }
+        // For autonomous operations, use 'auto' to let model decide tool usage
+        toolChoice: 'auto',
+        // AI SDK Tool Call Repair - automatically fix invalid tool calls
+        experimental_repairToolCall: this.createToolCallRepairHandler(model, tools),
+        // AI SDK Agent Loop Control - onStepFinish callback
+        // Reference: https://ai-sdk.dev/docs/agents/loop-control
+        onStepFinish: (step: {
+          stepType: 'initial' | 'continue' | 'tool-result';
+          text: string;
+          toolCalls: Array<{ toolName: string; args: unknown }>;
+          toolResults: Array<{ toolName: string; result: unknown }>;
+          usage: { promptTokens: number; completionTokens: number; totalTokens: number };
+          finishReason: 'stop' | 'length' | 'tool-calls' | 'content-filter' | 'error' | 'other';
+          isContinued: boolean;
+        }) => {
+          stepCount++
+
+          // Track tool call usage for intelligent loop control
+          const toolCallsInStep = step.toolCalls?.length || 0
+          totalToolCalls += toolCallsInStep
+
+          // Loop detection: track consecutive empty steps
+          if (!step.text && toolCallsInStep === 0) {
+            consecutiveEmptySteps++
+          } else {
+            consecutiveEmptySteps = 0
+          }
+
+          // Log step progress
+          const stepInfo = {
+            step: stepCount,
+            type: step.stepType,
+            toolCalls: toolCallsInStep,
+            totalToolCalls,
+            tokens: step.usage?.totalTokens || 0,
+            finishReason: step.finishReason,
+          }
+
+          // Emit step event for UI updates
+          advancedUI.logFunctionUpdate(
+            'info',
+            `Step ${stepCount}: ${step.stepType} | Tools: ${toolCallsInStep} | Tokens: ${step.usage?.totalTokens || 0}`,
+            '⚡'
+          )
+
+          // Loop control: warn if stuck in loop
+          if (consecutiveEmptySteps >= maxConsecutiveEmptySteps) {
+            advancedUI.logWarning(`[LoopControl] Detected ${consecutiveEmptySteps} consecutive empty steps - potential loop`)
+          }
+
+          // Log tool results for debugging
+          if (step.toolResults?.length > 0) {
+            for (const result of step.toolResults) {
+              advancedUI.logFunctionUpdate(
+                'success',
+                `Tool result: ${result.toolName}`,
+                '✓'
+              )
+            }
+          }
+        },
       }
 
+      // Get current model config for provider-specific settings
+      const cfg = this.getCurrentModelInfo().config as any
 
+      // Override toolChoice from config if specified
+      if (cfg?.toolChoice) {
+        streamOpts.toolChoice = cfg.toolChoice
+      }
 
       // OpenRouter and Anthropic models REQUIRE maxTokens
       if (provider !== 'openai') {
@@ -2196,6 +2555,18 @@ Respond in a helpful, professional manner with clear explanations and actionable
                   // Continue without caching - don't fail the stream
                 }
 
+                // Emit REAL token usage from AI SDK (not estimates)
+                if (delta.usage) {
+                  yield {
+                    type: 'usage',
+                    usage: {
+                      promptTokens: delta.usage.promptTokens || 0,
+                      completionTokens: delta.usage.completionTokens || 0,
+                      totalTokens: delta.usage.totalTokens || 0,
+                    },
+                  }
+                }
+
                 yield {
                   type: 'complete',
                   content: truncatedByCap ? 'Output truncated by local cap' : 'Task completed',
@@ -2247,7 +2618,6 @@ Respond in a helpful, professional manner with clear explanations and actionable
 
       // Show only essential info: tokens used and context remaining
       if (truncatedTokens > 0) {
-
       }
     } catch (error: any) {
       console.error(`Provider error (${this.getCurrentModelInfo().config.provider}):`, error)
@@ -3246,7 +3616,7 @@ Requirements:
         } else if (configData.model.includes('gemini') || configData.model.startsWith('google/')) {
           return { maxTokens: 4000, temperature: 0.7 } // Google models
         } else if (configData.model.startsWith('anthropic/')) {
-          return { maxTokens: 8000, temperature: 1 } // Anthropic models
+          return { maxTokens: 4000, temperature: 1 } // Anthropic models
         }
         return { maxTokens: 4000, temperature: 1 }
 
@@ -3512,7 +3882,6 @@ Requirements:
 
     return this.truncateForPrompt(`${question}\n💡 Tell me how to continue.`, 150)
   }
-
 
   // ====================== ⚡︎ COGNITIVE ENHANCEMENT METHODS ======================
 
@@ -3825,11 +4194,11 @@ Use this cognitive understanding to provide more targeted and effective response
 
       // Execute NPM search with context-aware filtering
       const searchCommand = `npm search ${query} --json --long`
-      const { stdout } = await execAsync(searchCommand)
+      const output = execSync(searchCommand, { timeout: 30000 })
 
       let rawResults: any[] = []
       try {
-        rawResults = JSON.parse(stdout)
+        rawResults = JSON.parse(output.toString().trim())
       } catch {
         // Fallback to empty array if parsing fails
         rawResults = []
@@ -3961,13 +4330,10 @@ Use this cognitive understanding to provide more targeted and effective response
       // Execute with timeout
       const timeout = command.estimatedDuration ? command.estimatedDuration * 1000 : 30000
 
-      const { stdout, stderr } = await Promise.race([
-        execAsync(fullCommand, {
-          cwd: command.workingDir || process.cwd(),
-          timeout,
-        }),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Command timeout')), timeout)),
-      ])
+      const output = execSync(fullCommand, {
+        cwd: command.workingDir || process.cwd(),
+        timeout,
+      })
 
       const duration = Date.now() - startTime
 
@@ -3976,8 +4342,7 @@ Use this cognitive understanding to provide more targeted and effective response
 
       const result: CommandExecutionResult = {
         success: true,
-        output: stdout || '',
-        error: stderr || undefined,
+        output: output.toString().trim(),
         duration,
         command,
         timestamp: new Date(),
@@ -4425,7 +4790,7 @@ Use this cognitive understanding to provide more targeted and effective response
       totalTokens: this.totalTokensUsed,
       totalCost: this.estimatedCost,
       requestCount: this.requestCount,
-      cacheHits: this.cacheHits
+      cacheHits: this.cacheHits,
     }
   }
 

@@ -172,9 +172,7 @@ export class RAGInferenceLayer {
     }))
 
     // Phase 4: Ranking and Deduplication
-    const ranked = scoredResults
-      .sort((a, b) => b.scoreBreakdown.final - a.scoreBreakdown.final)
-      .slice(0, topK)
+    const ranked = scoredResults.sort((a, b) => b.scoreBreakdown.final - a.scoreBreakdown.final).slice(0, topK)
 
     // Phase 5: Enrich with relevance reasoning
     const results = ranked.map((result) => ({
@@ -231,9 +229,7 @@ export class RAGInferenceLayer {
     // Cache the analysis
     if (this.queryCache.size >= this.MAX_QUERY_CACHE_SIZE) {
       // LRU eviction: remove oldest entry
-      const oldestKey = Array.from(this.queryCache.entries()).sort(
-        (a, b) => a[1].timestamp - b[1].timestamp
-      )[0]?.[0]
+      const oldestKey = Array.from(this.queryCache.entries()).sort((a, b) => a[1].timestamp - b[1].timestamp)[0]?.[0]
       if (oldestKey) {
         this.queryCache.delete(oldestKey)
       }
@@ -271,9 +267,7 @@ export class RAGInferenceLayer {
   /**
    * Extract named entities from query
    */
-  private extractEntities(
-    query: string
-  ): Array<{ text: string; type: string }> {
+  private extractEntities(query: string): Array<{ text: string; type: string }> {
     const entities: Array<{ text: string; type: string }> = []
 
     // Function/class names (PascalCase)
@@ -315,7 +309,10 @@ export class RAGInferenceLayer {
    */
   private extractKeywords(text: string): Map<string, number> {
     const keywords = new Map<string, number>()
-    const words = text.toLowerCase().split(/\W+/).filter((w) => w.length > 2)
+    const words = text
+      .toLowerCase()
+      .split(/\W+/)
+      .filter((w) => w.length > 2)
 
     // Simple TF calculation
     const wordFreq = new Map<string, number>()
@@ -443,7 +440,7 @@ export class RAGInferenceLayer {
       }
 
       // Importance score (+30%)
-      preliminaryScore += entry.importance / 100 * 0.3
+      preliminaryScore += (entry.importance / 100) * 0.3
 
       if (preliminaryScore > 0 || candidates.length < limit * 2) {
         candidates.push({
@@ -542,10 +539,7 @@ export class RAGInferenceLayer {
   /**
    * Calculate keyword-based score using TF-IDF
    */
-  private calculateKeywordScore(
-    docKeywords: Map<string, number>,
-    queryKeywords: Map<string, number>
-  ): number {
+  private calculateKeywordScore(docKeywords: Map<string, number>, queryKeywords: Map<string, number>): number {
     if (queryKeywords.size === 0) {
       return 0.5
     }
@@ -605,7 +599,7 @@ export class RAGInferenceLayer {
   private calculateDiversityScore(content: string, summary: string): number {
     const contentLength = content.length
     const summaryLength = summary.length
-    const hasCode = /[{}\[\]()=;]/.test(content)
+    const hasCode = /[{}[\]()=;]/.test(content)
     const hasComments = /\/\/|\/\*|#|--/.test(content)
 
     // More diverse = higher score

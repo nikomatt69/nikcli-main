@@ -66,7 +66,10 @@ export class ToolEmbeddingsCacheManager {
    */
   private generateSimpleEmbedding(text: string): number[] {
     // Simple bag-of-words with TF-IDF like scoring
-    const words = text.toLowerCase().split(/\s+/).filter((w) => w.length > 2)
+    const words = text
+      .toLowerCase()
+      .split(/\s+/)
+      .filter((w) => w.length > 2)
     const embedding = new Array(this.embeddingDimensions).fill(0)
 
     // Map words to dimensions using simple hash
@@ -228,10 +231,7 @@ export class ToolEmbeddingsCacheManager {
  */
 let instance: ToolEmbeddingsCacheManager | null = null
 
-export function initializeToolEmbeddingsCache(
-  cacheDir?: string,
-  embeddingService?: any
-): ToolEmbeddingsCacheManager {
+export function initializeToolEmbeddingsCache(cacheDir?: string, embeddingService?: any): ToolEmbeddingsCacheManager {
   if (!instance) {
     instance = new ToolEmbeddingsCacheManager(cacheDir, embeddingService)
   }
