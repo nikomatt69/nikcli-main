@@ -282,3 +282,4 @@ const tools = modernAIProvider.getAISDKToolsFromRegistry()
 - [AI SDK Agents Best Practices](https://ai-sdk.dev/docs/agents)
 - [Tool Call Repair](https://v4.ai-sdk.dev/docs/ai-sdk-core/tools-and-tool-calling#tool-call-repair)
 - [Active Tools Pattern](https://v4.ai-sdk.dev/docs/ai-sdk-core/tools-and-tool-calling#active-tools)
+

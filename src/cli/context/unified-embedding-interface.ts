@@ -1,8 +1,9 @@
 import { createHash } from 'node:crypto'
+import { existsSync, mkdirSync } from 'node:fs'
+import { readFile, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import chalk from 'chalk'
-import { fileExists, mkdirp, readJson, writeJson } from '../utils/bun-compat'
 import { configManager } from '../core/config-manager'
 import { AiSdkEmbeddingProvider, aiSdkEmbeddingProvider } from './ai-sdk-embedding-provider'
 
@@ -95,7 +96,7 @@ export class UnifiedEmbeddingInterface {
     // Get default from current model config or use provider defaults
     const currentModel = configManager.getCurrentEmbeddingModel()
     const defaultCfg = currentModel ? configManager.getEmbeddingModelConfig(currentModel) : undefined
-    
+
     this.config = {
       provider: defaultCfg?.provider || 'openrouter',
       model: defaultCfg?.model || currentModel || 'qwen/qwen3-embedding-8b',
@@ -358,7 +359,7 @@ export class UnifiedEmbeddingInterface {
     this.stats.cacheHitRate =
       this.stats.totalQueries > 0
         ? (this.stats.totalQueries - Object.values(this.stats.byProvider).reduce((sum, p) => sum + p.count, 0)) /
-          this.stats.totalQueries
+        this.stats.totalQueries
         : 0
 
     return { ...this.stats }
@@ -519,9 +520,8 @@ export class UnifiedEmbeddingInterface {
     if (!this.config.persistenceEnabled) return
 
     try {
-      // Create directory using Bun
-      if (!(await fileExists(this.persistentCacheDir))) {
-        await mkdirp(this.persistentCacheDir)
+      if (!existsSync(this.persistentCacheDir)) {
+        mkdirSync(this.persistentCacheDir, { recursive: true })
       }
 
       await this.loadPersistentCache()
@@ -535,8 +535,9 @@ export class UnifiedEmbeddingInterface {
     const cacheFile = join(this.persistentCacheDir, 'unified-embeddings.json')
 
     try {
-      if (await fileExists(cacheFile)) {
-        const cached = await readJson<{ embeddings: Record<string, any>; stats: any }>(cacheFile)
+      if (existsSync(cacheFile)) {
+        const data = await readFile(cacheFile, 'utf-8')
+        const cached = JSON.parse(data)
 
         for (const [key, value] of Object.entries(cached.embeddings || {})) {
           const result = value as any
@@ -566,7 +567,7 @@ export class UnifiedEmbeddingInterface {
         lastSaved: new Date(),
       }
 
-      await writeJson(cacheFile, data)
+      await writeFile(cacheFile, JSON.stringify(data, null, 2))
       console.log(chalk.gray(`💾 Saved ${this.embeddingCache.size} embeddings to persistent cache`))
     } catch (error) {
       console.warn(chalk.yellow(`⚠︎ Failed to save persistent cache: ${error}`))
@@ -577,8 +578,11 @@ export class UnifiedEmbeddingInterface {
     const cacheFile = join(this.persistentCacheDir, 'unified-embeddings.json')
 
     try {
-      if (await fileExists(cacheFile)) {
-        await writeJson(cacheFile, { embeddings: {}, stats: this.initializeStats(), lastSaved: new Date() })
+      if (existsSync(cacheFile)) {
+        await writeFile(
+          cacheFile,
+          JSON.stringify({ embeddings: {}, stats: this.initializeStats(), lastSaved: new Date() })
+        )
       }
     } catch (error) {
       console.warn(chalk.yellow(`⚠︎ Failed to clear persistent cache: ${error}`))

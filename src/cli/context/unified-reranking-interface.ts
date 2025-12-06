@@ -2,7 +2,8 @@ import { createHash } from 'node:crypto'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import chalk from 'chalk'
-import { fileExists, mkdirp, readJson, writeJson } from '../utils/bun-compat'
+import { existsSync, mkdirSync } from 'node:fs'
+import { readFile, writeFile } from 'node:fs/promises'
 import { type CacheProvider, globalCacheManager } from '../core/cache-provider'
 import { configManager } from '../core/config-manager'
 import { createOpenRouterRerankingProvider, type OpenRouterRerankingProvider } from './openrouter-reranking-provider'
@@ -458,8 +459,8 @@ export class UnifiedRerankingInterface {
 
     try {
       // Use Bun APIs
-      if (!(await fileExists(this.persistentCacheDir))) {
-        await mkdirp(this.persistentCacheDir)
+      if (!existsSync(this.persistentCacheDir)) {
+        mkdirSync(this.persistentCacheDir, { recursive: true })
       }
 
       await this.loadPersistentCache()
@@ -473,8 +474,9 @@ export class UnifiedRerankingInterface {
     const cacheFile = join(this.persistentCacheDir, 'unified-reranking.json')
 
     try {
-      if (await fileExists(cacheFile)) {
-        const cached = await readJson<{ rerankings?: Record<string, any>; stats?: any }>(cacheFile)
+      if (existsSync(cacheFile)) {
+        const data = await readFile(cacheFile, 'utf-8')
+        const cached = JSON.parse(data)
 
         for (const [key, value] of Object.entries(cached.rerankings || {})) {
           const result = value as any
@@ -504,7 +506,7 @@ export class UnifiedRerankingInterface {
         lastSaved: new Date(),
       }
 
-      await writeJson(cacheFile, data)
+      await writeFile(cacheFile, JSON.stringify(data, null, 2))
       console.log(chalk.gray(`💾 Saved ${this.rerankingCache.size} rerankings to persistent cache`))
     } catch (error) {
       console.warn(chalk.yellow(`⚠︎ Failed to save persistent cache: ${error}`))
@@ -515,8 +517,8 @@ export class UnifiedRerankingInterface {
     const cacheFile = join(this.persistentCacheDir, 'unified-reranking.json')
 
     try {
-      if (await fileExists(cacheFile)) {
-        await writeJson(cacheFile, { rerankings: {}, stats: this.initializeStats(), lastSaved: new Date() })
+      if (existsSync(cacheFile)) {
+        await writeFile(cacheFile, JSON.stringify({ rerankings: {}, stats: this.initializeStats(), lastSaved: new Date() }))
       }
     } catch (error) {
       console.warn(chalk.yellow(`⚠︎ Failed to clear persistent cache: ${error}`))

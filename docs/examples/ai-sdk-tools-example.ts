@@ -183,3 +183,4 @@ export async function example6_WithErrorHandling() {
 // example3_ReadOnlyTools()
 // example4_WebSearch()
 // example5_SmartToolSelection('Find all test files in the project')
+

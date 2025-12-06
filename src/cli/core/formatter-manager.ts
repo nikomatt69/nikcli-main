@@ -3,9 +3,13 @@
  * Automatically formats code based on language and project standards
  */
 
+import { exec } from 'node:child_process'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, extname, join } from 'node:path'
-import { fileExists, readText, writeText, bunExec } from '../utils/bun-compat'
+import { promisify } from 'node:util'
 import { advancedUI } from '../ui/advanced-cli-ui'
+
+const execAsync = promisify(exec)
 
 export interface FormatterConfig {
   enabled: boolean
@@ -314,12 +318,13 @@ export class FormatterManager {
   ): Promise<FormatResult> {
     try {
       // Check if formatter is available
-      const { exitCode: whichExitCode } = await bunExec(`which ${formatter.command}`, { timeout: 3000 })
-      if (whichExitCode !== 0) {
+      try {
+        await execAsync(`which ${formatter.command}`)
+      } catch {
         // Try to install if install command provided
         if (formatter.installCommand) {
           advancedUI.logInfo(`📦 Installing ${formatter.name}...`)
-          await bunExec(formatter.installCommand, { cwd: this.workingDirectory, timeout: 60000 })
+          await execAsync(formatter.installCommand, { cwd: this.workingDirectory })
         } else {
           return {
             success: false,
@@ -331,19 +336,19 @@ export class FormatterManager {
         }
       }
 
-      // Write content to temp file using Bun
+      // Write content to temp file
       const tempFile = join(this.workingDirectory, `.temp_format_${Date.now()}${extname(filePath)}`)
-      await writeText(tempFile, content)
+      writeFileSync(tempFile, content, 'utf-8')
 
       try {
         // Execute formatter
         const args = [...formatter.args, tempFile]
         const command = `${formatter.command} ${args.join(' ')}`
 
-        await bunExec(command, { cwd: this.workingDirectory, timeout: 30000 })
+        await execAsync(command, { cwd: this.workingDirectory })
 
-        // Read formatted content using Bun
-        const formattedContent = await readText(tempFile)
+        // Read formatted content
+        const formattedContent = readFileSync(tempFile, 'utf-8')
 
         return {
           success: true,
@@ -353,10 +358,10 @@ export class FormatterManager {
           formatter: formatter.name,
         }
       } finally {
-        // Clean up temp file using Bun Shell
+        // Clean up temp file
         try {
-          const { $ } = await import('../utils/bun-compat')
-          await $`rm -f ${tempFile}`.quiet()
+          const fs = await import('node:fs/promises')
+          await fs.unlink(tempFile)
         } catch {
           // Ignore cleanup errors
         }
@@ -387,19 +392,18 @@ export class FormatterManager {
   /**
    * Detect project formatting configuration
    */
-  async detectProjectConfig(filePath: string): Promise<Record<string, any>> {
+  detectProjectConfig(filePath: string): Record<string, any> {
     const dir = dirname(filePath)
     const configs: Record<string, any> = {}
 
-    // Check for Prettier config using Bun
+    // Check for Prettier config
     const prettierConfigs = ['.prettierrc', '.prettierrc.js', '.prettierrc.json', 'prettier.config.js']
     for (const config of prettierConfigs) {
       const configPath = join(dir, config)
-      if (await fileExists(configPath)) {
+      if (existsSync(configPath)) {
         try {
           if (config.endsWith('.json') || config === '.prettierrc') {
-            const content = await readText(configPath)
-            configs.prettier = JSON.parse(content)
+            configs.prettier = JSON.parse(readFileSync(configPath, 'utf-8'))
           }
         } catch {
           // Ignore parsing errors
@@ -408,17 +412,17 @@ export class FormatterManager {
       }
     }
 
-    // Check for EditorConfig using Bun
+    // Check for EditorConfig
     const editorConfigPath = join(dir, '.editorconfig')
-    if (await fileExists(editorConfigPath)) {
-      configs.editorconfig = await readText(editorConfigPath)
+    if (existsSync(editorConfigPath)) {
+      configs.editorconfig = readFileSync(editorConfigPath, 'utf-8')
     }
 
-    // Check for ESLint config using Bun
+    // Check for ESLint config
     const eslintConfigs = ['.eslintrc.js', '.eslintrc.json', '.eslintrc.yml']
     for (const config of eslintConfigs) {
       const configPath = join(dir, config)
-      if (await fileExists(configPath)) {
+      if (existsSync(configPath)) {
         configs.eslint = configPath
         break
       }

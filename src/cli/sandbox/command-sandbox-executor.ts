@@ -4,9 +4,10 @@
  * Provides real-time output streaming and error handling
  */
 
+import { spawn } from 'node:child_process'
+import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { bunSpawn, readStreamToString, remove } from '../utils/bun-compat'
 import { advancedUI } from '../ui/advanced-cli-ui'
 
 export interface SandboxExecutionOptions {
@@ -33,12 +34,11 @@ export interface SandboxExecutionResult {
 }
 
 export class CommandSandboxExecutor {
-  private activeSessions: Map<string, ReturnType<typeof setTimeout>> = new Map()
+  private activeSessions: Map<string, NodeJS.Timeout> = new Map()
   private sandboxDirs: Map<string, string> = new Map()
-  private activeProcs: Map<string, ReturnType<typeof bunSpawn>> = new Map()
 
   /**
-   * Execute command in isolated sandbox using Bun.spawn
+   * Execute command in isolated sandbox
    */
   async execute(options: SandboxExecutionOptions): Promise<SandboxExecutionResult> {
     const startTime = Date.now()
@@ -58,64 +58,76 @@ export class CommandSandboxExecutor {
       })
 
       // Determine command execution
-      const cmd = options.shell
-        ? ['sh', '-c', options.command]
-        : [options.command, ...(options.args || [])]
+      const [cmd, args] = options.shell ? ['/bin/sh', ['-c', options.command]] : [options.command, options.args || []]
 
-      // Spawn child process in sandbox directory using Bun.spawn
-      const proc = bunSpawn({
-        cmd,
+      // Spawn child process in sandbox directory
+      const child = spawn(cmd, args, {
         cwd: options.cwd || sandboxDir,
+        shell: options.shell || false,
         env: {
           ...process.env,
           ...options.env,
           SANDBOX_DIR: sandboxDir,
         },
-        stdout: 'pipe',
-        stderr: 'pipe',
+        stdio: ['pipe', 'pipe', 'pipe'],
       })
 
-      this.activeProcs.set(options.sessionId, proc)
+      // Capture stdout
+      if (child.stdout) {
+        child.stdout.on('data', (data) => {
+          const output = data.toString()
+          stdout += output
+          // Stream output in real-time
+          process.stdout.write(output)
+        })
+      }
+
+      // Capture stderr
+      if (child.stderr) {
+        child.stderr.on('data', (data) => {
+          const output = data.toString()
+          stderr += output
+          // Stream stderr in real-time
+          process.stderr.write(output)
+        })
+      }
 
       // Handle timeout if specified
-      let timeoutId: ReturnType<typeof setTimeout> | null = null
+      let timeoutId: NodeJS.Timeout | null = null
       if (options.timeout) {
         timeoutId = setTimeout(() => {
-          proc.kill()
+          child.kill('SIGTERM')
           error = `Command timeout after ${options.timeout}ms`
         }, options.timeout)
         this.activeSessions.set(options.sessionId, timeoutId)
       }
 
-      // Read stdout and stderr in parallel using Bun streams
-      const [stdoutContent, stderrContent] = await Promise.all([
-        readStreamToString(proc.stdout as ReadableStream),
-        readStreamToString(proc.stderr as ReadableStream),
-      ])
+      // Wait for process to complete
+      await new Promise<void>((resolve, reject) => {
+        child.on('error', (err) => {
+          error = err.message
+          reject(err)
+        })
 
-      stdout = stdoutContent
-      stderr = stderrContent
+        child.on('close', (code, sig) => {
+          // Clean up timeout
+          if (timeoutId) {
+            clearTimeout(timeoutId)
+            this.activeSessions.delete(options.sessionId)
+          }
 
-      // Stream output
-      if (stdout) process.stdout.write(stdout)
-      if (stderr) process.stderr.write(stderr)
+          exitCode = code
+          signal = sig
 
-      // Wait for process to exit
-      exitCode = await proc.exited
+          // Stream final status
+          const status = code === 0 ? '✓ Success' : code ? `✖ Failed (code: ${code})` : `⚠︎  Terminated (signal: ${sig})`
+          advancedUI.addLiveUpdate({
+            type: code === 0 ? 'result' : 'error',
+            content: `${status}`,
+          })
 
-      // Clean up timeout
-      if (timeoutId) {
-        clearTimeout(timeoutId)
-        this.activeSessions.delete(options.sessionId)
-      }
-
-      this.activeProcs.delete(options.sessionId)
-
-      // Stream final status
-      const status = exitCode === 0 ? '✓ Success' : `✖ Failed (code: ${exitCode})`
-      advancedUI.addLiveUpdate({
-        type: exitCode === 0 ? 'result' : 'error',
-        content: `${status}`,
+          resolve()
+        })
       })
     } catch (err: any) {
       error = err.message
@@ -145,13 +157,11 @@ export class CommandSandboxExecutor {
   }
 
   /**
-   * Create isolated sandbox directory using Bun Shell
+   * Create isolated sandbox directory
    */
   private async createSandboxDirectory(): Promise<string> {
     try {
-      const { $ } = await import('../utils/bun-compat')
-      const sandboxDir = join(tmpdir(), `nikcli-sandbox-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`)
-      await $`mkdir -p ${sandboxDir}`.quiet()
+      const sandboxDir = await mkdtemp(join(tmpdir(), 'nikcli-sandbox-'))
       advancedUI.logInfo(`🏝️  Sandbox created: ${sandboxDir}`)
       return sandboxDir
     } catch (error: any) {
@@ -160,7 +170,7 @@ export class CommandSandboxExecutor {
   }
 
   /**
-   * Cleanup sandbox directory using Bun Shell
+   * Cleanup sandbox directory
    */
   private async cleanupSandbox(sessionId: string, sandboxDir: string): Promise<void> {
     try {
@@ -171,15 +181,8 @@ export class CommandSandboxExecutor {
         this.activeSessions.delete(sessionId)
       }
 
-      // Kill active process if any
-      const proc = this.activeProcs.get(sessionId)
-      if (proc) {
-        proc.kill()
-        this.activeProcs.delete(sessionId)
-      }
-
-      // Remove sandbox directory using Bun Shell
-      await remove(sandboxDir, true)
+      // Remove sandbox directory
+      await rm(sandboxDir, { recursive: true, force: true })
       this.sandboxDirs.delete(sessionId)
       advancedUI.logInfo(`🧹 Sandbox cleaned: ${sandboxDir}`)
     } catch (error: any) {

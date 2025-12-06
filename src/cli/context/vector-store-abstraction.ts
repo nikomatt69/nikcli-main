@@ -1,10 +1,11 @@
+import { existsSync, mkdirSync } from 'node:fs'
+import { readFile, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { Redis } from '@upstash/redis'
 import axios from 'axios'
 import chalk from 'chalk'
 import { ChromaClient, CloudClient } from 'chromadb'
-import { fileExists, mkdirp, readJson, writeJson } from '../utils/bun-compat'
 import { advancedUI } from '../ui/advanced-cli-ui'
 import { configManager } from '../core/config-manager'
 import { unifiedEmbeddingInterface } from './unified-embedding-interface'
@@ -457,7 +458,7 @@ class UpstashVectorStore extends VectorStore {
         console.log(chalk.gray('🔗 Connecting to Upstash Redis (vector store)'))
         try {
           await this.redis.ping()
-        } catch (_e) {}
+        } catch (_e) { }
         console.log(chalk.green('✓ Upstash Redis connected'))
         return true
       }
@@ -595,7 +596,7 @@ class UpstashVectorStore extends VectorStore {
             { id },
             { headers: { Authorization: `Bearer ${this.vectorToken}` } }
           )
-        } catch (_e) {}
+        } catch (_e) { }
         return true
       }
 
@@ -780,10 +781,10 @@ class LocalVectorStore extends VectorStore {
 
   async connect(): Promise<boolean> {
     try {
-      // Ensure directory exists using Bun
+      // Ensure directory exists
       const baseDir = this.config.connectionConfig.baseDir || join(homedir(), '.nikcli', 'vector-store')
-      if (!(await fileExists(baseDir))) {
-        await mkdirp(baseDir)
+      if (!existsSync(baseDir)) {
+        mkdirSync(baseDir, { recursive: true })
       }
 
       await this.loadDocuments()
@@ -931,8 +932,9 @@ class LocalVectorStore extends VectorStore {
 
   private async loadDocuments(): Promise<void> {
     try {
-      if (await fileExists(this.documentsPath)) {
-        const docs = await readJson<Record<string, any>>(this.documentsPath)
+      if (existsSync(this.documentsPath)) {
+        const data = await readFile(this.documentsPath, 'utf-8')
+        const docs = JSON.parse(data)
 
         for (const [id, doc] of Object.entries(docs)) {
           const document = doc as any
@@ -947,14 +949,14 @@ class LocalVectorStore extends VectorStore {
 
   private async saveDocuments(): Promise<void> {
     try {
-      // Ensure directory exists before saving using Bun
+      // Ensure directory exists before saving
       const dir = dirname(this.documentsPath)
-      if (!(await fileExists(dir))) {
-        await mkdirp(dir)
+      if (!existsSync(dir)) {
+        mkdirSync(dir, { recursive: true })
       }
 
       const data = Object.fromEntries(this.documents)
-      await writeJson(this.documentsPath, data)
+      await writeFile(this.documentsPath, JSON.stringify(data, null, 2))
     } catch (error) {
       console.warn(chalk.yellow(`⚠︎ Failed to save documents: ${error}`))
     }
@@ -962,8 +964,9 @@ class LocalVectorStore extends VectorStore {
 
   private async loadIndex(): Promise<void> {
     try {
-      if (await fileExists(this.indexPath)) {
-        const index = await readJson<Record<string, number[]>>(this.indexPath)
+      if (existsSync(this.indexPath)) {
+        const data = await readFile(this.indexPath, 'utf-8')
+        const index = JSON.parse(data)
         this.index = new Map(Object.entries(index))
       }
     } catch (error) {
@@ -973,14 +976,14 @@ class LocalVectorStore extends VectorStore {
 
   private async saveIndex(): Promise<void> {
     try {
-      // Ensure directory exists before saving using Bun
+      // Ensure directory exists before saving
       const dir = dirname(this.indexPath)
-      if (!(await fileExists(dir))) {
-        await mkdirp(dir)
+      if (!existsSync(dir)) {
+        mkdirSync(dir, { recursive: true })
       }
 
       const data = Object.fromEntries(this.index)
-      await writeJson(this.indexPath, data)
+      await writeFile(this.indexPath, JSON.stringify(data, null, 2))
     } catch (error) {
       console.warn(chalk.yellow(`⚠︎ Failed to save index: ${error}`))
     }

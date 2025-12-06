@@ -261,3 +261,4 @@ Tool behavior can be configured via `config-manager.ts`:
 - [AI SDK Tool Calling Documentation](https://v4.ai-sdk.dev/docs/ai-sdk-core/tools-and-tool-calling)
 - [AI SDK Agents Guide](https://ai-sdk.dev/docs/agents)
 - [OpenRouter Tool Calling](https://openrouter.ai/docs/guides/features/tool-calling)
+
