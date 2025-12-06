@@ -4,8 +4,19 @@ import { universalTokenizer } from '../core/universal-tokenizer-service'
 import { structuredLogger } from '../utils/structured-logger'
 import type { ChatMessage } from './model-provider'
 import { simpleConfigManager } from '../core/config-manager'
+import { openRouterRegistry, type OpenRouterModel } from './openrouter-model-registry'
+import { MODEL_ALIASES, resolveModelAlias } from './provider-registry'
 
 export type ModelScope = 'chat_default' | 'planning' | 'code_gen' | 'tool_light' | 'tool_heavy' | 'vision'
+
+/**
+ * Routing strategy for model selection
+ * - 'adaptive': NikCLI's intelligent tier-based routing (default)
+ * - 'auto': Use OpenRouter's Auto Router (powered by NotDiamond)
+ * - 'fallback': Use model fallback chain
+ * - 'fixed': Use the exact model specified
+ */
+export type RoutingStrategy = 'adaptive' | 'auto' | 'fallback' | 'fixed'
 
 export interface ModelRouteInput {
   provider:
@@ -24,6 +35,17 @@ export interface ModelRouteInput {
   scope?: ModelScope
   needsVision?: boolean
   sizeHints?: { fileCount?: number; totalBytes?: number; toolCount?: number }
+  /**
+   * Routing strategy to use
+   * @default 'adaptive'
+   */
+  strategy?: RoutingStrategy
+  /**
+   * Fallback models to try if primary model fails
+   * Only used when strategy is 'fallback' or as emergency fallback
+   * Reference: https://openrouter.ai/docs/guides/features/model-routing
+   */
+  fallbackModels?: string[]
 }
 
 /**
@@ -38,12 +60,59 @@ interface ModelPerformanceMetrics {
 
 /**
  * Safe fallback models per provider (reliable models for emergency use)
+ * Using cost-effective OpenRouter models as fallbacks
+ * Updated: December 2025 with latest models
  */
 const SAFE_FALLBACK_MODELS: Record<string, string> = {
-  openrouter: 'openai/gpt-5', // GPT-5 as safe fallback
-  openai: 'gpt-5',
-  anthropic: 'claude-3-5-sonnet-latest',
-  google: 'gemini-2.5-flash',
+  openrouter: 'minimax/minimax-m2', // MiniMax M2 as safe fallback (cost-effective, reliable)
+  openai: 'gpt-5.1-chat', // GPT-5.1 Chat - fast, reliable
+  anthropic: 'claude-haiku-4.5', // Claude Haiku 4.5 - fast, cost-effective
+  google: 'gemini-2.5-flash', // Gemini 2.5 Flash - reliable
+  groq: 'llama-3.1-8b-instant',
+  cerebras: 'llama-3.3-70b',
+}
+
+/**
+ * Fallback chains per provider for the 'models' parameter
+ * Reference: https://openrouter.ai/docs/guides/features/model-routing
+ * Using MiniMax M2 as reliable, cost-effective primary fallback
+ * Updated: December 2025 with GPT-5.1, Claude 4.5, Gemini 3 models
+ */
+const FALLBACK_CHAINS: Record<string, Record<'light' | 'medium' | 'heavy', string[]>> = {
+  openrouter: {
+    light: [
+      'minimax/minimax-m2', // Fast, cost-effective primary fallback
+      'anthropic/claude-haiku-4.5', // Claude Haiku 4.5 - fast
+      'openai/gpt-5.1-chat', // GPT-5.1 Chat - fast chat
+    ],
+    medium: [
+      'minimax/minimax-m2',
+      'anthropic/claude-sonnet-4.5', // Claude Sonnet 4.5 - 1M context
+      'google/gemini-3-pro-preview', // Gemini 3 Pro - 1M context
+    ],
+    heavy: [
+      'minimax/minimax-m2',
+      'openai/gpt-5.1-codex', // GPT-5.1 Codex - coding optimized
+      'anthropic/claude-opus-4.5', // Claude Opus 4.5 - frontier reasoning
+      'google/gemini-3-pro-preview',
+    ],
+  },
+}
+
+/**
+ * OpenRouter Auto Router model ID
+ * Automatically selects the best model based on prompt content
+ * Powered by NotDiamond: https://www.notdiamond.ai/
+ */
+const OPENROUTER_AUTO_MODEL = 'openrouter/auto'
+
+/**
+ * Pricing information for a model
+ */
+export interface ModelPricing {
+  promptCostPer1M: number // Cost per 1M input tokens in USD
+  completionCostPer1M: number // Cost per 1M output tokens in USD
+  currency: 'USD'
 }
 
 export interface ModelRouteDecision {
@@ -55,6 +124,30 @@ export interface ModelRouteDecision {
   confidence: number // 0..1
   tokenizationMethod: 'precise' | 'fallback' // Indicates counting method used
   toolchainReserve?: number // Token riservati per toolchains
+  /**
+   * Strategy used for this routing decision
+   */
+  strategy: RoutingStrategy
+  /**
+   * Fallback models to try if primary fails
+   * Can be passed to OpenRouter via 'models' parameter
+   * Reference: https://openrouter.ai/docs/guides/features/model-routing
+   */
+  fallbackModels?: string[]
+  /**
+   * Whether this is using OpenRouter Auto Router
+   */
+  isAutoRouter?: boolean
+  /**
+   * Estimated cost for this request (in USD)
+   * Based on estimatedTokens and model pricing
+   */
+  estimatedCost?: {
+    inputCost: number
+    estimatedOutputCost: number // Estimated assuming similar output length
+    totalEstimatedCost: number
+    pricing: ModelPricing
+  }
 }
 
 /**
@@ -118,7 +211,86 @@ function getCharTokenRatio(provider: string): number {
     'openai-compatible': 3.7, // generic OpenAI-compatible endpoints
   }
 
-  return ratios[provider] || 4.0 // Default fallback
+  return ratios[provider] || 3.7 // Default fallback
+}
+
+/**
+ * Get pricing for a model (per 1M tokens in USD)
+ * Fetches from OpenRouter registry or uses fallback estimates
+ * Reference: https://openrouter.ai/docs/guides/features/zero-completion-insurance
+ */
+async function getModelPricing(provider: string, model: string): Promise<ModelPricing> {
+  // Try to get pricing from OpenRouter registry
+  if (provider === 'openrouter') {
+    try {
+      const pricing = await openRouterRegistry.getModelPricing(model)
+      if (pricing) {
+        // OpenRouter pricing is per-token, convert to per-1M
+        return {
+          promptCostPer1M: pricing.prompt * 1000000 || 0,
+          completionCostPer1M: pricing.completion * 1000000 || 0,
+          currency: 'USD',
+        }
+      }
+    } catch {
+      // Fall through to defaults
+    }
+  }
+
+  // Fallback pricing estimates (per 1M tokens in USD)
+  const defaultPricing: Record<string, ModelPricing> = {
+    // GPT-5.1 family
+    'gpt-5.1': { promptCostPer1M: 1.25, completionCostPer1M: 10.0, currency: 'USD' },
+    'gpt-5.1-chat': { promptCostPer1M: 0.5, completionCostPer1M: 2.0, currency: 'USD' },
+    'gpt-5.1-codex': { promptCostPer1M: 1.25, completionCostPer1M: 10.0, currency: 'USD' },
+    // Claude 4.5 family
+    'claude-opus-4.5': { promptCostPer1M: 5.0, completionCostPer1M: 25.0, currency: 'USD' },
+    'claude-sonnet-4.5': { promptCostPer1M: 3.0, completionCostPer1M: 15.0, currency: 'USD' },
+    'claude-haiku-4.5': { promptCostPer1M: 1.0, completionCostPer1M: 5.0, currency: 'USD' },
+    // Gemini 3 family
+    'gemini-3-pro': { promptCostPer1M: 2.0, completionCostPer1M: 12.0, currency: 'USD' },
+    'gemini-2.5-flash': { promptCostPer1M: 0.15, completionCostPer1M: 0.6, currency: 'USD' },
+    // DeepSeek
+    'deepseek-v3.2': { promptCostPer1M: 0.28, completionCostPer1M: 1.1, currency: 'USD' },
+    // MiniMax M2 (cost-effective fallback)
+    'minimax-m2': { promptCostPer1M: 0.15, completionCostPer1M: 0.6, currency: 'USD' },
+  }
+
+  // Extract model name from full path (e.g., 'openai/gpt-5.1' -> 'gpt-5.1')
+  const modelName = model.includes('/') ? model.split('/').pop() || model : model
+
+  return defaultPricing[modelName] || {
+    promptCostPer1M: 0.5, // Conservative default
+    completionCostPer1M: 2.0,
+    currency: 'USD',
+  }
+}
+
+/**
+ * Calculate estimated cost for a request
+ */
+function calculateEstimatedCost(
+  pricing: ModelPricing,
+  inputTokens: number,
+  estimatedOutputTokens?: number
+): {
+  inputCost: number
+  estimatedOutputCost: number
+  totalEstimatedCost: number
+  pricing: ModelPricing
+} {
+  // If no output estimate provided, assume similar to input
+  const outputTokens = estimatedOutputTokens || Math.min(inputTokens, 4000)
+
+  const inputCost = (inputTokens / 1000000) * pricing.promptCostPer1M
+  const estimatedOutputCost = (outputTokens / 1000000) * pricing.completionCostPer1M
+
+  return {
+    inputCost: Math.round(inputCost * 100000) / 100000, // Round to 5 decimal places
+    estimatedOutputCost: Math.round(estimatedOutputCost * 100000) / 100000,
+    totalEstimatedCost: Math.round((inputCost + estimatedOutputCost) * 100000) / 100000,
+    pricing,
+  }
 }
 
 function pickAnthropic(
@@ -225,7 +397,7 @@ function pickOpenAI(
     // Filter by context size if toolchain tokens specified
     if (totalEstimatedTokens && totalEstimatedTokens > 0) {
       const withEnoughContext = candidates.filter(
-        (m) => (m.maxContextTokens || 128000) >= totalEstimatedTokens * 1.2
+        (m) => (m.maxContextTokens || 80000) >= totalEstimatedTokens * 1.2
       )
       if (withEnoughContext.length > 0) candidates = withEnoughContext
     }
@@ -310,6 +482,116 @@ function classifyGoogleModel(modelName: string, contextTokens?: number): 'light'
 
   if (contextTokens && contextTokens >= 2000000) return 'heavy'
   if (contextTokens && contextTokens < 500000) return 'light'
+
+  return 'medium'
+}
+
+/**
+ * Pick OpenRouter model using dynamic registry from API
+ * Falls back to local config-based registry if API unavailable
+ */
+async function pickOpenRouterAsync(
+  baseModel: string,
+  tier: 'light' | 'medium' | 'heavy',
+  needsVision?: boolean,
+  totalEstimatedTokens?: number
+): Promise<string> {
+  // Extract provider prefix (e.g., 'google/gemini-2.5-flash' → 'google/')
+  const providerMatch = baseModel.match(/^([^/]+\/)/)
+  if (!providerMatch) return baseModel
+
+  const providerPrefix = providerMatch[1]
+
+  try {
+    // Fetch all models from OpenRouter API
+    const allModels = await openRouterRegistry.fetchAllModels()
+
+    // Filter models by provider prefix
+    const providerModels = allModels.filter(m => m.id.startsWith(providerPrefix))
+    if (providerModels.length === 0) return baseModel
+
+    // Classify models by tier based on their actual capabilities
+    const modelsByTier: { light: OpenRouterModel[]; medium: OpenRouterModel[]; heavy: OpenRouterModel[] } = {
+      light: [],
+      medium: [],
+      heavy: [],
+    }
+
+    for (const model of providerModels) {
+      const modelTier = classifyOpenRouterModelTier(model)
+      modelsByTier[modelTier].push(model)
+    }
+
+    // Select candidates based on tier
+    let candidates = modelsByTier[tier]
+
+    // Fallback to other tiers
+    if (candidates.length === 0) {
+      if (tier === 'light') candidates = modelsByTier.medium.concat(modelsByTier.heavy)
+      if (tier === 'medium') candidates = modelsByTier.heavy.concat(modelsByTier.light)
+      if (tier === 'heavy') candidates = modelsByTier.medium.concat(modelsByTier.light)
+    }
+
+    if (candidates.length === 0) return baseModel
+
+    // Filter by context size if specified
+    if (totalEstimatedTokens && totalEstimatedTokens > 0) {
+      const withEnoughContext = candidates.filter(
+        m => m.context_length >= totalEstimatedTokens * 1.2
+      )
+      if (withEnoughContext.length > 0) candidates = withEnoughContext
+    }
+
+    // Filter by vision capability if needed
+    if (needsVision) {
+      const visionCapable = candidates.filter(
+        m => m.architecture?.modality?.includes('image') ||
+          m.id.includes('vision') ||
+          m.id.includes('image')
+      )
+      if (visionCapable.length > 0) candidates = visionCapable
+    }
+
+    // Sort by context length (larger first for heavy tier, smaller for light)
+    candidates.sort((a, b) => {
+      if (tier === 'light') return a.context_length - b.context_length
+      return b.context_length - a.context_length
+    })
+
+    return candidates[0].id
+  } catch {
+    // Fallback to sync version if API fails
+    return pickOpenRouter(baseModel, tier, needsVision, totalEstimatedTokens)
+  }
+}
+
+/**
+ * Classify OpenRouter model tier based on actual model data
+ */
+function classifyOpenRouterModelTier(model: OpenRouterModel): 'light' | 'medium' | 'heavy' {
+  const name = model.id.toLowerCase()
+  const contextLength = model.context_length
+
+  // Pattern-based classification
+  if (name.includes('lite') || name.includes('mini') || name.includes('flash-lite') || name.includes('nano')) {
+    return 'light'
+  }
+
+  if (
+    name.includes('pro') ||
+    name.includes('opus') ||
+    name.includes('codex') ||
+    name.includes('deep-research') ||
+    name.includes('405b') ||
+    name.includes('thinking') ||
+    name.includes('ultra')
+  ) {
+    return 'heavy'
+  }
+
+  // Context-based classification
+  if (contextLength >= 200000) return 'heavy'
+  if (contextLength < 32000) return 'light'
 
   return 'medium'
 }
@@ -550,8 +832,17 @@ export class AdaptiveModelRouter {
 
   /**
    * Choose optimal model with precise token counting and intelligent fallback
+   * Supports multiple routing strategies:
+   * - 'adaptive': NikCLI's intelligent tier-based routing (default)
+   * - 'auto': Use OpenRouter's Auto Router (powered by NotDiamond)
+   * - 'fallback': Use model fallback chain with OpenRouter's 'models' parameter
+   * - 'fixed': Use the exact model specified
+   * 
+   * Reference: https://openrouter.ai/docs/guides/features/model-routing
    */
   async choose(input: ModelRouteInput): Promise<ModelRouteDecision> {
+    const strategy = input.strategy || 'adaptive'
+
     // Filter and ensure messages have required properties
     const validMessages = input.messages
       .filter((m) => m.role && m.content)
@@ -605,48 +896,95 @@ export class AdaptiveModelRouter {
 
     let selected = input.baseModel
     let reason = 'base model'
+    let fallbackModels: string[] | undefined
+    let isAutoRouter = false
 
-    // Build registry per OpenRouter
-    let registry: OpenRouterModelRegistry | undefined
-    if (input.provider === 'openrouter') {
-      registry = buildOpenRouterRegistry()
-    }
+    // Handle different routing strategies
+    if (strategy === 'auto' && input.provider === 'openrouter') {
+      // Use OpenRouter Auto Router - automatically selects best model
+      // Powered by NotDiamond: https://www.notdiamond.ai/
+      selected = OPENROUTER_AUTO_MODEL
+      reason = `openrouter auto-router (${method})`
+      isAutoRouter = true
 
-    switch (input.provider) {
-      case 'openai':
-        selected = pickOpenAI(input.baseModel, tier, input.needsVision, totalEstimatedTokens)
-        reason = `openai ${tier} (${method}${toolchainReserve > 0 ? `, toolchain: ${toolchainReserve} tok` : ''})`
-        break
-      case 'anthropic':
-        selected = pickAnthropic(input.baseModel, tier, input.needsVision, totalEstimatedTokens)
-        reason = `anthropic ${tier} (${method}${toolchainReserve > 0 ? `, toolchain: ${toolchainReserve} tok` : ''})`
-        break
-      case 'google':
-        selected = pickGoogle(input.baseModel, tier, totalEstimatedTokens)
-        reason = `google ${tier} (${method}${toolchainReserve > 0 ? `, toolchain: ${toolchainReserve} tok` : ''})`
-        break
-      case 'openrouter':
-        selected = pickOpenRouter(input.baseModel, tier, input.needsVision, totalEstimatedTokens, registry)
-        reason = `openrouter ${tier} (${method}${toolchainReserve > 0 ? `, toolchain: ${toolchainReserve} tok` : ''})`
-        break
-      case 'groq':
-        selected = pickGroq(input.baseModel, tier, input.needsVision)
-        reason = `groq ${tier} (${method})`
-        break
-      case 'cerebras':
-        selected = pickCerebras(input.baseModel, tier, input.needsVision)
-        reason = `cerebras ${tier} (${method})`
-        break
-      case 'vercel':
-      case 'gateway':
-        // Default: keep base model (gateways often wrap specific ids)
-        selected = input.baseModel
-        reason = `${input.provider} base (${method})`
-        break
-      case 'ollama':
-        selected = input.baseModel // keep local model selection
-        reason = `ollama base (${method})`
-        break
+      structuredLogger.info(
+        'Using OpenRouter Auto Router',
+        JSON.stringify({
+          estimatedTokens: totalEstimatedTokens,
+          tier,
+          method,
+        })
+      )
+    } else if (strategy === 'fallback' && input.provider === 'openrouter') {
+      // Use OpenRouter's 'models' parameter for automatic fallback
+      // Reference: https://openrouter.ai/docs/guides/features/model-routing
+      selected = input.baseModel
+      fallbackModels = input.fallbackModels || FALLBACK_CHAINS.openrouter?.[tier] || []
+      reason = `openrouter fallback-chain (${method}, ${fallbackModels.length} fallbacks)`
+
+      structuredLogger.info(
+        'Using OpenRouter fallback chain',
+        JSON.stringify({
+          primaryModel: selected,
+          fallbacks: fallbackModels,
+          tier,
+        })
+      )
+    } else if (strategy === 'fixed') {
+      // Use exact model specified, no routing
+      selected = input.baseModel
+      reason = `fixed model (${method})`
+    } else {
+      // Default: adaptive routing
+      // Build registry per OpenRouter
+      let registry: OpenRouterModelRegistry | undefined
+      if (input.provider === 'openrouter') {
+        registry = buildOpenRouterRegistry()
+      }
+
+      switch (input.provider) {
+        case 'openai':
+          selected = pickOpenAI(input.baseModel, tier, input.needsVision, totalEstimatedTokens)
+          reason = `openai ${tier} (${method}${toolchainReserve > 0 ? `, toolchain: ${toolchainReserve} tok` : ''})`
+          break
+        case 'anthropic':
+          selected = pickAnthropic(input.baseModel, tier, input.needsVision, totalEstimatedTokens)
+          reason = `anthropic ${tier} (${method}${toolchainReserve > 0 ? `, toolchain: ${toolchainReserve} tok` : ''})`
+          break
+        case 'google':
+          selected = pickGoogle(input.baseModel, tier, totalEstimatedTokens)
+          reason = `google ${tier} (${method}${toolchainReserve > 0 ? `, toolchain: ${toolchainReserve} tok` : ''})`
+          break
+        case 'openrouter':
+          // Use async version with dynamic API registry, fallback to sync
+          try {
+            selected = await pickOpenRouterAsync(input.baseModel, tier, input.needsVision, totalEstimatedTokens)
+          } catch {
+            selected = pickOpenRouter(input.baseModel, tier, input.needsVision, totalEstimatedTokens, registry)
+          }
+          // Always include fallback models for OpenRouter adaptive routing
+          fallbackModels = FALLBACK_CHAINS.openrouter?.[tier]
+          reason = `openrouter ${tier} (${method}${toolchainReserve > 0 ? `, toolchain: ${toolchainReserve} tok` : ''})`
+          break
+        case 'groq':
+          selected = pickGroq(input.baseModel, tier, input.needsVision)
+          reason = `groq ${tier} (${method})`
+          break
+        case 'cerebras':
+          selected = pickCerebras(input.baseModel, tier, input.needsVision)
+          reason = `cerebras ${tier} (${method})`
+          break
+        case 'vercel':
+        case 'gateway':
+          // Default: keep base model (gateways often wrap specific ids)
+          selected = input.baseModel
+          reason = `${input.provider} base (${method})`
+          break
+        case 'ollama':
+          selected = input.baseModel // keep local model selection
+          reason = `ollama base (${method})`
+          break
+      }
     }
 
     // Verify final context limits
@@ -695,6 +1033,10 @@ export class AdaptiveModelRouter {
       reason = `${reason} (fallback due to failures)`
     }
 
+    // Calculate estimated cost for this request
+    const pricing = await getModelPricing(input.provider, selected)
+    const estimatedCost = calculateEstimatedCost(pricing, totalEstimatedTokens)
+
     return {
       selectedModel: selected,
       tier,
@@ -704,6 +1046,10 @@ export class AdaptiveModelRouter {
       confidence: method === 'precise' ? 0.95 : 0.7,
       tokenizationMethod: method,
       toolchainReserve,
+      strategy,
+      fallbackModels,
+      isAutoRouter,
+      estimatedCost,
     }
   }
 
@@ -712,6 +1058,8 @@ export class AdaptiveModelRouter {
    * @deprecated Use async choose() method instead for precise counting
    */
   chooseFast(input: ModelRouteInput): ModelRouteDecision {
+    const strategy = input.strategy || 'adaptive'
+
     // Filter and ensure messages have required properties
     const validMessages = input.messages
       .filter((m) => m.role && m.content)
@@ -725,41 +1073,58 @@ export class AdaptiveModelRouter {
 
     let selected = input.baseModel
     let reason = 'base model'
+    let fallbackModels: string[] | undefined
+    let isAutoRouter = false
 
-    switch (input.provider) {
-      case 'openai':
-        selected = pickOpenAI(input.baseModel, tier, input.needsVision)
-        reason = `openai ${tier}`
-        break
-      case 'anthropic':
-        selected = pickAnthropic(input.baseModel, tier, input.needsVision)
-        reason = `anthropic ${tier}`
-        break
-      case 'google':
-        selected = pickGoogle(input.baseModel, tier)
-        reason = `google ${tier}`
-        break
-      case 'openrouter':
-        selected = pickOpenRouter(input.baseModel, tier, input.needsVision)
-        reason = `openrouter ${tier}`
-        break
-      case 'groq':
-        selected = pickGroq(input.baseModel, tier, input.needsVision)
-        reason = `groq ${tier}`
-        break
-      case 'cerebras':
-        selected = pickCerebras(input.baseModel, tier, input.needsVision)
-        reason = `cerebras ${tier}`
-        break
-      case 'vercel':
-      case 'gateway':
-        selected = input.baseModel
-        reason = `${input.provider} base`
-        break
-      case 'ollama':
-        selected = input.baseModel
-        reason = 'ollama base'
-        break
+    // Handle special strategies for OpenRouter
+    if (strategy === 'auto' && input.provider === 'openrouter') {
+      selected = OPENROUTER_AUTO_MODEL
+      reason = 'openrouter auto-router'
+      isAutoRouter = true
+    } else if (strategy === 'fallback' && input.provider === 'openrouter') {
+      selected = input.baseModel
+      fallbackModels = input.fallbackModels || FALLBACK_CHAINS.openrouter?.[tier] || []
+      reason = `openrouter fallback-chain (${fallbackModels.length} fallbacks)`
+    } else if (strategy === 'fixed') {
+      selected = input.baseModel
+      reason = 'fixed model'
+    } else {
+      switch (input.provider) {
+        case 'openai':
+          selected = pickOpenAI(input.baseModel, tier, input.needsVision)
+          reason = `openai ${tier}`
+          break
+        case 'anthropic':
+          selected = pickAnthropic(input.baseModel, tier, input.needsVision)
+          reason = `anthropic ${tier}`
+          break
+        case 'google':
+          selected = pickGoogle(input.baseModel, tier)
+          reason = `google ${tier}`
+          break
+        case 'openrouter':
+          selected = pickOpenRouter(input.baseModel, tier, input.needsVision)
+          fallbackModels = FALLBACK_CHAINS.openrouter?.[tier]
+          reason = `openrouter ${tier}`
+          break
+        case 'groq':
+          selected = pickGroq(input.baseModel, tier, input.needsVision)
+          reason = `groq ${tier}`
+          break
+        case 'cerebras':
+          selected = pickCerebras(input.baseModel, tier, input.needsVision)
+          reason = `cerebras ${tier}`
+          break
+        case 'vercel':
+        case 'gateway':
+          selected = input.baseModel
+          reason = `${input.provider} base`
+          break
+        case 'ollama':
+          selected = input.baseModel
+          reason = 'ollama base'
+          break
+      }
     }
 
     return {
@@ -769,6 +1134,9 @@ export class AdaptiveModelRouter {
       estimatedTokens: tokens,
       confidence: 0.7,
       tokenizationMethod: 'fallback',
+      strategy,
+      fallbackModels,
+      isAutoRouter,
     }
   }
 

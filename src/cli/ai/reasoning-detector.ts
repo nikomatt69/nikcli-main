@@ -1,8 +1,15 @@
 /**
- * Reasoning Detection System for NikCLI AI Providers
- * Detects and manages reasoning capabilities across different AI models
+ * Dynamic Reasoning Detection System for NikCLI AI Providers
+ * Uses AI SDK middleware for automatic reasoning extraction across all models
+ * Dynamically fetches model capabilities from OpenRouter API
  */
 
+import { type LanguageModelV1, experimental_wrapLanguageModel } from 'ai'
+import { openRouterRegistry, type ModelCapabilities } from './openrouter-model-registry'
+
+/**
+ * Reasoning capabilities interface - now dynamic, not model-specific
+ */
 export interface ReasoningCapabilities {
   supportsReasoning: boolean
   reasoningType: 'internal' | 'exposed' | 'thinking' | 'none'
@@ -10,565 +17,324 @@ export interface ReasoningCapabilities {
   requiresExplicitRequest: boolean
 }
 
-export interface ModelReasoningMap {
-  [modelId: string]: ReasoningCapabilities
+/**
+ * Extracted reasoning result from middleware
+ */
+export interface ExtractedReasoning {
+  reasoning?: string
+  reasoningText?: string
+  reasoningDetails?: Array<{ type: string; text: string }>
 }
 
 /**
- * Model-specific reasoning capabilities mapping
- * Updated based on AI SDK 3.4.x documentation and provider capabilities
+ * Configuration for reasoning extraction middleware
  */
-export const MODEL_REASONING_CAPABILITIES: ModelReasoningMap = {
-  // Anthropic Claude models with reasoning support
-  'claude-3-7-sonnet-latest': {
-    supportsReasoning: true,
-    reasoningType: 'exposed',
-    defaultEnabled: true,
-    requiresExplicitRequest: false,
-  },
-  'claude-3-7-sonnet-20241206': {
-    supportsReasoning: true,
-    reasoningType: 'exposed',
-    defaultEnabled: true,
-    requiresExplicitRequest: false,
-  },
-  'claude-3-5-sonnet-latest': {
-    supportsReasoning: false,
-    reasoningType: 'none',
-    defaultEnabled: false,
-    requiresExplicitRequest: false,
-  },
-  'claude-3-5-sonnet-20241022': {
-    supportsReasoning: false,
-    reasoningType: 'none',
-    defaultEnabled: false,
-    requiresExplicitRequest: false,
-  },
-  'claude-sonnet-4.5': {
-    supportsReasoning: true,
-    reasoningType: 'exposed',
-    defaultEnabled: true,
-    requiresExplicitRequest: false,
-  },
-  'claude-haiku-4.5': {
-    supportsReasoning: true,
-    reasoningType: 'exposed',
-    defaultEnabled: true,
-    requiresExplicitRequest: false,
-  },
-
-  // OpenAI reasoning models
-  'o1-mini': {
-    supportsReasoning: true,
-    reasoningType: 'internal',
-    defaultEnabled: true,
-    requiresExplicitRequest: false,
-  },
-  'o1-preview': {
-    supportsReasoning: true,
-    reasoningType: 'internal',
-    defaultEnabled: true,
-    requiresExplicitRequest: false,
-  },
-  o1: {
-    supportsReasoning: true,
-    reasoningType: 'internal',
-    defaultEnabled: true,
-    requiresExplicitRequest: false,
-  },
-  'o3-mini': {
-    supportsReasoning: true,
-    reasoningType: 'internal',
-    defaultEnabled: true,
-    requiresExplicitRequest: false,
-  },
-  'gpt-5': {
-    supportsReasoning: true,
-    reasoningType: 'exposed',
-    defaultEnabled: true,
-    requiresExplicitRequest: false,
-  },
-  'gpt-5-mini': {
-    supportsReasoning: true,
-    reasoningType: 'exposed',
-    defaultEnabled: true,
-    requiresExplicitRequest: false,
-  },
-
-  // OpenRouter-specific model paths (with provider prefix)
-  // Google models via OpenRouter
-  'google/gemini-3-pro-preview': {
-    supportsReasoning: true,
-    reasoningType: 'thinking',
-    defaultEnabled: true,
-    requiresExplicitRequest: false,
-  },
-  'google/gemini-3-pro': {
-    supportsReasoning: true,
-    reasoningType: 'thinking',
-    defaultEnabled: true,
-    requiresExplicitRequest: false,
-  },
-  'google/gemini-3-flash': {
-    supportsReasoning: true,
-    reasoningType: 'thinking',
-    defaultEnabled: true,
-    requiresExplicitRequest: false,
-  },
-  'google/gemini-2.5-pro': {
-    supportsReasoning: true,
-    reasoningType: 'thinking',
-    defaultEnabled: true,
-    requiresExplicitRequest: false,
-  },
-  'google/gemini-2.5-flash': {
-    supportsReasoning: true,
-    reasoningType: 'thinking',
-    defaultEnabled: true,
-    requiresExplicitRequest: false,
-  },
-
-  // OpenAI models via OpenRouter
-  'openai/o1': {
-    supportsReasoning: true,
-    reasoningType: 'internal',
-    defaultEnabled: true,
-    requiresExplicitRequest: false,
-  },
-  'openai/o1-mini': {
-    supportsReasoning: true,
-    reasoningType: 'internal',
-    defaultEnabled: true,
-    requiresExplicitRequest: false,
-  },
-  'openai/o1-preview': {
-    supportsReasoning: true,
-    reasoningType: 'internal',
-    defaultEnabled: true,
-    requiresExplicitRequest: false,
-  },
-  'openai/o3-mini': {
-    supportsReasoning: true,
-    reasoningType: 'internal',
-    defaultEnabled: true,
-    requiresExplicitRequest: false,
-  },
-  'openai/gpt-5': {
-    supportsReasoning: true,
-    reasoningType: 'exposed',
-    defaultEnabled: true,
-    requiresExplicitRequest: false,
-  },
-  'openai/gpt-5-mini': {
-    supportsReasoning: true,
-    reasoningType: 'exposed',
-    defaultEnabled: true,
-    requiresExplicitRequest: false,
-  },
-  'openai/gpt-5.1': {
-    supportsReasoning: true,
-    reasoningType: 'exposed',
-    defaultEnabled: true,
-    requiresExplicitRequest: false,
-  },
-  'anthropic/claude-3-7-sonnet-20250219': {
-    supportsReasoning: true,
-    reasoningType: 'exposed',
-    defaultEnabled: true,
-    requiresExplicitRequest: false,
-  },
-  'anthropic/claude-sonnet-4-20250514': {
-    supportsReasoning: true,
-    reasoningType: 'exposed',
-    defaultEnabled: true,
-    requiresExplicitRequest: false,
-  },
-  'anthropic/claude-4-opus-20250514': {
-    supportsReasoning: true,
-    reasoningType: 'exposed',
-    defaultEnabled: true,
-    requiresExplicitRequest: false,
-  },
-  'xai/grok-beta': {
-    supportsReasoning: true,
-    reasoningType: 'exposed',
-    defaultEnabled: true,
-    requiresExplicitRequest: false,
-  },
-  'xai/grok-2': {
-    supportsReasoning: true,
-    reasoningType: 'exposed',
-    defaultEnabled: true,
-    requiresExplicitRequest: false,
-  },
-  'google/gemini-2.5-pro-thinking': {
-    supportsReasoning: true,
-    reasoningType: 'thinking',
-    defaultEnabled: true,
-    requiresExplicitRequest: false,
-  },
-  'google/gemini-2.5-flash-thinking': {
-    supportsReasoning: true,
-    reasoningType: 'thinking',
-    defaultEnabled: true,
-    requiresExplicitRequest: false,
-  },
-  'qwen/qwen-plus-thinking': {
-    supportsReasoning: true,
-    reasoningType: 'thinking',
-    defaultEnabled: true,
-    requiresExplicitRequest: false,
-  },
-  'qwen/qwen-turbo-thinking': {
-    supportsReasoning: true,
-    reasoningType: 'thinking',
-    defaultEnabled: true,
-    requiresExplicitRequest: false,
-  },
-  // Additional OpenRouter models from defaultModels with reasoning support
-  'anthropic/claude-sonnet-4.5': {
-    supportsReasoning: true,
-    reasoningType: 'exposed',
-    defaultEnabled: true,
-    requiresExplicitRequest: false,
-  },
-  'anthropic/claude-haiku-4.5': {
-    supportsReasoning: true,
-    reasoningType: 'exposed',
-    defaultEnabled: true,
-    requiresExplicitRequest: false,
-  },
-  'anthropic/claude-sonnet-4': {
-    supportsReasoning: true,
-    reasoningType: 'exposed',
-    defaultEnabled: true,
-    requiresExplicitRequest: false,
-  },
-  'anthropic/claude-3.7-sonnet:thinking': {
-    supportsReasoning: true,
-    reasoningType: 'thinking',
-    defaultEnabled: true,
-    requiresExplicitRequest: false,
-  },
-  'anthropic/claude-3.7-sonnet': {
-    supportsReasoning: true,
-    reasoningType: 'exposed',
-    defaultEnabled: true,
-    requiresExplicitRequest: false,
-  },
-  'anthropic/claude-opus-4.1': {
-    supportsReasoning: true,
-    reasoningType: 'exposed',
-    defaultEnabled: true,
-    requiresExplicitRequest: false,
-  },
-  'openai/gpt-5-pro': {
-    supportsReasoning: true,
-    reasoningType: 'exposed',
-    defaultEnabled: true,
-    requiresExplicitRequest: false,
-  },
-  'openai/gpt-5-codex': {
-    supportsReasoning: true,
-    reasoningType: 'exposed',
-    defaultEnabled: true,
-    requiresExplicitRequest: false,
-  },
-  'openai/gpt-5-image': {
-    supportsReasoning: true,
-    reasoningType: 'exposed',
-    defaultEnabled: true,
-    requiresExplicitRequest: false,
-  },
-  'openai/gpt-5-image-mini': {
-    supportsReasoning: true,
-    reasoningType: 'exposed',
-    defaultEnabled: true,
-    requiresExplicitRequest: false,
-  },
-  'openai/o3-deep-research': {
-    supportsReasoning: true,
-    reasoningType: 'internal',
-    defaultEnabled: true,
-    requiresExplicitRequest: false,
-  },
-  'openai/o4-mini-deep-research': {
-    supportsReasoning: true,
-    reasoningType: 'internal',
-    defaultEnabled: true,
-    requiresExplicitRequest: false,
-  },
-  'x-ai/grok-2': {
-    supportsReasoning: true,
-    reasoningType: 'exposed',
-    defaultEnabled: true,
-    requiresExplicitRequest: false,
-  },
-  'x-ai/grok-3': {
-    supportsReasoning: true,
-    reasoningType: 'exposed',
-    defaultEnabled: true,
-    requiresExplicitRequest: false,
-  },
-  'x-ai/grok-3-mini': {
-    supportsReasoning: true,
-    reasoningType: 'exposed',
-    defaultEnabled: true,
-    requiresExplicitRequest: false,
-  },
-  'x-ai/grok-4': {
-    supportsReasoning: true,
-    reasoningType: 'exposed',
-    defaultEnabled: true,
-    requiresExplicitRequest: false,
-  },
-  'x-ai/grok-4-fast:free': {
-    supportsReasoning: true,
-    reasoningType: 'exposed',
-    defaultEnabled: true,
-    requiresExplicitRequest: false,
-  },
-  'x-ai/grok-code-fast-1': {
-    supportsReasoning: true,
-    reasoningType: 'exposed',
-    defaultEnabled: true,
-    requiresExplicitRequest: false,
-  },
-  'qwen/qwen3-next-80b-a3b-thinking': {
-    supportsReasoning: true,
-    reasoningType: 'thinking',
-    defaultEnabled: true,
-    requiresExplicitRequest: false,
-  },
-  'moonshotai/kimi-k2-0905': {
-    supportsReasoning: true,
-    reasoningType: 'exposed',
-    defaultEnabled: true,
-    requiresExplicitRequest: false,
-  },
-  'moonshotai/kimi-k2-0905:exacto': {
-    supportsReasoning: true,
-    reasoningType: 'exposed',
-    defaultEnabled: true,
-    requiresExplicitRequest: false,
-  },
-  'minimax/minimax-m2:free': {
-    supportsReasoning: true,
-    reasoningType: 'exposed',
-    defaultEnabled: true,
-    requiresExplicitRequest: false,
-  },
-  'gpt-4o': {
-    supportsReasoning: false,
-    reasoningType: 'none',
-    defaultEnabled: false,
-    requiresExplicitRequest: false,
-  },
-  'gpt-4o-mini': {
-    supportsReasoning: false,
-    reasoningType: 'none',
-    defaultEnabled: false,
-    requiresExplicitRequest: false,
-  },
-
-  // Google Gemini models with thinking process
-  'gemini-2.5-pro': {
-    supportsReasoning: true,
-    reasoningType: 'thinking',
-    defaultEnabled: true,
-    requiresExplicitRequest: false,
-  },
-  'gemini-2.5-flash': {
-    supportsReasoning: true,
-    reasoningType: 'thinking',
-    defaultEnabled: true,
-    requiresExplicitRequest: false,
-  },
-  'gemini-1.5-pro': {
-    supportsReasoning: false,
-    reasoningType: 'none',
-    defaultEnabled: false,
-    requiresExplicitRequest: false,
-  },
-  'gemini-1.5-flash': {
-    supportsReasoning: false,
-    reasoningType: 'none',
-    defaultEnabled: false,
-    requiresExplicitRequest: false,
-  },
-
-  // Gemini 3 models with reasoning
-  'gemini-3-pro-preview': {
-    supportsReasoning: true,
-    reasoningType: 'thinking',
-    defaultEnabled: true,
-    requiresExplicitRequest: false,
-  },
-
-  'gemini-3-pro': {
-    supportsReasoning: true,
-    reasoningType: 'thinking',
-    defaultEnabled: true,
-    requiresExplicitRequest: false,
-  },
-  'gemini-3-flash': {
-    supportsReasoning: true,
-    reasoningType: 'thinking',
-    defaultEnabled: true,
-    requiresExplicitRequest: false,
-  },
-
-  // Default fallback for unknown models
-  default: {
-    supportsReasoning: false,
-    reasoningType: 'none',
-    defaultEnabled: false,
-    requiresExplicitRequest: false,
-  },
+export interface ReasoningMiddlewareConfig {
+  /** Tag name to look for (e.g., 'thinking', 'reasoning') */
+  tagName?: string
+  /** Separator for multiple reasoning blocks */
+  separator?: string
+  /** Whether to include reasoning in the final text output */
+  includeInText?: boolean
+  /** Custom start/end tags for reasoning blocks */
+  startTag?: string
+  endTag?: string
 }
 
 /**
  * Provider-specific reasoning configuration
+ * Defines how each provider handles reasoning fields in responses
  */
 export const PROVIDER_REASONING_CONFIG = {
   anthropic: {
     reasoningField: 'reasoning',
     reasoningTextField: 'reasoningText',
     supportsMiddleware: true,
+    defaultTagName: 'thinking',
+    providerMetadataKey: 'anthropic',
   },
   openai: {
     reasoningField: 'reasoning',
     reasoningTextField: 'reasoningText',
-    supportsMiddleware: false,
+    supportsMiddleware: true,
+    defaultTagName: 'thinking',
+    providerMetadataKey: 'openai',
   },
   google: {
     reasoningField: 'thinking',
     reasoningTextField: 'thinkingSummary',
     supportsMiddleware: true,
+    defaultTagName: 'thinking',
+    providerMetadataKey: 'google',
   },
   vercel: {
     reasoningField: 'reasoning',
     reasoningTextField: 'reasoningText',
     supportsMiddleware: true,
+    defaultTagName: 'thinking',
+    providerMetadataKey: 'vercel',
   },
   gateway: {
     reasoningField: 'reasoning',
     reasoningTextField: 'reasoningText',
     supportsMiddleware: true,
+    defaultTagName: 'thinking',
+    providerMetadataKey: 'gateway',
   },
   openrouter: {
-    reasoningField: 'reasoning_details',
+    reasoningField: 'reasoning',
     reasoningTextField: 'reasoningText',
     supportsMiddleware: true,
+    defaultTagName: 'thinking',
+    providerMetadataKey: 'openrouter',
     usesReasoningParameter: true,
-    reasoningFormat: 'details_array',
+    reasoningParameterName: 'include_reasoning',
   },
   ollama: {
     reasoningField: 'reasoning',
     reasoningTextField: 'reasoningText',
-    supportsMiddleware: false,
+    supportsMiddleware: true,
+    defaultTagName: 'thinking',
+    providerMetadataKey: 'ollama',
+  },
+  cerebras: {
+    reasoningField: 'reasoning',
+    reasoningTextField: 'reasoningText',
+    supportsMiddleware: true,
+    defaultTagName: 'thinking',
+    providerMetadataKey: 'cerebras',
+  },
+  groq: {
+    reasoningField: 'reasoning',
+    reasoningTextField: 'reasoningText',
+    supportsMiddleware: true,
+    defaultTagName: 'thinking',
+    providerMetadataKey: 'groq',
+  },
+  llamacpp: {
+    reasoningField: 'reasoning',
+    reasoningTextField: 'reasoningText',
+    supportsMiddleware: true,
+    defaultTagName: 'thinking',
+    providerMetadataKey: 'llamacpp',
+  },
+  lmstudio: {
+    reasoningField: 'reasoning',
+    reasoningTextField: 'reasoningText',
+    supportsMiddleware: true,
+    defaultTagName: 'thinking',
+    providerMetadataKey: 'lmstudio',
+  },
+  'openai-compatible': {
+    reasoningField: 'reasoning',
+    reasoningTextField: 'reasoningText',
+    supportsMiddleware: true,
+    defaultTagName: 'thinking',
+    providerMetadataKey: 'openai-compatible',
   },
 } as const
 
+export type SupportedProvider = keyof typeof PROVIDER_REASONING_CONFIG
+
+/**
+ * Default reasoning capabilities for dynamic detection
+ */
+const DEFAULT_REASONING_CAPABILITIES: ReasoningCapabilities = {
+  supportsReasoning: true,
+  reasoningType: 'exposed',
+  defaultEnabled: true,
+  requiresExplicitRequest: false,
+}
+
+/**
+ * Create reasoning extraction middleware for AI SDK
+ */
+export function createReasoningMiddleware(config: ReasoningMiddlewareConfig = {}) {
+  const {
+    tagName = 'thinking',
+    separator = '\n\n',
+    startTag = config.startTag || `<${tagName}>`,
+    endTag = config.endTag || `</${tagName}>`,
+  } = config
+
+  const tagPattern = new RegExp(`${escapeRegex(startTag)}([\\s\\S]*?)${escapeRegex(endTag)}`, 'gi')
+
+  return {
+    extractFromText(text: string): { reasoning: string; cleanedText: string } {
+      const reasoningParts: string[] = []
+      let cleanedText = text
+
+      let match: RegExpExecArray | null
+      while ((match = tagPattern.exec(text)) !== null) {
+        if (match[1]) {
+          reasoningParts.push(match[1].trim())
+        }
+      }
+
+      cleanedText = text.replace(tagPattern, '').trim()
+
+      return {
+        reasoning: reasoningParts.join(separator),
+        cleanedText,
+      }
+    },
+
+    hasReasoningTags(text: string): boolean {
+      return tagPattern.test(text)
+    },
+  }
+}
+
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+/**
+ * Wrap a language model with reasoning extraction middleware
+ */
+export function wrapWithReasoningMiddleware(
+  model: LanguageModelV1,
+  config: ReasoningMiddlewareConfig = {}
+): LanguageModelV1 {
+  const middleware = createReasoningMiddleware(config)
+
+  return experimental_wrapLanguageModel({
+    model,
+    middleware: {
+      wrapGenerate: async ({ doGenerate }) => {
+        const result = await doGenerate()
+
+        if (!result.text) {
+          return result
+        }
+
+        const { reasoning, cleanedText } = middleware.extractFromText(result.text)
+
+        if (reasoning) {
+          const existingMetadata = (result as any).experimental_providerMetadata || {}
+          return {
+            ...result,
+            text: cleanedText,
+            reasoning,
+            providerMetadata: {
+              ...existingMetadata,
+              reasoning: {
+                content: reasoning,
+                extracted: true,
+              },
+            },
+          } as typeof result
+        }
+
+        return result
+      },
+    },
+  })
+}
+
+/**
+ * Main ReasoningDetector class - dynamic and middleware-based
+ * Now integrates with OpenRouter model registry for dynamic capability detection
+ */
 export class ReasoningDetector {
+  private static middlewareCache = new Map<string, ReturnType<typeof createReasoningMiddleware>>()
+  private static capabilitiesCache = new Map<string, { capabilities: ReasoningCapabilities; timestamp: number }>()
+  private static readonly CACHE_TTL = 1000 * 60 * 30 // 30 minutes
+
   /**
-   * Detect if a model supports reasoning capabilities
+   * Get or create a reasoning middleware instance for a provider
    */
-  static detectReasoningSupport(_provider: string, modelId: string): ReasoningCapabilities {
-    // Try exact model match first
-    const exactMatch = MODEL_REASONING_CAPABILITIES[modelId]
-    if (exactMatch) {
-      return exactMatch
+  static getMiddleware(provider: string, config?: ReasoningMiddlewareConfig): ReturnType<typeof createReasoningMiddleware> {
+    const providerConfig = PROVIDER_REASONING_CONFIG[provider as SupportedProvider]
+    const tagName = config?.tagName || providerConfig?.defaultTagName || 'thinking'
+    const cacheKey = `${provider}:${tagName}`
+
+    if (!this.middlewareCache.has(cacheKey)) {
+      this.middlewareCache.set(cacheKey, createReasoningMiddleware({ tagName, ...config }))
     }
 
-    // Try pattern matching for similar models
-    const patterns = [
-      // Anthropic Claude patterns
-      { pattern: /claude-sonnet-4\.5/, capabilities: MODEL_REASONING_CAPABILITIES['claude-sonnet-4.5'] },
-      { pattern: /claude-haiku-4\.5/, capabilities: MODEL_REASONING_CAPABILITIES['claude-haiku-4.5'] },
-      { pattern: /claude-3-7/, capabilities: MODEL_REASONING_CAPABILITIES['claude-3-7-sonnet-latest'] },
-      {
-        pattern: /anthropic\/claude-sonnet-4\.5/,
-        capabilities: MODEL_REASONING_CAPABILITIES['anthropic/claude-sonnet-4.5'],
-      },
-      {
-        pattern: /anthropic\/claude-haiku-4\.5/,
-        capabilities: MODEL_REASONING_CAPABILITIES['anthropic/claude-haiku-4.5'],
-      },
-      {
-        pattern: /anthropic\/claude-3\.7-sonnet/,
-        capabilities: MODEL_REASONING_CAPABILITIES['anthropic/claude-3.7-sonnet'],
-      },
-      {
-        pattern: /anthropic\/claude-sonnet-4/,
-        capabilities: MODEL_REASONING_CAPABILITIES['anthropic/claude-sonnet-4'],
-      },
-      {
-        pattern: /anthropic\/claude-4-opus/,
-        capabilities: MODEL_REASONING_CAPABILITIES['anthropic/claude-4-opus-20250514'],
-      },
-      { pattern: /anthropic\/claude-opus-4/, capabilities: MODEL_REASONING_CAPABILITIES['anthropic/claude-opus-4.1'] },
+    return this.middlewareCache.get(cacheKey)!
+  }
 
-      // OpenAI reasoning patterns
-      { pattern: /^o1(-mini|-preview)?$/, capabilities: MODEL_REASONING_CAPABILITIES['o1-mini'] },
-      { pattern: /^o3-mini/, capabilities: MODEL_REASONING_CAPABILITIES['o3-mini'] },
-      { pattern: /openai\/o1/, capabilities: MODEL_REASONING_CAPABILITIES['openai/o1'] },
-      { pattern: /openai\/o3/, capabilities: MODEL_REASONING_CAPABILITIES['openai/o3-mini'] },
-      { pattern: /openai\/gpt-5/, capabilities: MODEL_REASONING_CAPABILITIES['openai/gpt-5'] },
-      { pattern: /gpt-5/, capabilities: MODEL_REASONING_CAPABILITIES['gpt-5'] },
+  /**
+   * Detect if a model supports reasoning capabilities
+   * For OpenRouter models, fetches capabilities dynamically from API
+   */
+  static detectReasoningSupport(provider: string, modelId: string): ReasoningCapabilities {
+    // Check cache first
+    const cacheKey = `${provider}:${modelId}`
+    const cached = this.capabilitiesCache.get(cacheKey)
+    if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
+      return cached.capabilities
+    }
 
-      // Grok patterns
-      { pattern: /grok-(2|3|4)/, capabilities: MODEL_REASONING_CAPABILITIES['xai/grok-beta'] },
-      { pattern: /x-ai\/grok/, capabilities: MODEL_REASONING_CAPABILITIES['x-ai/grok-2'] },
+    // For OpenRouter, we'll use async detection - return default for sync calls
+    // The async version should be preferred
+    return DEFAULT_REASONING_CAPABILITIES
+  }
 
-      // Gemini thinking patterns (direct and via OpenRouter)
-      {
-        pattern: /gemini-2\.5.*thinking/,
-        capabilities: MODEL_REASONING_CAPABILITIES['google/gemini-2.5-pro-thinking'],
-      },
-      { pattern: /gemini-2\.5/, capabilities: MODEL_REASONING_CAPABILITIES['gemini-2.5-pro'] },
-      { pattern: /gemini-3.*preview/, capabilities: MODEL_REASONING_CAPABILITIES['gemini-3-pro-preview'] },
-      { pattern: /gemini-3/, capabilities: MODEL_REASONING_CAPABILITIES['gemini-3-pro'] },
-      {
-        pattern: /google\/gemini-3.*preview/,
-        capabilities: MODEL_REASONING_CAPABILITIES['google/gemini-3-pro-preview'],
-      },
-      { pattern: /google\/gemini-3/, capabilities: MODEL_REASONING_CAPABILITIES['google/gemini-3-pro'] },
-      { pattern: /google\/gemini-2\.5/, capabilities: MODEL_REASONING_CAPABILITIES['google/gemini-2.5-pro'] },
+  /**
+   * Async version of detectReasoningSupport - preferred for OpenRouter models
+   * Fetches actual model capabilities from OpenRouter API
+   */
+  static async detectReasoningSupportAsync(provider: string, modelId: string): Promise<ReasoningCapabilities> {
+    const cacheKey = `${provider}:${modelId}`
+    const cached = this.capabilitiesCache.get(cacheKey)
+    if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
+      return cached.capabilities
+    }
 
-      // Qwen thinking patterns
-      { pattern: /qwen.*thinking/, capabilities: MODEL_REASONING_CAPABILITIES['qwen/qwen-plus-thinking'] },
-
-      // Kimi K2 patterns
-      { pattern: /kimi-k2/, capabilities: MODEL_REASONING_CAPABILITIES['moonshotai/kimi-k2-0905'] },
-
-      // MiniMax patterns
-      { pattern: /minimax-m2/, capabilities: MODEL_REASONING_CAPABILITIES['minimax/minimax-m2:free'] },
-    ]
-
-    for (const { pattern, capabilities } of patterns) {
-      if (pattern.test(modelId)) {
+    // For OpenRouter, fetch from registry
+    if (provider === 'openrouter') {
+      try {
+        const modelCapabilities = await openRouterRegistry.getCapabilities(modelId)
+        const capabilities = this.convertToReasoningCapabilities(modelCapabilities)
+        this.capabilitiesCache.set(cacheKey, { capabilities, timestamp: Date.now() })
         return capabilities
+      } catch {
+        // Fallback to default on error
       }
     }
 
-    // Return default if no match found
-    return MODEL_REASONING_CAPABILITIES.default || { supportsReasoning: false, reasoningTokenCost: 1.0 }
+    return DEFAULT_REASONING_CAPABILITIES
+  }
+
+  /**
+   * Convert OpenRouter model capabilities to ReasoningCapabilities
+   */
+  private static convertToReasoningCapabilities(caps: ModelCapabilities): ReasoningCapabilities {
+    return {
+      supportsReasoning: caps.supportsReasoning || caps.supportsIncludeReasoning,
+      reasoningType: caps.supportsIncludeReasoning ? 'exposed' : caps.supportsReasoning ? 'thinking' : 'none',
+      defaultEnabled: caps.supportsReasoning || caps.supportsIncludeReasoning,
+      requiresExplicitRequest: false,
+    }
   }
 
   /**
    * Check if reasoning should be enabled for a specific model
    */
   static shouldEnableReasoning(provider: string, modelId: string, userPreference?: boolean): boolean {
-    const capabilities = ReasoningDetector.detectReasoningSupport(provider, modelId)
-
-    // Respect explicit user preference if provided
     if (userPreference !== undefined) {
-      return userPreference && capabilities.supportsReasoning
+      return userPreference
+    }
+    return true // Default to enabled - middleware will handle extraction dynamically
+  }
+
+  /**
+   * Async version - checks actual model capabilities for OpenRouter
+   */
+  static async shouldEnableReasoningAsync(provider: string, modelId: string, userPreference?: boolean): Promise<boolean> {
+    if (userPreference !== undefined) {
+      return userPreference
     }
 
-    // Use model's default setting
-    return capabilities.supportsReasoning && capabilities.defaultEnabled
+    if (provider === 'openrouter') {
+      const caps = await this.detectReasoningSupportAsync(provider, modelId)
+      return caps.supportsReasoning
+    }
+
+    return true
   }
 
   /**
@@ -576,78 +342,256 @@ export class ReasoningDetector {
    */
   static getProviderReasoningConfig(provider: string) {
     return (
-      PROVIDER_REASONING_CONFIG[provider as keyof typeof PROVIDER_REASONING_CONFIG] ||
-      PROVIDER_REASONING_CONFIG.anthropic
+      PROVIDER_REASONING_CONFIG[provider as SupportedProvider] ||
+      PROVIDER_REASONING_CONFIG.openrouter
     )
   }
 
   /**
    * Extract reasoning content from model response
    */
-  static extractReasoning(response: any, provider: string): { reasoning?: any; reasoningText?: string } {
-    const config = ReasoningDetector.getProviderReasoningConfig(provider)
+  static extractReasoning(response: any, provider: string): ExtractedReasoning {
+    const config = this.getProviderReasoningConfig(provider)
+    const middleware = this.getMiddleware(provider)
 
-    // OpenRouter uses reasoning_details array format
-    if (provider === 'openrouter' && response.reasoning_details) {
-      const reasoningDetails = response.reasoning_details
+    // 1. Check for reasoning already extracted by middleware
+    if (response.reasoning && typeof response.reasoning === 'string') {
+      return {
+        reasoning: response.reasoning,
+        reasoningText: response.reasoning,
+      }
+    }
 
-      // Extract text from reasoning_details array
+    // 2. Check experimental_providerMetadata for reasoning
+    if (response.experimental_providerMetadata?.reasoning?.content) {
+      return {
+        reasoning: response.experimental_providerMetadata.reasoning.content,
+        reasoningText: response.experimental_providerMetadata.reasoning.content,
+      }
+    }
+
+    // 3. Check for OpenRouter reasoning_details array format
+    if (response.reasoning_details && Array.isArray(response.reasoning_details)) {
       const textParts: string[] = []
-      for (const detail of reasoningDetails) {
+      for (const detail of response.reasoning_details) {
         if (detail.type === 'reasoning.summary' && detail.text) {
           textParts.push(`Summary: ${detail.text}`)
         } else if (detail.type === 'reasoning.text' && detail.text) {
           textParts.push(detail.text)
+        } else if (detail.text) {
+          textParts.push(detail.text)
         }
       }
 
-      return {
-        reasoning: reasoningDetails,
-        reasoningText: textParts.length > 0 ? textParts.join('\n\n') : undefined,
+      if (textParts.length > 0) {
+        return {
+          reasoning: response.reasoning_details,
+          reasoningText: textParts.join('\n\n'),
+          reasoningDetails: response.reasoning_details,
+        }
       }
     }
 
-    // Standard reasoning field extraction for other providers
-    const reasoning = response[config.reasoningField]
-    const reasoningText = response[config.reasoningTextField]
+    // 4. Check provider-specific reasoning fields
+    const reasoningField = response[config.reasoningField]
+    const reasoningTextField = response[config.reasoningTextField]
 
-    return {
-      reasoning: reasoning || undefined,
-      reasoningText: reasoningText || undefined,
+    if (reasoningField || reasoningTextField) {
+      return {
+        reasoning: reasoningField || undefined,
+        reasoningText: reasoningTextField || (typeof reasoningField === 'string' ? reasoningField : undefined),
+      }
     }
+
+    // 5. Try to extract from text content using middleware
+    if (response.text && typeof response.text === 'string') {
+      const { reasoning } = middleware.extractFromText(response.text)
+      if (reasoning) {
+        return {
+          reasoning,
+          reasoningText: reasoning,
+        }
+      }
+    }
+
+    return {}
   }
 
   /**
    * Check if a provider supports reasoning middleware
    */
   static supportsReasoningMiddleware(provider: string): boolean {
-    const config = ReasoningDetector.getProviderReasoningConfig(provider)
+    const config = this.getProviderReasoningConfig(provider)
     return config.supportsMiddleware
   }
 
   /**
-   * Get all models that support reasoning
+   * Get provider metadata for enabling reasoning in API requests
+   * For OpenRouter, dynamically builds metadata based on model capabilities
    */
-  static getReasoningEnabledModels(): string[] {
-    return Object.entries(MODEL_REASONING_CAPABILITIES)
-      .filter(([_, capabilities]) => capabilities.supportsReasoning)
-      .map(([modelId]) => modelId)
-      .filter((modelId) => modelId !== 'default')
+  static getReasoningProviderMetadata(provider: string, enabled = true): Record<string, any> {
+    const config = this.getProviderReasoningConfig(provider)
+
+    if (provider === 'openrouter') {
+      return {
+        openrouter: {
+          include_reasoning: enabled,
+          transforms: enabled ? ['middle-out'] : undefined,
+        },
+      }
+    }
+
+    if (provider === 'anthropic') {
+      return {
+        anthropic: {
+          thinking: enabled ? { type: 'enabled', budget_tokens: 10000 } : undefined,
+        },
+      }
+    }
+
+    if (provider === 'google') {
+      return {
+        google: {
+          thinkingConfig: enabled ? { thinkingBudget: 10000 } : undefined,
+        },
+      }
+    }
+
+    return {
+      [config.providerMetadataKey]: {
+        reasoning: enabled,
+      },
+    }
+  }
+
+  /**
+   * Async version - builds metadata based on actual model capabilities
+   */
+  static async getReasoningProviderMetadataAsync(
+    provider: string,
+    modelId: string,
+    options: {
+      enabled?: boolean
+      effort?: 'low' | 'medium' | 'high'
+    } = {}
+  ): Promise<Record<string, any>> {
+    const { enabled = true, effort = 'medium' } = options
+
+    if (provider === 'openrouter') {
+      // Use registry to build metadata based on actual model capabilities
+      return openRouterRegistry.buildProviderMetadata(modelId, {
+        enableReasoning: enabled,
+        reasoningEffort: effort,
+        includeReasoning: enabled,
+      })
+    }
+
+    return this.getReasoningProviderMetadata(provider, enabled)
   }
 
   /**
    * Get reasoning capabilities summary for a model
    */
   static getModelReasoningSummary(provider: string, modelId: string): string {
-    const capabilities = ReasoningDetector.detectReasoningSupport(provider, modelId)
+    return 'Reasoning support: dynamic (enabled by default)'
+  }
 
-    if (!capabilities.supportsReasoning) {
-      return 'No reasoning support'
+  /**
+   * Async version - returns actual capabilities from OpenRouter API
+   */
+  static async getModelReasoningSummaryAsync(provider: string, modelId: string): Promise<string> {
+    if (provider === 'openrouter') {
+      try {
+        const caps = await openRouterRegistry.getCapabilities(modelId)
+        if (caps.supportsReasoning || caps.supportsIncludeReasoning) {
+          return `Reasoning support: ${caps.supportsIncludeReasoning ? 'include_reasoning' : 'thinking'} (enabled)`
+        }
+        return 'Reasoning support: not available for this model'
+      } catch {
+        return 'Reasoning support: dynamic (enabled by default)'
+      }
+    }
+    return 'Reasoning support: dynamic (enabled by default)'
+  }
+
+  /**
+   * Wrap a model with reasoning extraction middleware
+   */
+  static wrapModel(model: LanguageModelV1, provider: string, config?: ReasoningMiddlewareConfig): LanguageModelV1 {
+    const providerConfig = this.getProviderReasoningConfig(provider)
+    return wrapWithReasoningMiddleware(model, {
+      tagName: providerConfig.defaultTagName,
+      ...config,
+    })
+  }
+
+  /**
+   * Process streaming chunks to extract reasoning in real-time
+   */
+  static processStreamChunk(chunk: any, provider: string): { text?: string; reasoning?: string; type: string } {
+    const middleware = this.getMiddleware(provider)
+
+    if (chunk.type === 'thinking' || chunk.type === 'reasoning') {
+      return {
+        reasoning: chunk.thinking || chunk.reasoning || chunk.content,
+        type: 'reasoning',
+      }
     }
 
-    const type = capabilities.reasoningType
-    const enabled = capabilities.defaultEnabled ? 'enabled by default' : 'available on request'
+    if (chunk.type === 'text-delta' && chunk.textDelta) {
+      if (middleware.hasReasoningTags(chunk.textDelta)) {
+        const { reasoning, cleanedText } = middleware.extractFromText(chunk.textDelta)
+        return {
+          text: cleanedText || undefined,
+          reasoning: reasoning || undefined,
+          type: reasoning ? 'mixed' : 'text',
+        }
+      }
+      return {
+        text: chunk.textDelta,
+        type: 'text',
+      }
+    }
 
-    return `Reasoning support: ${type} (${enabled})`
+    return { type: chunk.type || 'unknown' }
+  }
+
+  /**
+   * Get list of all supported providers
+   */
+  static getSupportedProviders(): string[] {
+    return Object.keys(PROVIDER_REASONING_CONFIG)
+  }
+
+  /**
+   * Check if a provider is supported
+   */
+  static isProviderSupported(provider: string): boolean {
+    return provider in PROVIDER_REASONING_CONFIG
+  }
+
+  /**
+   * Get all reasoning-enabled models (for backwards compatibility)
+   * Now returns empty array - use async methods for dynamic detection
+   */
+  static getReasoningEnabledModels(): string[] {
+    return [] // Dynamic detection - no hardcoded list
+  }
+
+  /**
+   * Async version - fetches reasoning models from OpenRouter
+   */
+  static async getReasoningEnabledModelsAsync(): Promise<string[]> {
+    try {
+      const models = await openRouterRegistry.getReasoningModels()
+      return models.map(m => m.id)
+    } catch {
+      return []
+    }
   }
 }
+
+// Export convenience functions
+export const extractReasoning = ReasoningDetector.extractReasoning.bind(ReasoningDetector)
+export const getReasoningProviderMetadata = ReasoningDetector.getReasoningProviderMetadata.bind(ReasoningDetector)
+export const wrapModelWithReasoning = ReasoningDetector.wrapModel.bind(ReasoningDetector)

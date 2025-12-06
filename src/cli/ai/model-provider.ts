@@ -14,6 +14,7 @@ import { configManager, type ModelConfig } from '../core/config-manager'
 import { streamttyService } from '../services/streamtty-service'
 import { adaptiveModelRouter, type ModelScope } from './adaptive-model-router'
 import { ReasoningDetector } from './reasoning-detector'
+import { openRouterRegistry } from './openrouter-model-registry'
 
 // ====================== ⚡︎ ZOD VALIDATION SCHEMAS ======================
 
@@ -46,6 +47,12 @@ export const GenerateOptionsSchema = z.object({
       enabled: z.boolean().optional(),
     })
     .optional(),
+  // OpenRouter Web Search - enables :online suffix for real-time web data
+  enableWebSearch: z.boolean().optional(),
+  // Control parallel tool execution (default: true)
+  parallelToolCalls: z.boolean().optional(),
+  // OpenRouter transforms (e.g., ["middle-out"] for context compression)
+  transforms: z.array(z.string()).optional(),
 })
 
 // Model Response Schema
@@ -71,6 +78,39 @@ export type GenerateOptions = z.infer<typeof GenerateOptionsSchema>
 export type ModelResponse = z.infer<typeof ModelResponseSchema>
 
 // Legacy interfaces (deprecated - use Zod schemas above)
+
+/**
+ * OpenRouter Zero Completion Insurance configuration
+ * Reference: https://openrouter.ai/docs/guides/features/zero-completion-insurance
+ */
+const ZERO_COMPLETION_CONFIG = {
+  maxRetries: 3,
+  retryDelayMs: 1000,
+  enableLogging: true,
+}
+
+/**
+ * Check if response qualifies for Zero Completion Insurance (no charge)
+ */
+function isZeroCompletionResponse(result: any): boolean {
+  const usage = result?.usage || result?.experimental_providerMetadata?.usage
+  const finishReason = result?.finishReason || result?.finish_reason
+
+  if (usage?.completionTokens === 0 || usage?.completion_tokens === 0) {
+    if (!finishReason || finishReason === '' || finishReason === 'error') {
+      return true
+    }
+  }
+
+  if ((!result?.text || result.text.trim() === '') &&
+    (!result?.toolCalls || result.toolCalls.length === 0)) {
+    if (!finishReason || finishReason === 'error') {
+      return true
+    }
+  }
+
+  return false
+}
 
 export class ModelProvider {
   /**
@@ -125,6 +165,74 @@ export class ModelProvider {
         console.log(`[Reasoning] ${modelId}: ${reasoningEnabled ? 'ENABLED' : 'DISABLED'}`)
       }
     }
+  }
+
+  /**
+   * Execute with Zero Completion Insurance retry logic
+   * Auto-retries on zero completion responses (OpenRouter doesn't charge for these)
+   */
+  private async executeWithRetry<T>(
+    operation: () => Promise<T>,
+    context: string,
+    maxRetries = ZERO_COMPLETION_CONFIG.maxRetries
+  ): Promise<T> {
+    let lastError: Error | null = null
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const result = await operation()
+
+        if (isZeroCompletionResponse(result) && attempt < maxRetries) {
+          if (ZERO_COMPLETION_CONFIG.enableLogging) {
+            console.log(require('chalk').dim(
+              `[ZeroCompletion] ${context}: Empty response (attempt ${attempt}/${maxRetries}), retrying...`
+            ))
+          }
+          await new Promise(r => setTimeout(r, ZERO_COMPLETION_CONFIG.retryDelayMs * attempt))
+          continue
+        }
+
+        return result
+      } catch (error: any) {
+        lastError = error
+
+        if (attempt < maxRetries && this.isRetryableError(error)) {
+          if (ZERO_COMPLETION_CONFIG.enableLogging) {
+            console.log(require('chalk').dim(
+              `[Retry] ${context}: ${error.message} (attempt ${attempt}/${maxRetries})`
+            ))
+          }
+          await new Promise(r => setTimeout(r, ZERO_COMPLETION_CONFIG.retryDelayMs * attempt))
+          continue
+        }
+
+        throw error
+      }
+    }
+
+    throw lastError || new Error(`${context}: Max retries exceeded`)
+  }
+
+  /**
+   * Check if error is retryable (rate limits, transient failures)
+   */
+  private isRetryableError(error: any): boolean {
+    const message = error?.message?.toLowerCase() || ''
+    const status = error?.status || error?.statusCode
+
+    if (status === 429 || message.includes('rate limit') || message.includes('too many requests')) {
+      return true
+    }
+
+    if (status >= 500 && status < 600) {
+      return true
+    }
+
+    if (message.includes('network') || message.includes('timeout') || message.includes('econnreset')) {
+      return true
+    }
+
+    return false
   }
 
   private getModel(config: ModelConfig) {
@@ -237,7 +345,13 @@ export class ModelProvider {
           })
         }
 
-        return provider(config.model)
+        // OpenRouter Web Search: append :online suffix for real-time web data
+        // Reference: https://openrouter.ai/docs/guides/features/web-search
+        let modelId = config.model
+        if ((config as any).enableWebSearch && !modelId.endsWith(':online')) {
+          modelId = `${modelId}:online`
+        }
+        return provider(modelId)
       }
       case 'ollama': {
         // Ollama does not require API keys; assumes local daemon at default endpoint
@@ -383,7 +497,7 @@ export class ModelProvider {
       baseOptions.temperature = 1.0
     }
 
-    // OpenRouter-specific parameters support
+    // OpenRouter-specific parameters support - dynamic based on model capabilities
     if (effectiveConfig.provider === 'openrouter') {
       if (!baseOptions.experimental_providerMetadata) {
         baseOptions.experimental_providerMetadata = {}
@@ -392,25 +506,49 @@ export class ModelProvider {
         baseOptions.experimental_providerMetadata.openrouter = {}
       }
 
-      // Reasoning parameter support (only for models that support it)
-      if (reasoningEnabled) {
-        const reasoningConfig = validatedOptions.reasoning || {
-          effort: 'medium',
-          exclude: false,
-          enabled: true,
-        }
-          // Preserve reasoning blocks when supported
-          ; (reasoningConfig as any).include_reasoning = (reasoningConfig as any).include_reasoning ?? true
-        baseOptions.experimental_providerMetadata.openrouter.reasoning = reasoningConfig
-      }
+      // Fetch model capabilities and build parameters dynamically
+      try {
+        const modelCaps = await openRouterRegistry.getCapabilities(effectiveConfig.model)
 
-      // Transforms parameter support (e.g., middle-out for context compression)
-      const transforms = (effectiveConfig as any).transforms || configManager.get('openrouterTransforms')
-      if (transforms && Array.isArray(transforms) && transforms.length > 0) {
-        baseOptions.experimental_providerMetadata.openrouter.transforms = transforms
-      } else {
-        // Default to middle-out for automatic context compression
-        baseOptions.experimental_providerMetadata.openrouter.transforms = ['middle-out']
+        // Only add reasoning parameters if model supports them
+        if (reasoningEnabled && (modelCaps.supportsReasoning || modelCaps.supportsIncludeReasoning)) {
+          if (modelCaps.supportsIncludeReasoning) {
+            baseOptions.experimental_providerMetadata.openrouter.include_reasoning = true
+          }
+          if (modelCaps.supportsReasoningEffort) {
+            const reasoningConfig = validatedOptions.reasoning || {
+              effort: 'medium',
+              exclude: false,
+              enabled: true,
+            }
+            baseOptions.experimental_providerMetadata.openrouter.reasoning = reasoningConfig
+          }
+        }
+
+        // Transforms parameter support (e.g., middle-out for context compression)
+        const transforms = (effectiveConfig as any).transforms || configManager.get('openrouterTransforms')
+        if (transforms && Array.isArray(transforms) && transforms.length > 0) {
+          baseOptions.experimental_providerMetadata.openrouter.transforms = transforms
+        } else {
+          baseOptions.experimental_providerMetadata.openrouter.transforms = ['middle-out']
+        }
+      } catch {
+        // Fallback to default if registry fails
+        if (reasoningEnabled) {
+          const reasoningConfig = validatedOptions.reasoning || {
+            effort: 'medium',
+            exclude: false,
+            enabled: true,
+          }
+            ; (reasoningConfig as any).include_reasoning = (reasoningConfig as any).include_reasoning ?? true
+          baseOptions.experimental_providerMetadata.openrouter.reasoning = reasoningConfig
+        }
+        const transforms = (effectiveConfig as any).transforms || configManager.get('openrouterTransforms')
+        if (transforms && Array.isArray(transforms) && transforms.length > 0) {
+          baseOptions.experimental_providerMetadata.openrouter.transforms = transforms
+        } else {
+          baseOptions.experimental_providerMetadata.openrouter.transforms = ['middle-out']
+        }
       }
 
       // Prompt caching (OpenRouter-only) - applied only if enabled in config
@@ -422,11 +560,22 @@ export class ModelProvider {
         baseOptions.experimental_providerMetadata.openrouter.cache = cache
       }
     }
-    const result = await generateText(baseOptions)
+    // Execute with Zero Completion Insurance retry logic
+    const result = await this.executeWithRetry(
+      () => generateText(baseOptions),
+      'generateResponse'
+    )
 
-    // Record usage for OpenRouter
+    // Check for zero completion response after all retries
+    if (isZeroCompletionResponse(result)) {
+      console.log(require('chalk').yellow(
+        '[ZeroCompletion] Protected response - no charges applied'
+      ))
+    }
+
+    // Record usage for OpenRouter (only if successful completion)
     try {
-      if (effectiveConfig.provider === 'openrouter') {
+      if (effectiveConfig.provider === 'openrouter' && !isZeroCompletionResponse(result)) {
         const { authProvider } = await import('../providers/supabase/auth-provider')
         if (authProvider.isAuthenticated()) {
           await authProvider.recordUsage('apiCalls', 1)
@@ -549,7 +698,7 @@ export class ModelProvider {
       streamOptions.maxTokens = validatedOptions.maxTokens ?? 4000
     }
 
-    // OpenRouter-specific parameters support for streaming
+    // OpenRouter-specific parameters support for streaming - dynamic based on model capabilities
     if (effectiveConfig2.provider === 'openrouter') {
       if (!streamOptions.experimental_providerMetadata) {
         streamOptions.experimental_providerMetadata = {}
@@ -558,25 +707,49 @@ export class ModelProvider {
         streamOptions.experimental_providerMetadata.openrouter = {}
       }
 
-      // Reasoning parameter support
-      if (reasoningEnabled) {
-        const reasoningConfig = validatedOptions.reasoning || {
-          effort: 'medium',
-          exclude: false,
-          enabled: true,
-        }
-          // Preserve reasoning blocks when supported
-          ; (reasoningConfig as any).include_reasoning = (reasoningConfig as any).include_reasoning ?? true
-        streamOptions.experimental_providerMetadata.openrouter.reasoning = reasoningConfig
-      }
+      // Fetch model capabilities and build parameters dynamically
+      try {
+        const modelCaps = await openRouterRegistry.getCapabilities(effectiveConfig2.model)
 
-      // Transforms parameter support (e.g., middle-out for context compression)
-      const transforms = (effectiveConfig2 as any).transforms || configManager.get('openrouterTransforms')
-      if (transforms && Array.isArray(transforms) && transforms.length > 0) {
-        streamOptions.experimental_providerMetadata.openrouter.transforms = transforms
-      } else {
-        // Default to middle-out for automatic context compression
-        streamOptions.experimental_providerMetadata.openrouter.transforms = ['middle-out']
+        // Only add reasoning parameters if model supports them
+        if (reasoningEnabled && (modelCaps.supportsReasoning || modelCaps.supportsIncludeReasoning)) {
+          if (modelCaps.supportsIncludeReasoning) {
+            streamOptions.experimental_providerMetadata.openrouter.include_reasoning = true
+          }
+          if (modelCaps.supportsReasoningEffort) {
+            const reasoningConfig = validatedOptions.reasoning || {
+              effort: 'medium',
+              exclude: false,
+              enabled: true,
+            }
+            streamOptions.experimental_providerMetadata.openrouter.reasoning = reasoningConfig
+          }
+        }
+
+        // Transforms parameter support (e.g., middle-out for context compression)
+        const transforms = (effectiveConfig2 as any).transforms || configManager.get('openrouterTransforms')
+        if (transforms && Array.isArray(transforms) && transforms.length > 0) {
+          streamOptions.experimental_providerMetadata.openrouter.transforms = transforms
+        } else {
+          streamOptions.experimental_providerMetadata.openrouter.transforms = ['middle-out']
+        }
+      } catch {
+        // Fallback to default if registry fails
+        if (reasoningEnabled) {
+          const reasoningConfig = validatedOptions.reasoning || {
+            effort: 'medium',
+            exclude: false,
+            enabled: true,
+          }
+            ; (reasoningConfig as any).include_reasoning = (reasoningConfig as any).include_reasoning ?? true
+          streamOptions.experimental_providerMetadata.openrouter.reasoning = reasoningConfig
+        }
+        const transforms = (effectiveConfig2 as any).transforms || configManager.get('openrouterTransforms')
+        if (transforms && Array.isArray(transforms) && transforms.length > 0) {
+          streamOptions.experimental_providerMetadata.openrouter.transforms = transforms
+        } else {
+          streamOptions.experimental_providerMetadata.openrouter.transforms = ['middle-out']
+        }
       }
 
       // Prompt caching (OpenRouter-only) - applied only if enabled in config

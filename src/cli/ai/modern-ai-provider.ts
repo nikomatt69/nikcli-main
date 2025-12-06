@@ -1,6 +1,6 @@
-import { execSync } from 'node:child_process'
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join, relative, resolve } from 'node:path'
+
 import { createAnthropic } from '@ai-sdk/anthropic'
 import { createCerebras } from '@ai-sdk/cerebras'
 import { createGateway } from '@ai-sdk/gateway'
@@ -9,15 +9,23 @@ import { createGroq } from '@ai-sdk/groq'
 import { createOpenAI } from '@ai-sdk/openai'
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import { createVercel } from '@ai-sdk/vercel'
-import { type CoreMessage, type CoreTool, generateText, streamText, tool } from 'ai'
+import { type CoreMessage, type CoreTool, generateText, streamText, tool, experimental_wrapLanguageModel } from 'ai'
 import { createOllama } from 'ollama-ai-provider'
 import { z } from 'zod'
 
 import { simpleConfigManager } from '../core/config-manager'
+
 import { type PromptContext, PromptManager } from '../prompts/prompt-manager'
 import { streamttyService } from '../services/streamtty-service'
 import type { OutputStyle } from '../types/output-styles'
 import { ReasoningDetector } from './reasoning-detector'
+import { openRouterRegistry } from './openrouter-model-registry'
+import {
+  workflowPatterns,
+  type WorkflowResult,
+  type QualityEvaluation,
+} from './workflow-patterns'
+import { execSync } from 'node:child_process'
 
 export interface ModelConfig {
   provider:
@@ -40,6 +48,16 @@ export interface ModelConfig {
   reasoningMode?: 'auto' | 'explicit' | 'disabled'
   outputStyle?: OutputStyle
   transforms?: string[] // OpenRouter transforms (e.g., ["middle-out"] for context compression)
+  // OpenRouter Web Search - append :online to model for web search capability
+  enableWebSearch?: boolean
+  // Control parallel tool execution (default: true)
+  parallelToolCalls?: boolean
+  // AI SDK toolChoice configuration
+  // 'auto' - model decides (default)
+  // 'none' - disable tool usage
+  // 'required' - model must use at least one tool
+  // { type: 'tool', toolName: 'name' } - force specific tool
+  toolChoice?: 'auto' | 'none' | 'required' | { type: 'tool'; toolName: string }
 }
 
 export interface AIProviderOptions {
@@ -47,6 +65,105 @@ export interface AIProviderOptions {
   context?: string
   taskType?: string
   modelOverride?: string
+  // OpenRouter Web Search - enables :online suffix for real-time web data
+  enableWebSearch?: boolean
+  // Control parallel tool execution (default: true)
+  parallelToolCalls?: boolean
+  // OpenRouter transforms (e.g., ["middle-out"] for context compression)
+  transforms?: string[]
+}
+
+/**
+ * Retry configuration with exponential backoff
+ * Reference: https://openrouter.ai/docs/guides/features/zero-completion-insurance
+ */
+const RETRY_CONFIG = {
+  maxRetries: 3,
+  baseDelayMs: 1000,
+  maxDelayMs: 30000,
+  exponentialBase: 2,
+  jitterFactor: 0.1, // Add 0-10% random jitter
+  enableLogging: true,
+}
+
+/**
+ * Calculate exponential backoff delay with jitter
+ * @param attempt Current attempt number (1-based)
+ * @returns Delay in milliseconds
+ */
+function getExponentialBackoff(attempt: number): number {
+  const exponentialDelay = RETRY_CONFIG.baseDelayMs * Math.pow(RETRY_CONFIG.exponentialBase, attempt - 1)
+  const delay = Math.min(exponentialDelay, RETRY_CONFIG.maxDelayMs)
+
+  // Add random jitter to prevent thundering herd
+  const jitter = delay * RETRY_CONFIG.jitterFactor * Math.random()
+  return Math.round(delay + jitter)
+}
+
+// Alias for backwards compatibility
+const ZERO_COMPLETION_CONFIG = RETRY_CONFIG
+
+/**
+ * Context-aware transforms configuration
+ * Reference: https://openrouter.ai/docs/guides/features/message-transforms
+ */
+const TRANSFORMS_CONFIG = {
+  // Auto-enable middle-out when prompt exceeds this % of context window
+  autoEnableThreshold: 0.5,
+  // Default transforms when auto-enabled
+  defaultTransforms: ['middle-out'],
+}
+
+/**
+ * Calculate if context-aware transforms should be auto-enabled
+ * @param promptTokens Estimated prompt token count
+ * @param contextWindow Model's context window size
+ * @param explicitTransforms User-specified transforms (overrides auto)
+ */
+function getContextAwareTransforms(
+  promptTokens: number,
+  contextWindow: number,
+  explicitTransforms?: string[]
+): string[] | undefined {
+  // If explicit transforms provided, use them (empty array = disable)
+  if (explicitTransforms !== undefined) {
+    return explicitTransforms.length > 0 ? explicitTransforms : undefined
+  }
+
+  // Auto-enable middle-out if prompt exceeds threshold
+  const utilizationRatio = promptTokens / contextWindow
+  if (utilizationRatio > TRANSFORMS_CONFIG.autoEnableThreshold) {
+    return TRANSFORMS_CONFIG.defaultTransforms
+  }
+
+  // No transforms needed for small prompts
+  return undefined
+}
+
+/**
+ * Check if response qualifies for Zero Completion Insurance (no charge)
+ * Conditions: zero completion tokens AND (blank finish_reason OR error finish_reason)
+ */
+function isZeroCompletionResponse(result: any): boolean {
+  const usage = result?.usage || result?.experimental_providerMetadata?.usage
+  const finishReason = result?.finishReason || result?.finish_reason
+
+  // Zero completion tokens with blank/null/error finish reason
+  if (usage?.completionTokens === 0 || usage?.completion_tokens === 0) {
+    if (!finishReason || finishReason === '' || finishReason === 'error') {
+      return true
+    }
+  }
+
+  // Empty text response with no tool calls
+  if ((!result?.text || result.text.trim() === '') &&
+    (!result?.toolCalls || result.toolCalls.length === 0)) {
+    if (!finishReason || finishReason === 'error') {
+      return true
+    }
+  }
+
+  return false
 }
 
 export class ModernAIProvider {
@@ -60,7 +177,274 @@ export class ModernAIProvider {
   }
 
   /**
+   * Create a tool call repair handler for AI SDK
+   * Reference: https://v4.ai-sdk.dev/docs/ai-sdk-core/tools-and-tool-calling#tool-call-repair
+   * 
+   * This handler attempts to fix invalid tool calls by:
+   * 1. Re-asking the model to correct the invalid parameters
+   * 2. Using structured output to ensure valid tool call format
+   */
+  private createToolCallRepairHandler(model: any, tools: Record<string, CoreTool>) {
+    return async ({ toolCall, error, messages, system }: {
+      toolCall: { toolName: string; args: unknown };
+      error: Error;
+      messages: CoreMessage[];
+      system?: string;
+    }) => {
+      try {
+        const tool = tools[toolCall.toolName]
+        if (!tool) {
+          // Tool not found, cannot repair
+          console.log(require('chalk').dim(`[ToolRepair] Unknown tool: ${toolCall.toolName}`))
+          return null
+        }
+
+        console.log(require('chalk').dim(
+          `[ToolRepair] Attempting to fix invalid tool call: ${toolCall.toolName}`
+        ))
+
+        // Ask the model to fix the tool call
+        const repairResult = await generateText({
+          model,
+          system: system || 'You are a helpful assistant that fixes invalid tool calls.',
+          messages: [
+            ...messages,
+            {
+              role: 'user',
+              content: `The tool call "${toolCall.toolName}" failed with error: ${error.message}
+
+Invalid arguments: ${JSON.stringify(toolCall.args, null, 2)}
+
+Please provide corrected arguments for this tool. Only output the corrected JSON arguments, nothing else.`,
+            },
+          ],
+          maxTokens: 1000,
+        })
+
+        // Try to parse the corrected arguments
+        const fixedArgsText = repairResult.text.trim()
+        // Extract JSON from response (handle markdown code blocks)
+        const jsonMatch = fixedArgsText.match(/```(?:json)?\s*([\s\S]*?)\s*```/) ||
+          fixedArgsText.match(/^\{[\s\S]*\}$/)
+
+        if (jsonMatch) {
+          const fixedArgs = JSON.parse(jsonMatch[1] || jsonMatch[0])
+          console.log(require('chalk').green(`[ToolRepair] Successfully repaired tool call: ${toolCall.toolName}`))
+          return { toolName: toolCall.toolName, args: fixedArgs }
+        }
+
+        // Try parsing the entire response as JSON
+        const fixedArgs = JSON.parse(fixedArgsText)
+        console.log(require('chalk').green(`[ToolRepair] Successfully repaired tool call: ${toolCall.toolName}`))
+        return { toolName: toolCall.toolName, args: fixedArgs }
+      } catch (repairError: any) {
+        console.log(require('chalk').yellow(
+          `[ToolRepair] Failed to repair tool call: ${repairError.message}`
+        ))
+        return null // Return null to indicate repair failed
+      }
+    }
+  }
+
+  /**
+   * Active Tools Pattern - Intelligently select relevant tools based on context
+   * Reference: https://ai-sdk.dev/docs/agents best practices
+   * 
+   * Instead of providing all tools to every request, this method analyzes the
+   * user's message and selects only the most relevant tools (limit: 5-7 tools)
+   * to improve model performance and reduce token usage.
+   * 
+   * @param message - The user's message to analyze
+   * @param allTools - All available tools
+   * @param maxTools - Maximum number of tools to return (default: 5)
+   * @returns Filtered set of relevant tools
+   */
+  private selectActiveTools(
+    message: string,
+    allTools: Record<string, CoreTool>,
+    maxTools = 5
+  ): Record<string, CoreTool> {
+    const lowerMessage = message.toLowerCase()
+
+    // Define tool categories with priority keywords
+    const toolCategories: Record<string, { tools: string[]; keywords: string[]; priority: number }> = {
+      file_reading: {
+        tools: ['read_file', 'list_directory', 'explore_directory'],
+        keywords: ['read', 'show', 'view', 'content', 'look', 'check', 'see', 'file', 'what'],
+        priority: 1,
+      },
+      file_writing: {
+        tools: ['write_file', 'edit_file', 'create_file', 'create_directory'],
+        keywords: ['write', 'create', 'edit', 'modify', 'update', 'change', 'fix', 'add', 'save'],
+        priority: 2,
+      },
+      file_search: {
+        tools: ['search_files', 'find_files', 'grep', 'search_files_in_directory'],
+        keywords: ['search', 'find', 'where', 'grep', 'locate', 'pattern'],
+        priority: 3,
+      },
+      execution: {
+        tools: ['execute_command', 'run_command', 'bash', 'execute_command_with_context'],
+        keywords: ['run', 'execute', 'command', 'terminal', 'shell', 'npm', 'pnpm', 'bun', 'yarn', 'install', 'build', 'test'],
+        priority: 4,
+      },
+      analysis: {
+        tools: ['analyze_workspace', 'analyze_code', 'analyze_directory'],
+        keywords: ['analyze', 'explain', 'understand', 'structure', 'architecture', 'project'],
+        priority: 5,
+      },
+      blockchain: {
+        tools: ['coinbase_blockchain'],
+        keywords: ['blockchain', 'crypto', 'wallet', 'transfer', 'ethereum', 'bitcoin', 'coinbase', 'web3', 'defi'],
+        priority: 6,
+      },
+      workflows: {
+        tools: ['workflow_code_review', 'workflow_optimize_code', 'workflow_smart_route', 'workflow_implement_feature', 'workflow_translate', 'workflow_generate_code'],
+        keywords: ['workflow', 'pipeline', 'review', 'optimize', 'implement', 'feature', 'translate', 'generate', 'quality', 'parallel', 'orchestrate'],
+        priority: 7,
+      },
+    }
+
+    // Score each category based on keyword matches
+    const categoryScores: { category: string; score: number; priority: number }[] = []
+
+    for (const [category, config] of Object.entries(toolCategories)) {
+      let score = 0
+      for (const keyword of config.keywords) {
+        if (lowerMessage.includes(keyword)) {
+          score += 1
+        }
+      }
+      if (score > 0) {
+        categoryScores.push({ category, score, priority: config.priority })
+      }
+    }
+
+    // Sort by score (desc) then priority (asc)
+    categoryScores.sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score
+      return a.priority - b.priority
+    })
+
+    // Collect tools from top categories
+    const selectedTools: Record<string, CoreTool> = {}
+    const selectedToolNames = new Set<string>()
+
+    for (const { category } of categoryScores) {
+      const categoryTools = toolCategories[category].tools
+      for (const toolName of categoryTools) {
+        if (allTools[toolName] && !selectedToolNames.has(toolName)) {
+          selectedTools[toolName] = allTools[toolName]
+          selectedToolNames.add(toolName)
+
+          if (selectedToolNames.size >= maxTools) break
+        }
+      }
+      if (selectedToolNames.size >= maxTools) break
+    }
+
+    // If no specific category matched, provide default core tools
+    if (selectedToolNames.size === 0) {
+      const coreTools = ['read_file', 'write_file', 'list_directory', 'execute_command', 'analyze_workspace']
+      for (const toolName of coreTools) {
+        if (allTools[toolName]) {
+          selectedTools[toolName] = allTools[toolName]
+          if (Object.keys(selectedTools).length >= maxTools) break
+        }
+      }
+    }
+
+    // Always include at least read_file for context
+    if (!selectedTools['read_file'] && allTools['read_file']) {
+      selectedTools['read_file'] = allTools['read_file']
+    }
+
+    // Log active tools for debugging
+    if (process.env.DEBUG) {
+      console.log(require('chalk').dim(
+        `[ActiveTools] Selected ${Object.keys(selectedTools).length} tools: ${Object.keys(selectedTools).join(', ')}`
+      ))
+    }
+
+    return selectedTools
+  }
+
+  /**
+   * Execute with Zero Completion Insurance retry logic
+   * Auto-retries on zero completion responses (OpenRouter doesn't charge for these)
+   */
+  private async executeWithRetry<T>(
+    operation: () => Promise<T>,
+    context: string,
+    maxRetries = ZERO_COMPLETION_CONFIG.maxRetries
+  ): Promise<T> {
+    let lastError: Error | null = null
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const result = await operation()
+
+        // Check for zero completion (protected by insurance, can retry for free)
+        if (isZeroCompletionResponse(result) && attempt < maxRetries) {
+          if (ZERO_COMPLETION_CONFIG.enableLogging) {
+            console.log(require('chalk').dim(
+              `[ZeroCompletion] ${context}: Empty response (attempt ${attempt}/${maxRetries}), retrying...`
+            ))
+          }
+          await new Promise(r => setTimeout(r, getExponentialBackoff(attempt)))
+          continue
+        }
+
+        return result
+      } catch (error: any) {
+        lastError = error
+
+        // Retry on transient errors
+        if (attempt < maxRetries && this.isRetryableError(error)) {
+          if (ZERO_COMPLETION_CONFIG.enableLogging) {
+            console.log(require('chalk').dim(
+              `[Retry] ${context}: ${error.message} (attempt ${attempt}/${maxRetries})`
+            ))
+          }
+          await new Promise(r => setTimeout(r, getExponentialBackoff(attempt)))
+          continue
+        }
+
+        throw error
+      }
+    }
+
+    throw lastError || new Error(`${context}: Max retries exceeded`)
+  }
+
+  /**
+   * Check if error is retryable (rate limits, transient failures)
+   */
+  private isRetryableError(error: any): boolean {
+    const message = error?.message?.toLowerCase() || ''
+    const status = error?.status || error?.statusCode
+
+    // Rate limit errors
+    if (status === 429 || message.includes('rate limit') || message.includes('too many requests')) {
+      return true
+    }
+
+    // Transient server errors
+    if (status >= 500 && status < 600) {
+      return true
+    }
+
+    // Connection errors
+    if (message.includes('network') || message.includes('timeout') || message.includes('econnreset')) {
+      return true
+    }
+
+    return false
+  }
+
+  /**
    * Check if reasoning should be enabled for current model
+   * Uses dynamic detection for OpenRouter models
    */
   private shouldEnableReasoning(): boolean {
     const config = simpleConfigManager?.getCurrentModel() as any
@@ -71,12 +455,53 @@ export class ModernAIProvider {
       return config.enableReasoning
     }
 
-    // Auto-detect based on model capabilities
+    // Auto-detect based on model capabilities (sync version)
+    return ReasoningDetector.shouldEnableReasoning(config.provider, config.model)
+  }
+
+  /**
+   * Async version - uses OpenRouter API for dynamic capability detection
+   */
+  private async shouldEnableReasoningAsync(): Promise<boolean> {
+    const config = simpleConfigManager?.getCurrentModel() as any
+    if (!config) return false
+
+    if (config.enableReasoning !== undefined) {
+      return config.enableReasoning
+    }
+
+    // For OpenRouter, fetch actual model capabilities
+    if (config.provider === 'openrouter') {
+      return ReasoningDetector.shouldEnableReasoningAsync(config.provider, config.model)
+    }
+
     return ReasoningDetector.shouldEnableReasoning(config.provider, config.model)
   }
 
   /**
    * Log reasoning status if enabled
+   * Uses async version for OpenRouter to get actual capabilities
+   */
+  private async logReasoningStatusAsync(enabled: boolean): Promise<void> {
+    const config = simpleConfigManager?.getCurrentModel() as any
+    if (!config) return
+
+    try {
+      let summary: string
+      if (config.provider === 'openrouter') {
+        summary = await ReasoningDetector.getModelReasoningSummaryAsync(config.provider, config.model)
+      } else {
+        summary = ReasoningDetector.getModelReasoningSummary(config.provider, config.model)
+      }
+      const msg = `[Reasoning] ${config.model}: ${summary} - ${enabled ? 'ENABLED' : 'DISABLED'}`
+      console.log(require('chalk').dim(msg))
+    } catch {
+      // Silent fail for logging
+    }
+  }
+
+  /**
+   * Sync version for backwards compatibility
    */
   private logReasoningStatus(enabled: boolean): void {
     const config = simpleConfigManager?.getCurrentModel() as any
@@ -216,13 +641,12 @@ export class ModernAIProvider {
 
             const output = execSync(fullCommand, {
               cwd: this.workingDirectory,
-              encoding: 'utf-8',
-              maxBuffer: 1024 * 1024 * 10, // 10MB buffer
+              timeout: 60000,
             })
 
             return {
               command: fullCommand,
-              output: output.trim(),
+              output: output.toString().trim(),
               success: true,
             }
           } catch (error: any) {
@@ -359,6 +783,130 @@ export class ModernAIProvider {
           }
         },
       }),
+
+      // ========================================================================
+      // AI SDK Workflow Pattern Tools
+      // Reference: https://ai-sdk.dev/docs/agents/workflows
+      // ========================================================================
+
+      workflow_code_review: tool({
+        description: 'Run a parallel code review analyzing security, performance, and quality simultaneously. Uses multiple specialized AI reviewers.',
+        parameters: z.object({
+          code: z.string().describe('The code to review'),
+        }),
+        execute: async ({ code }) => {
+          try {
+            const result = await workflowPatterns.codeReview(code)
+            return {
+              success: true,
+              reviews: result.reviews,
+              summary: result.summary,
+            }
+          } catch (error: any) {
+            return { success: false, error: error.message }
+          }
+        },
+      }),
+
+      workflow_optimize_code: tool({
+        description: 'Iteratively optimize code using an evaluator-optimizer pattern. Automatically improves code based on quality feedback.',
+        parameters: z.object({
+          code: z.string().describe('The code to optimize'),
+        }),
+        execute: async ({ code }) => {
+          try {
+            const result = await workflowPatterns.codeOptimization(code)
+            return {
+              success: true,
+              optimizedCode: result.optimizedCode,
+              iterations: result.iterations,
+              finalScore: result.finalScore,
+            }
+          } catch (error: any) {
+            return { success: false, error: error.message }
+          }
+        },
+      }),
+
+      workflow_smart_route: tool({
+        description: 'Intelligently route a query to the appropriate handler based on query type and complexity. Uses smaller models for simple tasks, larger models for complex ones.',
+        parameters: z.object({
+          query: z.string().describe('The query to route and process'),
+        }),
+        execute: async ({ query }) => {
+          try {
+            const result = await workflowPatterns.queryRouter(query)
+            return {
+              success: true,
+              classification: result.classification,
+              response: result.response,
+              modelUsed: result.modelUsed,
+            }
+          } catch (error: any) {
+            return { success: false, error: error.message }
+          }
+        },
+      }),
+
+      workflow_implement_feature: tool({
+        description: 'Use orchestrator-worker pattern to plan and implement a feature. Creates implementation plan and generates code for each file.',
+        parameters: z.object({
+          featureRequest: z.string().describe('Description of the feature to implement'),
+        }),
+        execute: async ({ featureRequest }) => {
+          try {
+            const result = await workflowPatterns.featureImplementation(featureRequest)
+            return {
+              success: true,
+              plan: result.plan,
+              implementations: result.implementations,
+            }
+          } catch (error: any) {
+            return { success: false, error: error.message }
+          }
+        },
+      }),
+
+      workflow_translate: tool({
+        description: 'Translate text with quality feedback loop. Iteratively improves translation based on tone, nuance, and cultural accuracy evaluation.',
+        parameters: z.object({
+          text: z.string().describe('The text to translate'),
+          targetLanguage: z.string().describe('The target language (e.g., "Italian", "Spanish", "Japanese")'),
+        }),
+        execute: async ({ text, targetLanguage }) => {
+          try {
+            const result = await workflowPatterns.translation(text, targetLanguage)
+            return {
+              success: true,
+              translation: result.translation,
+              iterations: result.iterations,
+              quality: result.finalQuality,
+            }
+          } catch (error: any) {
+            return { success: false, error: error.message }
+          }
+        },
+      }),
+
+      workflow_generate_code: tool({
+        description: 'Generate code using a sequential pipeline: analyze requirements, design architecture, create file structure.',
+        parameters: z.object({
+          requirements: z.string().describe('The requirements or description of what to build'),
+        }),
+        execute: async ({ requirements }) => {
+          try {
+            const result = await workflowPatterns.codeGeneration(requirements)
+            return {
+              success: result.success,
+              result: result.result,
+              steps: result.steps.map(s => ({ name: s.name, duration: `${s.duration}ms` })),
+              totalDuration: `${result.totalDuration}ms`,
+            }
+          } catch (error: any) {
+            return { success: false, error: error.message }
+          }
+        },
+      }),
     }
 
     // Note: Tool-level caching via @ai-sdk-tools/cache is incompatible with AI SDK v3's CoreTool type
@@ -377,7 +925,13 @@ export class ModernAIProvider {
       description?: string
       dependencies?: Record<string, string>
       devDependencies?: Record<string, string>
-    } | null = null
+    } | null = {
+      name: '',
+      version: '',
+      description: '',
+      dependencies: {},
+      devDependencies: {},
+    }
 
     if (existsSync(packageJsonPath)) {
       try {
@@ -413,12 +967,12 @@ export class ModernAIProvider {
     }
 
     const items = readdirSync(dirPath, { withFileTypes: true })
-    const result: any = {
-      directories: [],
-      files: [],
+    const result: { files: Array<{ name: string; path: string; size: number; modified: Date }>; directories: Array<{ name: string; path: string; size: number; modified: Date }> } = {
+      files: [] as Array<{ name: string; path: string; size: number; modified: Date }>,
+      directories: [] as Array<{ name: string; path: string; size: number; modified: Date }>,
     }
 
-    const skipDirs = ['node_modules', '.git', '.next', 'dist', 'build']
+    const skipDirs = ['node_modules', '.git', '.next', 'dist', 'build', 'target', 'bin', 'obj', '.cache', '.temp', '.tmp', 'coverage', '.nyc_output', '__pycache__', '.pytest_cache', 'venv', 'env', '.env', '.venv', 'vendor', 'Pods', 'DerivedData', '.gradle', '.idea', '.vscode', '.vs', 'logs', '*.log', '.DS_Store', 'Thumbs.db']
 
     for (const item of items) {
       if (skipDirs.includes(item.name)) continue
@@ -438,7 +992,8 @@ export class ModernAIProvider {
         result.files.push({
           name: item.name,
           path: relative(this.workingDirectory, itemPath),
-          extension: item.name.split('.').pop() || '',
+          size: statSync(itemPath).size,
+          modified: statSync(itemPath).mtime,
         })
       }
     }
@@ -554,51 +1109,68 @@ export class ModernAIProvider {
       throw new Error(`No API key found for model ${model}`)
     }
 
+    let baseModel: any
+
     switch (config.provider) {
       case 'openai': {
         // OpenAI provider is already response-API compatible via model options; no chainable helper here.
         const openaiProvider = createOpenAI({ apiKey, compatibility: 'strict' })
-        return openaiProvider(config.model)
+        baseModel = openaiProvider(config.model)
+        break
       }
       case 'anthropic': {
         const anthropicProvider = createAnthropic({ apiKey })
-        return anthropicProvider(config.model)
+        baseModel = anthropicProvider(config.model)
+        break
       }
       case 'google': {
         const googleProvider = createGoogleGenerativeAI({ apiKey })
-        return googleProvider(config.model)
+        baseModel = googleProvider(config.model)
+        break
       }
       case 'vercel': {
         const vercelProvider = createVercel({ apiKey })
-        return vercelProvider(config.model)
+        baseModel = vercelProvider(config.model)
+        break
       }
       case 'gateway': {
         const gatewayProvider = createGateway({ apiKey })
-        return gatewayProvider(config.model)
+        baseModel = gatewayProvider(config.model)
+        break
       }
       case 'openrouter': {
         const openrouterProvider = createOpenAI({
           apiKey,
           baseURL: 'https://openrouter.ai/api/v1',
           headers: {
-            'HTTP-Referer': 'https://nikcli.mintlify.app', // Optional: for attribution
+            'HTTP-Referer': 'https://nikcli.mintlify.app',
             'X-Title': 'NikCLI',
           },
         })
-        return openrouterProvider(config.model) // Assumes model like 'openai/gpt-4o'
+        // OpenRouter Web Search: append :online suffix for real-time web data
+        // Reference: https://openrouter.ai/docs/guides/features/web-search
+        let modelId = config.model
+        if ((config as any).enableWebSearch && !modelId.endsWith(':online')) {
+          modelId = `${modelId}:online`
+        }
+        baseModel = openrouterProvider(modelId)
+        break
       }
       case 'ollama': {
         // Ollama does not require API keys; assumes local daemon at default endpoint
         const ollamaProvider = createOllama({})
-        return ollamaProvider(config.model)
+        baseModel = ollamaProvider(config.model)
+        break
       }
       case 'cerebras': {
         const cerebrasProvider = createCerebras({ apiKey })
-        return cerebrasProvider(config.model)
+        baseModel = cerebrasProvider(config.model)
+        break
       }
       case 'groq': {
         const groqProvider = createGroq({ apiKey })
-        return groqProvider(config.model)
+        baseModel = groqProvider(config.model)
+        break
       }
       case 'llamacpp': {
         // LlamaCpp uses OpenAI-compatible API; assumes local server at default endpoint
@@ -607,7 +1179,8 @@ export class ModernAIProvider {
           apiKey: 'llamacpp', // LlamaCpp doesn't require a real API key for local server
           baseURL: process.env.LLAMACPP_BASE_URL || 'http://localhost:8080/v1',
         })
-        return llamacppProvider(config.model)
+        baseModel = llamacppProvider(config.model)
+        break
       }
       case 'lmstudio': {
         // LMStudio uses OpenAI-compatible API; assumes local server at default endpoint
@@ -616,7 +1189,8 @@ export class ModernAIProvider {
           apiKey: 'lm-studio', // LMStudio doesn't require a real API key
           baseURL: process.env.LMSTUDIO_BASE_URL || 'http://localhost:1234/v1',
         })
-        return lmstudioProvider(config.model)
+        baseModel = lmstudioProvider(config.model)
+        break
       }
       case 'openai-compatible': {
         const baseURL = (config as any).baseURL || process.env.OPENAI_COMPATIBLE_BASE_URL
@@ -631,29 +1205,50 @@ export class ModernAIProvider {
           baseURL,
           headers: (config as any).headers,
         })
-        return compatProvider(config.model)
+        baseModel = compatProvider(config.model)
+        break
       }
       default:
         throw new Error(`Unsupported provider: ${config.provider}`)
     }
+
+
+
+    return baseModel
   }
 
   // Claude Code style streaming with tool support
   async *streamChatWithTools(messages: CoreMessage[]): AsyncGenerator<
     {
-      type: 'text' | 'tool_call' | 'tool_result' | 'finish' | 'reasoning'
+      type: 'text' | 'tool_call' | 'tool_call_complete' | 'tool_result' | 'finish' | 'reasoning' | 'error' | 'usage'
       content?: string
       toolCall?: any
+      toolCallId?: string
       toolResult?: any
+      result?: any
       finishReason?: string
       reasoningSummary?: string
+      error?: any
+      usage?: any
     },
     void,
     unknown
   > {
     const model = this.getModel() as any
-    const tools = this.getFileOperationsTools()
+    const allTools = this.getFileOperationsTools()
     const reasoningEnabled = this.shouldEnableReasoning()
+
+    // Active Tools Pattern: Select relevant tools based on user's last message
+    // Reference: https://ai-sdk.dev/docs/agents - best practices
+    const lastUserMessage = messages.slice().reverse().find(m => m.role === 'user')
+    const userContent = typeof lastUserMessage?.content === 'string'
+      ? lastUserMessage.content
+      : Array.isArray(lastUserMessage?.content)
+        ? lastUserMessage.content.map(p => 'text' in p ? p.text : '').join(' ')
+        : ''
+
+    // Select 5 most relevant tools based on message context
+    const tools = this.selectActiveTools(userContent, allTools, 5)
 
     // Yield reasoning summary before streaming if enabled - format as markdown
     if (reasoningEnabled) {
@@ -687,19 +1282,71 @@ export class ModernAIProvider {
         }
       } catch (_) { }
 
+      // Track step progress for loop control (AI SDK best practice)
+      // Reference: https://ai-sdk.dev/docs/agents/loop-control
+      let stepCount = 0
+      let totalToolCalls = 0
+
       // Prepare base options
       const streamOptions: any = {
         model,
         messages,
         tools,
         temperature: 1,
-        maxTokens: 8000,
+        maxTokens: 4000,
         maxSteps: 10,
-        // Spread middleware if available
+        // AI SDK toolChoice: 'auto' (default), 'none', 'required', or { type: 'tool', toolName: 'specific-tool' }
+        // 'auto' - model decides whether to use tools
+        // 'required' - model must use at least one tool
+        // 'none' - model cannot use tools (text only response)
+        toolChoice: 'auto',
+        // AI SDK Tool Call Repair - automatically fix invalid tool calls
+        // Reference: https://v4.ai-sdk.dev/docs/ai-sdk-core/tools-and-tool-calling#tool-call-repair
+        experimental_repairToolCall: this.createToolCallRepairHandler(model, tools),
+        // AI SDK Agent Loop Control - onStepFinish callback
+        // Reference: https://ai-sdk.dev/docs/agents/loop-control
+        onStepFinish: (step: {
+          stepType: 'initial' | 'continue' | 'tool-result';
+          text: string;
+          toolCalls: Array<{ toolName: string; args: unknown }>;
+          toolResults: Array<{ toolName: string; result: unknown }>;
+          usage: { promptTokens: number; completionTokens: number; totalTokens: number };
+          finishReason: 'stop' | 'length' | 'tool-calls' | 'content-filter' | 'error' | 'other';
+          isContinued: boolean;
+        }) => {
+          stepCount++
+          const toolCallsInStep = step.toolCalls?.length || 0
+          totalToolCalls += toolCallsInStep
+
+          // Log step progress (dimmed for non-verbose output)
+          console.log(require('chalk').dim(
+            `[Step ${stepCount}] ${step.stepType} | Tools: ${toolCallsInStep} | Tokens: ${step.usage?.totalTokens || 0} | Reason: ${step.finishReason}`
+          ))
+
+          // Log tool results for debugging
+          if (step.toolResults?.length > 0 && process.env.DEBUG) {
+            for (const result of step.toolResults) {
+              console.log(require('chalk').dim(`  ✓ ${result.toolName} completed`))
+            }
+          }
+        },
       }
 
-      // OpenRouter-specific parameters support
+      // OpenRouter-specific parameters support - dynamic based on model capabilities
       const cfg = simpleConfigManager?.getCurrentModel() as any
+
+      // Override toolChoice from config if specified
+      if (cfg?.toolChoice) {
+        streamOptions.toolChoice = cfg.toolChoice
+      }
+
+      // Parallel tool calls control (default: true)
+      // Reference: https://openrouter.ai/docs/guides/features/tool-calling
+      const parallelToolCalls = cfg?.parallelToolCalls ?? true
+      if (!parallelToolCalls) {
+        streamOptions.experimental_toolCallStreaming = false
+      }
+
       if (cfg?.provider === 'openrouter') {
         if (!streamOptions.experimental_providerMetadata) {
           streamOptions.experimental_providerMetadata = {}
@@ -708,13 +1355,43 @@ export class ModernAIProvider {
           streamOptions.experimental_providerMetadata.openrouter = {}
         }
 
-        // Transforms parameter support (e.g., middle-out for context compression)
-        const transforms = cfg.transforms || simpleConfigManager.get('openrouterTransforms')
-        if (transforms && Array.isArray(transforms) && transforms.length > 0) {
-          streamOptions.experimental_providerMetadata.openrouter.transforms = transforms
-        } else {
-          // Default to middle-out for automatic context compression
-          streamOptions.experimental_providerMetadata.openrouter.transforms = ['middle-out']
+        // Parallel tool calls control
+        streamOptions.experimental_providerMetadata.openrouter.parallel_tool_calls = parallelToolCalls
+
+        // Fetch model capabilities and build parameters dynamically
+        try {
+          const modelCaps = await openRouterRegistry.getCapabilities(cfg.model)
+
+          // Only add reasoning if model supports it
+          if (reasoningEnabled && (modelCaps.supportsReasoning || modelCaps.supportsIncludeReasoning)) {
+            if (modelCaps.supportsIncludeReasoning) {
+              streamOptions.experimental_providerMetadata.openrouter.include_reasoning = true
+            }
+            if (modelCaps.supportsReasoningEffort) {
+              streamOptions.experimental_providerMetadata.openrouter.reasoning = {
+                effort: 'medium',
+                enabled: true,
+              }
+            }
+          }
+
+          // Context-aware transforms (e.g., middle-out for context compression)
+          // Auto-enable when prompt exceeds 50% of context window
+          const explicitTransforms = cfg.transforms || simpleConfigManager.get('openrouterTransforms')
+          const estimatedTokens = JSON.stringify(messages).length / 4 // rough estimate
+          const contextWindow = modelCaps.contextLength || 128000
+          const contextAwareTransforms = getContextAwareTransforms(estimatedTokens, contextWindow, explicitTransforms)
+          if (contextAwareTransforms && contextAwareTransforms.length > 0) {
+            streamOptions.experimental_providerMetadata.openrouter.transforms = contextAwareTransforms
+          }
+        } catch {
+          // Fallback: use explicit transforms or auto-enable for large prompts
+          const explicitTransforms = cfg.transforms || simpleConfigManager.get('openrouterTransforms')
+          const estimatedTokens = JSON.stringify(messages).length / 4
+          const contextAwareTransforms = getContextAwareTransforms(estimatedTokens, 128000, explicitTransforms)
+          if (contextAwareTransforms && contextAwareTransforms.length > 0) {
+            streamOptions.experimental_providerMetadata.openrouter.transforms = contextAwareTransforms
+          }
         }
       }
 
@@ -747,8 +1424,46 @@ export class ModernAIProvider {
                 content: (event as any).argsTextDelta,
               }
               break
+            case 'tool-call':
+              // Complete tool call event
+              yield {
+                type: 'tool_call_complete',
+                toolCall: (event as any).toolCall,
+              }
+              break
+            case 'tool-result':
+              // Tool execution result
+              yield {
+                type: 'tool_result',
+                toolCallId: (event as any).toolCallId,
+                result: (event as any).result,
+              }
+              break
+            case 'reasoning':
+            case 'reasoning-delta':
+              // AI SDK reasoning events
+              yield {
+                type: 'reasoning',
+                content: (event as any).textDelta || (event as any).text || (event as any).reasoning,
+              }
+              break
+            case 'error':
+              // Stream error event
+              yield {
+                type: 'error',
+                error: (event as any).error,
+              }
+              break
             case 'finish':
             case 'step-finish':
+              // Step completion - can include usage info
+              if ((event as any).usage) {
+                yield {
+                  type: 'usage',
+                  usage: (event as any).usage
+                  ,
+                }
+              }
               break
             default:
               // Handle any unknown event types gracefully
@@ -758,12 +1473,38 @@ export class ModernAIProvider {
                   content: (event as any).thinking,
                 }
               }
+              // Log unknown event types for debugging
+              if (RETRY_CONFIG.enableLogging && process.env.DEBUG_STREAM) {
+                console.log(require('chalk').dim(`[Stream] Unknown event type: ${eventType}`))
+              }
               break
           }
         }
       } catch (streamError: any) {
+        // Stream recovery: attempt to reconnect or fallback
+        const errorMessage = streamError.message?.toLowerCase() || ''
+
+        // Connection errors - could potentially retry
+        if (errorMessage.includes('network') ||
+          errorMessage.includes('timeout') ||
+          errorMessage.includes('econnreset') ||
+          errorMessage.includes('socket')) {
+          yield {
+            type: 'error',
+            error: {
+              code: 'STREAM_CONNECTION_ERROR',
+              message: 'Stream connection interrupted',
+              recoverable: true,
+            },
+          }
+        }
+
         // Fallback to textStream if fullStream fails
-        if (streamError.message?.includes('fullStream')) {
+        if (streamError.message?.includes('fullStream') ||
+          streamError.message?.includes('not iterable')) {
+          if (RETRY_CONFIG.enableLogging) {
+            console.log(require('chalk').dim('[Stream] Falling back to textStream'))
+          }
           for await (const delta of result.textStream) {
             yield {
               type: 'text',
@@ -804,12 +1545,25 @@ export class ModernAIProvider {
     reasoningText?: string
   }> {
     const model = this.getModel() as any
-    const tools = this.getFileOperationsTools()
+    const allTools = this.getFileOperationsTools()
     const reasoningEnabled = this.shouldEnableReasoning()
+
+    // Active Tools Pattern: Select relevant tools based on user's last message
+    const lastUserMessage = messages.slice().reverse().find(m => m.role === 'user')
+    const userContent = typeof lastUserMessage?.content === 'string'
+      ? lastUserMessage.content
+      : Array.isArray(lastUserMessage?.content)
+        ? lastUserMessage.content.map(p => 'text' in p ? p.text : '').join(' ')
+        : ''
+
+    const tools = this.selectActiveTools(userContent, allTools, 5)
 
     this.logReasoningStatus(reasoningEnabled)
 
     try {
+      // Track step progress for loop control
+      let stepCount = 0
+
       // Prepare base options
       const generateOptions: any = {
         model,
@@ -817,12 +1571,43 @@ export class ModernAIProvider {
         tools,
         maxSteps: 10,
         temperature: 1,
-        maxTokens: 8000,
-        // Spread middleware if available
+        maxTokens: 4000,
+        // AI SDK toolChoice: 'auto' (default), 'none', 'required', or { type: 'tool', toolName: 'specific-tool' }
+        toolChoice: 'auto',
+        // AI SDK Tool Call Repair - automatically fix invalid tool calls
+        experimental_repairToolCall: this.createToolCallRepairHandler(model, tools),
+        // AI SDK Agent Loop Control - onStepFinish callback
+        onStepFinish: (step: {
+          stepType: 'initial' | 'continue' | 'tool-result';
+          text: string;
+          toolCalls: Array<{ toolName: string; args: unknown }>;
+          toolResults: Array<{ toolName: string; result: unknown }>;
+          usage: { promptTokens: number; completionTokens: number; totalTokens: number };
+          finishReason: string;
+        }) => {
+          stepCount++
+          console.log(require('chalk').dim(
+            `[Step ${stepCount}] ${step.stepType} | Tools: ${step.toolCalls?.length || 0} | Tokens: ${step.usage?.totalTokens || 0}`
+          ))
+        },
       }
 
-      // OpenRouter-specific parameters support
+      // OpenRouter-specific parameters support - dynamic based on model capabilities
       const cfg = simpleConfigManager?.getCurrentModel() as any
+
+      // Override toolChoice from config if specified
+      if (cfg?.toolChoice) {
+        generateOptions.toolChoice = cfg.toolChoice
+      }
+
+      // Parallel tool calls control (default: true)
+      // Reference: https://openrouter.ai/docs/guides/features/tool-calling
+      const parallelToolCalls = cfg?.parallelToolCalls ?? true
+      if (!parallelToolCalls) {
+        // When disabled, tools are called sequentially (useful for dependent operations)
+        generateOptions.experimental_toolCallStreaming = false
+      }
+
       if (cfg?.provider === 'openrouter') {
         if (!generateOptions.experimental_providerMetadata) {
           generateOptions.experimental_providerMetadata = {}
@@ -831,26 +1616,67 @@ export class ModernAIProvider {
           generateOptions.experimental_providerMetadata.openrouter = {}
         }
 
-        // Reasoning parameter support for OpenRouter
-        if (reasoningEnabled) {
-          generateOptions.experimental_providerMetadata.openrouter.reasoning = {
-            effort: 'medium',
-            exclude: false,
-            enabled: true,
-          }
-        }
+        // Parallel tool calls control
+        // Reference: https://openrouter.ai/docs/guides/features/tool-calling
+        generateOptions.experimental_providerMetadata.openrouter.parallel_tool_calls = parallelToolCalls
 
-        // Transforms parameter support (e.g., middle-out for context compression)
-        const transforms = cfg.transforms || simpleConfigManager.get('openrouterTransforms')
-        if (transforms && Array.isArray(transforms) && transforms.length > 0) {
-          generateOptions.experimental_providerMetadata.openrouter.transforms = transforms
-        } else {
-          // Default to middle-out for automatic context compression
-          generateOptions.experimental_providerMetadata.openrouter.transforms = ['middle-out']
+        // Fetch model capabilities and build parameters dynamically
+        try {
+          const modelCaps = await openRouterRegistry.getCapabilities(cfg.model)
+
+          // Only add reasoning parameters if model supports them
+          if (reasoningEnabled && (modelCaps.supportsReasoning || modelCaps.supportsIncludeReasoning)) {
+            if (modelCaps.supportsIncludeReasoning) {
+              generateOptions.experimental_providerMetadata.openrouter.include_reasoning = true
+            }
+            if (modelCaps.supportsReasoningEffort) {
+              generateOptions.experimental_providerMetadata.openrouter.reasoning = {
+                effort: 'medium',
+                exclude: false,
+                enabled: true,
+              }
+            }
+          }
+
+          // Context-aware transforms (auto-enable when prompt exceeds 50% of context window)
+          const explicitTransforms = cfg.transforms || simpleConfigManager.get('openrouterTransforms')
+          const estimatedTokens = JSON.stringify(messages).length / 4
+          const contextWindow = modelCaps.contextLength || 128000
+          const contextAwareTransforms = getContextAwareTransforms(estimatedTokens, contextWindow, explicitTransforms)
+          if (contextAwareTransforms && contextAwareTransforms.length > 0) {
+            generateOptions.experimental_providerMetadata.openrouter.transforms = contextAwareTransforms
+          }
+        } catch {
+          // Fallback to default if registry fails
+          if (reasoningEnabled) {
+            generateOptions.experimental_providerMetadata.openrouter.reasoning = {
+              effort: 'medium',
+              exclude: false,
+              enabled: true,
+            }
+          }
+          // Fallback: use explicit transforms or auto-enable for large prompts
+          const explicitTransforms = cfg.transforms || simpleConfigManager.get('openrouterTransforms')
+          const estimatedTokens = JSON.stringify(messages).length / 4
+          const contextAwareTransforms = getContextAwareTransforms(estimatedTokens, 128000, explicitTransforms)
+          if (contextAwareTransforms && contextAwareTransforms.length > 0) {
+            generateOptions.experimental_providerMetadata.openrouter.transforms = contextAwareTransforms
+          }
         }
       }
 
-      const result = await generateText(generateOptions)
+      // Execute with Zero Completion Insurance retry logic
+      const result = await this.executeWithRetry(
+        () => generateText(generateOptions),
+        'generateWithTools'
+      )
+
+      // Check for zero completion response after all retries
+      if (isZeroCompletionResponse(result)) {
+        console.log(require('chalk').yellow(
+          '[ZeroCompletion] Protected response - no charges applied'
+        ))
+      }
 
       // Extract reasoning if available
       let reasoningData = {}
@@ -947,13 +1773,17 @@ export class ModernAIProvider {
     messages: CoreMessage[],
     options: AIProviderOptions = {}
   ): AsyncGenerator<{
-    type: 'text' | 'tool_call' | 'tool_result' | 'finish' | 'reasoning' | 'style_applied'
+    type: 'text' | 'tool_call' | 'tool_call_complete' | 'tool_result' | 'finish' | 'reasoning' | 'style_applied' | 'error' | 'usage'
     content?: string
     toolCall?: any
+    toolCallId?: string
     toolResult?: any
+    result?: any
     finishReason?: string
     reasoningSummary?: string
     outputStyle?: OutputStyle
+    error?: any
+    usage?: any
   }> {
     // Resolve output style
     const outputStyle = this.resolveOutputStyle(options)
