@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { bunFile, bunWrite, readText, writeText, fileExists, mkdirp } from '../utils/bun-compat'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import chalk from 'chalk'
@@ -33,7 +33,7 @@ export class TmuxIntegration {
   private currentSessionId: string | null = null
 
   constructor() {
-    this.configPath = join(homedir(), '.nikcli', 'tmux-config.json')
+    this.configPath = `${homedir()}/.nikcli, 'tmux-config.json'`
     this.config = this.loadConfig()
     this.checkTmuxAvailability()
   }
@@ -84,9 +84,9 @@ export class TmuxIntegration {
       },
     }
 
-    if (existsSync(this.configPath)) {
+    if (await fileExists(this.configPath)) {
       try {
-        const saved = JSON.parse(readFileSync(this.configPath, 'utf-8'))
+        const saved = JSON.parse(await readText(this.configPath))
         return { ...defaultConfig, ...saved }
       } catch {
         console.log(chalk.yellow('⚠︎ Invalid tmux config, using defaults'))
@@ -101,7 +101,7 @@ export class TmuxIntegration {
    */
   private saveConfig(): void {
     try {
-      writeFileSync(this.configPath, JSON.stringify(this.config, null, 2))
+      await writeText(this.configPath, JSON.stringify(this.config, null, 2))
     } catch (error: any) {
       console.log(chalk.yellow(`⚠︎ Failed to save tmux config: ${error.message}`))
     }
@@ -118,14 +118,14 @@ export class TmuxIntegration {
 
     try {
       let existingConfig = ''
-      if (existsSync(tmuxConfigPath)) {
-        existingConfig = readFileSync(tmuxConfigPath, 'utf-8')
+      if (await fileExists(tmuxConfigPath)) {
+        existingConfig = await readText(tmuxConfigPath)
       }
 
       // Add NikCLI config if not already present
       if (!existingConfig.includes('# NikCLI tmux configuration')) {
         const newConfig = `${existingConfig}\n\n${nikcliConfig}`
-        writeFileSync(tmuxConfigPath, newConfig)
+        await writeText(tmuxConfigPath, newConfig)
         console.log(chalk.green('✓ tmux configuration updated'))
 
         // Reload tmux config if tmux is running
@@ -453,8 +453,8 @@ set -g renumber-windows on
       if (exitCode !== 0) return null
 
       // Save to file
-      const statePath = join(homedir(), '.nikcli', 'tmux-sessions', `${sessionName}.state`)
-      writeFileSync(statePath, layout.trim())
+      const statePath = `${homedir()}/.nikcli, 'tmux-sessions', `${sessionName}.state``
+      await writeText(statePath, layout.trim())
 
       return statePath
     } catch {

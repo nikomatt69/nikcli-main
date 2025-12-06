@@ -3,7 +3,7 @@
  * Leggero wrapper che aggiunge validazione all'AI Provider esistente
  */
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { bunFile, bunWrite, readText, writeText, fileExists, mkdirp } from '../utils/bun-compat'
 import { dirname, join, resolve } from 'node:path'
 import type { CoreMessage } from 'ai'
 import chalk from 'chalk'
@@ -72,8 +72,8 @@ export class ValidatedAIProvider {
           advancedUI.logInfo(`📝 Writing validated file: ${path} (${agentId})`)
 
           // Ensure directory exists
-          if (!existsSync(dir)) {
-            mkdirSync(dir, { recursive: true })
+          if (!await fileExists(dir)) {
+            await mkdirp(dir)
           }
 
           let processedContent = content
@@ -84,7 +84,7 @@ export class ValidatedAIProvider {
             const validationContext: ValidationContext = {
               filePath: fullPath,
               content,
-              operation: existsSync(fullPath) ? 'update' : 'create',
+              operation: await fileExists(fullPath) ? 'update' : 'create',
               agentId,
               projectType: this.detectProjectType(),
             }
@@ -129,7 +129,7 @@ export class ValidatedAIProvider {
           }
 
           // WRITE FILE
-          writeFileSync(fullPath, processedContent, 'utf-8')
+          await writeText(fullPath, processedContent)
           const stats = require('node:fs').statSync(fullPath)
 
           const result: ValidatedWriteResult = {
@@ -141,7 +141,7 @@ export class ValidatedAIProvider {
             validated: !skipValidation,
             errors: validationResult?.errors,
             warnings: validationResult?.warnings,
-            reasoning: reasoning || `File ${existsSync(fullPath) ? 'updated' : 'created'} with validation`,
+            reasoning: reasoning || `File ${await fileExists(fullPath) ? 'updated' : 'created'} with validation`,
             executionTime: Date.now() - startTime,
           }
 
@@ -244,7 +244,7 @@ export class ValidatedAIProvider {
    */
   async readFile(filePath: string): Promise<string> {
     const fullPath = resolve(this.workingDirectory, filePath)
-    return readFileSync(fullPath, 'utf-8')
+    return await readText(fullPath)
   }
 
   /**
@@ -253,8 +253,8 @@ export class ValidatedAIProvider {
   private detectProjectType(): string {
     try {
       const packageJsonPath = join(this.workingDirectory, 'package.json')
-      if (existsSync(packageJsonPath)) {
-        const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8'))
+      if (await fileExists(packageJsonPath)) {
+        const packageJson = JSON.parse(await readText(packageJsonPath))
 
         if (packageJson.dependencies?.next || packageJson.devDependencies?.next) {
           return 'next.js'

@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events'
-import { existsSync, readFileSync } from 'node:fs'
+import { bunFile, bunWrite, readText, writeText, fileExists, mkdirp } from '../utils/bun-compat'
 import { resolve } from 'node:path'
 import { createAnthropic } from '@ai-sdk/anthropic'
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
@@ -91,7 +91,7 @@ export class VisionProvider extends EventEmitter {
 
       // Validate image file
       const fullPath = resolve(imagePath)
-      if (!existsSync(fullPath)) {
+      if (!await fileExists(fullPath)) {
         throw new Error(`Image file not found: ${imagePath}`)
       }
 

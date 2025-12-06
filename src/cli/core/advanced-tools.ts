@@ -1,5 +1,5 @@
 import { exec } from 'node:child_process'
-import { existsSync, readdirSync, readFileSync } from 'node:fs'
+import { bunFile, bunWrite, readText, writeText, fileExists, mkdirp } from '../utils/bun-compat'
 import { extname, join } from 'node:path'
 import { promisify } from 'node:util'
 import { createAnthropic } from '@ai-sdk/anthropic'
@@ -184,7 +184,7 @@ export class AdvancedTools {
           for (const file of files.slice(0, 20)) {
             // Limit to 20 files for performance
             try {
-              const content = readFileSync(file, 'utf-8')
+              const content = await readText(file)
               const fileEmbedding = await embed({
                 model,
                 value: content.substring(0, 1000), // Limit content for embedding
@@ -288,11 +288,11 @@ export class AdvancedTools {
         try {
           advancedUI.addLiveUpdate({ type: 'log', content: `🔍 Analyzing code: ${filePath} (${analysisType})` })
 
-          if (!existsSync(filePath)) {
+          if (!await fileExists(filePath)) {
             return { error: `File not found: ${filePath}` }
           }
 
-          const content = readFileSync(filePath, 'utf-8')
+          const content = await readText(filePath)
           const extension = extname(filePath)
 
           // Generate analysis using AI
@@ -361,11 +361,11 @@ Provide detailed analysis including:
         try {
           advancedUI.addLiveUpdate({ type: 'log', content: '📦 Analyzing project dependencies...' })
 
-          if (!existsSync('package.json')) {
+          if (!await fileExists('package.json')) {
             return { error: 'No package.json found in current directory' }
           }
 
-          const packageJson = JSON.parse(readFileSync('package.json', 'utf-8'))
+          const packageJson = JSON.parse(await readText('package.json'))
 
           // Analyze dependencies
           const analysis = await generateObject({

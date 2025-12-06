@@ -1,5 +1,5 @@
-import { createHash } from 'node:crypto'
-import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { bunHash, bunHashSync, bunRandomBytes } from '../utils/bun-compat'
+import { bunFile, bunWrite, readText, writeText, fileExists, mkdirp } from '../utils/bun-compat'
 import { dirname, join, resolve } from 'node:path'
 import chalk from 'chalk'
 import { z } from 'zod'
@@ -420,15 +420,15 @@ export class ProjectMemoryManager {
   // Private Methods
 
   private generateProjectId(projectPath: string): string {
-    return createHash('md5').update(projectPath).digest('hex').substring(0, 16)
+    return bunHashSync('md5', projectPath, 'hex').substring(0, 16)
   }
 
   private async loadOrCreateProjectMemory(projectId: string, projectPath: string): Promise<ProjectMemory> {
     const memoryFile = join(this.memoryDir, `${projectId}.json`)
 
-    if (existsSync(memoryFile)) {
+    if (await fileExists(memoryFile)) {
       try {
-        const data = readFileSync(memoryFile, 'utf-8')
+        const data = await readText(memoryFile)
         const parsed = JSON.parse(data)
         const memory = ProjectMemory.parse(parsed)
         this.memoryCache.set(projectId, memory)
@@ -487,8 +487,8 @@ export class ProjectMemoryManager {
     try {
       // Analyze package.json
       const packageJsonPath = join(projectPath, 'package.json')
-      if (existsSync(packageJsonPath)) {
-        const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8'))
+      if (await fileExists(packageJsonPath)) {
+        const packageJson = JSON.parse(await readText(packageJsonPath))
         context.projectName = packageJson.name || context.projectName
         context.projectType = 'node'
 
@@ -549,11 +549,11 @@ export class ProjectMemoryManager {
 
   private ensureMemoryDirectory(): void {
     const baseDir = dirname(this.memoryDir)
-    if (!existsSync(baseDir)) {
-      require('node:fs').mkdirSync(baseDir, { recursive: true })
+    if (!await fileExists(baseDir)) {
+      require('node:fs').await mkdirp(baseDir)
     }
-    if (!existsSync(this.memoryDir)) {
-      require('node:fs').mkdirSync(this.memoryDir, { recursive: true })
+    if (!await fileExists(this.memoryDir)) {
+      require('node:fs').await mkdirp(this.memoryDir)
     }
   }
 
@@ -561,7 +561,7 @@ export class ProjectMemoryManager {
     try {
       const memoryFile = join(this.memoryDir, `${projectId}.json`)
       memory.context.lastModified = Date.now()
-      writeFileSync(memoryFile, JSON.stringify(memory, null, 2))
+      await writeText(memoryFile, JSON.stringify(memory, null, 2))
       this.memoryCache.set(projectId, memory)
     } catch (error) {
       console.warn(chalk.yellow(`Failed to save project memory: ${error}`))
@@ -578,8 +578,8 @@ export class ProjectMemoryManager {
   private loadGlobalPreferences(): void {
     try {
       const globalFile = join(dirname(this.memoryDir), 'global-preferences.json')
-      if (existsSync(globalFile)) {
-        const data = readFileSync(globalFile, 'utf-8')
+      if (await fileExists(globalFile)) {
+        const data = await readText(globalFile)
         const parsed = JSON.parse(data)
         this.globalPreferences = ProjectPreferences.parse(parsed)
       }
@@ -591,7 +591,7 @@ export class ProjectMemoryManager {
   private async saveGlobalPreferences(): Promise<void> {
     try {
       const globalFile = join(dirname(this.memoryDir), 'global-preferences.json')
-      writeFileSync(globalFile, JSON.stringify(this.globalPreferences, null, 2))
+      await writeText(globalFile, JSON.stringify(this.globalPreferences, null, 2))
     } catch (error) {
       console.warn(chalk.yellow(`Failed to save global preferences: ${error}`))
     }

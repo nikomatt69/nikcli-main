@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { bunFile, bunWrite, readText, writeText, fileExists, mkdirp } from '../utils/bun-compat'
 import { join } from 'node:path'
 import chalk from 'chalk'
 import { simpleConfigManager } from '../../core/config-manager'
@@ -83,8 +83,8 @@ export class Mem0Provider extends EventEmitter {
 
     // Directory per salvare le memories persistenti
     this.memoriesDir = join(process.cwd(), '.nikcli', 'memories')
-    if (!existsSync(this.memoriesDir)) {
-      mkdirSync(this.memoriesDir, { recursive: true })
+    if (!await fileExists(this.memoriesDir)) {
+      await mkdirp(this.memoriesDir)
     }
 
     advancedUI.logFunctionCall('mem0providerinit')
@@ -768,7 +768,7 @@ export class Mem0Provider extends EventEmitter {
         memories: userMemories,
       }
 
-      writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8')
+      await writeText(filePath, JSON.stringify(data, null, 2), 'utf-8')
     } catch (error: any) {
       structuredLogger.warning('Memory', `⚠︎ Failed to save memories to file: ${error.message}`)
     }
@@ -781,12 +781,12 @@ export class Mem0Provider extends EventEmitter {
     try {
       const filePath = join(this.memoriesDir, `${userId}.json`)
 
-      if (!existsSync(filePath)) {
+      if (!await fileExists(filePath)) {
         structuredLogger.info('Memory', `📝 No saved memories found for user: ${userId.substring(0, 8)}...`)
         return
       }
 
-      const fileContent = readFileSync(filePath, 'utf-8')
+      const fileContent = await readText(filePath)
       const data = JSON.parse(fileContent)
 
       if (data.userId === userId && Array.isArray(data.memories)) {

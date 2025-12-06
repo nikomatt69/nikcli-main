@@ -205,8 +205,8 @@ export class SharedGuidanceManager {
   private async readFileIfExists(filename: string): Promise<string> {
     const filePath = path.join(this.workingDirectory, filename)
     try {
-      if (fs.existsSync(filePath)) {
-        return fs.readFileSync(filePath, 'utf8')
+      if (await fileExists(filePath)) {
+        return await readText(filePath)
       }
     } catch (_error) {
       // Silently fail for missing files

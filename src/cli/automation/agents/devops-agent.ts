@@ -354,7 +354,7 @@ Create production-ready infrastructure with security-first approach, cost optimi
   private async detectDocker(): Promise<boolean> {
     try {
       const fs = require('fs')
-      return fs.existsSync('Dockerfile') || fs.existsSync('docker-compose.yml')
+      return await fileExists('Dockerfile') || await fileExists('docker-compose.yml')
     } catch {
       return false
     }
@@ -363,7 +363,7 @@ Create production-ready infrastructure with security-first approach, cost optimi
   private async detectKubernetes(): Promise<boolean> {
     try {
       const fs = require('fs')
-      return fs.existsSync('k8s') || fs.existsSync('deployment.yaml')
+      return await fileExists('k8s') || await fileExists('deployment.yaml')
     } catch {
       return false
     }
@@ -372,8 +372,8 @@ Create production-ready infrastructure with security-first approach, cost optimi
   private async detectCI(): Promise<string | null> {
     try {
       const fs = require('fs')
-      if (fs.existsSync('.github/workflows')) return 'GitHub Actions'
-      if (fs.existsSync('.gitlab-ci.yml')) return 'GitLab CI'
+      if (await fileExists('.github/workflows')) return 'GitHub Actions'
+      if (await fileExists('.gitlab-ci.yml')) return 'GitLab CI'
       return null
     } catch {
       return null
@@ -383,8 +383,8 @@ Create production-ready infrastructure with security-first approach, cost optimi
   private async detectCloudProvider(): Promise<string | null> {
     try {
       const fs = require('fs')
-      if (fs.existsSync('main.tf')) return 'Multi-cloud (Terraform)'
-      if (fs.existsSync('cloudformation')) return 'AWS'
+      if (await fileExists('main.tf')) return 'Multi-cloud (Terraform)'
+      if (await fileExists('cloudformation')) return 'AWS'
       return null
     } catch {
       return null

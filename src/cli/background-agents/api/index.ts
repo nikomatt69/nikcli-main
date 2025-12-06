@@ -167,7 +167,7 @@ function parseGitHubConfig():
       // It's a file path, try to read it
       try {
         const fs = require('fs')
-        privateKey = fs.readFileSync(privateKeyPath, 'utf8')
+        privateKey = await readText(privateKeyPath)
       } catch (error: any) {
         // Security: Don't log the private key path if it looks like a key itself
         const safePath = privateKeyPath.length > 100 ? '[REDACTED - path too long]' : privateKeyPath

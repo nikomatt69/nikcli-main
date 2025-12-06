@@ -492,8 +492,8 @@ export class AgentLearningSystem {
 
   private async loadLearningData(): Promise<void> {
     try {
-      if (fsSync.existsSync(this.learningFile)) {
-        const data = fsSync.readFileSync(this.learningFile, 'utf-8')
+      if (fsSync.await fileExists(this.learningFile)) {
+        const data = fsSync.await readText(this.learningFile)
         const parsed = JSON.parse(data)
         this.learningData = new Map(Object.entries(parsed))
       }
@@ -506,8 +506,8 @@ export class AgentLearningSystem {
     try {
       // Ensure directory exists before saving
       const dir = path.dirname(this.learningFile)
-      if (!fsSync.existsSync(dir)) {
-        fsSync.mkdirSync(dir, { recursive: true })
+      if (!fsSync.await fileExists(dir)) {
+        fsSync.await mkdirp(dir)
       }
 
       const data = Object.fromEntries(this.learningData)

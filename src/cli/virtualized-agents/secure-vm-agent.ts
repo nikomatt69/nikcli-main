@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events'
-import { existsSync, statSync } from 'node:fs'
+import { bunFile, bunWrite, readText, writeText, fileExists, mkdirp } from '../utils/bun-compat'
 import { resolve } from 'node:path'
 import type {
   Agent,
@@ -655,7 +655,7 @@ export class SecureVirtualizedAgent extends EventEmitter implements Agent {
       resolvedPath = resolve(repositoryInput)
     }
 
-    if (!existsSync(resolvedPath)) {
+    if (!await fileExists(resolvedPath)) {
       throw new Error(`Local repository path not found: ${resolvedPath}`)
     }
 

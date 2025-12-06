@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, statSync } from 'node:fs'
+import { bunFile, bunWrite, readText, writeText, fileExists, mkdirp } from '../utils/bun-compat'
 import { readFile, writeFile } from 'node:fs/promises'
 import { dirname, join, relative } from 'node:path'
 import { PromptManager } from '../prompts/prompt-manager'
@@ -84,7 +84,7 @@ export class EditTool extends BaseTool {
       let originalContent = ''
       let fileExists = false
 
-      if (existsSync(filePath)) {
+      if (await fileExists(filePath)) {
         // Validate that it's a file (not a directory)
         const stats = statSync(filePath)
         if (!stats.isFile()) {
@@ -342,8 +342,8 @@ export class EditTool extends BaseTool {
   private async writeFileWithValidation(filePath: string, newContent: string, params: EditToolParams): Promise<void> {
     // Crea directory se non esiste
     const dir = dirname(filePath)
-    if (!existsSync(dir)) {
-      mkdirSync(dir, { recursive: true })
+    if (!await fileExists(dir)) {
+      await mkdirp(dir)
     }
 
     // Validazione finale

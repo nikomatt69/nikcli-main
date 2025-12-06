@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto'
+import { bunHash, bunHashSync, bunRandomBytes } from '../utils/bun-compat'
 import { EventEmitter } from 'node:events'
 import boxen from 'boxen'
 import chalk from 'chalk'
@@ -349,7 +349,7 @@ export class ApprovalSystem extends EventEmitter {
     }
 
     // Initialize enterprise components
-    this.sessionId = randomBytes(16).toString('hex')
+    this.sessionId = bunRandomBytes(16).toString('hex')
     this.riskEngine = new RiskEngine()
     this.complianceEngine = new ComplianceEngine()
     this.workflowEngine = new WorkflowEngine()

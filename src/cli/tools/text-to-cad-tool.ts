@@ -4,7 +4,7 @@
  */
 
 import path from 'node:path'
-import { promises as fs } from 'node:fs'
+import { bunFile, bunWrite, readText, writeText, fileExists, mkdirp } from '../utils/bun-compat'
 
 import boxen from 'boxen'
 import chalk from 'chalk'

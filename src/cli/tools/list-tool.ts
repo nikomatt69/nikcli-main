@@ -1,4 +1,4 @@
-import { existsSync, statSync } from 'node:fs'
+import { bunFile, bunWrite, readText, writeText, fileExists, mkdirp } from '../utils/bun-compat'
 import { readdir, stat } from 'node:fs/promises'
 import { basename, join, relative } from 'node:path'
 import { PromptManager } from '../prompts/prompt-manager'
@@ -81,7 +81,7 @@ export class ListTool extends BaseTool {
         throw new Error(`Path not safe or outside working directory: ${searchPath}`)
       }
 
-      if (!existsSync(searchPath)) {
+      if (!await fileExists(searchPath)) {
         throw new Error(`Directory does not exist: ${searchPath}`)
       }
 

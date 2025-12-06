@@ -116,9 +116,9 @@ export class CoinbaseAgentKitProvider {
     let owner: Hex | LocalAccount | undefined
 
     // Read existing wallet data if available
-    if (fs.existsSync(this.walletDataFile)) {
+    if (await fileExists(this.walletDataFile)) {
       try {
-        walletData = JSON.parse(fs.readFileSync(this.walletDataFile, 'utf8')) as WalletData
+        walletData = JSON.parse(await readText(this.walletDataFile)) as WalletData
         if (walletData.ownerAddress) owner = walletData.ownerAddress
         else if (walletData.privateKey) owner = privateKeyToAccount(walletData.privateKey as Hex)
         else
@@ -163,9 +163,8 @@ export class CoinbaseAgentKitProvider {
       try {
         const exportedWallet = await this.walletProvider.exportWallet()
         if (!walletData) {
-          fs.writeFileSync(
-            this.walletDataFile,
-            JSON.stringify({
+          await writeText(
+            this.walletDataFile, JSON.stringify({
               ownerAddress: exportedWallet.ownerAddress,
               smartWalletAddress: exportedWallet.address,
             })
@@ -199,9 +198,9 @@ export class CoinbaseAgentKitProvider {
   }) {
     try {
       let list: any[] = []
-      if (fs.existsSync(this.walletListFile)) {
+      if (await fileExists(this.walletListFile)) {
         try {
-          list = JSON.parse(fs.readFileSync(this.walletListFile, 'utf8'))
+          list = JSON.parse(await readText(this.walletListFile))
           if (!Array.isArray(list)) list = []
         } catch {
           list = []
@@ -213,7 +212,7 @@ export class CoinbaseAgentKitProvider {
       } else {
         list.push(entry)
       }
-      fs.writeFileSync(this.walletListFile, JSON.stringify(list, null, 2))
+      await writeText(this.walletListFile, JSON.stringify(list, null, 2))
     } catch (_e) {
       // ignore
     }
@@ -224,8 +223,8 @@ export class CoinbaseAgentKitProvider {
    */
   getKnownWallets(): Array<{ address: string; ownerAddress?: string; networkId?: string }> {
     try {
-      if (!fs.existsSync(this.walletListFile)) return []
-      const list = JSON.parse(fs.readFileSync(this.walletListFile, 'utf8'))
+      if (!await fileExists(this.walletListFile)) return []
+      const list = JSON.parse(await readText(this.walletListFile))
       if (Array.isArray(list)) return list
       return []
     } catch {

@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto'
+import { bunHash, bunHashSync, bunRandomBytes } from '../utils/bun-compat'
 import { EventEmitter } from 'node:events'
 import { advancedUI } from '../../ui/advanced-cli-ui'
 import { CliUI } from '../../utils/cli-ui'
@@ -273,14 +273,14 @@ export class EventBus extends EventEmitter {
    * Generate unique event ID
    */
   private generateEventId(): string {
-    return `evt_${Date.now()}_${randomBytes(6).toString('base64url')}`
+    return `evt_${Date.now()}_${bunRandomBytes(6).toString('base64url')}`
   }
 
   /**
    * Generate unique subscriber ID
    */
   private generateSubscriberId(): string {
-    return `sub_${Date.now()}_${randomBytes(6).toString('base64url')}`
+    return `sub_${Date.now()}_${bunRandomBytes(6).toString('base64url')}`
   }
 
   /** Dispose all subscribers and cleanup */

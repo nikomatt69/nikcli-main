@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto'
+import { bunHash, bunHashSync, bunRandomBytes } from '../utils/bun-compat'
 import { EventEmitter } from 'node:events'
 import chalk from 'chalk'
 import { advancedUI } from '../ui/advanced-cli-ui'
@@ -134,7 +134,7 @@ export class AgentStreamManager extends EventEmitter {
    */
   trackAction(agentId: string, actionType: AgentAction['type'], description: string, input?: any): string {
     const action: AgentAction = {
-      id: `${agentId}-${Date.now()}-${randomBytes(6).toString('base64url')}`,
+      id: `${agentId}-${Date.now()}-${bunRandomBytes(6).toString('base64url')}`,
       agentId,
       type: actionType,
       description,
@@ -353,7 +353,7 @@ export class AgentStreamManager extends EventEmitter {
     }
 
     const fileName = filename || `agent-${agentId}-stream-${Date.now()}.json`
-    require('node:fs').writeFileSync(fileName, JSON.stringify(exportData, null, 2))
+    require('node:fs').await writeText(fileName, JSON.stringify(exportData, null, 2))
 
     console.log(chalk.green(`📄 Stream exported to ${fileName}`))
     return fileName

@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events'
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
+import { bunFile, bunWrite, readText, writeText, fileExists, mkdirp } from '../utils/bun-compat'
 import { dirname, resolve } from 'node:path'
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import { createOpenAI } from '@ai-sdk/openai'
@@ -91,8 +91,8 @@ export class ImageGenerator extends EventEmitter {
     }
 
     // Create output directory if it doesn't exist
-    if (this.config.auto_save && !existsSync(this.config.output_directory)) {
-      mkdirSync(this.config.output_directory, { recursive: true })
+    if (this.config.auto_save && !await fileExists(this.config.output_directory)) {
+      await mkdirp(this.config.output_directory)
     }
 
     advancedUI.logFunctionCall('imagegeneratorinit')
@@ -780,12 +780,12 @@ export class ImageGenerator extends EventEmitter {
 
       // Create directory if needed
       const dir = dirname(outputPath)
-      if (!existsSync(dir)) {
-        mkdirSync(dir, { recursive: true })
+      if (!await fileExists(dir)) {
+        await mkdirp(dir)
       }
 
       // Save image
-      writeFileSync(outputPath, imageBuffer)
+      await writeText(outputPath, imageBuffer)
 
       console.log(chalk.gray(` Image saved to: ${outputPath}`))
       return outputPath
@@ -1069,8 +1069,8 @@ export class ImageGenerator extends EventEmitter {
     this.config = { ...this.config, ...newConfig }
 
     // Create output directory if changed
-    if (newConfig.output_directory && !existsSync(this.config.output_directory)) {
-      mkdirSync(this.config.output_directory, { recursive: true })
+    if (newConfig.output_directory && !await fileExists(this.config.output_directory)) {
+      await mkdirp(this.config.output_directory)
     }
 
     console.log(chalk.blue('🎨 Image Generator configuration updated'))

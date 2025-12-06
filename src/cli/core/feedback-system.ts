@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto'
+import { bunHash, bunHashSync, bunRandomBytes } from '../utils/bun-compat'
 import * as fsSync from 'node:fs'
 import * as fs from 'node:fs/promises'
 import * as os from 'node:os'
@@ -73,15 +73,15 @@ export class FeedbackSystem {
   }
 
   private ensureFeedbackDir(): void {
-    if (!fsSync.existsSync(this.feedbackDir)) {
-      fsSync.mkdirSync(this.feedbackDir, { recursive: true })
+    if (!fsSync.await fileExists(this.feedbackDir)) {
+      fsSync.await mkdirp(this.feedbackDir)
     }
   }
 
   private loadConfig(): void {
     try {
-      if (fsSync.existsSync(this.configFile)) {
-        const data = fsSync.readFileSync(this.configFile, 'utf-8')
+      if (fsSync.await fileExists(this.configFile)) {
+        const data = fsSync.await readText(this.configFile)
         this.config = { ...this.config, ...JSON.parse(data) }
       }
     } catch (_error) {
@@ -99,8 +99,8 @@ export class FeedbackSystem {
 
   private loadPendingFeedback(): void {
     try {
-      if (fsSync.existsSync(this.feedbackFile)) {
-        const data = fsSync.readFileSync(this.feedbackFile, 'utf-8')
+      if (fsSync.await fileExists(this.feedbackFile)) {
+        const data = fsSync.await readText(this.feedbackFile)
         this.pendingFeedback = JSON.parse(data)
       }
     } catch (_error) {
@@ -345,7 +345,7 @@ export class FeedbackSystem {
   }
 
   private generateId(): string {
-    return `feedback_${Date.now()}_${randomBytes(6).toString('base64url')}`
+    return `feedback_${Date.now()}_${bunRandomBytes(6).toString('base64url')}`
   }
 
   private chunkArray<T>(array: T[], size: number): T[][] {

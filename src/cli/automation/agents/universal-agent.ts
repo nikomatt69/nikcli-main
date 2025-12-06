@@ -1375,9 +1375,9 @@ export class UniversalAgent extends EventEmitter implements Agent {
   private async detectEnvironment(): Promise<void> {
     const packageJsonPath = path.join(this.workingDirectory, 'package.json')
 
-    if (fs.existsSync(packageJsonPath)) {
+    if (await fileExists(packageJsonPath)) {
       try {
-        const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'))
+        const packageJson = JSON.parse(await readText(packageJsonPath))
         const deps = { ...packageJson.dependencies, ...packageJson.devDependencies }
 
         // Detect frameworks and tools

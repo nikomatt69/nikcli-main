@@ -192,7 +192,7 @@ export class MultiReadTool extends BaseTool {
             continue
           }
 
-          const content = fs.readFileSync(abs, 'utf8')
+          const content = await readText(abs)
           const extension = path.extname(abs).slice(1)
           const rel = path.relative(root, abs)
 

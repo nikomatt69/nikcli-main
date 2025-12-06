@@ -595,7 +595,7 @@ export class BrowserbaseProvider extends EventEmitter {
    */
   private generateCacheKey(input: string): string {
     const crypto = require('node:crypto')
-    return crypto.createHash('sha256').update(input).digest('hex').substring(0, 16)
+    return crypto.bunHashSync('sha256', input, 'hex').substring(0, 16)
   }
 
   /**

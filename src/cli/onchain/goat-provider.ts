@@ -386,11 +386,11 @@ For any blockchain transaction, provide a clear summary including:
 
       // Ensure directory exists
       const dir = this.walletDataFile.split('/').slice(0, -1).join('/')
-      if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true })
+      if (!await fileExists(dir)) {
+        await mkdirp(dir)
       }
 
-      fs.writeFileSync(this.walletDataFile, JSON.stringify(walletData, null, 2))
+      await writeText(this.walletDataFile, JSON.stringify(walletData, null, 2))
       console.log(`✓ GOAT wallet data saved to ${this.walletDataFile}`)
     } catch (error) {
       console.warn('⚠︎ Could not save wallet data:', error)
@@ -406,7 +406,7 @@ For any blockchain transaction, provide a clear summary including:
     }
 
     try {
-      const walletData = JSON.parse(fs.readFileSync(this.walletDataFile, 'utf8'))
+      const walletData = JSON.parse(await readText(this.walletDataFile))
       return {
         address: walletData.address,
         chains: walletData.chains,

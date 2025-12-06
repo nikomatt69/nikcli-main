@@ -158,7 +158,7 @@ export class TokenCacheManager {
   private generateExactKey(prompt: string, context: string = ''): string {
     // Normalize to reduce spurious misses from whitespace/case/punctuation
     const normalized = this.normalizeText(prompt + context)
-    return crypto.createHash('sha256').update(normalized).digest('hex').substring(0, 32)
+    return crypto.bunHashSync('sha256', normalized, 'hex').substring(0, 32)
   }
 
   /**
@@ -283,7 +283,7 @@ export class TokenCacheManager {
       promptHash: this.generateSemanticKey(prompt, context),
       signatureWords: this.extractSignatureWords(`${prompt} ${context}`),
       promptPreview: prompt.substring(0, 120),
-      responseHash: crypto.createHash('sha256').update(response).digest('hex').substring(0, 32),
+      responseHash: crypto.bunHashSync('sha256', response, 'hex').substring(0, 32),
       responsePreview: response.substring(0, 120),
       timestamp: new Date(),
       tokensSaved: Math.max(tokensSaved, this.estimateTokens(prompt + response)),

@@ -33,8 +33,8 @@ export class MermaidRenderer {
   private static initTempDir(): void {
     if (!MermaidRenderer.tempDir) {
       MermaidRenderer.tempDir = join(tmpdir(), 'nikcli-mermaid')
-      if (!existsSync(MermaidRenderer.tempDir)) {
-        mkdirSync(MermaidRenderer.tempDir, { recursive: true })
+      if (!await fileExists(MermaidRenderer.tempDir)) {
+        await mkdirp(MermaidRenderer.tempDir)
       }
     }
   }
@@ -99,7 +99,7 @@ export class MermaidRenderer {
 
     try {
       // Write Mermaid code to temp file
-      writeFileSync(inputFile, mermaidCode, 'utf8')
+      await writeText(inputFile, mermaidCode)
 
       // Generate PNG using mermaid-cli (mmdc)
       execSync(`pnpm exec mmdc -i "${inputFile}" -o "${outputFile}" -t ${options.theme || 'dark'} -b transparent -q`, {
@@ -143,7 +143,7 @@ export class MermaidRenderer {
 
     try {
       // Write Mermaid code to temp file
-      writeFileSync(inputFile, mermaidCode, 'utf8')
+      await writeText(inputFile, mermaidCode)
 
       // Build command with padding options
       const paddingFlags: string[] = []
@@ -239,7 +239,7 @@ export class MermaidRenderer {
    */
   private static cleanupFile(filepath: string): void {
     try {
-      if (existsSync(filepath)) {
+      if (await fileExists(filepath)) {
         unlinkSync(filepath)
       }
     } catch (error) {

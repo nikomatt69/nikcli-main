@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, readFileSync } from 'node:fs'
+import { bunFile, bunWrite, readText, writeText, fileExists, mkdirp } from '../utils/bun-compat'
 import { extname, join, relative } from 'node:path'
 import { tool } from 'ai'
 import chalk from 'chalk'
@@ -100,7 +100,7 @@ export class IDEContextEnricher {
 
     if (files.includes('package.json')) {
       try {
-        const packageJson = JSON.parse(readFileSync('package.json', 'utf-8'))
+        const packageJson = JSON.parse(await readText('package.json'))
         if (packageJson.dependencies?.next || packageJson.dependencies?.['@next/next']) {
           return 'Next.js'
         }
@@ -138,8 +138,8 @@ export class IDEContextEnricher {
   // Analyze dependencies
   private async analyzeDependencies(): Promise<any> {
     try {
-      if (existsSync('package.json')) {
-        const packageJson = JSON.parse(readFileSync('package.json', 'utf-8'))
+      if (await fileExists('package.json')) {
+        const packageJson = JSON.parse(await readText('package.json'))
         return {
           name: packageJson.name,
           version: packageJson.version,

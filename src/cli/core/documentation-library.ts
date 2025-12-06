@@ -1,6 +1,6 @@
 import { exec } from 'node:child_process'
-import { randomBytes } from 'node:crypto'
-import { existsSync, mkdirSync } from 'node:fs'
+import { bunHash, bunHashSync, bunRandomBytes } from '../utils/bun-compat'
+import { bunFile, bunWrite, readText, writeText, fileExists, mkdirp } from '../utils/bun-compat'
 import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
 import { promisify } from 'node:util'
@@ -618,7 +618,7 @@ export class DocumentationLibrary {
    * Genera ID unico
    */
   private generateId(): string {
-    return `doc_${Date.now()}_${randomBytes(6).toString('base64url')}`
+    return `doc_${Date.now()}_${bunRandomBytes(6).toString('base64url')}`
   }
 
   /**
@@ -654,8 +654,8 @@ export class DocumentationLibrary {
     try {
       // Ensure directory exists before saving
       const dir = path.dirname(this.docsFile)
-      if (!existsSync(dir)) {
-        mkdirSync(dir, { recursive: true })
+      if (!await fileExists(dir)) {
+        await mkdirp(dir)
       }
 
       const data = JSON.stringify(Object.fromEntries(this.docs), null, 2)

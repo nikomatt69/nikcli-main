@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { bunFile, bunWrite, readText, writeText, fileExists, mkdirp } from '../utils/bun-compat'
 import { mkdir } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
@@ -52,8 +52,8 @@ export class SSHSessionBridge {
 
   constructor(sessionManager: EnhancedSessionManager) {
     this.sessionManager = sessionManager
-    this.configPath = join(homedir(), '.nikcli', 'ssh-bridge-config.json')
-    this.statePath = join(homedir(), '.nikcli', 'ssh-session-state.json')
+    this.configPath = `${homedir()}/.nikcli, 'ssh-bridge-config.json'`
+    this.statePath = `${homedir()}/.nikcli, 'ssh-session-state.json'`
     this.config = this.loadConfig()
 
     this.initializeBridge()
@@ -141,9 +141,9 @@ export class SSHSessionBridge {
       tmuxIntegration: true,
     }
 
-    if (existsSync(this.configPath)) {
+    if (await fileExists(this.configPath)) {
       try {
-        const saved = JSON.parse(readFileSync(this.configPath, 'utf-8'))
+        const saved = JSON.parse(await readText(this.configPath))
         return { ...defaultConfig, ...saved }
       } catch {
         console.log(chalk.yellow('⚠︎ Invalid SSH bridge config, using defaults'))
@@ -158,7 +158,7 @@ export class SSHSessionBridge {
    */
   private saveConfig(): void {
     try {
-      writeFileSync(this.configPath, JSON.stringify(this.config, null, 2))
+      await writeText(this.configPath, JSON.stringify(this.config, null, 2))
     } catch (error: any) {
       console.log(chalk.yellow(`⚠︎ Failed to save SSH bridge config: ${error.message}`))
     }
@@ -168,7 +168,7 @@ export class SSHSessionBridge {
    * Ensure state directory exists
    */
   private async ensureStateDirectory(): Promise<void> {
-    const stateDir = join(homedir(), '.nikcli', 'ssh-sessions')
+    const stateDir = `${homedir()}/.nikcli, 'ssh-sessions'`
     try {
       await mkdir(stateDir, { recursive: true })
     } catch (error: any) {
@@ -192,11 +192,11 @@ export class SSHSessionBridge {
    */
   private async restoreSession(): Promise<void> {
     const stateId = this.generateSessionStateId()
-    const statePath = join(homedir(), '.nikcli', 'ssh-sessions', `${stateId}.json`)
+    const statePath = `${homedir()}/.nikcli, 'ssh-sessions', `${stateId}.json``
 
     try {
-      if (existsSync(statePath)) {
-        const stateData = JSON.parse(readFileSync(statePath, 'utf-8'))
+      if (await fileExists(statePath)) {
+        const stateData = JSON.parse(await readText(statePath))
         this.currentState = {
           ...stateData,
           connectionCount: (stateData.connectionCount || 0) + 1,
@@ -270,10 +270,10 @@ export class SSHSessionBridge {
   private async saveSessionState(): Promise<void> {
     if (!this.currentState) return
 
-    const statePath = join(homedir(), '.nikcli', 'ssh-sessions', `${this.currentState.sessionId}.json`)
+    const statePath = `${homedir()}/.nikcli, 'ssh-sessions', `${this.currentState.sessionId}.json``
 
     try {
-      await writeFileSync(statePath, JSON.stringify(this.currentState, null, 2))
+      await await writeText(statePath, JSON.stringify(this.currentState, null, 2))
     } catch (error: any) {
       console.log(chalk.yellow(`⚠︎ Failed to save session state: ${error.message}`))
     }
@@ -348,13 +348,13 @@ export class SSHSessionBridge {
       }
 
       // Save backup
-      const backupDir = join(homedir(), '.nikcli', 'ssh-backups')
+      const backupDir = `${homedir()}/.nikcli, 'ssh-backups'`
       await mkdir(backupDir, { recursive: true })
 
       const backupFileName = `backup-${Date.now()}.json`
       const backupPath = join(backupDir, backupFileName)
 
-      writeFileSync(backupPath, JSON.stringify(backupData, null, 2))
+      await writeText(backupPath, JSON.stringify(backupData, null, 2))
 
       // Update state
       if (this.currentState) {

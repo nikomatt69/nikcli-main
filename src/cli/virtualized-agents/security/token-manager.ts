@@ -315,7 +315,7 @@ export class TokenManager extends EventEmitter {
    * Generate secure secret key
    */
   private generateSecretKey(): string {
-    const secret = crypto.randomBytes(64).toString('hex')
+    const secret = bunRandomBytes(64).toString('hex')
     advancedUI.logWarning('⚠︎ Using generated JWT secret. Set NIKCLI_JWT_SECRET environment variable for production')
     return secret
   }

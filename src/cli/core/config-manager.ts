@@ -1541,7 +1541,7 @@ export class SimpleConfigManager {
       const exists = Bun.spawnSync({ cmd: ['test', '-f', this.configPath] }).success
       if (exists) {
         // Read synchronously for constructor
-        const configText = require('fs').readFileSync(this.configPath, 'utf8')
+        const configText = require('fs').await readText(this.configPath)
         const configData = JSON.parse(configText)
         // Merge with defaults to ensure all fields exist
         this.config = { ...this.defaultConfig, ...configData }

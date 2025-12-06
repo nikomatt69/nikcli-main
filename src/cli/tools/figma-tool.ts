@@ -9,7 +9,7 @@
  */
 
 import { EventEmitter } from 'node:events'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { bunFile, bunWrite, readText, writeText, fileExists, mkdirp } from '../utils/bun-compat'
 import { resolve } from 'node:path'
 import axios, { type AxiosInstance } from 'axios'
 import chalk from 'chalk'
@@ -303,8 +303,8 @@ export class FigmaTool extends EventEmitter {
       const baseOutputPath = outputPath || this.config.defaultOutputPath
 
       // Ensure output directory exists
-      if (!existsSync(baseOutputPath)) {
-        mkdirSync(baseOutputPath, { recursive: true })
+      if (!await fileExists(baseOutputPath)) {
+        await mkdirp(baseOutputPath)
       }
 
       for (const [nodeId, imageUrl] of Object.entries(exportUrls) as [string, string][]) {
@@ -313,7 +313,7 @@ export class FigmaTool extends EventEmitter {
           const fileName = `${nodeId.replace(':', '-')}.${format}`
           const filePath = resolve(baseOutputPath, fileName)
 
-          writeFileSync(filePath, Buffer.from(imageResponse.data))
+          await writeText(filePath, Buffer.from(imageResponse.data))
           exportedPaths.push(filePath)
 
           this.emit('export-progress', {
@@ -1046,14 +1046,14 @@ export default FigmaComponent`
       throw new Error('Component file path is required')
     }
 
-    if (!existsSync(componentPath)) {
+    if (!await fileExists(componentPath)) {
       throw new Error(`Component file not found: ${componentPath}`)
     }
 
     console.log(chalk.blue(`🎨 Creating Figma design from React component: ${componentPath}`))
 
     // Read and analyze the React component
-    const componentCode = readFileSync(componentPath, 'utf-8')
+    const componentCode = await readText(componentPath)
     const componentName = outputName || this.extractComponentName(componentCode)
 
     console.log(chalk.blue(`📝 Analyzing component: ${componentName}`))

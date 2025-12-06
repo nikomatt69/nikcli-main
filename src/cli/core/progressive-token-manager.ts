@@ -1,5 +1,5 @@
 import crypto from 'node:crypto'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { bunFile, bunWrite, readText, writeText, fileExists, mkdirp } from '../utils/bun-compat'
 import { join } from 'node:path'
 import type { CoreMessage } from 'ai'
 import chalk from 'chalk'
@@ -75,8 +75,8 @@ export class ProgressiveTokenManager {
   }
 
   private ensureCheckpointDir(): void {
-    if (this.config.checkpointDir && !existsSync(this.config.checkpointDir)) {
-      mkdirSync(this.config.checkpointDir, { recursive: true })
+    if (this.config.checkpointDir && !await fileExists(this.config.checkpointDir)) {
+      await mkdirp(this.config.checkpointDir)
     }
   }
 
@@ -374,7 +374,7 @@ export class ProgressiveTokenManager {
    * Create a processing checkpoint
    */
   private async createCheckpoint(chunkId: string, context: any): Promise<string> {
-    const checkpointId = crypto.randomBytes(16).toString('hex')
+    const checkpointId = bunRandomBytes(16).toString('hex')
     const checkpoint: ProcessingCheckpoint = {
       id: checkpointId,
       chunkId,
@@ -387,7 +387,7 @@ export class ProgressiveTokenManager {
 
     if (this.config.enableCheckpointing && this.config.checkpointDir) {
       const checkpointPath = join(this.config.checkpointDir, `${checkpointId}.json`)
-      writeFileSync(checkpointPath, JSON.stringify(checkpoint, null, 2))
+      await writeText(checkpointPath, JSON.stringify(checkpoint, null, 2))
     }
 
     return checkpointId
@@ -418,7 +418,7 @@ export class ProgressiveTokenManager {
 
     if (this.config.enableCheckpointing && this.config.checkpointDir) {
       const checkpointPath = join(this.config.checkpointDir, `${checkpointId}.json`)
-      writeFileSync(checkpointPath, JSON.stringify(checkpoint, null, 2))
+      await writeText(checkpointPath, JSON.stringify(checkpoint, null, 2))
     }
   }
 
@@ -434,8 +434,8 @@ export class ProgressiveTokenManager {
     // Try disk
     if (this.config.checkpointDir) {
       const checkpointPath = join(this.config.checkpointDir, `${checkpointId}.json`)
-      if (existsSync(checkpointPath)) {
-        const data = readFileSync(checkpointPath, 'utf-8')
+      if (await fileExists(checkpointPath)) {
+        const data = await readText(checkpointPath)
         const checkpoint = JSON.parse(data) as ProcessingCheckpoint
         this.checkpoints.set(checkpointId, checkpoint)
         return checkpoint

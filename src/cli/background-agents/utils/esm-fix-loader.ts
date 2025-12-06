@@ -4,7 +4,7 @@
  * This prevents "No exports main defined" errors during dynamic imports
  */
 
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { bunFile, bunWrite, readText, writeText, fileExists, mkdirp } from '../utils/bun-compat'
 import { createRequire } from 'node:module'
 import { dirname, isAbsolute, join, resolve } from 'node:path'
 
@@ -27,11 +27,11 @@ const ESM_PACKAGES_TO_FIX: PackageInfo[] = [
  */
 function fixESMPackage(packagePath: string, packageInfo: PackageInfo): boolean {
   try {
-    if (!existsSync(packagePath)) {
+    if (!await fileExists(packagePath)) {
       return false
     }
 
-    const packageJson = JSON.parse(readFileSync(packagePath, 'utf8'))
+    const packageJson = JSON.parse(await readText(packagePath))
 
     // Skip if already has main field
     if (packageJson.main) {
@@ -40,9 +40,9 @@ function fixESMPackage(packagePath: string, packageInfo: PackageInfo): boolean {
 
     // Try the specified main field first
     const mainPath = join(dirname(packagePath), packageInfo.main)
-    if (existsSync(mainPath)) {
+    if (await fileExists(mainPath)) {
       packageJson.main = packageInfo.main
-      writeFileSync(packagePath, JSON.stringify(packageJson, null, '\t') + '\n', 'utf8')
+      await writeText(packagePath, JSON.stringify(packageJson, null, '\t') + '\n', 'utf8')
       return true
     }
 
@@ -50,9 +50,9 @@ function fixESMPackage(packagePath: string, packageInfo: PackageInfo): boolean {
     const alternatives = packageInfo.alternatives || ['./index.js', './dist/index.js', './src/index.js']
     for (const alt of alternatives) {
       const altPath = join(dirname(packagePath), alt)
-      if (existsSync(altPath)) {
+      if (await fileExists(altPath)) {
         packageJson.main = alt
-        writeFileSync(packagePath, JSON.stringify(packageJson, null, '\t') + '\n', 'utf8')
+        await writeText(packagePath, JSON.stringify(packageJson, null, '\t') + '\n', 'utf8')
         return true
       }
     }
@@ -69,7 +69,7 @@ function fixESMPackage(packagePath: string, packageInfo: PackageInfo): boolean {
  */
 function findPackageInPnpm(nodeModulesPath: string, pkgName: string): string | null {
   const pnpmPath = join(nodeModulesPath, '.pnpm')
-  if (!existsSync(pnpmPath)) {
+  if (!await fileExists(pnpmPath)) {
     return null
   }
 
@@ -81,7 +81,7 @@ function findPackageInPnpm(nodeModulesPath: string, pkgName: string): string | n
     for (const entry of entries) {
       if (entry.isDirectory()) {
         const candidatePath = join(pnpmPath, entry.name, 'node_modules', pkgName, 'package.json')
-        if (existsSync(candidatePath)) {
+        if (await fileExists(candidatePath)) {
           return candidatePath
         }
       }
@@ -105,7 +105,7 @@ export function fixESMPackagesInNodeModules(nodeModulesPath: string): number {
     let packageJsonPath = join(nodeModulesPath, pkgInfo.name, 'package.json')
 
     // If not found, try pnpm structure
-    if (!existsSync(packageJsonPath)) {
+    if (!await fileExists(packageJsonPath)) {
       const pnpmPath = findPackageInPnpm(nodeModulesPath, pkgInfo.name)
       if (pnpmPath) {
         packageJsonPath = pnpmPath
@@ -130,7 +130,7 @@ export function fixESMPackagesInNodeModules(nodeModulesPath: string): number {
 export function autoFixESMPackages(basePath: string = process.cwd(), silent: boolean = false): void {
   const nodeModulesPath = join(basePath, 'node_modules')
 
-  if (!existsSync(nodeModulesPath)) {
+  if (!await fileExists(nodeModulesPath)) {
     if (!silent) {
       console.log(`ℹ️  No node_modules found at ${basePath}, skipping ESM fix`)
     }

@@ -4,7 +4,7 @@
  */
 
 import { execSync } from 'node:child_process'
-import { existsSync } from 'node:fs'
+import { bunFile, bunWrite, readText, writeText, fileExists, mkdirp } from '../utils/bun-compat'
 import { join } from 'node:path'
 import { Octokit } from '@octokit/rest'
 import type { ChatSession, FileChange } from '../types'
@@ -57,7 +57,7 @@ export class GitHubPRService {
 
       // Get the job
       const workspaceDir = this.getWorkspaceDir(session.jobId)
-      if (!existsSync(workspaceDir)) {
+      if (!await fileExists(workspaceDir)) {
         return {
           success: false,
           error: 'Workspace directory not found',
@@ -126,7 +126,7 @@ export class GitHubPRService {
   async commitChanges(session: ChatSession, message?: string): Promise<{ success: boolean; error?: string }> {
     try {
       const workspaceDir = this.getWorkspaceDir(session.jobId)
-      if (!existsSync(workspaceDir)) {
+      if (!await fileExists(workspaceDir)) {
         return { success: false, error: 'Workspace directory not found' }
       }
 

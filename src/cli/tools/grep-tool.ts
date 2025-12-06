@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs'
+import { bunFile, bunWrite, readText, writeText, fileExists, mkdirp } from '../utils/bun-compat'
 import { readdir, readFile, stat } from 'node:fs/promises'
 import { extname, join, relative } from 'node:path'
 
@@ -82,7 +82,7 @@ export class GrepTool extends BaseTool {
         throw new Error(`Path not safe or outside working directory: ${searchPath}`)
       }
 
-      if (!existsSync(searchPath)) {
+      if (!await fileExists(searchPath)) {
         throw new Error(`Search path does not exist: ${searchPath}`)
       }
 

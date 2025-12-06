@@ -1,7 +1,7 @@
 // src/cli/github-bot/pr-review-executor.ts
 
 import { execSync } from 'node:child_process'
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { bunFile, bunWrite, readText, writeText, fileExists, mkdirp } from '../utils/bun-compat'
 import { join } from 'node:path'
 import type { Octokit } from '@octokit/rest'
 import type { GitHubBotConfig, GitHubPullRequest, ProcessingJob, RepositoryContext, TaskResult } from './types'
@@ -323,12 +323,12 @@ export class PRReviewExecutor {
   ): Promise<void> {
     const filePath = join(workingDir, file)
 
-    if (!existsSync(filePath)) {
+    if (!await fileExists(filePath)) {
       console.warn(`File not found: ${filePath}`)
       return
     }
 
-    const content = readFileSync(filePath, 'utf8')
+    const content = await readText(filePath)
     const lines = content.split('\n')
 
     // Build context for AI
@@ -358,7 +358,7 @@ export class PRReviewExecutor {
     }
 
     if (modified) {
-      writeFileSync(filePath, lines.join('\n'), 'utf8')
+      await writeText(filePath, lines.join('\n'))
       console.log(`✓ Applied fixes to ${file}`)
     }
   }

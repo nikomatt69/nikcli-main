@@ -179,12 +179,12 @@ export class DiffManager {
     try {
       // Ensure directory exists
       const dir = path.dirname(filePath)
-      if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true })
+      if (!await fileExists(dir)) {
+        await mkdirp(dir)
       }
 
       // Write new content
-      fs.writeFileSync(filePath, diff.newContent, 'utf8')
+      await writeText(filePath, diff.newContent)
 
       console.log(chalk.green(`✓ Applied changes to ${filePath}`))
       return true

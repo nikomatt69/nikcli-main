@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { bunFile, bunWrite, readText, writeText, fileExists, mkdirp } from '../utils/bun-compat'
 import { join } from 'node:path'
 
 export interface AnalyticsEvent {
@@ -187,7 +187,7 @@ export class AnalyticsManager {
         events: this.events,
         lastUpdated: new Date().toISOString(),
       }
-      writeFileSync(this.analyticsFile, JSON.stringify(data, null, 2))
+      await writeText(this.analyticsFile, JSON.stringify(data, null, 2))
     } catch (error) {
       console.warn('Failed to save analytics:', error)
     }
@@ -196,8 +196,8 @@ export class AnalyticsManager {
   // Load analytics from file
   private loadAnalytics(): void {
     try {
-      if (existsSync(this.analyticsFile)) {
-        const data = JSON.parse(readFileSync(this.analyticsFile, 'utf-8'))
+      if (await fileExists(this.analyticsFile)) {
+        const data = JSON.parse(await readText(this.analyticsFile))
         this.events = data.events.map((e: any) => ({
           ...e,
           timestamp: new Date(e.timestamp),

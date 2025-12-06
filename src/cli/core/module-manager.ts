@@ -377,7 +377,7 @@ export class ModuleManager {
       const fs = require('node:fs')
       const resolvedPath = path.resolve(context.workingDirectory, newDir)
 
-      if (!fs.existsSync(resolvedPath)) {
+      if (!await fileExists(resolvedPath)) {
         console.log(chalk.red(`Directory not found: ${newDir}`))
         return
       }

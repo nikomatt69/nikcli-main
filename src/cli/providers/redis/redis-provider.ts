@@ -587,7 +587,7 @@ export class RedisProvider extends EventEmitter {
    */
   private generateVectorCacheKey(text: string, provider: string, model: string): string {
     const crypto = require('node:crypto')
-    const textHash = crypto.createHash('sha256').update(text).digest('hex').substring(0, 16)
+    const textHash = crypto.bunHashSync('sha256', text, 'hex').substring(0, 16)
     return `vector:${provider}:${model}:${textHash}`
   }
 
@@ -608,7 +608,7 @@ export class RedisProvider extends EventEmitter {
 
     try {
       const crypto = require('node:crypto')
-      const textHash = crypto.createHash('sha256').update(text).digest('hex')
+      const textHash = crypto.bunHashSync('sha256', text, 'hex')
       const cacheKey = this.generateVectorCacheKey(text, provider, model)
 
       const vectorEntry: VectorCacheEntry = {
@@ -675,7 +675,7 @@ export class RedisProvider extends EventEmitter {
 
       // Verify text matches (additional security)
       const crypto = require('node:crypto')
-      const textHash = crypto.createHash('sha256').update(text).digest('hex')
+      const textHash = crypto.bunHashSync('sha256', text, 'hex')
       if (vectorEntry.textHash !== textHash) {
         console.log(chalk.yellow('⚠︎ Vector cache hash mismatch, invalidating entry'))
         await this.del(cacheKey)

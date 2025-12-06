@@ -74,14 +74,14 @@ export class JsonPatchTool extends BaseTool {
       }
 
       const absolute = sanitizePath(params.filePath, this.getWorkingDirectory())
-      if (!fs.existsSync(absolute)) throw new Error(`File not found: ${params.filePath}`)
+      if (!await fileExists(absolute)) throw new Error(`File not found: ${params.filePath}`)
 
       // Validate that it's a file (not a directory)
       validateIsFile(absolute, `Cannot patch: path is a directory: ${params.filePath}`)
 
       const ext = path.extname(absolute).toLowerCase()
 
-      const originalContent = fs.readFileSync(absolute, 'utf8')
+      const originalContent = await readText(absolute)
       let data: any
       let serializer: (obj: any) => string
 
@@ -170,12 +170,12 @@ export class JsonPatchTool extends BaseTool {
       if (!params.previewOnly && params.createBackup !== false) {
         const ts = new Date().toISOString().replace(/[:.]/g, '-')
         backupPath = `${absolute}.backup.${ts}`
-        fs.writeFileSync(backupPath, originalContent, 'utf8')
+        await writeText(backupPath, originalContent)
         advancedUI.logInfo(`💾 Backup created: ${path.relative(this.getWorkingDirectory(), backupPath)}`)
       }
 
       if (!params.previewOnly) {
-        fs.writeFileSync(absolute, newContent, 'utf8')
+        await writeText(absolute, newContent)
         advancedUI.logSuccess('✓ JSON patch applied')
       } else {
         advancedUI.logInfo('📋 Preview only, no changes written')

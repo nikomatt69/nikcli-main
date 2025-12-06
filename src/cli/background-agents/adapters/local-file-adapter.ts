@@ -1,7 +1,7 @@
 // src/cli/background-agents/adapters/local-file-adapter.ts
 // Adapter to use local filesystem as storage for Background Agents
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { bunFile, bunWrite, readText, writeText, fileExists, mkdirp } from '../utils/bun-compat'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import type { BackgroundJob } from '../types'
@@ -35,14 +35,14 @@ export class LocalFileBackgroundAgentAdapter implements LocalFileAdapter {
   private readonly statsFile: string
 
   constructor(baseDir?: string) {
-    this.baseDir = baseDir || join(homedir(), '.nikcli', 'background-jobs')
+    this.baseDir = baseDir || `${homedir()}/.nikcli, 'background-jobs'`
     this.jobsFile = join(this.baseDir, 'jobs.json')
     this.queueFile = join(this.baseDir, 'queue.json')
     this.statsFile = join(this.baseDir, 'stats.json')
 
     // Ensure directory exists
-    if (!existsSync(this.baseDir)) {
-      mkdirSync(this.baseDir, { recursive: true })
+    if (!await fileExists(this.baseDir)) {
+      await mkdirp(this.baseDir)
     }
   }
 
@@ -52,8 +52,8 @@ export class LocalFileBackgroundAgentAdapter implements LocalFileAdapter {
   async isAvailable(): Promise<boolean> {
     try {
       // Ensure directory exists
-      if (!existsSync(this.baseDir)) {
-        mkdirSync(this.baseDir, { recursive: true })
+      if (!await fileExists(this.baseDir)) {
+        await mkdirp(this.baseDir)
       }
       return true
     } catch {
@@ -95,7 +95,7 @@ export class LocalFileBackgroundAgentAdapter implements LocalFileAdapter {
         jobs.push(serializedJob as any)
       }
 
-      writeFileSync(this.jobsFile, JSON.stringify(jobs, null, 2), 'utf-8')
+      await writeText(this.jobsFile, JSON.stringify(jobs, null, 2), 'utf-8')
     } catch (error) {
       console.error('Error storing job in local file:', error)
       throw error
@@ -121,11 +121,11 @@ export class LocalFileBackgroundAgentAdapter implements LocalFileAdapter {
    */
   async getAllJobs(): Promise<BackgroundJob[]> {
     try {
-      if (!existsSync(this.jobsFile)) {
+      if (!await fileExists(this.jobsFile)) {
         return []
       }
 
-      const content = readFileSync(this.jobsFile, 'utf-8')
+      const content = await readText(this.jobsFile)
       const jobs = JSON.parse(content) as any[]
 
       return jobs.map((job) => this.deserializeJob(job))
@@ -146,7 +146,7 @@ export class LocalFileBackgroundAgentAdapter implements LocalFileAdapter {
     try {
       const jobs = await this.getAllJobs()
       const filteredJobs = jobs.filter((j) => j.id !== jobId)
-      writeFileSync(this.jobsFile, JSON.stringify(filteredJobs, null, 2), 'utf-8')
+      await writeText(this.jobsFile, JSON.stringify(filteredJobs, null, 2), 'utf-8')
     } catch (error) {
       console.error('Error deleting job from local file:', error)
       throw error
@@ -161,7 +161,7 @@ export class LocalFileBackgroundAgentAdapter implements LocalFileAdapter {
       const queue = await this.getQueue()
       queue.push({ jobId, priority, timestamp: Date.now() })
       queue.sort((a, b) => b.priority - a.priority)
-      writeFileSync(this.queueFile, JSON.stringify(queue, null, 2), 'utf-8')
+      await writeText(this.queueFile, JSON.stringify(queue, null, 2), 'utf-8')
     } catch (error) {
       console.error('Error adding job to queue:', error)
       throw error
@@ -179,7 +179,7 @@ export class LocalFileBackgroundAgentAdapter implements LocalFileAdapter {
       }
       const next = queue.shift()
       if (next) {
-        writeFileSync(this.queueFile, JSON.stringify(queue, null, 2), 'utf-8')
+        await writeText(this.queueFile, JSON.stringify(queue, null, 2), 'utf-8')
         return next.jobId
       }
       return null
@@ -196,7 +196,7 @@ export class LocalFileBackgroundAgentAdapter implements LocalFileAdapter {
     try {
       const queue = await this.getQueue()
       const filteredQueue = queue.filter((item) => item.jobId !== jobId)
-      writeFileSync(this.queueFile, JSON.stringify(filteredQueue, null, 2), 'utf-8')
+      await writeText(this.queueFile, JSON.stringify(filteredQueue, null, 2), 'utf-8')
     } catch (error) {
       console.error('Error removing job from queue:', error)
       throw error
@@ -222,7 +222,7 @@ export class LocalFileBackgroundAgentAdapter implements LocalFileAdapter {
     try {
       const stats = await this.getAllStats()
       stats[stat] = (stats[stat] || 0) + delta
-      writeFileSync(this.statsFile, JSON.stringify(stats, null, 2), 'utf-8')
+      await writeText(this.statsFile, JSON.stringify(stats, null, 2), 'utf-8')
     } catch (error) {
       console.error('Error incrementing stat:', error)
       throw error
@@ -246,10 +246,10 @@ export class LocalFileBackgroundAgentAdapter implements LocalFileAdapter {
    */
   async getAllStats(): Promise<Record<string, number>> {
     try {
-      if (!existsSync(this.statsFile)) {
+      if (!await fileExists(this.statsFile)) {
         return {}
       }
-      const content = readFileSync(this.statsFile, 'utf-8')
+      const content = await readText(this.statsFile)
       return JSON.parse(content)
     } catch {
       return {}
@@ -261,10 +261,10 @@ export class LocalFileBackgroundAgentAdapter implements LocalFileAdapter {
    */
   private async getQueue(): Promise<Array<{ jobId: string; priority: number; timestamp: number }>> {
     try {
-      if (!existsSync(this.queueFile)) {
+      if (!await fileExists(this.queueFile)) {
         return []
       }
-      const content = readFileSync(this.queueFile, 'utf-8')
+      const content = await readText(this.queueFile)
       return JSON.parse(content)
     } catch {
       return []

@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs'
+import { bunFile, bunWrite, readText, writeText, fileExists, mkdirp } from '../utils/bun-compat'
 import { join } from 'node:path'
 
 export interface PackageManagerInfo {
@@ -68,16 +68,16 @@ export class PackageManagerDetector {
     for (const pm of detectionOrder) {
       const info = PACKAGE_MANAGERS[pm]
       const lockfilePath = join(this.workingDirectory, info.lockfile)
-      if (existsSync(lockfilePath)) {
+      if (await fileExists(lockfilePath)) {
         this.cachedDetection = info
         return info
       }
     }
 
     const packageJsonPath = join(this.workingDirectory, 'package.json')
-    if (existsSync(packageJsonPath)) {
+    if (await fileExists(packageJsonPath)) {
       try {
-        const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8'))
+        const packageJson = JSON.parse(await readText(packageJsonPath))
         if (packageJson.packageManager) {
           const pmName = String(packageJson.packageManager).split('@')[0]
           if ((PACKAGE_MANAGERS as any)[pmName]) {

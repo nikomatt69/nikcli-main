@@ -1,6 +1,6 @@
 // TODO: Consider refactoring for reduced complexity
 
-import fs from 'node:fs'
+import { bunFile, bunWrite, readText, writeText, fileExists, mkdirp } from '../utils/bun-compat'
 import path from 'node:path'
 import chalk from 'chalk'
 import * as jsdiff from 'diff'
@@ -46,7 +46,7 @@ export async function generateUnifiedDiff(
   const context = options.context ?? 3
   const forceJs = options.forceJsDiff ?? false
 
-  const oldExists = !!oldPath && fs.existsSync(oldPath)
+  const oldExists = !!oldPath && await fileExists(oldPath)
   const oldDisplay = oldExists ? oldPath! : '/dev/null'
 
   if (!forceJs && (await isGitAvailable())) {

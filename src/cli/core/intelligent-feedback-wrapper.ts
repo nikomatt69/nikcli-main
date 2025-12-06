@@ -545,11 +545,11 @@ export class IntelligentFeedbackWrapper {
     try {
       // Ensure learning directory exists
       const learningDir = path.dirname(this.learningFile)
-      if (!fsSync.existsSync(learningDir)) {
-        fsSync.mkdirSync(learningDir, { recursive: true })
+      if (!fsSync.await fileExists(learningDir)) {
+        fsSync.await mkdirp(learningDir)
       }
 
-      if (fsSync.existsSync(this.learningFile)) {
+      if (fsSync.await fileExists(this.learningFile)) {
         const data = await fs.readFile(this.learningFile, 'utf-8')
         const parsed = JSON.parse(data)
         this.learningPatterns = new Map(Object.entries(parsed))
@@ -566,8 +566,8 @@ export class IntelligentFeedbackWrapper {
     try {
       // Ensure learning directory exists
       const learningDir = path.dirname(this.learningFile)
-      if (!fsSync.existsSync(learningDir)) {
-        fsSync.mkdirSync(learningDir, { recursive: true })
+      if (!fsSync.await fileExists(learningDir)) {
+        fsSync.await mkdirp(learningDir)
       }
 
       const data = Object.fromEntries(this.learningPatterns)

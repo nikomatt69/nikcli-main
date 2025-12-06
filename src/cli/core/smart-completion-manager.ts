@@ -215,7 +215,7 @@ export class SmartCompletionManager {
         searchTerm = partialInput.substring(lastSlash + 1)
       }
 
-      if (!fs.existsSync(basePath)) {
+      if (!await fileExists(basePath)) {
         return []
       }
 

@@ -66,7 +66,7 @@ export class EnhancedTokenCacheManager {
     const normModel = (model || 'default').toLowerCase()
     const roundedTemp = Math.round(((temperature ?? 0.7) as number) * 10) / 10
     const context = `${normModel}_${roundedTemp}`
-    return crypto.createHash('sha256').update(`${context}:${normalizedPrompt}`).digest('hex').substring(0, 16)
+    return crypto.bunHashSync('sha256', `${context}:${normalizedPrompt}`, 'hex').substring(0, 16)
   }
 
   /**
@@ -212,8 +212,8 @@ export class EnhancedTokenCacheManager {
     }
 
     const cacheKey = this.generateCacheKey(prompt, model, temperature)
-    const promptHash = crypto.createHash('sha256').update(prompt).digest('hex')
-    const responseHash = crypto.createHash('sha256').update(response).digest('hex')
+    const promptHash = crypto.bunHashSync('sha256', prompt, 'hex')
+    const responseHash = crypto.bunHashSync('sha256', response, 'hex')
     const signatureWords = this.extractSignatureWords(prompt)
 
     const entry: EnhancedCacheEntry = {

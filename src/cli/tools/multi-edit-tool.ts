@@ -224,7 +224,7 @@ export class MultiEditTool extends BaseTool {
         const originalPath = this.getOriginalPathFromBackup(backupPath)
         const fs = require('node:fs')
 
-        if (fs.existsSync(backupPath)) {
+        if (await fileExists(backupPath)) {
           fs.copyFileSync(backupPath, originalPath)
           advancedUI.logInfo(`⚡︎ Restored: ${originalPath}`)
         }

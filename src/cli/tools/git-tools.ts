@@ -213,7 +213,7 @@ export class GitTools extends BaseTool {
 
     // Write patch to tmp and check
     const tmp = path.join(os.tmpdir(), `nikcli-${Date.now()}-${Math.random().toString(36).slice(2)}.patch`)
-    fs.writeFileSync(tmp, args.patch, 'utf8')
+    await writeText(tmp, args.patch)
     try {
       const check = await this.runner.execute(`git apply --check ${JSON.stringify(tmp)}`, { skipConfirmation: true })
       if (check.exitCode !== 0) {

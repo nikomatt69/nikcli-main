@@ -371,7 +371,7 @@ export class CloudDocsProvider {
    */
   private async uploadLocalDocs(): Promise<void> {
     const localDocsPath = path.join(this.config.docsPath || this.cacheDir, 'local')
-    if (!fsSync.existsSync(localDocsPath)) return
+    if (!fsSync.await fileExists(localDocsPath)) return
 
     const localDocs = fsSync
       .readdirSync(localDocsPath, { withFileTypes: true })
@@ -379,7 +379,7 @@ export class CloudDocsProvider {
       .map((dirent: fsSync.Dirent) => path.join(localDocsPath, dirent.name))
 
     for (const docPath of localDocs) {
-      const content = fsSync.readFileSync(docPath, 'utf-8')
+      const content = fsSync.await readText(docPath)
       const docData = JSON.parse(content)
       // Upload logic would go here - for now just validate structure
       if (docData.library && docData.version && docData.documentation) {

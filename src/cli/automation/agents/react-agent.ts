@@ -305,8 +305,8 @@ export class ReactAgent extends CognitiveAgentBase {
   private detectPackageManager(): string {
     try {
       const fs = require('fs')
-      if (fs.existsSync('pnpm-lock.yaml')) return 'pnpm'
-      if (fs.existsSync('yarn.lock')) return 'yarn'
+      if (await fileExists('pnpm-lock.yaml')) return 'pnpm'
+      if (await fileExists('yarn.lock')) return 'yarn'
       return 'npm'
     } catch {
       return 'npm'

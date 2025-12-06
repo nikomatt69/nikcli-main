@@ -65,12 +65,12 @@ export class ToolsManager {
   async readFile(filePath: string): Promise<FileInfo> {
     const fullPath = path.resolve(this.workingDirectory, filePath)
 
-    if (!fs.existsSync(fullPath)) {
+    if (!await fileExists(fullPath)) {
       throw new Error(`File not found: ${filePath}`)
     }
 
     const stats = fs.statSync(fullPath)
-    const content = fs.readFileSync(fullPath, 'utf8')
+    const content = await readText(fullPath)
     const extension = path.extname(fullPath).slice(1)
 
     return {
@@ -88,11 +88,11 @@ export class ToolsManager {
     const dir = path.dirname(fullPath)
 
     // Create directory if it doesn't exist
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true })
+    if (!await fileExists(dir)) {
+      await mkdirp(dir)
     }
 
-    fs.writeFileSync(fullPath, content, 'utf8')
+    await writeText(fullPath, content)
     console.log(chalk.green(`✓ File written: ${filePath}`))
   }
 
@@ -124,7 +124,7 @@ export class ToolsManager {
   async listFiles(directory: string = '.', pattern?: RegExp): Promise<string[]> {
     const fullPath = path.resolve(this.workingDirectory, directory)
 
-    if (!fs.existsSync(fullPath)) {
+    if (!await fileExists(fullPath)) {
       throw new Error(`Directory not found: ${directory}`)
     }
 
@@ -568,7 +568,7 @@ export class ToolsManager {
       tempFile = path.join(tempDir, `script_${Date.now()}${extension}`)
 
       // Write script to temp file
-      fs.writeFileSync(tempFile, scriptContent)
+      await writeText(tempFile, scriptContent)
 
       if (language === 'bash') {
         fs.chmodSync(tempFile, '755')
@@ -673,7 +673,7 @@ export class ToolsManager {
             'npm init -y',
             'npm install -D typescript @types/node ts-node'
           )
-          fs.mkdirSync(projectPath, { recursive: true })
+          await mkdirp(projectPath)
           await this.runCommand('npm', ['init', '-y'], { cwd: projectPath })
           await this.runCommand('npm', ['install', '-D', 'typescript', '@types/node', 'ts-node'], { cwd: projectPath })
           break
@@ -681,7 +681,7 @@ export class ToolsManager {
         case 'express':
           commands.push(`mkdir ${projectName}`, 'cd ' + projectName, 'npm init -y')
           commands.push('npm install express', 'npm install -D typescript @types/node @types/express ts-node')
-          fs.mkdirSync(projectPath, { recursive: true })
+          await mkdirp(projectPath)
           await this.runCommand('npm', ['init', '-y'], { cwd: projectPath })
           await this.runCommand('npm', ['install', 'express'], { cwd: projectPath })
           await this.runCommand('npm', ['install', '-D', 'typescript', '@types/node', '@types/express', 'ts-node'], {

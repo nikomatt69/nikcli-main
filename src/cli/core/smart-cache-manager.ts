@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto'
+import { bunHash, bunHashSync, bunRandomBytes } from '../utils/bun-compat'
 import chalk from 'chalk'
 import { LRUCache } from 'lru-cache'
 import { getLightweightInference } from '../ai/lightweight-inference-layer'
@@ -356,7 +356,7 @@ export class SmartCacheManager {
    * Genera ID unico
    */
   private generateId(): string {
-    return `cache_${Date.now()}_${randomBytes(6).toString('base64url')}`
+    return `cache_${Date.now()}_${bunRandomBytes(6).toString('base64url')}`
   }
 
   /**

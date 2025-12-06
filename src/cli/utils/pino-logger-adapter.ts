@@ -410,12 +410,12 @@ export class PinoLoggerAdapter {
    * Ensure log directories exist
    */
   private ensureDirectories(): void {
-    if (!fs.existsSync(this.logDir)) {
-      fs.mkdirSync(this.logDir, { recursive: true })
+    if (!await fileExists(this.logDir)) {
+      await mkdirp(this.logDir)
     }
 
-    if (!fs.existsSync(this.auditDir)) {
-      fs.mkdirSync(this.auditDir, { recursive: true })
+    if (!await fileExists(this.auditDir)) {
+      await mkdirp(this.auditDir)
     }
   }
 

@@ -1172,7 +1172,7 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
     try {
       const resolvedPath = require('node:path').resolve(this.session.workingDirectory, newDir)
 
-      if (!require('node:fs').existsSync(resolvedPath)) {
+      if (!require('node:fs').await fileExists(resolvedPath)) {
         console.log(chalk.red(`Directory not found: ${newDir}`))
         return
       }

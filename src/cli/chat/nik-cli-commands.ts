@@ -1,5 +1,5 @@
-import { randomUUID } from 'node:crypto'
-import { existsSync, readFileSync, statSync } from 'node:fs'
+import { bunHash, bunHashSync, bunRandomBytes } from '../utils/bun-compat'
+import { bunFile, bunWrite, readText, writeText, fileExists, mkdirp } from '../utils/bun-compat'
 import { resolve } from 'node:path'
 import { generateText } from 'ai'
 import boxen from 'boxen'
@@ -2727,7 +2727,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     const providedPath = args[0]
     const resolvedPath = resolve(process.cwd(), providedPath)
 
-    if (!existsSync(resolvedPath)) {
+    if (!await fileExists(resolvedPath)) {
       console.log(chalk.red(`✖ Env file not found: ${providedPath}`))
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
@@ -2739,7 +2739,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     }
 
     try {
-      const raw = readFileSync(resolvedPath, 'utf8')
+      const raw = await readText(resolvedPath)
       const parsed = parseDotenv(raw)
       const variables: Record<string, string> = {}
 
@@ -2909,7 +2909,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       const markdown = chatManager.exportSession(sessionId)
 
       const filename = `chat-export-${Date.now()}.md`
-      require('node:fs').writeFileSync(filename, markdown)
+      require('node:fs').await writeText(filename, markdown)
 
       console.log(chalk.green(`✓ Session exported to ${filename}`))
     } catch (error: any) {
@@ -3516,8 +3516,8 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       const path = require('path')
       const pkgPath = path.join(process.cwd(), 'package.json')
 
-      if (fs.existsSync(pkgPath)) {
-        const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'))
+      if (await fileExists(pkgPath)) {
+        const pkg = JSON.parse(await readText(pkgPath))
         projectInfo.name = pkg.name || 'unknown'
         projectInfo.version = pkg.version || '0.0.0'
         projectInfo.dependencies = pkg.dependencies ? Object.keys(pkg.dependencies).length : 0
@@ -3640,8 +3640,8 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       const packageJsonPath = path.join(process.cwd(), 'package.json')
       let packageInfo = {}
 
-      if (fs.existsSync(packageJsonPath)) {
-        packageInfo = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'))
+      if (await fileExists(packageJsonPath)) {
+        packageInfo = JSON.parse(await readText(packageJsonPath))
       }
 
       // Count TypeScript/JavaScript files
@@ -3838,7 +3838,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       // Check for package.json issues
       try {
-        const packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'))
+        const packageJson = JSON.parse(await readText('package.json'))
         if (!packageJson.main && !packageJson.exports) {
           logs.warnings += 1
           logs.recent.push('📦 package.json: Missing main/exports field')
@@ -5295,7 +5295,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       resolvedPath = resolve(repositoryInput)
     }
 
-    if (!existsSync(resolvedPath)) {
+    if (!await fileExists(resolvedPath)) {
       throw new Error(`Local repository path not found: ${resolvedPath}`)
     }
 
@@ -11182,7 +11182,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       const fullPath = resolve(workingDir, targetPath)
 
       // Validate path exists
-      if (!existsSync(fullPath)) {
+      if (!await fileExists(fullPath)) {
         console.log(chalk.red(`✖ Path not found: ${targetPath}`))
         console.log(chalk.gray(`Resolved to: ${fullPath}`))
         return { shouldExit: false, shouldUpdatePrompt: false }

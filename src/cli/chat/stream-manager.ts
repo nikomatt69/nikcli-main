@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events'
-import { promises as fs } from 'node:fs'
+import { bunFile, bunWrite, readText, writeText, fileExists, mkdirp } from '../utils/bun-compat'
 import os from 'node:os'
 import path from 'node:path'
 

@@ -1,4 +1,4 @@
-import fs from 'node:fs'
+import { bunFile, bunWrite, readText, writeText, fileExists, mkdirp } from '../utils/bun-compat'
 import path from 'node:path'
 import { runAnalysisWithEvents } from '../engine/events'
 import { HTMLReporter, JSONReporter, type Reporter } from '../reporters'
@@ -31,7 +31,7 @@ export async function generateReports(opts: ReportCmdOptions): Promise<AnalysisR
   // Also persist a small latest symlink/copy for VS Code extension to pick up
   try {
     const latest = path.resolve(path.join(process.cwd(), '.nikcli', 'reports', 'latest'))
-    fs.mkdirSync(path.dirname(latest), { recursive: true })
+    await mkdirp(path.dirname(latest))
     try {
       fs.rmSync(latest, { recursive: true, force: true })
     } catch {}

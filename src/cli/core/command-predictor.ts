@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { bunFile, bunWrite, readText, writeText, fileExists, mkdirp } from '../utils/bun-compat'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import chalk from 'chalk'
@@ -58,7 +58,7 @@ export class CommandPredictor {
   private readonly AI_THROTTLE = 2000 // 2 seconds between AI calls
 
   constructor() {
-    const configDir = join(homedir(), '.nikcli')
+    const configDir = `${homedir()}/.nikcli`
     this.historyFile = join(configDir, 'command-history.json')
     this.patternsFile = join(configDir, 'command-patterns.json')
 
@@ -667,8 +667,8 @@ Provide 2-4 most relevant predictions, ranked by confidence.`
 
   private loadHistory(): void {
     try {
-      if (existsSync(this.historyFile)) {
-        const data = readFileSync(this.historyFile, 'utf-8')
+      if (await fileExists(this.historyFile)) {
+        const data = await readText(this.historyFile)
         const parsed = JSON.parse(data)
         this.commandHistory = parsed.map((entry: any) => CommandEntry.parse(entry))
       }
@@ -681,10 +681,10 @@ Provide 2-4 most relevant predictions, ranked by confidence.`
   private saveHistory(): void {
     try {
       const dir = this.historyFile.substring(0, this.historyFile.lastIndexOf('/'))
-      if (!existsSync(dir)) {
-        require('node:fs').mkdirSync(dir, { recursive: true })
+      if (!await fileExists(dir)) {
+        require('node:fs').await mkdirp(dir)
       }
-      writeFileSync(this.historyFile, JSON.stringify(this.commandHistory, null, 2))
+      await writeText(this.historyFile, JSON.stringify(this.commandHistory, null, 2))
     } catch (error) {
       console.warn(chalk.yellow('Failed to save command history:', error))
     }
@@ -692,8 +692,8 @@ Provide 2-4 most relevant predictions, ranked by confidence.`
 
   private loadPatterns(): void {
     try {
-      if (existsSync(this.patternsFile)) {
-        const data = readFileSync(this.patternsFile, 'utf-8')
+      if (await fileExists(this.patternsFile)) {
+        const data = await readText(this.patternsFile)
         const parsed = JSON.parse(data)
         this.commandPatterns = parsed.map((pattern: any) => CommandPattern.parse(pattern))
       }
@@ -706,10 +706,10 @@ Provide 2-4 most relevant predictions, ranked by confidence.`
   private savePatterns(): void {
     try {
       const dir = this.patternsFile.substring(0, this.patternsFile.lastIndexOf('/'))
-      if (!existsSync(dir)) {
-        require('node:fs').mkdirSync(dir, { recursive: true })
+      if (!await fileExists(dir)) {
+        require('node:fs').await mkdirp(dir)
       }
-      writeFileSync(this.patternsFile, JSON.stringify(this.commandPatterns, null, 2))
+      await writeText(this.patternsFile, JSON.stringify(this.commandPatterns, null, 2))
     } catch (error) {
       console.warn(chalk.yellow('Failed to save command patterns:', error))
     }

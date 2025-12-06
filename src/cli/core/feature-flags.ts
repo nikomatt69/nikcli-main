@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events'
-import { existsSync } from 'node:fs'
+import { bunFile, bunWrite, readText, writeText, fileExists, mkdirp } from '../utils/bun-compat'
 import { readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import chalk from 'chalk'
@@ -519,7 +519,7 @@ export class FeatureFlagManager extends EventEmitter {
 
   private async loadFromFile(): Promise<void> {
     try {
-      if (!existsSync(this.configFilePath)) {
+      if (!await fileExists(this.configFilePath)) {
         await this.saveToFile() // Create initial file
         return
       }

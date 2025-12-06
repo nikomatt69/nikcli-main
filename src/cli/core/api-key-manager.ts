@@ -56,8 +56,8 @@ export class APIKeyManager {
    */
   private loadUserConfig(): void {
     try {
-      if (fs.existsSync(this.userConfigPath)) {
-        const content = fs.readFileSync(this.userConfigPath, 'utf-8')
+      if (await fileExists(this.userConfigPath)) {
+        const content = await readText(this.userConfigPath)
         const config = JSON.parse(content)
         this.userConfig = config.apiKeys || {}
       }
@@ -74,14 +74,14 @@ export class APIKeyManager {
       const configDir = path.dirname(this.userConfigPath)
 
       // Create directory if doesn't exist
-      if (!fs.existsSync(configDir)) {
-        fs.mkdirSync(configDir, { recursive: true })
+      if (!await fileExists(configDir)) {
+        await mkdirp(configDir)
       }
 
       // Load existing config
       let config: any = {}
-      if (fs.existsSync(this.userConfigPath)) {
-        const content = fs.readFileSync(this.userConfigPath, 'utf-8')
+      if (await fileExists(this.userConfigPath)) {
+        const content = await readText(this.userConfigPath)
         config = JSON.parse(content)
       }
 
@@ -90,7 +90,7 @@ export class APIKeyManager {
       config.apiKeys[provider] = apiKey
 
       // Save
-      fs.writeFileSync(this.userConfigPath, JSON.stringify(config, null, 2))
+      await writeText(this.userConfigPath, JSON.stringify(config, null, 2))
 
       this.userConfig[provider] = apiKey
 
@@ -279,19 +279,19 @@ export class APIKeyManager {
    */
   async removeAPIKey(provider: AIProvider): Promise<void> {
     try {
-      if (!fs.existsSync(this.userConfigPath)) {
+      if (!await fileExists(this.userConfigPath)) {
         console.log(chalk.yellow(`⚠︎  No config file found`))
         return
       }
 
-      const content = fs.readFileSync(this.userConfigPath, 'utf-8')
+      const content = await readText(this.userConfigPath)
       const config = JSON.parse(content)
 
       if (config.apiKeys && config.apiKeys[provider]) {
         delete config.apiKeys[provider]
         delete this.userConfig[provider]
 
-        fs.writeFileSync(this.userConfigPath, JSON.stringify(config, null, 2))
+        await writeText(this.userConfigPath, JSON.stringify(config, null, 2))
 
         console.log(chalk.green(`✓ Removed ${provider} API key from config`))
       } else {
