@@ -14,7 +14,7 @@ import { createOllama } from 'ollama-ai-provider'
 import { z } from 'zod'
 
 import { simpleConfigManager } from '../core/config-manager'
-import { createAICacheMiddleware } from './ai-cache-middleware'
+
 import { type PromptContext, PromptManager } from '../prompts/prompt-manager'
 import { streamttyService } from '../services/streamtty-service'
 import type { OutputStyle } from '../types/output-styles'
@@ -1218,15 +1218,7 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
         throw new Error(`Unsupported provider: ${config.provider}`)
     }
 
-    // Apply AI caching middleware if enabled
-    const cacheConfig = simpleConfigManager.get('aiCache') as any
-    if (cacheConfig?.enabled !== false) {
-      const cacheMiddleware = createAICacheMiddleware(cacheConfig)
-      return experimental_wrapLanguageModel({
-        model: baseModel,
-        middleware: cacheMiddleware,
-      })
-    }
+
 
     return baseModel
   }
