@@ -1,6 +1,6 @@
 import { existsSync, statSync } from 'node:fs'
 import { readdir, stat } from 'node:fs/promises'
-import { basename, join, relative } from 'node:path'
+import path, { join, relative } from 'node:path'
 import { PromptManager } from '../prompts/prompt-manager'
 import { advancedUI } from '../ui/advanced-cli-ui'
 import { CliUI } from '../utils/cli-ui'
@@ -269,7 +269,7 @@ export class ListTool extends BaseTool {
    */
   private buildDirectoryStructure(results: FileEntry[], basePath: string): DirectoryNode {
     const root: DirectoryNode = {
-      name: basename(basePath),
+      name: path.basename(basePath),
       type: 'directory',
       children: [],
       path: basePath,

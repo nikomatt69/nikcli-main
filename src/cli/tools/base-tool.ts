@@ -1,3 +1,5 @@
+import { PathResolver } from '../utils/path-resolver'
+
 export interface ToolExecutionResult {
   success: boolean
   data: any
@@ -11,31 +13,36 @@ export interface ToolExecutionResult {
 
 export abstract class BaseTool {
   protected name: string
+  protected pathResolver: PathResolver
 
   constructor(
     name: string,
     protected workingDirectory: string
   ) {
     this.name = name
+    this.pathResolver = new PathResolver(workingDirectory)
   }
 
   abstract execute(...args: any[]): Promise<ToolExecutionResult>
 
   /**
    * Verifica se un percorso è sicuro (dentro working directory)
+   * Uses PathResolver for consistent behavior across all tools
    */
   protected isPathSafe(path: string): boolean {
-    const _fs = require('node:fs')
-    const pathModule = require('node:path')
-
     try {
-      const resolvedPath = pathModule.resolve(path)
-      const resolvedWorkingDir = pathModule.resolve(this.workingDirectory)
-
-      return resolvedPath.startsWith(resolvedWorkingDir)
-    } catch (_error) {
+      const resolved = this.pathResolver.resolve(path)
+      return this.pathResolver.isWithinWorkingDirectory(resolved.absolutePath)
+    } catch {
       return false
     }
+  }
+
+  /**
+   * Resolve a path safely within working directory
+   */
+  protected resolvePath(path: string) {
+    return this.pathResolver.resolve(path)
   }
 
   /**
@@ -50,5 +57,13 @@ export abstract class BaseTool {
    */
   getWorkingDirectory(): string {
     return this.workingDirectory
+  }
+
+  /**
+   * Aggiorna la working directory
+   */
+  updateWorkingDirectory(newDir: string): void {
+    this.workingDirectory = newDir
+    this.pathResolver = new PathResolver(newDir)
   }
 }

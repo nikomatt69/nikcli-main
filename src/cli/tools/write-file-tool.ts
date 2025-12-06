@@ -1,5 +1,5 @@
-import { copyFile, mkdir, readFile, unlink, writeFile } from 'node:fs/promises'
-import { dirname, join } from 'node:path'
+import { join } from 'node:path'
+import { bunFile, bunWrite, copyFile, mkdirp, removeFile, bunGlob } from '../utils/bun-compat'
 import { ContextAwareRAGSystem } from '../context/context-aware-rag'
 import { lspManager } from '../lsp/lsp-manager'
 import {
@@ -18,7 +18,6 @@ import { diffManager } from '../ui/diff-manager'
 import { DiffViewer, type FileDiff } from '../ui/diff-viewer'
 import { CliUI } from '../utils/cli-ui'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
-import { isDirectory, sanitizePath } from './secure-file-tools'
 
 /**
  * Production-ready Write File Tool
@@ -50,12 +49,18 @@ export class WriteFileTool extends BaseTool {
         throw new Error('content must be a string')
       }
 
-      // Sanitize and validate file path
-      const sanitizedPath = sanitizePath(filePath, this.workingDirectory)
+      // Use PathResolver for consistent path handling
+      const resolved = this.pathResolver.resolve(filePath)
+      const sanitizedPath = resolved.absolutePath
 
-      // Validate that the path is not an existing directory
-      if (isDirectory(sanitizedPath)) {
-        throw new Error(`Cannot write file: path is a directory: ${filePath}`)
+      // Check 1: User specified directory intent (trailing slash)
+      if (resolved.isDirectoryIntent && !resolved.exists) {
+        throw new Error(`Cannot write to directory: ${filePath} (trailing slash detected - use a filename)`)
+      }
+
+      // Check 2: Path exists and is a directory
+      if (resolved.existsAsDirectory) {
+        throw new Error(`Path is an existing directory: ${filePath} (cannot overwrite with file)`)
       }
 
       // Validate content if validators are provided
@@ -75,7 +80,7 @@ export class WriteFileTool extends BaseTool {
       let existingContent = ''
       let isNewFile = false
       try {
-        existingContent = await readFile(sanitizedPath, 'utf8')
+        existingContent = await bunFile(sanitizedPath).text()
       } catch (_error) {
         // File doesn't exist, it's a new file
         isNewFile = true
@@ -88,7 +93,7 @@ export class WriteFileTool extends BaseTool {
 
       // Ensure directory exists
       const dir = dirname(sanitizedPath)
-      await mkdir(dir, { recursive: true })
+      await mkdirp(dir)
 
       // Apply content transformations
       let processedContent = content
@@ -128,10 +133,7 @@ export class WriteFileTool extends BaseTool {
 
       // Write file with specified encoding
       const encoding = options.encoding || 'utf8'
-      await writeFile(sanitizedPath, processedContent, {
-        encoding: encoding as BufferEncoding,
-        mode: options.mode || 0o644,
-      })
+      await bunWrite(sanitizedPath, processedContent)
 
       // Verify write if requested
       if (options.verifyWrite) {
@@ -224,10 +226,10 @@ export class WriteFileTool extends BaseTool {
     try {
       // Phase 1: Create backups for all existing files
       for (const file of files) {
-        const sanitizedPath = sanitizePath(file.path, this.workingDirectory)
+        const resolved = this.pathResolver.resolve(file.path)
         if (options.createBackup !== false) {
           try {
-            const backupPath = await this.createBackup(sanitizedPath)
+            const backupPath = await this.createBackup(resolved.absolutePath)
             if (backupPath) backups.push(backupPath)
           } catch {
             // File doesn't exist, no backup needed
@@ -286,13 +288,12 @@ export class WriteFileTool extends BaseTool {
    */
   async append(filePath: string, content: string, options: AppendOptions = {}): Promise<WriteFileResult> {
     try {
-      const sanitizedPath = sanitizePath(filePath, this.workingDirectory)
+      const resolved = this.pathResolver.resolve(filePath)
 
       // Read existing content if file exists
       let existingContent = ''
       try {
-        const fs = await import('node:fs/promises')
-        existingContent = await fs.readFile(sanitizedPath, 'utf8')
+        existingContent = await bunFile(resolved.absolutePath).text()
       } catch {
         // File doesn't exist, will be created
       }
@@ -317,11 +318,14 @@ export class WriteFileTool extends BaseTool {
    */
   private async createBackup(filePath: string): Promise<string | undefined> {
     try {
-      const fs = await import('node:fs/promises')
-      await fs.access(filePath) // Check if file exists
+      // Check if file exists using Bun
+      const fileRef = bunFile(filePath)
+      if (!(await fileRef.exists())) {
+        return undefined
+      }
 
       // Ensure backup directory exists
-      await mkdir(this.backupDirectory, { recursive: true })
+      await mkdirp(this.backupDirectory)
 
       // Generate backup filename with timestamp
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
@@ -329,7 +333,7 @@ export class WriteFileTool extends BaseTool {
       const backupPath = join(this.backupDirectory, `${fileName}.${timestamp}.backup`)
 
       // Ensure backup subdirectories exist
-      await mkdir(dirname(backupPath), { recursive: true })
+      await mkdirp(dirname(backupPath))
 
       // Copy file to backup location
       await copyFile(filePath, backupPath)
@@ -347,9 +351,9 @@ export class WriteFileTool extends BaseTool {
    */
   private async rollback(filePath: string, backupPath: string): Promise<void> {
     try {
-      const sanitizedPath = sanitizePath(filePath, this.workingDirectory)
-      await copyFile(backupPath, sanitizedPath)
-      await unlink(backupPath) // Clean up backup
+      const resolved = this.pathResolver.resolve(filePath)
+      await copyFile(backupPath, resolved.absolutePath)
+      await removeFile(backupPath) // Clean up backup
     } catch (error: any) {
       throw new Error(`Rollback failed: ${error.message}`)
     }
@@ -376,10 +380,9 @@ export class WriteFileTool extends BaseTool {
   /**
    * Verify that file was written correctly
    */
-  private async verifyWrite(filePath: string, expectedContent: string, encoding: string): Promise<VerificationResult> {
+  private async verifyWrite(filePath: string, expectedContent: string, _encoding: string): Promise<VerificationResult> {
     try {
-      const fs = await import('node:fs/promises')
-      const actualContent = await fs.readFile(filePath, encoding as BufferEncoding)
+      const actualContent = await bunFile(filePath).text()
 
       if (actualContent === expectedContent) {
         return { success: true }
@@ -402,20 +405,17 @@ export class WriteFileTool extends BaseTool {
    */
   async cleanBackups(maxAge: number = 7 * 24 * 60 * 60 * 1000): Promise<number> {
     try {
-      const fs = await import('node:fs/promises')
-      const files = await fs.readdir(this.backupDirectory, { recursive: true })
+      const files = await bunGlob(`${this.backupDirectory}/**/*.backup`)
       const now = Date.now()
       let deletedCount = 0
 
-      for (const file of files) {
-        if (typeof file === 'string' && file.endsWith('.backup')) {
-          const filePath = join(this.backupDirectory, file)
-          const stats = await fs.stat(filePath)
+      for (const file of (files as any).files || []) {
+        const filePath = join(this.backupDirectory, file)
+        const stats = await bunFile(filePath).stat()
 
-          if (now - stats.mtime.getTime() > maxAge) {
-            await unlink(filePath)
-            deletedCount++
-          }
+        if (now - stats.mtime.getTime() > maxAge) {
+          await removeFile(filePath)
+          deletedCount++
         }
       }
 
@@ -576,16 +576,18 @@ export class ContentValidators {
 
     if (filePath.match(/\.(ts|tsx)$/)) {
       try {
-        // Use LSP for TypeScript validation
-        const { writeFile, unlink } = await import('node:fs/promises')
+        // Use LSP for TypeScript validation with Bun
+        const { bunWrite, removeFile } = await import('../utils/bun-compat')
         const tempFilePath = `${filePath}.temp`
 
         // Write content to temp file for LSP analysis
-        await writeFile(tempFilePath, content, 'utf8')
+        await bunWrite(tempFilePath, content)
 
         // Get LSP diagnostics for the temp file
         const { mcp__ide__getDiagnostics } = require('../../core/lsp-client')
-        const diagnostics = await mcp__ide__getDiagnostics({ uri: tempFilePath })
+        const diagnostics = await mcp__ide__getDiagnostics({
+          uri: tempFilePath,
+        })
 
         // Process LSP diagnostics
         if (diagnostics && diagnostics.length > 0) {
@@ -603,7 +605,7 @@ export class ContentValidators {
         }
 
         // Clean up temp file
-        await unlink(tempFilePath).catch(() => {})
+        await removeFile(tempFilePath).catch(() => { })
       } catch (lspError: any) {
         warnings.push(`LSP validation unavailable: ${lspError.message}`)
 
@@ -697,10 +699,22 @@ export class ContentValidators {
 
         // Check for basic syntax errors
         const syntaxIssues = [
-          { pattern: /interface\s+\w+\s*{\s*$/, message: 'Interface appears to be incomplete' },
-          { pattern: /function\s+\w+\s*\(\s*\)\s*{\s*$/, message: 'Function appears to be incomplete' },
-          { pattern: /class\s+\w+\s*{\s*$/, message: 'Class appears to be incomplete' },
-          { pattern: /import\s+.*from\s+['"][^'"]*['"](?!\s*;)/, message: 'Missing semicolon after import statement' },
+          {
+            pattern: /interface\s+\w+\s*{\s*$/,
+            message: 'Interface appears to be incomplete',
+          },
+          {
+            pattern: /function\s+\w+\s*\(\s*\)\s*{\s*$/,
+            message: 'Function appears to be incomplete',
+          },
+          {
+            pattern: /class\s+\w+\s*{\s*$/,
+            message: 'Class appears to be incomplete',
+          },
+          {
+            pattern: /import\s+.*from\s+['"][^'"]*['"](?!\s*;)/,
+            message: 'Missing semicolon after import statement',
+          },
           {
             pattern: /export\s+(?:default\s+)?(?:function|class|interface|const|let|var)\s+\w+.*(?<![;}])\s*$/,
             message: 'Missing semicolon after export',

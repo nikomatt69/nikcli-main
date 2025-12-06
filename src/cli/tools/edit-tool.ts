@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, statSync } from 'node:fs'
 import { readFile, writeFile } from 'node:fs/promises'
-import { dirname, join, relative } from 'node:path'
+import path, { join, relative } from 'node:path'
 import { PromptManager } from '../prompts/prompt-manager'
 import { advancedUI } from '../ui/advanced-cli-ui'
 import { diffManager } from '../ui/diff-manager'
@@ -341,7 +341,7 @@ export class EditTool extends BaseTool {
    */
   private async writeFileWithValidation(filePath: string, newContent: string, params: EditToolParams): Promise<void> {
     // Crea directory se non esiste
-    const dir = dirname(filePath)
+    const dir = path.dirname(filePath)
     if (!existsSync(dir)) {
       mkdirSync(dir, { recursive: true })
     }

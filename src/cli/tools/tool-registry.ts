@@ -49,6 +49,20 @@ export class ToolRegistry {
   }
 
   /**
+   * Update working directory for all registered tools
+   */
+  updateWorkingDirectory(newDir: string): void {
+    this.workingDirectory = newDir
+
+    // Update all tool instances that support updateWorkingDirectory
+    for (const [_name, tool] of this.tools.entries()) {
+      if (tool && typeof (tool as any).updateWorkingDirectory === 'function') {
+        ;(tool as any).updateWorkingDirectory(newDir)
+      }
+    }
+  }
+
+  /**
    * Register a tool with the registry
    */
   registerTool(name: string, tool: BaseTool, metadata?: Partial<ToolMetadata>): void {

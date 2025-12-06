@@ -4,6 +4,7 @@ import chalk from 'chalk'
 import inquirer from 'inquirer'
 import { inputQueue } from '../core/input-queue'
 import { advancedUI } from '../ui/advanced-cli-ui'
+import { checkPath, type PathCheckResult } from '../utils/path-resolver'
 
 // Global batch approval state
 const batchApprovalState = {
@@ -63,26 +64,27 @@ export function validateIsDirectory(dirPath: string, customErrorMsg?: string): v
 
 /**
  * Check if a path exists and is a directory (does not throw)
+ * Uses centralized checkPath for consistent behavior
  */
 export function isDirectory(dirPath: string): boolean {
-  try {
-    if (!fs.existsSync(dirPath)) return false
-    return fs.statSync(dirPath).isDirectory()
-  } catch {
-    return false
-  }
+  const result = checkPath(dirPath)
+  return result.exists && result.isDirectory
 }
 
 /**
  * Check if a path exists and is a file (does not throw)
+ * Uses centralized checkPath for consistent behavior
  */
 export function isFile(filePath: string): boolean {
-  try {
-    if (!fs.existsSync(filePath)) return false
-    return fs.statSync(filePath).isFile()
-  } catch {
-    return false
-  }
+  const result = checkPath(filePath)
+  return result.exists && result.isFile
+}
+
+/**
+ * Get detailed path information
+ */
+export function pathInfo(pathToCheck: string): PathCheckResult {
+  return checkPath(pathToCheck)
 }
 
 /**

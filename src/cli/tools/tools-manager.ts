@@ -4,6 +4,7 @@ import * as os from 'node:os'
 import * as path from 'node:path'
 import { promisify } from 'node:util'
 import chalk from 'chalk'
+import { PathResolver } from '../utils/path-resolver'
 
 const execAsync = promisify(exec)
 
@@ -57,18 +58,21 @@ export interface SystemInfo {
 
 export class ToolsManager {
   private workingDirectory: string
+  private pathResolver: PathResolver
   private runningProcesses: Map<number, ProcessInfo> = new Map()
   private commandHistory: Array<{ command: string; timestamp: Date; success: boolean; output: string }> = []
 
   constructor(workingDir?: string) {
     this.workingDirectory = workingDir || process.cwd()
+    this.pathResolver = new PathResolver(this.workingDirectory)
   }
 
   // File Operations
   async readFile(filePath: string): Promise<FileInfo> {
-    const fullPath = path.resolve(this.workingDirectory, filePath)
+    const resolved = this.pathResolver.resolve(filePath)
+    const fullPath = resolved.absolutePath
 
-    if (!fs.existsSync(fullPath)) {
+    if (!resolved.exists) {
       throw new Error(`File not found: ${filePath}`)
     }
 
@@ -87,7 +91,8 @@ export class ToolsManager {
   }
 
   async writeFile(filePath: string, content: string): Promise<void> {
-    const fullPath = path.resolve(this.workingDirectory, filePath)
+    const resolved = this.pathResolver.resolve(filePath)
+    const fullPath = resolved.absolutePath
     const dir = path.dirname(fullPath)
 
     // Create directory if it doesn't exist
@@ -125,9 +130,10 @@ export class ToolsManager {
   }
 
   async listFiles(directory: string = '.', pattern?: RegExp): Promise<string[]> {
-    const fullPath = path.resolve(this.workingDirectory, directory)
+    const resolved = this.pathResolver.resolve(directory)
+    const fullPath = resolved.absolutePath
 
-    if (!fs.existsSync(fullPath)) {
+    if (!resolved.exists) {
       throw new Error(`Directory not found: ${directory}`)
     }
 

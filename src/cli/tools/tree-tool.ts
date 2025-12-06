@@ -192,7 +192,7 @@ export class TreeTool extends BaseTool {
    */
   private async buildTree(path: string, depth: number, maxDepth: number, params: TreeToolParams): Promise<TreeNode> {
     const stats = await stat(path)
-    const name = require('node:path').basename(path)
+    const name = this.getBaseName(path)
 
     this.currentMaxDepth = Math.max(this.currentMaxDepth, depth)
 
