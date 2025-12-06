@@ -4,12 +4,10 @@
  * Based on CPU ID, MAC addresses, and system information
  */
 
-import { createHash } from 'node:crypto'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { arch, homedir, networkInterfaces, platform, release } from 'node:os'
-import { join } from 'node:path'
+import { bunHashSync, fileExists, mkdirp, readText, writeText } from './bun-compat'
 
-const FINGERPRINT_CACHE_FILE = join(homedir(), '.nikcli', 'fingerprint.cache')
+const FINGERPRINT_CACHE_FILE = `${homedir()}/.nikcli/fingerprint.cache`
 
 interface FingerprintComponents {
   macAddresses: string
@@ -23,28 +21,39 @@ interface FingerprintComponents {
  * This is synchronous so it can be called during early module initialization
  */
 export function getMachineFingerprintSync(): string {
-  // Check cache first
-  if (existsSync(FINGERPRINT_CACHE_FILE)) {
-    try {
-      const cached = readFileSync(FINGERPRINT_CACHE_FILE, 'utf-8')
-      if (cached.length > 0) {
-        return cached
-      }
-    } catch {
-      // Fall through to regenerate
+  // Check cache first - using Bun.file().exists() is async, so we use shell check
+  const cacheFile = Bun.file(FINGERPRINT_CACHE_FILE)
+  const cacheDir = `${homedir()}/.nikcli`
+
+  // Try to read cached fingerprint synchronously
+  try {
+    // Use direct file read - Bun will throw if file doesn't exist
+    const cached = new TextDecoder().decode(
+      new Uint8Array(Bun.file(FINGERPRINT_CACHE_FILE).size ?
+        // File exists, read it - but we need async... let's use shell
+        new Uint8Array(0) : new Uint8Array(0)
+      )
+    )
+
+    // For sync operation, use shell command as fallback
+    const result = Bun.$.sync`test -f ${FINGERPRINT_CACHE_FILE} && cat ${FINGERPRINT_CACHE_FILE} || echo ""`.text()
+    if (result.trim().length > 0) {
+      return result.trim()
     }
+  } catch {
+    // Fall through to regenerate
   }
 
   // Generate new fingerprint
   const fingerprint = generateFingerprint()
 
-  // Cache it for future use
+  // Cache it for future use using shell commands for sync operation
   try {
-    const cacheDir = join(homedir(), '.nikcli')
-    if (!existsSync(cacheDir)) {
-      mkdirSync(cacheDir, { recursive: true, mode: 0o700 })
-    }
-    writeFileSync(FINGERPRINT_CACHE_FILE, fingerprint, { mode: 0o600 })
+    Bun.$.sync`mkdir -p ${cacheDir}`.quiet()
+    Bun.$.sync`chmod 700 ${cacheDir}`.quiet()
+    // Write file using shell
+    Bun.$.sync`echo ${fingerprint} > ${FINGERPRINT_CACHE_FILE}`.quiet()
+    Bun.$.sync`chmod 600 ${FINGERPRINT_CACHE_FILE}`.quiet()
   } catch (error) {
     if (process.env.DEBUG) {
       console.warn('Failed to cache fingerprint:', error)
@@ -60,7 +69,37 @@ export function getMachineFingerprintSync(): string {
  * Combines multiple system characteristics for uniqueness
  */
 export async function getMachineFingerprint(): Promise<string> {
-  return getMachineFingerprintSync()
+  const cacheDir = `${homedir()}/.nikcli`
+
+  // Check cache first
+  if (await fileExists(FINGERPRINT_CACHE_FILE)) {
+    try {
+      const cached = await readText(FINGERPRINT_CACHE_FILE)
+      if (cached.length > 0) {
+        return cached.trim()
+      }
+    } catch {
+      // Fall through to regenerate
+    }
+  }
+
+  // Generate new fingerprint
+  const fingerprint = generateFingerprint()
+
+  // Cache it for future use
+  try {
+    await mkdirp(cacheDir)
+    Bun.$.sync`chmod 700 ${cacheDir}`.quiet()
+    await writeText(FINGERPRINT_CACHE_FILE, fingerprint)
+    Bun.$.sync`chmod 600 ${FINGERPRINT_CACHE_FILE}`.quiet()
+  } catch (error) {
+    if (process.env.DEBUG) {
+      console.warn('Failed to cache fingerprint:', error)
+    }
+    // Continue anyway, just won't be cached
+  }
+
+  return fingerprint
 }
 
 /**
@@ -76,8 +115,8 @@ function generateFingerprint(): string {
     seed: components.timestamp,
   })
 
-  // Create stable hash
-  const hash = createHash('sha256').update(combined).digest('hex')
+  // Create stable hash using Bun's CryptoHasher
+  const hash = bunHashSync('sha256', combined, 'hex')
 
   return hash.slice(0, 32) // Use first 32 chars for readability
 }
@@ -122,10 +161,11 @@ function collectFingerprintComponents(): FingerprintComponents {
  */
 export async function resetFingerprint(): Promise<void> {
   try {
-    if (existsSync(FINGERPRINT_CACHE_FILE)) {
+    if (await fileExists(FINGERPRINT_CACHE_FILE)) {
       // Instead of deleting, we'll regenerate to ensure it exists
       const newFingerprint = generateFingerprint()
-      writeFileSync(FINGERPRINT_CACHE_FILE, newFingerprint, { mode: 0o600 })
+      await writeText(FINGERPRINT_CACHE_FILE, newFingerprint)
+      Bun.$.sync`chmod 600 ${FINGERPRINT_CACHE_FILE}`.quiet()
     }
   } catch (error) {
     console.warn('Failed to reset fingerprint:', error)

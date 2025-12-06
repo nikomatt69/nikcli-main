@@ -1,9 +1,48 @@
-import fs from 'node:fs'
-import path from 'node:path'
+import path from 'node:path' // Keep for security-critical path operations
 import chalk from 'chalk'
 import inquirer from 'inquirer'
 import { inputQueue } from '../core/input-queue'
 import { advancedUI } from '../ui/advanced-cli-ui'
+import { fileExists, readText, writeText, mkdirp } from '../utils/bun-compat'
+
+// Helper to get file/directory stats using Bun
+async function getStats(filePath: string) {
+  const file = Bun.file(filePath)
+  const exists = await file.exists()
+  if (!exists) return null
+
+  // Use shell stat command for detailed info
+  try {
+    const result = await Bun.$`stat -f '%HT' ${filePath} 2>/dev/null || stat -c '%F' ${filePath} 2>/dev/null`.text()
+    const type = result.trim()
+    return {
+      isFile: () => type.includes('Regular File') || type === 'regular file',
+      isDirectory: () => type.includes('Directory') || type === 'directory',
+    }
+  } catch {
+    // Fallback: try to read as file
+    try {
+      await file.text()
+      return { isFile: () => true, isDirectory: () => false }
+    } catch {
+      return { isFile: () => false, isDirectory: () => true }
+    }
+  }
+}
+
+// Synchronous version using shell
+function getStatsSync(filePath: string) {
+  try {
+    const result = Bun.$.sync`test -f ${filePath} && echo 'file' || (test -d ${filePath} && echo 'directory' || echo 'none')`.text()
+    const type = result.trim()
+    return type === 'none' ? null : {
+      isFile: () => type === 'file',
+      isDirectory: () => type === 'directory',
+    }
+  } catch {
+    return null
+  }
+}
 
 // Global batch approval state
 const batchApprovalState = {
@@ -36,11 +75,12 @@ export function sanitizePath(filePath: string, workingDirectory: string = proces
  * @throws Error if path doesn't exist, is a directory, or other file system error
  */
 export function validateIsFile(filePath: string, customErrorMsg?: string): void {
-  if (!fs.existsSync(filePath)) {
+  const stats = getStatsSync(filePath)
+
+  if (!stats) {
     throw new Error(`File not found: ${filePath}`)
   }
 
-  const stats = fs.statSync(filePath)
   if (!stats.isFile()) {
     throw new Error(customErrorMsg || `Path is not a file (is a directory): ${filePath}`)
   }
@@ -51,11 +91,12 @@ export function validateIsFile(filePath: string, customErrorMsg?: string): void 
  * @throws Error if path doesn't exist, is a file, or other file system error
  */
 export function validateIsDirectory(dirPath: string, customErrorMsg?: string): void {
-  if (!fs.existsSync(dirPath)) {
+  const stats = getStatsSync(dirPath)
+
+  if (!stats) {
     throw new Error(`Directory not found: ${dirPath}`)
   }
 
-  const stats = fs.statSync(dirPath)
   if (!stats.isDirectory()) {
     throw new Error(customErrorMsg || `Path is not a directory (is a file): ${dirPath}`)
   }
@@ -66,8 +107,8 @@ export function validateIsDirectory(dirPath: string, customErrorMsg?: string): v
  */
 export function isDirectory(dirPath: string): boolean {
   try {
-    if (!fs.existsSync(dirPath)) return false
-    return fs.statSync(dirPath).isDirectory()
+    const stats = getStatsSync(dirPath)
+    return stats ? stats.isDirectory() : false
   } catch {
     return false
   }
@@ -78,8 +119,8 @@ export function isDirectory(dirPath: string): boolean {
  */
 export function isFile(filePath: string): boolean {
   try {
-    if (!fs.existsSync(filePath)) return false
-    return fs.statSync(filePath).isFile()
+    const stats = getStatsSync(filePath)
+    return stats ? stats.isFile() : false
   } catch {
     return false
   }
@@ -199,17 +240,17 @@ export class ReadFileTool {
     try {
       const safePath = sanitizePath(filePath, this.workingDirectory)
 
-      if (!fs.existsSync(safePath)) {
+      const file = Bun.file(safePath)
+      if (!(await file.exists())) {
         throw new Error(`File not found: ${filePath}`)
       }
 
-      const stats = fs.statSync(safePath)
-
-      if (!stats.isFile()) {
+      const stats = await getStats(safePath)
+      if (!stats || !stats.isFile()) {
         throw new Error(`Path is not a file: ${filePath}`)
       }
 
-      const content = fs.readFileSync(safePath, 'utf8')
+      const content = await file.text()
       const extension = path.extname(safePath).slice(1)
 
       advancedUI.logFunctionUpdate('success', `📖 Read file: ${filePath}`)
@@ -218,8 +259,8 @@ export class ReadFileTool {
       return {
         path: filePath,
         content,
-        size: stats.size,
-        modified: stats.mtime,
+        size: file.size,
+        modified: new Date(file.lastModified),
         extension,
       }
     } catch (error: any) {
@@ -250,19 +291,20 @@ export class WriteFileTool {
   ): Promise<void> {
     try {
       const safePath = sanitizePath(filePath, this.workingDirectory)
-      const fileExists = fs.existsSync(safePath)
+      const file = Bun.file(safePath)
+      const fileAlreadyExists = await file.exists()
 
       // Validate that if the path exists, it's not a directory
-      if (fileExists) {
-        const stats = fs.statSync(safePath)
-        if (stats.isDirectory()) {
+      if (fileAlreadyExists) {
+        const stats = await getStats(safePath)
+        if (stats && stats.isDirectory()) {
           throw new Error(`Cannot write file: path is a directory: ${filePath}`)
         }
       }
 
       // Show confirmation prompt unless explicitly skipped
       if (!options.skipConfirmation) {
-        const action = fileExists ? 'overwrite' : 'create'
+        const action = fileAlreadyExists ? 'overwrite' : 'create'
 
         // Use batch approval system
         const confirmed = await requestBatchApproval(action, filePath, content)
@@ -276,14 +318,15 @@ export class WriteFileTool {
       // Create parent directories if needed
       if (options.createDirectories) {
         const dir = path.dirname(safePath)
-        if (!fs.existsSync(dir)) {
-          fs.mkdirSync(dir, { recursive: true })
+        const dirFile = Bun.file(dir)
+        if (!(await dirFile.exists())) {
+          await mkdirp(dir)
           advancedUI.logFunctionUpdate('info', `📁 Created directory: ${path.relative(this.workingDirectory, dir)}`)
         }
       }
 
-      fs.writeFileSync(safePath, content, 'utf8')
-      advancedUI.logFunctionUpdate('success', `✓ File ${fileExists ? 'updated' : 'created'}: ${filePath}`)
+      await writeText(safePath, content)
+      advancedUI.logFunctionUpdate('success', `✓ File ${fileAlreadyExists ? 'updated' : 'created'}: ${filePath}`)
     } catch (error: any) {
       advancedUI.logFunctionUpdate('error', `✖ Failed to write file: ${error.message}`)
       throw error
@@ -316,20 +359,23 @@ export class ListDirectoryTool {
     try {
       const safePath = sanitizePath(directoryPath, this.workingDirectory)
 
-      if (!fs.existsSync(safePath)) {
+      const file = Bun.file(safePath)
+      if (!(await file.exists())) {
         throw new Error(`Directory not found: ${directoryPath}`)
       }
 
-      const stats = fs.statSync(safePath)
-      if (!stats.isDirectory()) {
+      const stats = await getStats(safePath)
+      if (!stats || !stats.isDirectory()) {
         throw new Error(`Path is not a directory: ${directoryPath}`)
       }
 
       const files: string[] = []
       const directories: string[] = []
 
-      const walkDir = (dir: string, currentDepth: number = 0) => {
-        const items = fs.readdirSync(dir)
+      const walkDir = async (dir: string, currentDepth: number = 0) => {
+        // Use ls command to list directory
+        const lsResult = await Bun.$`ls -1 ${dir}`.quiet().text()
+        const items = lsResult.trim().split('\n').filter(Boolean)
 
         for (const item of items) {
           // Skip hidden files unless explicitly included
@@ -339,9 +385,9 @@ export class ListDirectoryTool {
 
           const itemPath = path.join(dir, item)
           const relativePath = path.relative(safePath, itemPath)
-          const stats = fs.statSync(itemPath)
+          const stats = await getStats(itemPath)
 
-          if (stats.isDirectory()) {
+          if (stats && stats.isDirectory()) {
             // Skip common directories that should be ignored
             if (['node_modules', '.git', 'dist', 'build', '.next'].includes(item)) {
               continue
@@ -351,9 +397,9 @@ export class ListDirectoryTool {
 
             // Recurse if requested
             if (options.recursive) {
-              walkDir(itemPath, currentDepth + 1)
+              await walkDir(itemPath, currentDepth + 1)
             }
-          } else {
+          } else if (stats) {
             // Apply pattern filter if provided
             if (!options.pattern || options.pattern.test(relativePath || item)) {
               files.push(relativePath || item)
@@ -362,7 +408,7 @@ export class ListDirectoryTool {
         }
       }
 
-      walkDir(safePath)
+      await walkDir(safePath)
 
       advancedUI.logFunctionUpdate(
         'success',
@@ -410,11 +456,12 @@ export class ReplaceInFileTool {
     try {
       const safePath = sanitizePath(filePath, this.workingDirectory)
 
-      if (!fs.existsSync(safePath)) {
+      const file = Bun.file(safePath)
+      if (!(await file.exists())) {
         throw new Error(`File not found: ${filePath}`)
       }
 
-      const originalContent = fs.readFileSync(safePath, 'utf8')
+      const originalContent = await readText(safePath)
       let modifiedContent = originalContent
       let totalReplacements = 0
 
@@ -456,12 +503,12 @@ export class ReplaceInFileTool {
       // Create backup if requested
       if (options.createBackup) {
         backupPath = `${safePath}.backup.${Date.now()}`
-        fs.writeFileSync(backupPath, originalContent, 'utf8')
+        await writeText(backupPath, originalContent)
         advancedUI.logFunctionUpdate('info', ` Backup created: ${path.relative(this.workingDirectory, backupPath)}`)
       }
 
       // Write the modified content
-      fs.writeFileSync(safePath, modifiedContent, 'utf8')
+      await writeText(safePath, modifiedContent)
       advancedUI.logFunctionUpdate('success', `✓ Applied ${totalReplacements} replacement(s) to: ${filePath}`)
 
       return {
