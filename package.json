@@ -77,7 +77,15 @@
     "mobile:android:dev": "npx tauri android dev",
     "menubar:dev": "cd src-tauri && npx tauri dev",
     "menubar:build": "cd src-tauri && npx tauri build",
-    "menubar:build:macos": "cd src-tauri && npx tauri build --target universal-apple-darwin"
+    "menubar:build:macos": "cd src-tauri && npx tauri build --target universal-apple-darwin",
+    "tauri:dev": "cd src-tauri && cargo tauri dev",
+    "tauri:build": "cd src-tauri && cargo tauri build",
+    "tauri:build:macos": "cd src-tauri && cargo tauri build --target universal-apple-darwin",
+    "tauri:build:linux": "cd src-tauri && cargo tauri build --target x86_64-unknown-linux-gnu",
+    "tauri:build:windows": "cd src-tauri && cargo tauri build --target x86_64-pc-windows-msvc",
+    "tauri:frontend:dev": "cd src/tauri-frontend && bun run dev",
+    "tauri:frontend:build": "cd src/tauri-frontend && bun run build",
+    "tauri:frontend:install": "cd src/tauri-frontend && bun install"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^1.0.0",

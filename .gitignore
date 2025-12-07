@@ -11,6 +11,7 @@ coverage/
 .yarn/
 .pnp.*
 context-interceptor-sdk/
+target
 # Dependencies
 node_modules/
 npm-debug.log*
