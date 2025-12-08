@@ -15,9 +15,9 @@ import { CliUI } from '../utils/cli-ui'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
 import { sanitizePath } from './secure-file-tools'
 
-const DEFAULT_TOKEN_BUDGET = 20000
-const MAX_LINES_PER_CHUNK = 200
-const TOKEN_CHAR_RATIO = 4
+const DEFAULT_TOKEN_BUDGET = 25000
+const MAX_LINES_PER_CHUNK = 250
+const TOKEN_CHAR_RATIO = 3.7
 
 /**
  * Production-ready Read File Tool
@@ -145,6 +145,11 @@ export class ReadFileTool extends BaseTool {
         processedContent.length < 50000
       ) {
         advancedUI.showFileContent(sanitizedPath, processedContent)
+        if (chunk.truncated && chunk.nextStartLine) {
+          advancedUI.logInfo(
+            `Read truncated at lines ${chunk.startLine}-${chunk.endLine}; continue from line ${chunk.nextStartLine} to read more.`
+          )
+        }
       }
 
       return validatedResult

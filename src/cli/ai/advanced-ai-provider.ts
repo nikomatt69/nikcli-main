@@ -229,13 +229,21 @@ export class AdvancedAIProvider implements AutonomousProvider {
     return totalTokens
   }
 
-  // Intelligent message truncation with token optimization - ULTRA AGGRESSIVE MODE
-  private async truncateMessages(messages: CoreMessage[], maxTokens: number = 60000): Promise<CoreMessage[]> {
+  // Intelligent message truncation with token optimization - MODEL-AWARE MODE
+  private async truncateMessages(messages: CoreMessage[], maxTokens?: number): Promise<CoreMessage[]> {
+    // Get actual model context limit with safety margin
+    const modelInfo = this.getCurrentModelInfo()
+    const modelContextLimit = modelInfo.config?.maxContextTokens || 200000
+    const safetyMargin = 0.15 // 15% safety margin
+    const effectiveLimit = Math.floor(modelContextLimit * (1 - safetyMargin))
+
+    // Use provided limit or model-specific limit with safety margin
+    const targetTokens = Math.min(maxTokens || 60000, effectiveLimit)
     // First apply token optimization to all messages
     const optimizedMessages = await this.optimizeMessages(messages)
     const currentTokens = this.estimateMessagesTokens(optimizedMessages)
 
-    if (currentTokens <= maxTokens) {
+    if (currentTokens <= targetTokens) {
       return optimizedMessages
     }
 
@@ -264,9 +272,9 @@ export class AdvancedAIProvider implements AutonomousProvider {
       const msg = recentMessages[i]
       const msgTokens = this.estimateTokens(typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content))
 
-      if (accumulatedTokens + msgTokens > maxTokens) {
+      if (accumulatedTokens + msgTokens > targetTokens) {
         // Truncate this message if it's too long
-        const availableTokens = maxTokens - accumulatedTokens
+        const availableTokens = targetTokens - accumulatedTokens
         const availableChars = Math.max(500, availableTokens * 3) // Conservative char conversion
 
         const content = typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content)
@@ -614,7 +622,10 @@ Respond in a helpful, professional manner with clear explanations and actionable
         execute: async ({ path, analyze }) => {
           try {
             // Load tool-specific prompt for context
-            const toolPrompt = await this.getToolPrompt('read_file', { path, analyze })
+            const toolPrompt = await this.getToolPrompt('read_file', {
+              path,
+              analyze,
+            })
 
             const fullPath = resolve(this.workingDirectory, path)
             if (!existsSync(fullPath)) {
@@ -806,10 +817,10 @@ Respond in a helpful, professional manner with clear explanations and actionable
               formatter: validationResult?.formatter,
               validation: validationResult
                 ? {
-                  isValid: validationResult.isValid,
-                  errors: validationResult.errors,
-                  warnings: validationResult.warnings,
-                }
+                    isValid: validationResult.isValid,
+                    errors: validationResult.errors,
+                    warnings: validationResult.warnings,
+                  }
                 : null,
               reasoning: reasoning || `File ${backedUp ? 'updated' : 'created'} by agent`,
             }
@@ -831,7 +842,12 @@ Respond in a helpful, professional manner with clear explanations and actionable
         execute: async ({ path, depth, includeHidden, filterBy }) => {
           try {
             // Load tool-specific prompt for context
-            const toolPrompt = await this.getToolPrompt('explore_directory', { path, depth, includeHidden, filterBy })
+            const toolPrompt = await this.getToolPrompt('explore_directory', {
+              path,
+              depth,
+              includeHidden,
+              filterBy,
+            })
 
             const fullPath = resolve(this.workingDirectory, path)
             const structure = this.exploreDirectoryStructure(fullPath, depth, includeHidden, filterBy)
@@ -869,7 +885,11 @@ Respond in a helpful, professional manner with clear explanations and actionable
         execute: async ({ command, args, autonomous, timeout }) => {
           try {
             // Load tool-specific prompt for context
-            const toolPrompt = await this.getToolPrompt('execute_command', { command, args, autonomous })
+            const toolPrompt = await this.getToolPrompt('execute_command', {
+              command,
+              args,
+              autonomous,
+            })
             CliUI.logDebug(`Using system prompt: ${toolPrompt.substring(0, 100)}...`)
 
             const fullCommand = args.length > 0 ? `${command} ${args.join(' ')}` : command
@@ -999,7 +1019,12 @@ Respond in a helpful, professional manner with clear explanations and actionable
         execute: async ({ action, packages, dev, global }) => {
           try {
             // Load tool-specific prompt for context
-            const toolPrompt = await this.getToolPrompt('manage_packages', { action, packages, dev, global })
+            const toolPrompt = await this.getToolPrompt('manage_packages', {
+              action,
+              packages,
+              dev,
+              global,
+            })
             CliUI.logDebug(`Using system prompt: ${toolPrompt.substring(0, 100)}...`)
 
             const command = 'npm'
@@ -1068,7 +1093,12 @@ Respond in a helpful, professional manner with clear explanations and actionable
         execute: async ({ type, description, language, framework, outputPath }) => {
           try {
             // Load tool-specific prompt for context
-            const toolPrompt = await this.getToolPrompt('generate_code', { type, description, language, framework })
+            const toolPrompt = await this.getToolPrompt('generate_code', {
+              type,
+              description,
+              language,
+              framework,
+            })
             CliUI.logDebug(`Using system prompt: ${toolPrompt.substring(0, 100)}...`)
 
             advancedUI.logFunctionCall(`generating${type}`)
@@ -1865,8 +1895,8 @@ Respond in a helpful, professional manner with clear explanations and actionable
             ? lastUserMessage.content
             : Array.isArray(lastUserMessage.content)
               ? lastUserMessage.content
-                .map((part) => (typeof part === 'string' ? part : part.experimental_providerMetadata?.content || ''))
-                .join('')
+                  .map((part) => (typeof part === 'string' ? part : part.experimental_providerMetadata?.content || ''))
+                  .join('')
               : String(lastUserMessage.content)
 
         // Use ToolRouter for intelligent tool analysis
@@ -1892,21 +1922,33 @@ Respond in a helpful, professional manner with clear explanations and actionable
           const cachedResponse = await this.smartCache.getCachedResponse(userContent, systemContext)
 
           if (cachedResponse) {
-            yield { type: 'start', content: `🎯 Using smart cache (${cacheDecision.strategy})...` }
+            yield {
+              type: 'start',
+              content: `🎯 Using smart cache (${cacheDecision.strategy})...`,
+            }
 
             // Stream the cached response through streamtty - it handles chunking internally
             const formattedResponse = this.formatCachedResponse(cachedResponse.response)
             yield { type: 'text_delta', content: formattedResponse }
 
-            yield { type: 'complete', content: `Cache hit - ${cachedResponse.metadata.tokensSaved} tokens saved!` }
+            yield {
+              type: 'complete',
+              content: `Cache hit - ${cachedResponse.metadata.tokensSaved} tokens saved!`,
+            }
             return
           }
         } else if (isAnalysisRequest) {
-          yield { type: 'start', content: 'Starting fresh analysis (bypassing cache)...' }
+          yield {
+            type: 'start',
+            content: 'Starting fresh analysis (bypassing cache)...',
+          }
         }
       }
 
-      yield { type: 'start', content: 'Initializing autonomous AI assistant...' }
+      yield {
+        type: 'start',
+        content: 'Initializing autonomous AI assistant...',
+      }
 
       const originalTokens = this.estimateMessagesTokens(messages)
       const truncatedTokens = this.estimateMessagesTokens(truncatedMessages)
@@ -1918,7 +1960,10 @@ Respond in a helpful, professional manner with clear explanations and actionable
         const canProceed = globalNikCLI.manageToolchainTokens('streamChat', estimatedToolchainTokens)
 
         if (!canProceed) {
-          yield { type: 'thinking', content: '🛡️ Token limit reached - clearing context and continuing...' }
+          yield {
+            type: 'thinking',
+            content: '🛡️ Token limit reached - clearing context and continuing...',
+          }
           globalNikCLI.clearToolchainContext('streamChat')
           // Continue with fresh context
         }
@@ -1991,7 +2036,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
         maxToolRoundtrips: isAnalysisRequest ? 20 : 30, // Reduced to prevent token overflow
         temperature: params.temperature,
         abortSignal,
-        onStepFinish: (_evt: any) => { },
+        onStepFinish: (_evt: any) => {},
       }
 
       // OpenRouter and Anthropic models REQUIRE maxTokens
@@ -2080,7 +2125,10 @@ Respond in a helpful, professional manner with clear explanations and actionable
                 const canProceed = globalNikCLI.manageToolchainTokens(delta.toolName, toolTokens)
 
                 if (!canProceed) {
-                  yield { type: 'thinking', content: `🛡️ Token limit for ${delta.toolName} - clearing context...` }
+                  yield {
+                    type: 'thinking',
+                    content: `🛡️ Token limit for ${delta.toolName} - clearing context...`,
+                  }
                   globalNikCLI.clearToolchainContext(delta.toolName)
                 }
               }
@@ -2235,10 +2283,10 @@ Respond in a helpful, professional manner with clear explanations and actionable
                     ? lastUserMessage.content
                     : Array.isArray(lastUserMessage.content)
                       ? lastUserMessage.content
-                        .map((part) =>
-                          typeof part === 'string' ? part : part.experimental_providerMetadata?.content || ''
-                        )
-                        .join('')
+                          .map((part) =>
+                            typeof part === 'string' ? part : part.experimental_providerMetadata?.content || ''
+                          )
+                          .join('')
                       : String(lastUserMessage.content)
 
                 // Salva nella cache intelligente
@@ -2322,7 +2370,12 @@ Respond in a helpful, professional manner with clear explanations and actionable
 
   private generateFinalSummary(
     originalQuery: string,
-    toolHistory: Array<{ toolName: string; args: any; result: any; success: boolean }>
+    toolHistory: Array<{
+      toolName: string
+      args: any
+      result: any
+      success: boolean
+    }>
   ): string {
     const tools = [...new Set(toolHistory.map((t) => t.toolName))]
     const successful = toolHistory.filter((t) => t.success).length
@@ -2436,7 +2489,10 @@ Respond in a helpful, professional manner with clear explanations and actionable
     }
 
     // First, analyze the task and create a plan
-    yield { type: 'thinking', content: 'Analyzing task and creating execution plan...' }
+    yield {
+      type: 'thinking',
+      content: 'Analyzing task and creating execution plan...',
+    }
 
     try {
       // If prebuilt messages are provided, use them directly to avoid duplicating large prompts
@@ -2453,7 +2509,10 @@ Respond in a helpful, professional manner with clear explanations and actionable
       const requiresParallelAgents = this.analyzeParallelRequirements(task)
 
       if (requiresParallelAgents) {
-        yield { type: 'thinking', content: '⚡︎ Task requires parallel agent execution...' }
+        yield {
+          type: 'thinking',
+          content: '⚡︎ Task requires parallel agent execution...',
+        }
 
         // Esegui con agenti paralleli
         for await (const event of this.executeParallelTask(task, context)) {
@@ -2558,7 +2617,10 @@ Execute task autonomously with tools. Be direct. Stay within project directory.`
       // Dividi il task in sottotask paralleli
       const subtasks = this.splitIntoSubtasks(task)
 
-      yield { type: 'thinking', content: `📋 Split into ${subtasks.length} parallel subtasks` }
+      yield {
+        type: 'thinking',
+        content: `📋 Split into ${subtasks.length} parallel subtasks`,
+      }
 
       // Esegui sottotask in parallelo con isolamento
       const results = await Promise.allSettled(
@@ -2936,7 +2998,10 @@ Stay within project directory.`,
   }
 
   private detectFramework(packageJson: any): string {
-    const deps = { ...packageJson.dependencies, ...packageJson.devDependencies }
+    const deps = {
+      ...packageJson.dependencies,
+      ...packageJson.devDependencies,
+    }
 
     if (deps.next) return 'Next.js'
     if (deps.nuxt) return 'Nuxt.js'
@@ -2989,8 +3054,11 @@ Requirements:
       const routingCfg = configManager.get('modelRouting')
       const resolved = routingCfg?.enabled
         ? await this.resolveAdaptiveModel('code_gen', [
-          { role: 'user', content: `${type}: ${description} (${language})` } as any,
-        ])
+            {
+              role: 'user',
+              content: `${type}: ${description} (${language})`,
+            } as any,
+          ])
         : undefined
       const model = this.getModel(resolved) as any
       const params = this.getProviderParams()
@@ -3056,7 +3124,12 @@ Requirements:
         content: toText(m.content),
       }))
 
-      const decision = await adaptiveModelRouter.choose({ provider, baseModel, messages: simpleMessages as any, scope })
+      const decision = await adaptiveModelRouter.choose({
+        provider,
+        baseModel,
+        messages: simpleMessages as any,
+        scope,
+      })
 
       // Log gently (if UI exists)
       try {
@@ -3064,7 +3137,7 @@ Requirements:
         const msg = `[Router] ${info.name} → ${decision.selectedModel} (${decision.tier}, ~${decision.estimatedTokens} tok)`
         if (nik?.advancedUI) nik.advancedUI.logInfo('model router', msg)
         else console.log(chalk.dim(msg))
-      } catch { }
+      } catch {}
 
       // The router returns a provider model id. Our config keys match these ids in default models.
       // If key is missing, fallback to current model name in config.
@@ -3233,7 +3306,10 @@ Requirements:
   }
 
   // Get provider-specific parameters
-  private getProviderParams(modelName?: string): { maxTokens: number; temperature: number } {
+  private getProviderParams(modelName?: string): {
+    maxTokens: number
+    temperature: number
+  } {
     const model = modelName || this.currentModel || configManager.get('currentModel')
     const allModels = configManager.get('models')
     const configData = allModels[model]
@@ -3339,7 +3415,10 @@ Requirements:
       if (total > maxTotalChars) break
       // For tool messages, wrap clamped string as tool-friendly text content
       if ((m as any).role === 'tool') {
-        safeMessages.push({ ...(m as any), content: [{ type: 'text', text: clamped }] as any })
+        safeMessages.push({
+          ...(m as any),
+          content: [{ type: 'text', text: clamped }] as any,
+        })
       } else {
         const role = (m as any).role
         safeMessages.push({ role, content: clamped } as any)
@@ -3356,7 +3435,10 @@ Requirements:
       if (total + clamped.length > maxTotalChars) break
       total += clamped.length
       if ((m as any).role === 'tool') {
-        safeMessages.push({ ...(m as any), content: [{ type: 'text', text: clamped }] as any })
+        safeMessages.push({
+          ...(m as any),
+          content: [{ type: 'text', text: clamped }] as any,
+        })
       } else {
         const role = (m as any).role
         safeMessages.push({ role, content: clamped } as any)
@@ -3465,7 +3547,9 @@ Requirements:
   async testPromptLoading(): Promise<{ baseAgent: string; readFile: string }> {
     try {
       const baseAgent = await this.getEnhancedSystemPrompt()
-      const readFile = await this.getToolPrompt('read_file', { path: 'test.txt' })
+      const readFile = await this.getToolPrompt('read_file', {
+        path: 'test.txt',
+      })
 
       return {
         baseAgent: `${baseAgent.substring(0, 4000)}...`,
@@ -3515,7 +3599,12 @@ Requirements:
   // Analyze gaps when tool roundtrips are exhausted (token-optimized)
   private analyzeMissingInformation(
     originalQuery: string,
-    toolHistory: Array<{ toolName: string; args: any; result: any; success: boolean }>
+    toolHistory: Array<{
+      toolName: string
+      args: any
+      result: any
+      success: boolean
+    }>
   ): string {
     const tools = [...new Set(toolHistory.map((t) => t.toolName))]
     const failed = toolHistory.filter((t) => !t.success).length
@@ -3551,7 +3640,12 @@ Requirements:
   private generateClarifyingQuestion(
     _gapAnalysis: string,
     originalQuery: string,
-    toolHistory: Array<{ toolName: string; args: any; result: any; success: boolean }>
+    toolHistory: Array<{
+      toolName: string
+      args: any
+      result: any
+      success: boolean
+    }>
   ): string {
     const queryLower = originalQuery.toLowerCase()
     const tools = toolHistory.map((t) => t.toolName)
@@ -4296,7 +4390,10 @@ Use this cognitive understanding to provide more targeted and effective response
 
   // ====================== 🛡️ SAFETY AND VALIDATION ======================
 
-  private validateCommandSafety(command: Command): { safe: boolean; reason?: string } {
+  private validateCommandSafety(command: Command): {
+    safe: boolean
+    reason?: string
+  } {
     // Dangerous command patterns
     const dangerousPatterns = [
       /rm\s+-rf\s+\//,

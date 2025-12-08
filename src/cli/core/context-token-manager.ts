@@ -239,6 +239,80 @@ export class ContextTokenManager extends EventEmitter {
   }
 
   /**
+   * Pre-request token validation - Hard guard against context overflow
+   */
+  validateRequestTokens(
+    messages: CoreMessage[],
+    maxOutputTokens: number = 4000
+  ): {
+    isValid: boolean
+    totalTokens: number
+    maxTokens: number
+    error?: string
+    recommendation: ContextOptimization
+  } {
+    if (!this.currentSession) {
+      return {
+        isValid: false,
+        totalTokens: 0,
+        maxTokens: 0,
+        error: 'No active session',
+        recommendation: {
+          shouldTrim: false,
+          currentUsage: 0,
+          maxTokens: 0,
+          usagePercentage: 0,
+          recommendation: 'continue',
+          reason: 'No active session',
+        },
+      }
+    }
+
+    // Count tokens for all messages
+    let totalInputTokens = 0
+    for (const message of messages) {
+      totalInputTokens += this.estimateTokens(this.extractTextContent(message.content))
+    }
+
+    // Add overhead for message structure and tool calls
+    totalInputTokens += messages.length * 4 // Message overhead
+    totalInputTokens += 50 // Conversation overhead
+
+    const totalTokens = totalInputTokens + maxOutputTokens
+    const maxTokens = this.currentSession.modelLimits.context
+    const usagePercentage = (totalTokens / maxTokens) * 100
+
+    // Hard limit check - fail if over 95% of context
+    const HARD_LIMIT_THRESHOLD = 0.95
+    const isValid = usagePercentage < HARD_LIMIT_THRESHOLD * 100
+
+    let error: string | undefined
+    if (!isValid) {
+      const excessTokens = totalTokens - maxTokens
+      error = `🚫 Token limit exceeded: ${totalTokens.toLocaleString()} tokens requested (max: ${maxTokens.toLocaleString()}). Excess: ${excessTokens.toLocaleString()} tokens. Please break your request into smaller parts.`
+    }
+
+    const recommendation = this.analyzeContextOptimization()
+    recommendation.shouldTrim = !isValid || usagePercentage > 80
+
+    return {
+      isValid,
+      totalTokens,
+      maxTokens,
+      error,
+      recommendation,
+    }
+  }
+
+  /**
+   * Estimate tokens for text content (fallback method)
+   */
+  private estimateTokens(text: string): number {
+    // Rough estimation: ~4 characters per token
+    return Math.ceil(text.length / 4)
+  }
+
+  /**
    * Analyze current context and provide optimization recommendations
    */
   analyzeContextOptimization(): ContextOptimization {
@@ -471,7 +545,10 @@ export class ContextTokenManager extends EventEmitter {
 
     // Re-analyze optimization with new limits
     const optimization = this.analyzeContextOptimization()
-    this.emit('context_reanalyzed', { session: this.currentSession, optimization })
+    this.emit('context_reanalyzed', {
+      session: this.currentSession,
+      optimization,
+    })
   }
 
   /**

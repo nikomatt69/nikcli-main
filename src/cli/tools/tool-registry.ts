@@ -8,6 +8,7 @@ import { CoinbaseAgentKitTool } from './coinbase-agentkit-tool'
 import { DiffTool } from './diff-tool'
 import { EditTool } from './edit-tool'
 import { FindFilesTool } from './find-files-tool'
+import { FormatSuggestionTool } from './format-suggestion-tool'
 import { GitTools } from './git-tools'
 import { GlobTool } from './glob-tool'
 import { GoatTool } from './goat-tool'
@@ -57,7 +58,7 @@ export class ToolRegistry {
     // Update all tool instances that support updateWorkingDirectory
     for (const [_name, tool] of this.tools.entries()) {
       if (tool && typeof (tool as any).updateWorkingDirectory === 'function') {
-        ;(tool as any).updateWorkingDirectory(newDir)
+        ; (tool as any).updateWorkingDirectory(newDir)
       }
     }
   }
@@ -360,6 +361,17 @@ export class ToolRegistry {
       requiredPermissions: ['write'],
       supportedFileTypes: ['*'],
       tags: ['batch', 'edit', 'atomic'],
+    })
+
+    this.registerTool('format-suggestion-tool', new FormatSuggestionTool(workingDirectory), {
+      description: 'Suggest formatter and command for a given file',
+      category: 'format',
+      riskLevel: 'low',
+      reversible: true,
+      estimatedDuration: 1000,
+      requiredPermissions: ['read'],
+      supportedFileTypes: ['*'],
+      tags: ['format', 'suggestion'],
     })
 
     // Multi read tool

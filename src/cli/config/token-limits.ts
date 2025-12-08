@@ -519,8 +519,8 @@ export const MODEL_CONTEXT_LIMITS: Record<string, number> = {
   'deepseek/deepseek-v3.1-terminus': 128000,
   'deepseek/deepseek-v3.2-exp': 128000,
   'moonshotai/kimi-k2-0905': 128000,
-  '@preset/nikcli': 200000,
-  '@preset/nikcli-pro': 200000,
+  '@preset/nikcli': 262144, // OpenRouter actual limit for nikcli preset
+  '@preset/nikcli-pro': 262144, // OpenRouter actual limit for nikcli-pro preset
 
   // Default fallback for unknown models
   default: 128000,

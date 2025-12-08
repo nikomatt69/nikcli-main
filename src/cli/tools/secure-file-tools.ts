@@ -187,9 +187,9 @@ function getBatchMessage(action: string, fileCount: number, operations: any[]): 
  */
 export class ReadFileTool {
   private workingDirectory: string
-  private static readonly DEFAULT_TOKEN_BUDGET = 20000
-  private static readonly MAX_LINES_PER_CHUNK = 200
-  private static readonly TOKEN_CHAR_RATIO = 4
+  private static readonly DEFAULT_TOKEN_BUDGET = 25000
+  private static readonly MAX_LINES_PER_CHUNK = 250
+  private static readonly TOKEN_CHAR_RATIO = 3.7
 
   constructor(workingDir?: string) {
     this.workingDirectory = workingDir || process.cwd()
@@ -237,6 +237,11 @@ export class ReadFileTool {
       const extension = path.extname(safePath).slice(1)
 
       advancedUI.logFunctionUpdate('success', `📖 Read file: ${filePath}`)
+      if (chunk.truncated && chunk.nextStartLine) {
+        advancedUI.logInfo(
+          `Output truncated at lines ${chunk.startLine}-${chunk.endLine}; continue from line ${chunk.nextStartLine} for next chunk.`
+        )
+      }
       advancedUI.logFunctionCall('read-file-tool')
 
       return {

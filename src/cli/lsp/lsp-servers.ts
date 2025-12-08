@@ -37,7 +37,7 @@ function findWorkspaceRoot(startPath: string, patterns: string[]): string | unde
 }
 
 // Check if command exists in PATH
-function commandExists(command: string): boolean {
+export function commandExists(command: string): boolean {
   try {
     const { execSync } = require('node:child_process')
     execSync(`which ${command}`, { stdio: 'ignore' })
@@ -101,7 +101,17 @@ export const LSP_SERVERS: Record<string, LSPServerInfo> = {
     id: 'python',
     name: 'Pylsp (Python LSP Server)',
     extensions: ['.py', '.pyi'],
-    rootPatterns: ['pyproject.toml', 'setup.py', 'setup.cfg', 'requirements.txt', 'Pipfile'],
+    rootPatterns: [
+      'pyproject.toml',
+      'setup.py',
+      'setup.cfg',
+      'requirements.txt',
+      'Pipfile',
+      'pyrightconfig.json',
+      'poetry.lock',
+      '.venv',
+      'venv',
+    ],
     async spawn(workspaceRoot: string): Promise<LSPServerHandle | undefined> {
       try {
         // Check if pylsp is available
@@ -139,6 +149,41 @@ export const LSP_SERVERS: Record<string, LSPServerInfo> = {
         }
       } catch (error) {
         console.log(chalk.red(`✖ Failed to start Python LSP: ${error}`))
+        return undefined
+      }
+    },
+  },
+
+  pyright: {
+    id: 'pyright',
+    name: 'Pyright (Python LSP Server)',
+    extensions: ['.py', '.pyi'],
+    rootPatterns: [
+      'pyrightconfig.json',
+      'pyproject.toml',
+      'setup.py',
+      'setup.cfg',
+      'requirements.txt',
+      'Pipfile',
+      'poetry.lock',
+      '.venv',
+      'venv',
+    ],
+    async spawn(workspaceRoot: string): Promise<LSPServerHandle | undefined> {
+      try {
+        if (!commandExists('pyright-langserver')) {
+          console.log(chalk.yellow('⚠︎ pyright-langserver not found; skipping pyright LSP start'))
+          return undefined
+        }
+
+        const process = spawn('pyright-langserver', ['--stdio'], {
+          cwd: workspaceRoot,
+          stdio: ['pipe', 'pipe', 'inherit'],
+        })
+
+        return { process }
+      } catch (error) {
+        console.log(chalk.red(`✖ Failed to start Pyright: ${error}`))
         return undefined
       }
     },
@@ -272,6 +317,19 @@ export const LSP_SERVERS: Record<string, LSPServerInfo> = {
 export function getApplicableLSPServers(filePath: string): LSPServerInfo[] {
   const extension = extname(filePath)
   const servers: LSPServerInfo[] = []
+
+  // Special handling for Python: prefer pyright if available, else pylsp fallback
+  if (['.py', '.pyi'].includes(extension)) {
+    const pyright = LSP_SERVERS['pyright']
+    const pylsp = LSP_SERVERS['python']
+
+    if (pyright && commandExists('pyright-langserver')) {
+      servers.push(pyright)
+    } else if (pylsp) {
+      servers.push(pylsp)
+    }
+    return servers
+  }
 
   for (const server of Object.values(LSP_SERVERS)) {
     if (server.extensions.includes(extension)) {
