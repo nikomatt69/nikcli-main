@@ -1,4 +1,5 @@
-import { readFile } from 'node:fs/promises'
+import { createReadStream } from 'node:fs'
+import readline from 'node:readline'
 import chalk from 'chalk'
 import { z } from 'zod'
 import { ContextAwareRAGSystem } from '../context/context-aware-rag'
@@ -13,6 +14,10 @@ import { advancedUI } from '../ui/advanced-cli-ui'
 import { CliUI } from '../utils/cli-ui'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
 import { sanitizePath } from './secure-file-tools'
+
+const DEFAULT_TOKEN_BUDGET = 20000
+const MAX_LINES_PER_CHUNK = 200
+const TOKEN_CHAR_RATIO = 4
 
 /**
  * Production-ready Read File Tool
@@ -75,9 +80,20 @@ export class ReadFileTool extends BaseTool {
         }
       }
 
-      // Read file with specified encoding
+      // Read file with specified encoding using chunking to respect token and line budgets
       const encoding = validatedOptions.encoding || 'utf8'
-      const content = await readFile(sanitizedPath, encoding as BufferEncoding)
+      const { size: fileSize } = await import('node:fs/promises').then((fs) => fs.stat(sanitizedPath))
+      const effectiveMaxLinesPerChunk = Math.min(
+        validatedOptions.maxLinesPerChunk ?? MAX_LINES_PER_CHUNK,
+        MAX_LINES_PER_CHUNK,
+        validatedOptions.maxLines ?? MAX_LINES_PER_CHUNK
+      )
+      const chunk = await this.readChunkWithBudget(sanitizedPath, encoding as BufferEncoding, {
+        startLine: validatedOptions.startLine ?? 1,
+        maxLinesPerChunk: effectiveMaxLinesPerChunk,
+        tokenBudget: Math.min(validatedOptions.tokenBudget ?? DEFAULT_TOKEN_BUDGET, DEFAULT_TOKEN_BUDGET),
+      })
+      const content = chunk.content
 
       // Check if this is an image file and perform vision analysis
       const imageAnalysis = await this.performImageAnalysis(sanitizedPath)
@@ -104,13 +120,18 @@ export class ReadFileTool extends BaseTool {
         success: true,
         filePath: sanitizedPath,
         content: processedContent,
-        size: Buffer.byteLength(content, encoding as BufferEncoding),
+        size: fileSize,
         encoding,
         metadata: {
           lines: typeof processedContent === 'string' ? processedContent.split('\n').length : undefined,
           isEmpty: content.length === 0,
           isBinary: encoding !== 'utf8' && encoding !== 'utf-8',
           extension: this.getFileExtension(filePath),
+          startLine: chunk.startLine,
+          endLine: chunk.endLine,
+          nextStartLine: chunk.nextStartLine,
+          truncated: chunk.truncated,
+          estimatedTokens: chunk.estimatedTokens,
         },
       }
 
@@ -421,6 +442,79 @@ export class ReadFileTool extends BaseTool {
       await this.contextSystem.analyzeFile(filePath)
     } catch (error: any) {
       advancedUI.logWarning(`LSP/Context analysis failed for ${filePath}: ${error.message}`)
+    }
+  }
+
+  private estimateTokensFromLength(charCount: number): number {
+    return Math.ceil(charCount / TOKEN_CHAR_RATIO)
+  }
+
+  private async readChunkWithBudget(
+    sanitizedPath: string,
+    encoding: BufferEncoding,
+    options: {
+      startLine: number
+      maxLinesPerChunk: number
+      tokenBudget: number
+    }
+  ): Promise<{
+    content: string
+    startLine: number
+    endLine: number
+    nextStartLine: number | null
+    truncated: boolean
+    estimatedTokens: number
+  }> {
+    const stream = createReadStream(sanitizedPath, {
+      encoding,
+      highWaterMark: 64 * 1024,
+    })
+    const reader = readline.createInterface({
+      input: stream,
+      crlfDelay: Infinity,
+    })
+
+    const lines: string[] = []
+    let charCount = 0
+    let currentLine = 0
+    let truncated = false
+    const maxLines = Math.max(1, Math.min(options.maxLinesPerChunk, MAX_LINES_PER_CHUNK))
+    const tokenBudget = Math.max(1000, Math.min(options.tokenBudget, DEFAULT_TOKEN_BUDGET))
+
+    try {
+      for await (const line of reader) {
+        currentLine++
+        if (currentLine < options.startLine) {
+          continue
+        }
+
+        const projectedCharCount = charCount + line.length + 1 // include newline
+        const projectedTokens = this.estimateTokensFromLength(projectedCharCount)
+        if (lines.length >= maxLines || projectedTokens > tokenBudget) {
+          truncated = true
+          break
+        }
+
+        lines.push(line)
+        charCount = projectedCharCount
+      }
+    } finally {
+      reader.close()
+      stream.close()
+    }
+
+    const content = lines.join('\n')
+    const endLine =
+      lines.length > 0 ? options.startLine + lines.length - 1 : Math.max(options.startLine, 1)
+    const nextStartLine = truncated ? endLine + 1 : null
+
+    return {
+      content,
+      startLine: options.startLine,
+      endLine,
+      nextStartLine,
+      truncated,
+      estimatedTokens: this.estimateTokensFromLength(charCount),
     }
   }
 }

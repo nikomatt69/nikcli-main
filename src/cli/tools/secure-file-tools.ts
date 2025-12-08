@@ -1,7 +1,8 @@
-import fs from 'node:fs'
+import fs, { createReadStream } from 'node:fs'
 import path from 'node:path'
 import chalk from 'chalk'
 import inquirer from 'inquirer'
+import readline from 'node:readline'
 import { inputQueue } from '../core/input-queue'
 import { advancedUI } from '../ui/advanced-cli-ui'
 import { checkPath, type PathCheckResult } from '../utils/path-resolver'
@@ -121,8 +122,8 @@ async function requestBatchApproval(action: string, filePath: string, content?: 
   // Start batch approval process
   batchApprovalState.approvalInProgress = true
   try {
-    ;(global as any).__nikCLI?.suspendPrompt?.()
-  } catch {}
+    ; (global as any).__nikCLI?.suspendPrompt?.()
+  } catch { }
   inputQueue.enableBypass()
 
   try {
@@ -152,8 +153,8 @@ async function requestBatchApproval(action: string, filePath: string, content?: 
     batchApprovalState.approvalInProgress = false
     // Ensure prompt resumes cleanly after batch approval
     try {
-      ;(global as any).__nikCLI?.resumePromptAndRender?.()
-    } catch {}
+      ; (global as any).__nikCLI?.resumePromptAndRender?.()
+    } catch { }
   }
 }
 
@@ -186,17 +187,33 @@ function getBatchMessage(action: string, fileCount: number, operations: any[]): 
  */
 export class ReadFileTool {
   private workingDirectory: string
+  private static readonly DEFAULT_TOKEN_BUDGET = 20000
+  private static readonly MAX_LINES_PER_CHUNK = 200
+  private static readonly TOKEN_CHAR_RATIO = 4
 
   constructor(workingDir?: string) {
     this.workingDirectory = workingDir || process.cwd()
   }
 
-  async execute(filePath: string): Promise<{
+  async execute(
+    filePath: string,
+    options: {
+      startLine?: number
+      maxLinesPerChunk?: number
+      tokenBudget?: number
+      encoding?: BufferEncoding
+    } = {}
+  ): Promise<{
     path: string
     content: string
     size: number
     modified: Date
     extension: string
+    startLine: number
+    endLine: number
+    nextStartLine: number | null
+    truncated: boolean
+    estimatedTokens: number
   }> {
     try {
       const safePath = sanitizePath(filePath, this.workingDirectory)
@@ -211,7 +228,12 @@ export class ReadFileTool {
         throw new Error(`Path is not a file: ${filePath}`)
       }
 
-      const content = fs.readFileSync(safePath, 'utf8')
+      const encoding = options.encoding || 'utf8'
+      const chunk = await this.readChunkWithBudget(safePath, encoding, {
+        startLine: options.startLine ?? 1,
+        maxLinesPerChunk: options.maxLinesPerChunk ?? ReadFileTool.MAX_LINES_PER_CHUNK,
+        tokenBudget: options.tokenBudget ?? ReadFileTool.DEFAULT_TOKEN_BUDGET,
+      })
       const extension = path.extname(safePath).slice(1)
 
       advancedUI.logFunctionUpdate('success', `📖 Read file: ${filePath}`)
@@ -219,15 +241,88 @@ export class ReadFileTool {
 
       return {
         path: filePath,
-        content,
+        content: chunk.content,
         size: stats.size,
         modified: stats.mtime,
         extension,
+        startLine: chunk.startLine,
+        endLine: chunk.endLine,
+        nextStartLine: chunk.nextStartLine,
+        truncated: chunk.truncated,
+        estimatedTokens: chunk.estimatedTokens,
       }
     } catch (error: any) {
       advancedUI.logFunctionUpdate('error', `✖ Failed to read file: ${error.message}`)
       advancedUI.logFunctionCall('read-file-tool')
       throw error
+    }
+  }
+
+  private estimateTokensFromLength(charCount: number): number {
+    return Math.ceil(charCount / ReadFileTool.TOKEN_CHAR_RATIO)
+  }
+
+  private async readChunkWithBudget(
+    safePath: string,
+    encoding: BufferEncoding,
+    options: { startLine: number; maxLinesPerChunk: number; tokenBudget: number }
+  ): Promise<{
+    content: string
+    startLine: number
+    endLine: number
+    nextStartLine: number | null
+    truncated: boolean
+    estimatedTokens: number
+  }> {
+    const stream = createReadStream(safePath, {
+      encoding,
+      highWaterMark: 64 * 1024,
+    })
+    const reader = readline.createInterface({
+      input: stream,
+      crlfDelay: Infinity,
+    })
+
+    const lines: string[] = []
+    let charCount = 0
+    let currentLine = 0
+    let truncated = false
+    const maxLines = Math.max(1, Math.min(options.maxLinesPerChunk, ReadFileTool.MAX_LINES_PER_CHUNK))
+    const tokenBudget = Math.max(1000, Math.min(options.tokenBudget, ReadFileTool.DEFAULT_TOKEN_BUDGET))
+
+    try {
+      for await (const line of reader) {
+        currentLine++
+        if (currentLine < options.startLine) {
+          continue
+        }
+
+        const projectedCharCount = charCount + line.length + 1
+        const projectedTokens = this.estimateTokensFromLength(projectedCharCount)
+        if (lines.length >= maxLines || projectedTokens > tokenBudget) {
+          truncated = true
+          break
+        }
+
+        lines.push(line)
+        charCount = projectedCharCount
+      }
+    } finally {
+      reader.close()
+      stream.close()
+    }
+
+    const content = lines.join('\n')
+    const endLine = lines.length > 0 ? options.startLine + lines.length - 1 : Math.max(options.startLine, 1)
+    const nextStartLine = truncated ? endLine + 1 : null
+
+    return {
+      content,
+      startLine: options.startLine,
+      endLine,
+      nextStartLine,
+      truncated,
+      estimatedTokens: this.estimateTokensFromLength(charCount),
     }
   }
 }

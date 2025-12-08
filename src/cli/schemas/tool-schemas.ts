@@ -81,6 +81,9 @@ export const ReadFileOptionsSchema = z.object({
   maxLines: z.number().int().min(1).optional(),
   stripComments: z.boolean().optional(),
   parseJson: z.boolean().optional(),
+  startLine: z.number().int().min(1).optional(),
+  maxLinesPerChunk: z.number().int().min(1).max(500).optional(),
+  tokenBudget: z.number().int().min(1000).optional(),
 })
 
 export const ReadFileResultSchema = z.object({
@@ -95,6 +98,11 @@ export const ReadFileResultSchema = z.object({
     isEmpty: z.boolean(),
     isBinary: z.boolean(),
     extension: z.string(),
+    startLine: z.number().int().min(1).optional(),
+    endLine: z.number().int().min(1).optional(),
+    nextStartLine: z.number().int().min(1).nullable().optional(),
+    truncated: z.boolean().optional(),
+    estimatedTokens: z.number().int().min(0).optional(),
   }),
 })
 

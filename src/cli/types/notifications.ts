@@ -8,6 +8,7 @@ export enum NotificationProvider {
   SLACK = 'slack',
   DISCORD = 'discord',
   LINEAR = 'linear',
+  NATIVE = 'native',
 }
 
 export enum NotificationType {
@@ -138,12 +139,21 @@ export interface LinearProviderConfig {
 }
 
 /**
+ * Native macOS notification provider configuration
+ */
+export interface NativeProviderConfig {
+  enabled: boolean
+  port?: number // Port for Tauri app communication (default: 3001)
+}
+
+/**
  * Provider-specific configurations
  */
 export interface ProviderConfigs {
   slack?: SlackProviderConfig
   discord?: DiscordProviderConfig
   linear?: LinearProviderConfig
+  native?: NativeProviderConfig
 }
 
 /**

@@ -6,6 +6,10 @@ import { CliUI } from '../utils/cli-ui'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
 import { sanitizePath, validateIsFile } from './secure-file-tools'
 
+const DEFAULT_TOKEN_BUDGET = 20000
+const MAX_LINES_PER_CHUNK = 200
+const TOKEN_CHAR_RATIO = 4
+
 /**
  * Production-ready Replace In File Tool
  * Safely performs content replacements with validation and rollback
@@ -54,6 +58,8 @@ export class ReplaceInFileTool extends BaseTool {
         throw new Error('No matches found for the search pattern')
       }
 
+      let truncatedForDisplay = false
+
       // Show a visual diff summary before writing changes
       if (replaceResult.matchCount > 0) {
         if (options.createBackup) {
@@ -63,17 +69,26 @@ export class ReplaceInFileTool extends BaseTool {
           advancedUI.logInfo(`💾 Backup created: ${backupPath}`)
         }
 
+        const limitedOriginal = this.applyContentBudget(originalContent)
+        const limitedNew = this.applyContentBudget(replaceResult.newContent)
+        truncatedForDisplay = limitedOriginal.truncated || limitedNew.truncated
+
         const fileDiff: FileDiff = {
           filePath: sanitizedPath,
-          originalContent,
-          newContent: replaceResult.newContent,
+          originalContent: limitedOriginal.content,
+          newContent: limitedNew.content,
           isNew: false,
           isDeleted: false,
         }
         console.log('\n')
         DiffViewer.showFileDiff(fileDiff, { compact: true })
         // Also add to diff manager to surface in Advanced UI panels
-        diffManager.addFileDiff(sanitizedPath, originalContent, replaceResult.newContent)
+        diffManager.addFileDiff(sanitizedPath, limitedOriginal.content, limitedNew.content)
+        if (limitedOriginal.truncated || limitedNew.truncated) {
+          advancedUI.logInfo(
+            `Diff output truncated to respect budget (showing lines ${1}-${limitedNew.linesIncluded}).`
+          )
+        }
 
         // Write modified content
         await writeFile(sanitizedPath, replaceResult.newContent, 'utf8')
@@ -95,6 +110,7 @@ export class ReplaceInFileTool extends BaseTool {
           replacement,
           encoding: 'utf8',
           hasChanges: replaceResult.matchCount > 0,
+          truncatedForDisplay,
         },
       }
 
@@ -455,6 +471,45 @@ export class ReplaceInFileTool extends BaseTool {
    */
   private escapeRegex(str: string): string {
     return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  }
+
+  private estimateTokensFromLength(charCount: number): number {
+    return Math.ceil(charCount / TOKEN_CHAR_RATIO)
+  }
+
+  private applyContentBudget(
+    content: string,
+    maxLines: number = MAX_LINES_PER_CHUNK,
+    tokenBudget: number = DEFAULT_TOKEN_BUDGET
+  ): { content: string; truncated: boolean; estimatedTokens: number; linesIncluded: number } {
+    const lines = content.split('\n')
+    const cappedLines = Math.max(1, Math.min(maxLines, MAX_LINES_PER_CHUNK))
+    const cappedTokenBudget = Math.max(1000, Math.min(tokenBudget, DEFAULT_TOKEN_BUDGET))
+
+    const includedLines: string[] = []
+    let charCount = 0
+    let truncated = false
+
+    for (const line of lines) {
+      const projectedCharCount = charCount + line.length + 1
+      if (
+        includedLines.length >= cappedLines ||
+        this.estimateTokensFromLength(projectedCharCount) > cappedTokenBudget
+      ) {
+        truncated = true
+        break
+      }
+
+      includedLines.push(line)
+      charCount = projectedCharCount
+    }
+
+    return {
+      content: includedLines.join('\n'),
+      truncated,
+      estimatedTokens: this.estimateTokensFromLength(charCount),
+      linesIncluded: includedLines.length,
+    }
   }
 }
 

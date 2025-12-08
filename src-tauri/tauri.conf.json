@@ -1,70 +1,46 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "NikCLI",
+  "productName": "NikCLI Menubar",
   "version": "0.1.0",
-  "identifier": "com.nikcli.desktop",
+  "identifier": "com.nikcli.menubar",
   "build": {
-    "beforeDevCommand": {
-      "script": "bun run dev",
-      "cwd": "../src/tauri-frontend"
-    },
-    "devUrl": "http://localhost:5173",
-    "beforeBuildCommand": {
-      "script": "bun run build",
-      "cwd": "../src/tauri-frontend"
-    },
+    "beforeBuildCommand": "cd ../src/tauri-frontend && bun run build",
+    "beforeDevCommand": "cd ../src/tauri-frontend && bun run dev -- --host --port 1420",
+    "devUrl": "http://localhost:1420",
     "frontendDist": "../src/tauri-frontend/dist"
   },
   "app": {
-    "withGlobalTauri": true,
+    "macOSPrivateApi": true,
+    "security": {
+      "csp": "default-src 'self'; img-src 'self' data:; media-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src http://localhost:3000 http://127.0.0.1:3000"
+    },
     "windows": [
       {
-        "title": "NikCLI",
-        "width": 1200,
-        "height": 800,
-        "minWidth": 800,
-        "minHeight": 600,
-        "resizable": true,
+        "label": "menubar",
+        "title": "NikCLI Menubar",
+        "width": 280,
+        "height": 400,
+        "resizable": false,
         "fullscreen": false,
-        "decorations": true,
-        "transparent": false,
-        "center": true
+        "transparent": true,
+        "decorations": false,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "visible": false
       }
-    ],
-    "security": {
-      "csp": null
-    }
+    ]
   },
   "bundle": {
     "active": true,
-    "targets": "all",
-    "icon": [
-      "icons/32x32.png",
-      "icons/128x128.png",
-      "icons/128x128@2x.png",
-      "icons/icon.icns",
-      "icons/icon.ico"
+    "targets": [
+      "app"
     ],
-    "category": "DeveloperTool",
-    "shortDescription": "AI-powered CLI assistant",
-    "longDescription": "NikCLI is a context-aware AI development assistant that runs in your terminal.",
+    "icon": [
+      "icons/icon.png"
+    ],
     "macOS": {
-      "minimumSystemVersion": "10.15"
-    },
-    "linux": {
-      "appimage": {
-        "bundleMediaFramework": false
-      }
-    },
-    "windows": {
-      "webviewInstallMode": {
-        "type": "downloadBootstrapper"
-      }
+      "minimumSystemVersion": "11.0"
     }
   },
-  "plugins": {
-    "shell": {
-      "open": true
-    }
-  }
+  "plugins": {}
 }

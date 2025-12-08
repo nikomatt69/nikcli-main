@@ -23,7 +23,6 @@ pub async fn create_pty(
     let pty = PtyManager::new(cols, rows)?;
 
     // Spawn NikCLI with bun
-    // First try to find bun in common locations
     let bun_path = which_bun().unwrap_or_else(|| "bun".to_string());
 
     pty.spawn_command(
@@ -92,7 +91,7 @@ pub fn close_pty(state: State<'_, PtyState>) -> Result<(), String> {
     Ok(())
 }
 
-fn which_bun() -> Option<String> {
+pub fn which_bun() -> Option<String> {
     // Try common bun locations
     let candidates = [
         "/usr/local/bin/bun",

@@ -1,11 +1,8 @@
-use parking_lot::Mutex;
 use portable_pty::{native_pty_system, CommandBuilder, PtyPair, PtySize};
 use std::io::{Read, Write};
-use std::sync::Arc;
 
 pub struct PtyManager {
     pair: PtyPair,
-    writer: Arc<Mutex<Box<dyn Write + Send>>>,
 }
 
 impl PtyManager {
@@ -18,53 +15,48 @@ impl PtyManager {
                 pixel_width: 0,
                 pixel_height: 0,
             })
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| format!("Failed to open PTY: {}", e))?;
 
-        let writer = pair.master.take_writer().map_err(|e| e.to_string())?;
-
-        Ok(Self {
-            pair,
-            writer: Arc::new(Mutex::new(writer)),
-        })
+        Ok(Self { pair })
     }
 
-    pub fn spawn_command(&self, cmd: &str, args: &[&str], cwd: Option<&str>) -> Result<(), String> {
-        let mut command = CommandBuilder::new(cmd);
-        command.args(args);
+    pub fn spawn_command(
+        &self,
+        program: &str,
+        args: &[&str],
+        cwd: Option<&str>,
+    ) -> Result<(), String> {
+        let mut cmd = CommandBuilder::new(program);
+        cmd.args(args);
 
         if let Some(dir) = cwd {
-            command.cwd(dir);
-        } else if let Ok(current_dir) = std::env::current_dir() {
-            command.cwd(current_dir);
+            cmd.cwd(dir);
         }
 
-        // Set environment variables
-        command.env("TERM", "xterm-256color");
-        command.env("COLORTERM", "truecolor");
-
-        // Inherit PATH and other important vars
-        if let Ok(path) = std::env::var("PATH") {
-            command.env("PATH", path);
-        }
-        if let Ok(home) = std::env::var("HOME") {
-            command.env("HOME", home);
-        }
-        if let Ok(user) = std::env::var("USER") {
-            command.env("USER", user);
-        }
+        // Set environment
+        cmd.env("TERM", "xterm-256color");
+        cmd.env("COLORTERM", "truecolor");
 
         self.pair
             .slave
-            .spawn_command(command)
-            .map_err(|e| e.to_string())?;
+            .spawn_command(cmd)
+            .map_err(|e| format!("Failed to spawn command: {}", e))?;
+
         Ok(())
     }
 
     pub fn write(&self, data: &[u8]) -> Result<(), String> {
-        self.writer
-            .lock()
+        let mut writer = self
+            .pair
+            .master
+            .take_writer()
+            .map_err(|e| format!("Failed to get writer: {}", e))?;
+
+        writer
             .write_all(data)
-            .map_err(|e| e.to_string())
+            .map_err(|e| format!("Failed to write: {}", e))?;
+
+        Ok(())
     }
 
     pub fn resize(&self, cols: u16, rows: u16) -> Result<(), String> {
@@ -76,13 +68,13 @@ impl PtyManager {
                 pixel_width: 0,
                 pixel_height: 0,
             })
-            .map_err(|e| e.to_string())
+            .map_err(|e| format!("Failed to resize: {}", e))
     }
 
     pub fn get_reader(&self) -> Result<Box<dyn Read + Send>, String> {
         self.pair
             .master
             .try_clone_reader()
-            .map_err(|e| e.to_string())
+            .map_err(|e| format!("Failed to clone reader: {}", e))
     }
 }
