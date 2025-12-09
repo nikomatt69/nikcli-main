@@ -16,8 +16,8 @@ import { BaseTool, type ToolExecutionResult } from './base-tool'
 import { sanitizePath } from './secure-file-tools'
 import { PromptManager } from '../prompts/prompt-manager'
 
-const DEFAULT_TOKEN_BUDGET = 25000
-const MAX_LINES_PER_CHUNK = 250
+const DEFAULT_TOKEN_BUDGET = 8000
+const MAX_LINES_PER_CHUNK = 200
 const TOKEN_CHAR_RATIO = 3.7
 
 /**

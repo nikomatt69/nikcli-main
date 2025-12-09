@@ -5,30 +5,30 @@
  */
 
 export const TOKEN_LIMITS = {
-  // Analysis limits - Balanced for quality and cost efficiency
+  // Analysis limits - Optimized for cost efficiency
   ANALYSIS: {
-    PROMPT_MAX_CHARS: 16000, // ~4k tokens (balanced output)
-    CONTEXT_MAX_CHARS: 12000, // ~3k tokens (efficient context)
-    COMPACT_MAX_CHARS: 20000, // ~5k tokens (good detail level)
-    MAX_DIRECTORIES: 150, // Adequate structure analysis
-    MAX_FILES: 300, // Sufficient file coverage
+    PROMPT_MAX_CHARS: 12000, // ~3k tokens (reduced from 4k)
+    CONTEXT_MAX_CHARS: 8000, // ~2k tokens (reduced from 3k)
+    COMPACT_MAX_CHARS: 15000, // ~3.5k tokens (reduced from 5k)
+    MAX_DIRECTORIES: 100, // Reduced from 150
+    MAX_FILES: 200, // Reduced from 300
   },
 
   // Prompt caps - Hard caps for different message types (token-approx)
   PROMPT_CAPS: {
-    MAX_SYSTEM_MESSAGE_TOKENS: 1200,
-    MAX_TOOL_MESSAGE_TOKENS: 800,
-    MAX_FUNCTION_ARGS_CHARS: 2000,
-    TARGET_CONTEXT_COMPRESSION_RATIO: 0.4, // Aim to compress to 40% of target budget when over
+    MAX_SYSTEM_MESSAGE_TOKENS: 800, // Reduced from 1200
+    MAX_TOOL_MESSAGE_TOKENS: 600, // Reduced from 800
+    MAX_FUNCTION_ARGS_CHARS: 1500, // Reduced from 2000
+    TARGET_CONTEXT_COMPRESSION_RATIO: 0.3, // More aggressive compression (30% vs 40%)
   },
 
-  // Display limits - For UI/UX (modest increase, minimal cost impact)
+  // Display limits - Optimized for minimal cost impact
   DISPLAY: {
-    CONVERSATION_SUMMARY: 200, // Up from 100 (better context)
-    TASK_DESCRIPTION: 100, // Up from 50 (clearer descriptions)
-    FILE_PREVIEW: 300, // Up from 200 (adequate file understanding)
-    ERROR_CONTEXT: 250, // Up from 200 (better debugging)
-    QUERY_TRUNCATION: 250, // Up from 200 (preserve user intent)
+    CONVERSATION_SUMMARY: 150, // Reduced from 200
+    TASK_DESCRIPTION: 80, // Reduced from 100
+    FILE_PREVIEW: 200, // Reduced from 300
+    ERROR_CONTEXT: 180, // Reduced from 250
+    QUERY_TRUNCATION: 180, // Reduced from 250
   },
 
   // Cache limits - For performance (balanced increase, cost-conscious)
@@ -38,14 +38,14 @@ export const TOKEN_LIMITS = {
     RESPONSE_PREVIEW: 800, // Up from 200 (better preview quality)
   },
 
-  // List/Array limits - For comprehensive coverage
+  // List/Array limits - Optimized for memory efficiency
   ARRAYS: {
-    RECENT_FILES: 15, // Up from 5 (better context)
-    POPULAR_QUERIES: 10, // Up from 5 (better analytics)
-    TODO_DISPLAY: 10, // Up from 5 (better task visibility)
-    EXECUTION_CONTEXT: 8, // Up from 3 (better debugging)
-    AFFECTED_FILES: 12, // Up from 5 (better impact view)
-    DIRECTORY_SAMPLE: 20, // Up from 5 (better structure view)
+    RECENT_FILES: 10, // Reduced from 15
+    POPULAR_QUERIES: 8, // Reduced from 10
+    TODO_DISPLAY: 8, // Reduced from 10
+    EXECUTION_CONTEXT: 6, // Reduced from 8
+    AFFECTED_FILES: 10, // Reduced from 12
+    DIRECTORY_SAMPLE: 15, // Reduced from 20
   },
 
   // Smart context limits - Optimized for token reduction
@@ -56,22 +56,22 @@ export const TOKEN_LIMITS = {
     CHAT_HISTORY_MAX: 3000, // Max tokens for chat history (down from 8000)
   },
 
-  // Chat trimming & summarization window - Dynamic based on model context
+  // Chat trimming & summarization window - Optimized for minimal context
   CHAT: {
     MAX_CONTEXT_TOKENS: 100000, // DRASTICALLY reduced to 3k tokens (was 100k)
     MAX_RECENT_NON_SYSTEM: 4, // Further reduced to 4 messages
     HEAD_TAIL_WINDOW: 2, // Reduced to 2 messages
-    EMERGENCY_TRUNCATE_AT: 120000, // HARD truncate at 120k tokens (80k safety margin)
+    EMERGENCY_TRUNCATE_AT: 80000, // HARD truncate at 120k tokens (80k safety margin)
   },
 
-  // RAG chunking defaults - Optimized for cost efficiency
+  // RAG chunking defaults - Further optimized for cost efficiency
   RAG: {
-    CHUNK_TOKENS: 1200, // ↑ Increased from 700 (71% fewer chunks = major cost reduction)
-    CHUNK_OVERLAP_TOKENS: 40, // ↓ Reduced from 80 (50% less duplication)
+    CHUNK_TOKENS: 1000, // Reduced from 1200
+    CHUNK_OVERLAP_TOKENS: 30, // Reduced from 40
     // Smart chunking parameters
-    CODE_CHUNK_MIN_LINES: 80, // Minimum lines per code chunk to preserve context
-    CODE_CHUNK_MAX_LINES: 150, // Maximum lines per code chunk
-    MARKDOWN_MIN_SECTION: 200, // Minimum chars per markdown section
+    CODE_CHUNK_MIN_LINES: 60, // Reduced from 80
+    CODE_CHUNK_MAX_LINES: 120, // Reduced from 150
+    MARKDOWN_MIN_SECTION: 150, // Reduced from 200
   },
 
   // Progressive processing guardrails

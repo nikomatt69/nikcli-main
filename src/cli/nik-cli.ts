@@ -13140,7 +13140,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     // Input prompt management (same as renderPromptArea)
     // Il simbolo ❯ è già renderizzato nell'area prompt sopra
     if (this.rl) {
-      this.rl.setPrompt('') // Prompt vuoto - il simbolo è già renderizzato
+      this.rl.setPrompt('>') // Prompt vuoto - il simbolo è già renderizzato
 
       // Posiziona cursor solo quando può accettare input
       const isReadlineListening = this.rl.listenerCount('line') > 0
@@ -13956,7 +13956,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     if (this.rl && !terminalOutputManager.isFixedPromptEnabled()) {
       // Only in NORMAL MODE (not fixed prompt)
       // Il simbolo ❯ è già renderizzato sopra, quindi prompt vuoto (same as fixed/legacy)
-      this.rl.setPrompt('')
+      this.rl.setPrompt('> ')
 
       // Posiziona cursor solo quando può accettare input (same as legacy)
       const isReadlineListening = this.rl.listenerCount('line') > 0

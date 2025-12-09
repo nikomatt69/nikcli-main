@@ -592,8 +592,6 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
       selectedTools['read_file'] = allTools['read_file']
     }
 
-
-
     return selectedTools
   }
 
@@ -1239,10 +1237,10 @@ Respond in a helpful, professional manner with clear explanations and actionable
               formatter: validationResult?.formatter,
               validation: validationResult
                 ? {
-                  isValid: validationResult.isValid,
-                  errors: validationResult.errors,
-                  warnings: validationResult.warnings,
-                }
+                    isValid: validationResult.isValid,
+                    errors: validationResult.errors,
+                    warnings: validationResult.warnings,
+                  }
                 : null,
               reasoning: reasoning || `File ${backedUp ? 'updated' : 'created'} by agent`,
             }
@@ -2404,8 +2402,8 @@ Respond in a helpful, professional manner with clear explanations and actionable
             ? lastUserMessage.content
             : Array.isArray(lastUserMessage.content)
               ? lastUserMessage.content
-                .map((part) => (typeof part === 'string' ? part : part.experimental_providerMetadata?.content || ''))
-                .join('')
+                  .map((part) => (typeof part === 'string' ? part : part.experimental_providerMetadata?.content || ''))
+                  .join('')
               : String(lastUserMessage.content)
 
         // Use ToolRouter for intelligent tool analysis
@@ -2873,10 +2871,10 @@ Respond in a helpful, professional manner with clear explanations and actionable
                     ? lastUserMessage.content
                     : Array.isArray(lastUserMessage.content)
                       ? lastUserMessage.content
-                        .map((part) =>
-                          typeof part === 'string' ? part : part.experimental_providerMetadata?.content || ''
-                        )
-                        .join('')
+                          .map((part) =>
+                            typeof part === 'string' ? part : part.experimental_providerMetadata?.content || ''
+                          )
+                          .join('')
                       : String(lastUserMessage.content)
 
                 // Salva nella cache intelligente
@@ -3656,11 +3654,11 @@ Requirements:
       const routingCfg = configManager.get('modelRouting')
       const resolved = routingCfg?.enabled
         ? await this.resolveAdaptiveModel('code_gen', [
-          {
-            role: 'user',
-            content: `${type}: ${description} (${language})`,
-          } as any,
-        ])
+            {
+              role: 'user',
+              content: `${type}: ${description} (${language})`,
+            } as any,
+          ])
         : undefined
       const model = this.getModel(resolved) as any
       const params = this.getProviderParams()
@@ -3739,7 +3737,7 @@ Requirements:
         const msg = `[Router] ${info.name} → ${decision.selectedModel} (${decision.tier}, ~${decision.estimatedTokens} tok)`
         if (nik?.advancedUI) nik.advancedUI.logInfo('model router', msg)
         else console.log(chalk.dim(msg))
-      } catch { }
+      } catch {}
 
       // The router returns a provider model id. Our config keys match these ids in default models.
       // If key is missing, fallback to current model name in config.
@@ -3917,53 +3915,53 @@ Requirements:
     const configData = allModels[model]
 
     if (!configData) {
-      return { maxTokens: 4000, temperature: 1 } // REDUCED default
+      return { maxTokens: 3000, temperature: 0.8 } // Further REDUCED for cost efficiency
     }
 
     // Provider-specific token limits and settings
     switch (configData.provider) {
       case 'openai':
-        // OpenAI models - REDUCED for lighter requests
+        // OpenAI models - Further REDUCED for cost efficiency
         if (configData.model.includes('gpt-5')) {
-          return { maxTokens: 4096, temperature: 1 } // REDUCED from 8192
+          return { maxTokens: 3000, temperature: 0.8 } // Further REDUCED from 4096
         } else if (configData.model.includes('gpt-4')) {
-          return { maxTokens: 4096, temperature: 1 } // REDUCED from 4096
+          return { maxTokens: 3000, temperature: 0.8 } // Further REDUCED from 4096
         }
-        return { maxTokens: 4096, temperature: 1 }
+        return { maxTokens: 3000, temperature: 0.8 }
 
       case 'anthropic':
-        // Claude models - RIDOTTO per compatibilità con tutti i modelli
+        // Claude models - Further REDUCED for cost efficiency
         if (
           configData.model.includes('claude-3-5-sonnet-latest') ||
           configData.model.includes('claude-4-sonnet') ||
           configData.model.includes('claude-sonnet-4')
         ) {
-          return { maxTokens: 8192, temperature: 1 } // RIDOTTO per compatibilità
+          return { maxTokens: 6000, temperature: 0.8 } // Further REDUCED from 8192
         }
-        return { maxTokens: 3096, temperature: 1 } // RIDOTTO per compatibilità con 8192 limit
+        return { maxTokens: 2500, temperature: 0.8 } // Further REDUCED from 3096
 
       case 'google':
         // Gemini models - AUMENTATO per risposte più complete
         return { maxTokens: 4096, temperature: 0.7 } // AUMENTATO da 1500
 
       case 'ollama':
-        // Local models - AUMENTATO per risposte più complete
-        return { maxTokens: 4000, temperature: 0.7 } // AUMENTATO da 1000
+        // Local models - OPTIMIZED for efficiency
+        return { maxTokens: 3000, temperature: 0.6 } // REDUCED from 4000
 
       case 'vercel':
-        // v0 models - Optimized for web development
+        // v0 models - Further optimized for cost efficiency
         if (configData.model.includes('v0-1.5-lg')) {
-          return { maxTokens: 4000, temperature: 0.7 } // High capacity model
+          return { maxTokens: 3000, temperature: 0.6 } // Reduced from 4000
         } else if (configData.model.includes('v0-1.5-md')) {
-          return { maxTokens: 4000, temperature: 0.7 } // Medium capacity model
+          return { maxTokens: 2500, temperature: 0.6 } // Reduced from 4000
         } else if (configData.model.includes('v0-1.0-md')) {
-          return { maxTokens: 4000, temperature: 0.7 } // Legacy model
+          return { maxTokens: 2000, temperature: 0.6 } // Reduced from 4000
         }
-        return { maxTokens: 4000, temperature: 0.7 }
+        return { maxTokens: 2500, temperature: 0.6 }
 
       case 'cerebras':
-        // Cerebras models - High-speed inference
-        return { maxTokens: 8192, temperature: 0.7 }
+        // Cerebras models - Optimized for cost efficiency
+        return { maxTokens: 4000, temperature: 0.6 } // Reduced from 8192
 
       case 'groq':
         // Groq models - Ultra-fast inference
@@ -3982,21 +3980,21 @@ Requirements:
         if (configData.model.includes('gpt-5') || configData.model.startsWith('openai/')) {
           return { maxTokens: 4000, temperature: 1 } // OpenAI models require temperature=1
         } else if (configData.model.includes('gemini') || configData.model.startsWith('google/')) {
-          return { maxTokens: 4000, temperature: 0.7 } // Google models
+          return { maxTokens: 3000, temperature: 0.6 } // Google models - reduced
         } else if (configData.model.startsWith('anthropic/')) {
-          return { maxTokens: 4000, temperature: 1 } // Anthropic models
+          return { maxTokens: 3000, temperature: 0.8 } // Anthropic models - reduced
         }
-        return { maxTokens: 4000, temperature: 1 }
+        return { maxTokens: 3000, temperature: 0.8 } // Default - reduced
 
       default:
-        return { maxTokens: 4096, temperature: 1 } // RIDOTTO per compatibilità universale
+        return { maxTokens: 3000, temperature: 0.8 } // Further reduced for cost efficiency
     }
   }
 
   // Build a provider-safe message array by enforcing hard character caps
   private sanitizeMessagesForProvider(provider: string, messages: CoreMessage[]): CoreMessage[] {
-    const maxTotalChars = provider === 'openai' ? 800_000 : 400_000 // conservative caps
-    const maxPerMessage = provider === 'openai' ? 60_000 : 30_000
+    const maxTotalChars = provider === 'openai' ? 600_000 : 300_000 // Further reduced caps
+    const maxPerMessage = provider === 'openai' ? 40_000 : 20_000 // Further reduced
 
     const safeMessages: CoreMessage[] = []
     let total = 0
