@@ -1,6 +1,8 @@
 import { resolve } from 'node:path'
 import { z } from 'zod'
 import { type ImageGenerationOptions, type ImageGenerationResult, imageGenerator } from '../providers/image'
+import { PromptManager } from '../prompts/prompt-manager'
+import { advancedUI } from '../ui/advanced-cli-ui'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
 
 // Zod schemas for type validation
@@ -66,6 +68,14 @@ export class ImageGenerationTool extends BaseTool {
     const startTime = Date.now()
 
     try {
+      // Load system prompt for context
+      const promptManager = PromptManager.getInstance()
+      const systemPrompt = await promptManager.loadPromptForContext({
+        toolName: 'image-generation-tool',
+        parameters: options,
+      })
+      advancedUI.logInfo(`Using system prompt: ${systemPrompt.substring(0, 100)}...`)
+
       const result = await this.executeInternal(options)
 
       return {

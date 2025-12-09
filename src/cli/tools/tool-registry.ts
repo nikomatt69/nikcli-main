@@ -58,7 +58,7 @@ export class ToolRegistry {
     // Update all tool instances that support updateWorkingDirectory
     for (const [_name, tool] of this.tools.entries()) {
       if (tool && typeof (tool as any).updateWorkingDirectory === 'function') {
-        ; (tool as any).updateWorkingDirectory(newDir)
+        ;(tool as any).updateWorkingDirectory(newDir)
       }
     }
   }

@@ -67,11 +67,7 @@ export async function readJson<T = unknown>(path: string): Promise<T> {
 /**
  * Write JSON file with formatting
  */
-export async function writeJson(
-  path: string,
-  data: unknown,
-  options?: { spaces?: number }
-): Promise<void> {
+export async function writeJson(path: string, data: unknown, options?: { spaces?: number }): Promise<void> {
   const json = JSON.stringify(data, null, options?.spaces ?? 2)
   await bunWrite(path, json)
 }
@@ -197,6 +193,18 @@ export function bunShellSync(
     exitCode: result.exitCode,
   }
 }
+/**
+ * Write text to file
+ *
+ * @param path - File path
+ * @param content - Text content
+ *
+ * @example
+ * await writeText('/path/to/file.txt', 'Hello World')
+ */
+export async function writeText(path: string, content: string): Promise<void> {
+  await Bun.write(path, content)
+}
 
 /**
  * Spawn a process using Bun
@@ -239,10 +247,7 @@ export function bunSpawnSync(
 /**
  * Execute a command (simpler interface)
  */
-export async function bunExec(
-  command: string,
-  options?: { cwd?: string; timeout?: number }
-): Promise<string> {
+export async function bunExec(command: string, options?: { cwd?: string; timeout?: number }): Promise<string> {
   const result = await bunShell(command, { cwd: options?.cwd, quiet: true })
   if (result.exitCode !== 0) {
     throw new Error(result.stderr || `Command failed with exit code ${result.exitCode}`)
@@ -260,7 +265,19 @@ export async function bunExec(
 export function bunGlob(pattern: string): Bun.Glob {
   return new Bun.Glob(pattern)
 }
-
+/**
+ * Remove file or directory
+ *
+ * @param path - Path to remove
+ * @param recursive - Remove recursively (for directories)
+ */
+export async function remove(path: string, recursive = false): Promise<void> {
+  if (recursive) {
+    await Bun.$`rm -rf ${path}`.quiet()
+  } else {
+    await Bun.$`rm -f ${path}`.quiet()
+  }
+}
 /**
  * Sleep for a duration
  */

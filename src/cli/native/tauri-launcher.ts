@@ -99,7 +99,8 @@ function resolveBinary(): BinaryTarget | null {
     'NikCLI Menubar.app',
     'Contents',
     'MacOS',
-    'nikcli-menubar'
+    'nikcli-menubar',
+    'nikcli-statusbar'
   )
   if (fs.existsSync(bundlePath)) {
     return { command: bundlePath, args: [], displayName: bundlePath }

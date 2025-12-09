@@ -1,20 +1,94 @@
 # Coinbase AgentKit Tool Documentation
-
 ## Purpose
-Expose onchain operations via Coinbase AgentKit (wallet info, transfers, chat).
-
+Enterprise-grade blockchain operations tool using Coinbase AgentKit for comprehensive DeFi interactions, wallet management, and cryptocurrency trading.
 ## Capabilities
-- Wallet status and balances
-- Transfers and interactions (subject to configuration)
-- Chat-like helper for workflows
-
+- Multi-chain wallet operations and management
+- DeFi protocol interactions and integrations
+- Token swaps and trading operations
+- Smart contract interactions and execution
+- Transaction monitoring and status tracking
+- Gas optimization and fee estimation
+- Portfolio management and balance tracking
+- Security features and access controls
 ## Usage
 ```ts
-await coinbaseAgentKitTool.execute('status')
-await coinbaseAgentKitTool.execute('transfer', { to: '0x...', amount: '0.01' })
+// Get wallet balance
+const balance = await coinbaseAgentkitTool.getBalance({
+  network: 'ethereum',
+  tokens: ['ETH', 'USDC']
+});
+// Swap tokens
+const swap = await coinbaseAgentkitTool.swap({
+  fromToken: 'ETH',
+  toToken: 'USDC',
+  amount: '1.0',
+  slippage: 0.5
+});
+// Execute DeFi operation
+const defi = await coinbaseAgentkitTool.executeDefi({
+  protocol: 'uniswap',
+  action: 'swap',
+  params: {
+    tokenIn: 'ETH',
+    tokenOut: 'USDC',
+    amountIn: '1.0'
+  }
+});
 ```
-
+## Parameters
+- `network`: Blockchain network ('ethereum', 'polygon', 'base', 'arbitrum')
+- `action`: Operation type ('balance', 'swap', 'approve', 'defi')
+- `tokens`: Token addresses or symbols for operations
+- `amount`: Amount for transactions (in smallest unit)
+- `fromToken`/`toToken`: Token pair for swaps
+- `slippage`: Acceptable slippage percentage
+- `gasLimit`: Maximum gas for transactions
+- `protocol`: DeFi protocol for operations
+- `wallet`: Wallet identifier or address
+## Supported Networks
+- **Ethereum**: Main network with full DeFi support
+- **Polygon**: Low-cost L2 with fast transactions
+- **Base**: Ethereum L2 with native USDC support
+- **Arbitrum**: Ethereum L2 with low fees
+- **Optimism**: Ethereum L2 with EVM compatibility
+## Supported Tokens
+- **Native**: ETH, MATIC, and other native tokens
+- **Stablecoins**: USDC, USDT, DAI, FRAX
+- **DeFi Tokens**: UNI, SUSHI, AAVE, COMP
+- **Meme Tokens**: SHIB, DOGE, PEPE (when available)
+- **Custom Tokens**: Any ERC20 token by contract address
+## DeFi Protocols
+- **DEX**: Uniswap, Sushiswap, Curve, Balancer
+- **Lending**: Aave, Compound, MakerDAO
+- **Yield**: Yearn Finance, Harvest, Beefy
+- **Bridges**: Multichain bridges, layer 2 solutions
+- **Aggregators**: 1inch, Paraswap, Matcha
 ## Best Practices
-- Use testnets for automation
-- Never embed secrets; use env/secure storage
-
+- Always verify token addresses before operations
+- Use appropriate slippage for volatile markets
+- Monitor gas prices and optimize timing
+- Keep private keys secure and never share
+- Test with small amounts first
+- Diversify positions across protocols
+- Use reputable DeFi protocols only
+## Error Handling
+- Network connectivity issues
+- Insufficient balance errors
+- Transaction failure handling
+- Gas estimation errors
+- Smart contract interaction errors
+- Protocol-specific error handling
+## Security Features
+- Private key management and encryption
+- Transaction signing and verification
+- Address validation and checksums
+- Rate limiting and abuse prevention
+- Audit trail for all operations
+- Multi-signature support when available
+## Integration Capabilities
+- Works with portfolio management tools
+- Integrates with price tracking systems
+- Supports automated trading strategies
+- Compatible with wallet management systems
+- Provides API for external applications
+This tool enables comprehensive blockchain operations with enterprise-grade security and multi-chain DeFi support.

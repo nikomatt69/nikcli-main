@@ -6,13 +6,13 @@
  */
 
 import type {
+  NativeProviderConfig,
   NotificationPayload,
   NotificationResult,
-  NativeProviderConfig,
-  NotificationType,
   NotificationSeverity,
+  NotificationType,
 } from '../../types/notifications'
-import { NotificationProvider, NotificationErrorCode } from '../../types/notifications'
+import { NotificationErrorCode, NotificationProvider } from '../../types/notifications'
 
 const DEFAULT_PORT = 3001
 

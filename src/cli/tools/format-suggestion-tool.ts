@@ -1,6 +1,6 @@
+import { advancedUI } from '../ui/advanced-cli-ui'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
 import { suggestFormatter } from './formatter-registry'
-import { advancedUI } from '../ui/advanced-cli-ui'
 
 const PREVIEW_LIMIT = 200
 
@@ -22,6 +22,11 @@ export class FormatSuggestionTool extends BaseTool {
           suggestion: null,
           message,
         },
+        metadata: {
+          executionTime: Date.now(),
+          toolName: this.name,
+          parameters: { filePath },
+        },
       }
     }
 
@@ -36,6 +41,11 @@ export class FormatSuggestionTool extends BaseTool {
         filePath,
         suggestion,
         preview: truncatedPreview,
+      },
+      metadata: {
+        executionTime: Date.now(),
+        toolName: this.name,
+        parameters: { filePath },
       },
     }
   }

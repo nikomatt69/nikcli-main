@@ -3,9 +3,9 @@
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { Octokit } from '@octokit/rest'
-import { $, bunShellSync, fileExistsSync, mkdirpSync } from '../utils/bun-compat'
 import { backgroundAgentService } from '../background-agents/background-agent-service'
 import { advancedUI } from '../ui/advanced-cli-ui'
+import { $, bunShellSync, fileExistsSync, mkdirpSync } from '../utils/bun-compat'
 import { CommentProcessor } from './comment-processor'
 import { PRReviewExecutor } from './pr-review-executor'
 import type {
@@ -840,36 +840,38 @@ ${result.analysis ? `## Analysis\n${result.analysis}\n` : ''}
         channel: process.env.SLACK_DEFAULT_CHANNEL,
         thread_ts: job.slackThreadTs,
         text: `✓ Task completed successfully`,
-        blocks: [
-          {
-            type: 'section',
-            text: {
-              type: 'mrkdwn',
-              text: `*✓ Task Completed*\n\`@nikcli ${commandText}\``,
+        blocks: (
+          [
+            {
+              type: 'section',
+              text: {
+                type: 'mrkdwn',
+                text: `*✓ Task Completed*\n\`@nikcli ${commandText}\``,
+              },
             },
-          },
-          {
-            type: 'section',
-            fields: [
-              {
-                type: 'mrkdwn',
-                text: `*Repository*\n${job.repository}`,
-              },
-              {
-                type: 'mrkdwn',
-                text: `*Issue/PR*\n#${job.issueNumber}`,
-              },
-              {
-                type: 'mrkdwn',
-                text: `*Files Modified*\n${result.files?.length || 0}`,
-              },
-              {
-                type: 'mrkdwn',
-                text: `*Status*\n${result.success ? 'Success ✓' : 'Partial ⚠'}`,
-              },
-            ],
-          },
-        ].concat(
+            {
+              type: 'section',
+              fields: [
+                {
+                  type: 'mrkdwn',
+                  text: `*Repository*\n${job.repository}`,
+                },
+                {
+                  type: 'mrkdwn',
+                  text: `*Issue/PR*\n#${job.issueNumber}`,
+                },
+                {
+                  type: 'mrkdwn',
+                  text: `*Files Modified*\n${result.files?.length || 0}`,
+                },
+                {
+                  type: 'mrkdwn',
+                  text: `*Status*\n${result.success ? 'Success ✓' : 'Partial ⚠'}`,
+                },
+              ],
+            },
+          ] as any[]
+        ).concat(
           result.prUrl
             ? [
                 {
@@ -892,7 +894,7 @@ ${result.analysis ? `## Analysis\n${result.analysis}\n` : ''}
                       url: result.prUrl,
                       style: 'primary',
                     },
-                  ],
+                  ] as any,
                 },
               ]
             : [

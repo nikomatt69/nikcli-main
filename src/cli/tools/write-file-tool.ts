@@ -1,7 +1,7 @@
-import { join } from 'node:path'
-import { bunFile, bunWrite, copyFile, mkdirp, removeFile, bunGlob } from '../utils/bun-compat'
+import path, { join } from 'node:path'
 import { ContextAwareRAGSystem } from '../context/context-aware-rag'
 import { lspManager } from '../lsp/lsp-manager'
+import { PromptManager } from '../prompts/prompt-manager'
 import {
   type AppendOptions,
   type ContentValidator,
@@ -16,6 +16,7 @@ import {
 import { advancedUI } from '../ui/advanced-cli-ui'
 import { diffManager } from '../ui/diff-manager'
 import { DiffViewer, type FileDiff } from '../ui/diff-viewer'
+import { bunFile, bunGlob, bunWrite, copyFile, mkdirp, removeFile } from '../utils/bun-compat'
 import { CliUI } from '../utils/cli-ui'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
 
@@ -92,7 +93,7 @@ export class WriteFileTool extends BaseTool {
       }
 
       // Ensure directory exists
-      const dir = dirname(sanitizedPath)
+      const dir = path.dirname(sanitizedPath)
       await mkdirp(dir)
 
       // Apply content transformations
@@ -333,7 +334,7 @@ export class WriteFileTool extends BaseTool {
       const backupPath = join(this.backupDirectory, `${fileName}.${timestamp}.backup`)
 
       // Ensure backup subdirectories exist
-      await mkdirp(dirname(backupPath))
+      await mkdirp(path.dirname(backupPath))
 
       // Copy file to backup location
       await copyFile(filePath, backupPath)
@@ -605,7 +606,7 @@ export class ContentValidators {
         }
 
         // Clean up temp file
-        await removeFile(tempFilePath).catch(() => { })
+        await removeFile(tempFilePath).catch(() => {})
       } catch (lspError: any) {
         warnings.push(`LSP validation unavailable: ${lspError.message}`)
 

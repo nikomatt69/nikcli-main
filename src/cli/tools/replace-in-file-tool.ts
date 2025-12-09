@@ -110,7 +110,6 @@ export class ReplaceInFileTool extends BaseTool {
           replacement,
           encoding: 'utf8',
           hasChanges: replaceResult.matchCount > 0,
-          truncatedForDisplay,
         },
       }
 

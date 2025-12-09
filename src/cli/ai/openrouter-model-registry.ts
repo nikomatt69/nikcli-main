@@ -358,10 +358,7 @@ export class OpenRouterModelRegistry {
     }
 
     if (baseOptions.maxTokens !== undefined && capabilities.supportsMaxTokens) {
-      options.maxTokens = Math.min(
-        baseOptions.maxTokens,
-        capabilities.maxCompletionTokens || baseOptions.maxTokens
-      )
+      options.maxTokens = Math.min(baseOptions.maxTokens, capabilities.maxCompletionTokens || baseOptions.maxTokens)
     }
 
     if (baseOptions.topP !== undefined && capabilities.supportsTopP) {
@@ -403,7 +400,10 @@ export class OpenRouterModelRegistry {
    * Get all models that support a specific capability
    */
   async getModelsWithCapability(
-    capability: keyof Omit<ModelCapabilities, 'supportedParameters' | 'contextLength' | 'maxCompletionTokens' | 'modality'>
+    capability: keyof Omit<
+      ModelCapabilities,
+      'supportedParameters' | 'contextLength' | 'maxCompletionTokens' | 'modality'
+    >
   ): Promise<OpenRouterModel[]> {
     const models = await this.fetchAllModels()
     const result: OpenRouterModel[] = []
@@ -507,4 +507,3 @@ export async function modelSupportsTools(modelId: string): Promise<boolean> {
   const caps = await openRouterRegistry.getCapabilities(modelId)
   return caps.supportsTools
 }
-

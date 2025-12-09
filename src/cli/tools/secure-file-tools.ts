@@ -1,8 +1,8 @@
 import fs, { createReadStream } from 'node:fs'
 import path from 'node:path'
+import readline from 'node:readline'
 import chalk from 'chalk'
 import inquirer from 'inquirer'
-import readline from 'node:readline'
 import { inputQueue } from '../core/input-queue'
 import { advancedUI } from '../ui/advanced-cli-ui'
 import { checkPath, type PathCheckResult } from '../utils/path-resolver'
@@ -122,8 +122,8 @@ async function requestBatchApproval(action: string, filePath: string, content?: 
   // Start batch approval process
   batchApprovalState.approvalInProgress = true
   try {
-    ; (global as any).__nikCLI?.suspendPrompt?.()
-  } catch { }
+    ;(global as any).__nikCLI?.suspendPrompt?.()
+  } catch {}
   inputQueue.enableBypass()
 
   try {
@@ -153,8 +153,8 @@ async function requestBatchApproval(action: string, filePath: string, content?: 
     batchApprovalState.approvalInProgress = false
     // Ensure prompt resumes cleanly after batch approval
     try {
-      ; (global as any).__nikCLI?.resumePromptAndRender?.()
-    } catch { }
+      ;(global as any).__nikCLI?.resumePromptAndRender?.()
+    } catch {}
   }
 }
 

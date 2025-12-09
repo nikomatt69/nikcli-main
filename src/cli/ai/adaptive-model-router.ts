@@ -1,10 +1,10 @@
 import crypto from 'node:crypto'
 import type { CoreMessage } from 'ai'
+import { simpleConfigManager } from '../core/config-manager'
 import { universalTokenizer } from '../core/universal-tokenizer-service'
 import { structuredLogger } from '../utils/structured-logger'
 import type { ChatMessage } from './model-provider'
-import { simpleConfigManager } from '../core/config-manager'
-import { openRouterRegistry, type OpenRouterModel } from './openrouter-model-registry'
+import { type OpenRouterModel, openRouterRegistry } from './openrouter-model-registry'
 import { MODEL_ALIASES, resolveModelAlias } from './provider-registry'
 
 export type ModelScope = 'chat_default' | 'planning' | 'code_gen' | 'tool_light' | 'tool_heavy' | 'vision'
@@ -20,16 +20,16 @@ export type RoutingStrategy = 'adaptive' | 'auto' | 'fallback' | 'fixed'
 
 export interface ModelRouteInput {
   provider:
-  | 'openai'
-  | 'anthropic'
-  | 'google'
-  | 'ollama'
-  | 'vercel'
-  | 'gateway'
-  | 'openrouter'
-  | 'groq'
-  | 'cerebras'
-  | 'openai-compatible'
+    | 'openai'
+    | 'anthropic'
+    | 'google'
+    | 'ollama'
+    | 'vercel'
+    | 'gateway'
+    | 'openrouter'
+    | 'groq'
+    | 'cerebras'
+    | 'openai-compatible'
   baseModel: string // model id configured as current for provider
   messages: Array<Pick<ChatMessage, 'role' | 'content'>>
   scope?: ModelScope
@@ -259,11 +259,13 @@ async function getModelPricing(provider: string, model: string): Promise<ModelPr
   // Extract model name from full path (e.g., 'openai/gpt-5.1' -> 'gpt-5.1')
   const modelName = model.includes('/') ? model.split('/').pop() || model : model
 
-  return defaultPricing[modelName] || {
-    promptCostPer1M: 0.5, // Conservative default
-    completionCostPer1M: 2.0,
-    currency: 'USD',
-  }
+  return (
+    defaultPricing[modelName] || {
+      promptCostPer1M: 0.5, // Conservative default
+      completionCostPer1M: 2.0,
+      currency: 'USD',
+    }
+  )
 }
 
 /**
@@ -331,9 +333,7 @@ function pickAnthropic(
 
     // Filter by context size if toolchain tokens specified
     if (totalEstimatedTokens && totalEstimatedTokens > 0) {
-      const withEnoughContext = candidates.filter(
-        (m) => (m.maxContextTokens || 200000) >= totalEstimatedTokens * 1.2
-      )
+      const withEnoughContext = candidates.filter((m) => (m.maxContextTokens || 200000) >= totalEstimatedTokens * 1.2)
       if (withEnoughContext.length > 0) candidates = withEnoughContext
     }
 
@@ -396,9 +396,7 @@ function pickOpenAI(
 
     // Filter by context size if toolchain tokens specified
     if (totalEstimatedTokens && totalEstimatedTokens > 0) {
-      const withEnoughContext = candidates.filter(
-        (m) => (m.maxContextTokens || 80000) >= totalEstimatedTokens * 1.2
-      )
+      const withEnoughContext = candidates.filter((m) => (m.maxContextTokens || 80000) >= totalEstimatedTokens * 1.2)
       if (withEnoughContext.length > 0) candidates = withEnoughContext
     }
 
@@ -414,8 +412,7 @@ function classifyOpenAIModel(modelName: string, contextTokens?: number): 'light'
   // Direct OpenAI models only (not OpenRouter prefixed like openai/gpt-5)
   if (name.startsWith('gpt-') || name.startsWith('o1-') || name.startsWith('o3-')) {
     if (name.includes('mini') || name.includes('nano')) return 'light'
-    if (name.includes('o1') || name.includes('o3') || name.includes('gpt-5') || name.includes('gpt-4.1'))
-      return 'heavy'
+    if (name.includes('o1') || name.includes('o3') || name.includes('gpt-5') || name.includes('gpt-4.1')) return 'heavy'
   }
 
   if (contextTokens && contextTokens >= 200000) return 'heavy'
@@ -424,11 +421,7 @@ function classifyOpenAIModel(modelName: string, contextTokens?: number): 'light'
   return 'medium'
 }
 
-function pickGoogle(
-  baseModel: string,
-  tier: 'light' | 'medium' | 'heavy',
-  totalEstimatedTokens?: number
-): string {
+function pickGoogle(baseModel: string, tier: 'light' | 'medium' | 'heavy', totalEstimatedTokens?: number): string {
   try {
     const allModels = simpleConfigManager.getAllModels()
 
@@ -507,7 +500,7 @@ async function pickOpenRouterAsync(
     const allModels = await openRouterRegistry.fetchAllModels()
 
     // Filter models by provider prefix
-    const providerModels = allModels.filter(m => m.id.startsWith(providerPrefix))
+    const providerModels = allModels.filter((m) => m.id.startsWith(providerPrefix))
     if (providerModels.length === 0) return baseModel
 
     // Classify models by tier based on their actual capabilities
@@ -536,18 +529,14 @@ async function pickOpenRouterAsync(
 
     // Filter by context size if specified
     if (totalEstimatedTokens && totalEstimatedTokens > 0) {
-      const withEnoughContext = candidates.filter(
-        m => m.context_length >= totalEstimatedTokens * 1.2
-      )
+      const withEnoughContext = candidates.filter((m) => m.context_length >= totalEstimatedTokens * 1.2)
       if (withEnoughContext.length > 0) candidates = withEnoughContext
     }
 
     // Filter by vision capability if needed
     if (needsVision) {
       const visionCapable = candidates.filter(
-        m => m.architecture?.modality?.includes('image') ||
-          m.id.includes('vision') ||
-          m.id.includes('image')
+        (m) => m.architecture?.modality?.includes('image') || m.id.includes('vision') || m.id.includes('image')
       )
       if (visionCapable.length > 0) candidates = visionCapable
     }
@@ -837,7 +826,7 @@ export class AdaptiveModelRouter {
    * - 'auto': Use OpenRouter's Auto Router (powered by NotDiamond)
    * - 'fallback': Use model fallback chain with OpenRouter's 'models' parameter
    * - 'fixed': Use the exact model specified
-   * 
+   *
    * Reference: https://openrouter.ai/docs/guides/features/model-routing
    */
   async choose(input: ModelRouteInput): Promise<ModelRouteDecision> {

@@ -2259,7 +2259,7 @@ export class SimpleConfigManager {
             )
           }
         })
-        .catch(() => { })
+        .catch(() => {})
     }
   }
 
@@ -2324,9 +2324,9 @@ export class SimpleConfigManager {
   setEmbeddingModelConfig(model: string, config: Partial<z.infer<typeof EmbeddingModelConfigSchema>>): void {
     const baseConfig = this.config.embeddingModels?.[model] ||
       this.getEmbeddingModelConfig(model) || {
-      provider: this.inferEmbeddingProvider(model),
-      model,
-    }
+        provider: this.inferEmbeddingProvider(model),
+        model,
+      }
 
     this.config.embeddingModels = {
       ...this.config.embeddingModels,

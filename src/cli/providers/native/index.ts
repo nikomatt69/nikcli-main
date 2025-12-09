@@ -1,1 +1,1 @@
-export { NativeNotificationProvider, createNativeProvider } from './native-provider'
+export { createNativeProvider, NativeNotificationProvider } from './native-provider'

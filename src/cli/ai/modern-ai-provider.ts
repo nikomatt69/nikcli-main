@@ -1,6 +1,6 @@
+import { execSync } from 'node:child_process'
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join, relative, resolve } from 'node:path'
-
 import { createAnthropic } from '@ai-sdk/anthropic'
 import { createCerebras } from '@ai-sdk/cerebras'
 import { createGateway } from '@ai-sdk/gateway'
@@ -9,38 +9,31 @@ import { createGroq } from '@ai-sdk/groq'
 import { createOpenAI } from '@ai-sdk/openai'
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import { createVercel } from '@ai-sdk/vercel'
-import { type CoreMessage, type CoreTool, generateText, streamText, tool, experimental_wrapLanguageModel } from 'ai'
+import { type CoreMessage, type CoreTool, experimental_wrapLanguageModel, generateText, streamText, tool } from 'ai'
 import { createOllama } from 'ollama-ai-provider'
 import { z } from 'zod'
-
 import { simpleConfigManager } from '../core/config-manager'
-
 import { type PromptContext, PromptManager } from '../prompts/prompt-manager'
 import { streamttyService } from '../services/streamtty-service'
 import type { OutputStyle } from '../types/output-styles'
-import { ReasoningDetector } from './reasoning-detector'
 import { openRouterRegistry } from './openrouter-model-registry'
-import {
-  workflowPatterns,
-  type WorkflowResult,
-  type QualityEvaluation,
-} from './workflow-patterns'
-import { execSync } from 'node:child_process'
+import { ReasoningDetector } from './reasoning-detector'
+import { type QualityEvaluation, type WorkflowResult, workflowPatterns } from './workflow-patterns'
 
 export interface ModelConfig {
   provider:
-  | 'openai'
-  | 'anthropic'
-  | 'google'
-  | 'vercel'
-  | 'gateway'
-  | 'openrouter'
-  | 'ollama'
-  | 'cerebras'
-  | 'groq'
-  | 'llamacpp'
-  | 'lmstudio'
-  | 'openai-compatible'
+    | 'openai'
+    | 'anthropic'
+    | 'google'
+    | 'vercel'
+    | 'gateway'
+    | 'openrouter'
+    | 'ollama'
+    | 'cerebras'
+    | 'groq'
+    | 'llamacpp'
+    | 'lmstudio'
+    | 'openai-compatible'
   model: string
   temperature?: number
   maxTokens?: number
@@ -92,7 +85,7 @@ const RETRY_CONFIG = {
  * @returns Delay in milliseconds
  */
 function getExponentialBackoff(attempt: number): number {
-  const exponentialDelay = RETRY_CONFIG.baseDelayMs * Math.pow(RETRY_CONFIG.exponentialBase, attempt - 1)
+  const exponentialDelay = RETRY_CONFIG.baseDelayMs * RETRY_CONFIG.exponentialBase ** (attempt - 1)
   const delay = Math.min(exponentialDelay, RETRY_CONFIG.maxDelayMs)
 
   // Add random jitter to prevent thundering herd
@@ -156,8 +149,7 @@ function isZeroCompletionResponse(result: any): boolean {
   }
 
   // Empty text response with no tool calls
-  if ((!result?.text || result.text.trim() === '') &&
-    (!result?.toolCalls || result.toolCalls.length === 0)) {
+  if ((!result?.text || result.text.trim() === '') && (!result?.toolCalls || result.toolCalls.length === 0)) {
     if (!finishReason || finishReason === 'error') {
       return true
     }
@@ -179,17 +171,22 @@ export class ModernAIProvider {
   /**
    * Create a tool call repair handler for AI SDK
    * Reference: https://v4.ai-sdk.dev/docs/ai-sdk-core/tools-and-tool-calling#tool-call-repair
-   * 
+   *
    * This handler attempts to fix invalid tool calls by:
    * 1. Re-asking the model to correct the invalid parameters
    * 2. Using structured output to ensure valid tool call format
    */
   private createToolCallRepairHandler(model: any, tools: Record<string, CoreTool>) {
-    return async ({ toolCall, error, messages, system }: {
-      toolCall: { toolName: string; args: unknown };
-      error: Error;
-      messages: CoreMessage[];
-      system?: string;
+    return async ({
+      toolCall,
+      error,
+      messages,
+      system,
+    }: {
+      toolCall: { toolName: string; args: unknown }
+      error: Error
+      messages: CoreMessage[]
+      system?: string
     }) => {
       try {
         const tool = tools[toolCall.toolName]
@@ -199,9 +196,7 @@ export class ModernAIProvider {
           return null
         }
 
-        console.log(require('chalk').dim(
-          `[ToolRepair] Attempting to fix invalid tool call: ${toolCall.toolName}`
-        ))
+        console.log(require('chalk').dim(`[ToolRepair] Attempting to fix invalid tool call: ${toolCall.toolName}`))
 
         // Ask the model to fix the tool call
         const repairResult = await generateText({
@@ -224,8 +219,7 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
         // Try to parse the corrected arguments
         const fixedArgsText = repairResult.text.trim()
         // Extract JSON from response (handle markdown code blocks)
-        const jsonMatch = fixedArgsText.match(/```(?:json)?\s*([\s\S]*?)\s*```/) ||
-          fixedArgsText.match(/^\{[\s\S]*\}$/)
+        const jsonMatch = fixedArgsText.match(/```(?:json)?\s*([\s\S]*?)\s*```/) || fixedArgsText.match(/^\{[\s\S]*\}$/)
 
         if (jsonMatch) {
           const fixedArgs = JSON.parse(jsonMatch[1] || jsonMatch[0])
@@ -238,9 +232,7 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
         console.log(require('chalk').green(`[ToolRepair] Successfully repaired tool call: ${toolCall.toolName}`))
         return { toolName: toolCall.toolName, args: fixedArgs }
       } catch (repairError: any) {
-        console.log(require('chalk').yellow(
-          `[ToolRepair] Failed to repair tool call: ${repairError.message}`
-        ))
+        console.log(require('chalk').yellow(`[ToolRepair] Failed to repair tool call: ${repairError.message}`))
         return null // Return null to indicate repair failed
       }
     }
@@ -249,11 +241,11 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
   /**
    * Active Tools Pattern - Intelligently select relevant tools based on context
    * Reference: https://ai-sdk.dev/docs/agents best practices
-   * 
+   *
    * Instead of providing all tools to every request, this method analyzes the
    * user's message and selects only the most relevant tools (limit: 5-7 tools)
    * to improve model performance and reduce token usage.
-   * 
+   *
    * @param message - The user's message to analyze
    * @param allTools - All available tools
    * @param maxTools - Maximum number of tools to return (default: 5)
@@ -285,7 +277,20 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
       },
       execution: {
         tools: ['execute_command', 'run_command', 'bash', 'execute_command_with_context'],
-        keywords: ['run', 'execute', 'command', 'terminal', 'shell', 'npm', 'pnpm', 'bun', 'yarn', 'install', 'build', 'test'],
+        keywords: [
+          'run',
+          'execute',
+          'command',
+          'terminal',
+          'shell',
+          'npm',
+          'pnpm',
+          'bun',
+          'yarn',
+          'install',
+          'build',
+          'test',
+        ],
         priority: 4,
       },
       analysis: {
@@ -299,8 +304,27 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
         priority: 6,
       },
       workflows: {
-        tools: ['workflow_code_review', 'workflow_optimize_code', 'workflow_smart_route', 'workflow_implement_feature', 'workflow_translate', 'workflow_generate_code'],
-        keywords: ['workflow', 'pipeline', 'review', 'optimize', 'implement', 'feature', 'translate', 'generate', 'quality', 'parallel', 'orchestrate'],
+        tools: [
+          'workflow_code_review',
+          'workflow_optimize_code',
+          'workflow_smart_route',
+          'workflow_implement_feature',
+          'workflow_translate',
+          'workflow_generate_code',
+        ],
+        keywords: [
+          'workflow',
+          'pipeline',
+          'review',
+          'optimize',
+          'implement',
+          'feature',
+          'translate',
+          'generate',
+          'quality',
+          'parallel',
+          'orchestrate',
+        ],
         priority: 7,
       },
     }
@@ -361,9 +385,11 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
 
     // Log active tools for debugging
     if (process.env.DEBUG) {
-      console.log(require('chalk').dim(
-        `[ActiveTools] Selected ${Object.keys(selectedTools).length} tools: ${Object.keys(selectedTools).join(', ')}`
-      ))
+      console.log(
+        require('chalk').dim(
+          `[ActiveTools] Selected ${Object.keys(selectedTools).length} tools: ${Object.keys(selectedTools).join(', ')}`
+        )
+      )
     }
 
     return selectedTools
@@ -387,11 +413,13 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
         // Check for zero completion (protected by insurance, can retry for free)
         if (isZeroCompletionResponse(result) && attempt < maxRetries) {
           if (ZERO_COMPLETION_CONFIG.enableLogging) {
-            console.log(require('chalk').dim(
-              `[ZeroCompletion] ${context}: Empty response (attempt ${attempt}/${maxRetries}), retrying...`
-            ))
+            console.log(
+              require('chalk').dim(
+                `[ZeroCompletion] ${context}: Empty response (attempt ${attempt}/${maxRetries}), retrying...`
+              )
+            )
           }
-          await new Promise(r => setTimeout(r, getExponentialBackoff(attempt)))
+          await new Promise((r) => setTimeout(r, getExponentialBackoff(attempt)))
           continue
         }
 
@@ -402,11 +430,9 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
         // Retry on transient errors
         if (attempt < maxRetries && this.isRetryableError(error)) {
           if (ZERO_COMPLETION_CONFIG.enableLogging) {
-            console.log(require('chalk').dim(
-              `[Retry] ${context}: ${error.message} (attempt ${attempt}/${maxRetries})`
-            ))
+            console.log(require('chalk').dim(`[Retry] ${context}: ${error.message} (attempt ${attempt}/${maxRetries})`))
           }
-          await new Promise(r => setTimeout(r, getExponentialBackoff(attempt)))
+          await new Promise((r) => setTimeout(r, getExponentialBackoff(attempt)))
           continue
         }
 
@@ -790,7 +816,8 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
       // ========================================================================
 
       workflow_code_review: tool({
-        description: 'Run a parallel code review analyzing security, performance, and quality simultaneously. Uses multiple specialized AI reviewers.',
+        description:
+          'Run a parallel code review analyzing security, performance, and quality simultaneously. Uses multiple specialized AI reviewers.',
         parameters: z.object({
           code: z.string().describe('The code to review'),
         }),
@@ -809,7 +836,8 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
       }),
 
       workflow_optimize_code: tool({
-        description: 'Iteratively optimize code using an evaluator-optimizer pattern. Automatically improves code based on quality feedback.',
+        description:
+          'Iteratively optimize code using an evaluator-optimizer pattern. Automatically improves code based on quality feedback.',
         parameters: z.object({
           code: z.string().describe('The code to optimize'),
         }),
@@ -829,7 +857,8 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
       }),
 
       workflow_smart_route: tool({
-        description: 'Intelligently route a query to the appropriate handler based on query type and complexity. Uses smaller models for simple tasks, larger models for complex ones.',
+        description:
+          'Intelligently route a query to the appropriate handler based on query type and complexity. Uses smaller models for simple tasks, larger models for complex ones.',
         parameters: z.object({
           query: z.string().describe('The query to route and process'),
         }),
@@ -849,7 +878,8 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
       }),
 
       workflow_implement_feature: tool({
-        description: 'Use orchestrator-worker pattern to plan and implement a feature. Creates implementation plan and generates code for each file.',
+        description:
+          'Use orchestrator-worker pattern to plan and implement a feature. Creates implementation plan and generates code for each file.',
         parameters: z.object({
           featureRequest: z.string().describe('Description of the feature to implement'),
         }),
@@ -868,7 +898,8 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
       }),
 
       workflow_translate: tool({
-        description: 'Translate text with quality feedback loop. Iteratively improves translation based on tone, nuance, and cultural accuracy evaluation.',
+        description:
+          'Translate text with quality feedback loop. Iteratively improves translation based on tone, nuance, and cultural accuracy evaluation.',
         parameters: z.object({
           text: z.string().describe('The text to translate'),
           targetLanguage: z.string().describe('The target language (e.g., "Italian", "Spanish", "Japanese")'),
@@ -889,7 +920,8 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
       }),
 
       workflow_generate_code: tool({
-        description: 'Generate code using a sequential pipeline: analyze requirements, design architecture, create file structure.',
+        description:
+          'Generate code using a sequential pipeline: analyze requirements, design architecture, create file structure.',
         parameters: z.object({
           requirements: z.string().describe('The requirements or description of what to build'),
         }),
@@ -899,7 +931,7 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
             return {
               success: result.success,
               result: result.result,
-              steps: result.steps.map(s => ({ name: s.name, duration: `${s.duration}ms` })),
+              steps: result.steps.map((s) => ({ name: s.name, duration: `${s.duration}ms` })),
               totalDuration: `${result.totalDuration}ms`,
             }
           } catch (error: any) {
@@ -949,10 +981,10 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
       rootPath: relative(process.cwd(), rootPath),
       packageInfo: packageInfo
         ? {
-          name: packageInfo.name as string,
-          version: packageInfo.version,
-          description: packageInfo.description,
-        }
+            name: packageInfo.name as string,
+            version: packageInfo.version,
+            description: packageInfo.description,
+          }
         : null,
       framework,
       technologies,
@@ -967,12 +999,46 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
     }
 
     const items = readdirSync(dirPath, { withFileTypes: true })
-    const result: { files: Array<{ name: string; path: string; size: number; modified: Date }>; directories: Array<{ name: string; path: string; size: number; modified: Date }> } = {
+    const result: {
+      files: Array<{ name: string; path: string; size: number; modified: Date }>
+      directories: Array<{ name: string; path: string; size: number; modified: Date }>
+    } = {
       files: [] as Array<{ name: string; path: string; size: number; modified: Date }>,
       directories: [] as Array<{ name: string; path: string; size: number; modified: Date }>,
     }
 
-    const skipDirs = ['node_modules', '.git', '.next', 'dist', 'build', 'target', 'bin', 'obj', '.cache', '.temp', '.tmp', 'coverage', '.nyc_output', '__pycache__', '.pytest_cache', 'venv', 'env', '.env', '.venv', 'vendor', 'Pods', 'DerivedData', '.gradle', '.idea', '.vscode', '.vs', 'logs', '*.log', '.DS_Store', 'Thumbs.db']
+    const skipDirs = [
+      'node_modules',
+      '.git',
+      '.next',
+      'dist',
+      'build',
+      'target',
+      'bin',
+      'obj',
+      '.cache',
+      '.temp',
+      '.tmp',
+      'coverage',
+      '.nyc_output',
+      '__pycache__',
+      '.pytest_cache',
+      'venv',
+      'env',
+      '.env',
+      '.venv',
+      'vendor',
+      'Pods',
+      'DerivedData',
+      '.gradle',
+      '.idea',
+      '.vscode',
+      '.vs',
+      'logs',
+      '*.log',
+      '.DS_Store',
+      'Thumbs.db',
+    ]
 
     for (const item of items) {
       if (skipDirs.includes(item.name)) continue
@@ -1212,8 +1278,6 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
         throw new Error(`Unsupported provider: ${config.provider}`)
     }
 
-
-
     return baseModel
   }
 
@@ -1240,12 +1304,16 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
 
     // Active Tools Pattern: Select relevant tools based on user's last message
     // Reference: https://ai-sdk.dev/docs/agents - best practices
-    const lastUserMessage = messages.slice().reverse().find(m => m.role === 'user')
-    const userContent = typeof lastUserMessage?.content === 'string'
-      ? lastUserMessage.content
-      : Array.isArray(lastUserMessage?.content)
-        ? lastUserMessage.content.map(p => 'text' in p ? p.text : '').join(' ')
-        : ''
+    const lastUserMessage = messages
+      .slice()
+      .reverse()
+      .find((m) => m.role === 'user')
+    const userContent =
+      typeof lastUserMessage?.content === 'string'
+        ? lastUserMessage.content
+        : Array.isArray(lastUserMessage?.content)
+          ? lastUserMessage.content.map((p) => ('text' in p ? p.text : '')).join(' ')
+          : ''
 
     // Select 5 most relevant tools based on message context
     const tools = this.selectActiveTools(userContent, allTools, 5)
@@ -1280,7 +1348,7 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
             }
           }
         }
-      } catch (_) { }
+      } catch (_) {}
 
       // Track step progress for loop control (AI SDK best practice)
       // Reference: https://ai-sdk.dev/docs/agents/loop-control
@@ -1306,22 +1374,24 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
         // AI SDK Agent Loop Control - onStepFinish callback
         // Reference: https://ai-sdk.dev/docs/agents/loop-control
         onStepFinish: (step: {
-          stepType: 'initial' | 'continue' | 'tool-result';
-          text: string;
-          toolCalls: Array<{ toolName: string; args: unknown }>;
-          toolResults: Array<{ toolName: string; result: unknown }>;
-          usage: { promptTokens: number; completionTokens: number; totalTokens: number };
-          finishReason: 'stop' | 'length' | 'tool-calls' | 'content-filter' | 'error' | 'other';
-          isContinued: boolean;
+          stepType: 'initial' | 'continue' | 'tool-result'
+          text: string
+          toolCalls: Array<{ toolName: string; args: unknown }>
+          toolResults: Array<{ toolName: string; result: unknown }>
+          usage: { promptTokens: number; completionTokens: number; totalTokens: number }
+          finishReason: 'stop' | 'length' | 'tool-calls' | 'content-filter' | 'error' | 'other'
+          isContinued: boolean
         }) => {
           stepCount++
           const toolCallsInStep = step.toolCalls?.length || 0
           totalToolCalls += toolCallsInStep
 
           // Log step progress (dimmed for non-verbose output)
-          console.log(require('chalk').dim(
-            `[Step ${stepCount}] ${step.stepType} | Tools: ${toolCallsInStep} | Tokens: ${step.usage?.totalTokens || 0} | Reason: ${step.finishReason}`
-          ))
+          console.log(
+            require('chalk').dim(
+              `[Step ${stepCount}] ${step.stepType} | Tools: ${toolCallsInStep} | Tokens: ${step.usage?.totalTokens || 0} | Reason: ${step.finishReason}`
+            )
+          )
 
           // Log tool results for debugging
           if (step.toolResults?.length > 0 && process.env.DEBUG) {
@@ -1460,8 +1530,7 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
               if ((event as any).usage) {
                 yield {
                   type: 'usage',
-                  usage: (event as any).usage
-                  ,
+                  usage: (event as any).usage,
                 }
               }
               break
@@ -1485,10 +1554,12 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
         const errorMessage = streamError.message?.toLowerCase() || ''
 
         // Connection errors - could potentially retry
-        if (errorMessage.includes('network') ||
+        if (
+          errorMessage.includes('network') ||
           errorMessage.includes('timeout') ||
           errorMessage.includes('econnreset') ||
-          errorMessage.includes('socket')) {
+          errorMessage.includes('socket')
+        ) {
           yield {
             type: 'error',
             error: {
@@ -1500,8 +1571,7 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
         }
 
         // Fallback to textStream if fullStream fails
-        if (streamError.message?.includes('fullStream') ||
-          streamError.message?.includes('not iterable')) {
+        if (streamError.message?.includes('fullStream') || streamError.message?.includes('not iterable')) {
           if (RETRY_CONFIG.enableLogging) {
             console.log(require('chalk').dim('[Stream] Falling back to textStream'))
           }
@@ -1526,7 +1596,7 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
             await authProvider.recordUsage('apiCalls', 1)
           }
         }
-      } catch (_) { }
+      } catch (_) {}
       yield {
         type: 'finish',
         finishReason: finishResult,
@@ -1549,12 +1619,16 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
     const reasoningEnabled = this.shouldEnableReasoning()
 
     // Active Tools Pattern: Select relevant tools based on user's last message
-    const lastUserMessage = messages.slice().reverse().find(m => m.role === 'user')
-    const userContent = typeof lastUserMessage?.content === 'string'
-      ? lastUserMessage.content
-      : Array.isArray(lastUserMessage?.content)
-        ? lastUserMessage.content.map(p => 'text' in p ? p.text : '').join(' ')
-        : ''
+    const lastUserMessage = messages
+      .slice()
+      .reverse()
+      .find((m) => m.role === 'user')
+    const userContent =
+      typeof lastUserMessage?.content === 'string'
+        ? lastUserMessage.content
+        : Array.isArray(lastUserMessage?.content)
+          ? lastUserMessage.content.map((p) => ('text' in p ? p.text : '')).join(' ')
+          : ''
 
     const tools = this.selectActiveTools(userContent, allTools, 5)
 
@@ -1578,17 +1652,19 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
         experimental_repairToolCall: this.createToolCallRepairHandler(model, tools),
         // AI SDK Agent Loop Control - onStepFinish callback
         onStepFinish: (step: {
-          stepType: 'initial' | 'continue' | 'tool-result';
-          text: string;
-          toolCalls: Array<{ toolName: string; args: unknown }>;
-          toolResults: Array<{ toolName: string; result: unknown }>;
-          usage: { promptTokens: number; completionTokens: number; totalTokens: number };
-          finishReason: string;
+          stepType: 'initial' | 'continue' | 'tool-result'
+          text: string
+          toolCalls: Array<{ toolName: string; args: unknown }>
+          toolResults: Array<{ toolName: string; result: unknown }>
+          usage: { promptTokens: number; completionTokens: number; totalTokens: number }
+          finishReason: string
         }) => {
           stepCount++
-          console.log(require('chalk').dim(
-            `[Step ${stepCount}] ${step.stepType} | Tools: ${step.toolCalls?.length || 0} | Tokens: ${step.usage?.totalTokens || 0}`
-          ))
+          console.log(
+            require('chalk').dim(
+              `[Step ${stepCount}] ${step.stepType} | Tools: ${step.toolCalls?.length || 0} | Tokens: ${step.usage?.totalTokens || 0}`
+            )
+          )
         },
       }
 
@@ -1666,16 +1742,11 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
       }
 
       // Execute with Zero Completion Insurance retry logic
-      const result = await this.executeWithRetry(
-        () => generateText(generateOptions),
-        'generateWithTools'
-      )
+      const result = await this.executeWithRetry(() => generateText(generateOptions), 'generateWithTools')
 
       // Check for zero completion response after all retries
       if (isZeroCompletionResponse(result)) {
-        console.log(require('chalk').yellow(
-          '[ZeroCompletion] Protected response - no charges applied'
-        ))
+        console.log(require('chalk').yellow('[ZeroCompletion] Protected response - no charges applied'))
       }
 
       // Extract reasoning if available
@@ -1773,7 +1844,16 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
     messages: CoreMessage[],
     options: AIProviderOptions = {}
   ): AsyncGenerator<{
-    type: 'text' | 'tool_call' | 'tool_call_complete' | 'tool_result' | 'finish' | 'reasoning' | 'style_applied' | 'error' | 'usage'
+    type:
+      | 'text'
+      | 'tool_call'
+      | 'tool_call_complete'
+      | 'tool_result'
+      | 'finish'
+      | 'reasoning'
+      | 'style_applied'
+      | 'error'
+      | 'usage'
     content?: string
     toolCall?: any
     toolCallId?: string

@@ -1,5 +1,6 @@
 import { exec } from 'node:child_process'
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+
 import { dirname, extname, join, relative, resolve } from 'node:path'
 import { promisify } from 'node:util'
 import { createAnthropic } from '@ai-sdk/anthropic'
@@ -44,11 +45,16 @@ import { advancedUI } from '../ui/advanced-cli-ui'
 import { diffManager } from '../ui/diff-manager'
 import { DiffViewer, type FileDiff } from '../ui/diff-viewer'
 import { compactAnalysis, safeStringifyContext } from '../utils/analysis-utils'
+import { bunExec } from '../utils/bun-compat'
 import { CliUI } from '../utils/cli-ui'
 import { adaptiveModelRouter, type ModelScope } from './adaptive-model-router'
+import { workflowPatterns } from './workflow-patterns'
 
 const cognitiveColor = chalk.hex('#3a3a3a')
-
+const blueColor = chalk.blue // For "Tools:", "Tokens:", and numbers
+const greenColor = chalk.green // For success results
+const redColor = chalk.red
+const darkGrayColor = chalk.hex('#3a3a3a')
 //  Command System Schemas with Zod
 const CommandSchema = z.object({
   type: z.enum(['npm', 'bash', 'git', 'docker', 'node', 'build', 'test', 'lint']),
@@ -97,7 +103,7 @@ type CommandExecutionResult = z.infer<typeof CommandExecutionResult>
 const execAsync = promisify(exec)
 
 export interface StreamEvent {
-  type: 'start' | 'thinking' | 'tool_call' | 'tool_result' | 'text_delta' | 'complete' | 'error' | 'step'
+  type: 'start' | 'thinking' | 'tool_call' | 'tool_result' | 'text_delta' | 'complete' | 'error' | 'step' | 'usage'
   content?: string
   toolName?: string
   toolArgs?: any
@@ -105,6 +111,12 @@ export interface StreamEvent {
   error?: string
   metadata?: any
   stepId?: string
+  // Real token usage from AI SDK (not estimates)
+  usage?: {
+    promptTokens: number
+    completionTokens: number
+    totalTokens: number
+  }
 }
 
 export interface AutonomousProvider {
@@ -165,6 +177,424 @@ export class AdvancedAIProvider implements AutonomousProvider {
     toolResults: any[]
   }> {
     throw new Error('Method not implemented.')
+  }
+
+  /**
+   * Create a tool call repair handler for AI SDK
+   * Reference: https://v4.ai-sdk.dev/docs/ai-sdk-core/tools-and-tool-calling#tool-call-repair
+   *
+   * This handler attempts to fix invalid tool calls by re-asking the model
+   */
+  private createToolCallRepairHandler(model: any, tools: Record<string, CoreTool>) {
+    return async ({
+      toolCall,
+      error,
+      messages,
+      system,
+    }: {
+      toolCall: { toolName: string; args: unknown }
+      error: Error
+      messages: CoreMessage[]
+      system?: string
+    }) => {
+      try {
+        const tool = tools[toolCall.toolName]
+        if (!tool) {
+          advancedUI.logWarning(`[ToolRepair] Unknown tool: ${toolCall.toolName}`)
+          return null
+        }
+
+        advancedUI.logInfo(`[ToolRepair] Attempting to fix invalid tool call: ${toolCall.toolName}`)
+
+        // Ask the model to fix the tool call
+        const repairResult = await generateText({
+          model,
+          system: system || 'You are a helpful assistant that fixes invalid tool calls.',
+          messages: [
+            ...messages,
+            {
+              role: 'user',
+              content: `The tool call "${toolCall.toolName}" failed with error: ${error.message}
+
+Invalid arguments: ${JSON.stringify(toolCall.args, null, 2)}
+
+Please provide corrected arguments for this tool. Only output the corrected JSON arguments, nothing else.`,
+            },
+          ],
+          maxTokens: 1000,
+        })
+
+        // Try to parse the corrected arguments
+        const fixedArgsText = repairResult.text.trim()
+        const jsonMatch = fixedArgsText.match(/```(?:json)?\s*([\s\S]*?)\s*```/) || fixedArgsText.match(/^\{[\s\S]*\}$/)
+
+        if (jsonMatch) {
+          const fixedArgs = JSON.parse(jsonMatch[1] || jsonMatch[0])
+          advancedUI.logSuccess(`[ToolRepair] Successfully repaired tool call: ${toolCall.toolName}`)
+          return { toolName: toolCall.toolName, args: fixedArgs }
+        }
+
+        const fixedArgs = JSON.parse(fixedArgsText)
+        advancedUI.logSuccess(`[ToolRepair] Successfully repaired tool call: ${toolCall.toolName}`)
+        return { toolName: toolCall.toolName, args: fixedArgs }
+      } catch (repairError: any) {
+        advancedUI.logWarning(`[ToolRepair] Failed to repair tool call: ${repairError.message}`)
+        return null
+      }
+    }
+  }
+
+  /**
+   * Active Tools Pattern - Intelligently select relevant tools based on context
+   * Reference: https://ai-sdk.dev/docs/agents best practices
+   *
+   * Analyzes the user's message to determine intent and returns only the most
+   * relevant tools (limit: 5-7) to improve model performance and reduce tokens.
+   */
+  private selectActiveTools(
+    message: string,
+    allTools: Record<string, CoreTool>,
+    maxTools = 5
+  ): Record<string, CoreTool> {
+    const lowerMessage = message.toLowerCase()
+
+    // Tool categories with priority keywords
+    const toolCategories: Record<string, { tools: string[]; keywords: string[]; priority: number }> = {
+      file_reading: {
+        tools: ['read_file', 'multi_read', 'explore_directory'],
+        keywords: [
+          'read',
+          'show',
+          'view',
+          'content',
+          'look',
+          'check',
+          'see',
+          'file',
+          'what',
+          'open',
+          'explore',
+          'directory',
+          'batch',
+          'multiple',
+        ],
+        priority: 1,
+      },
+      file_writing: {
+        tools: ['write_file', 'edit_file', 'replace_in_file', 'multi_edit'],
+        keywords: [
+          'write',
+          'create',
+          'edit',
+          'modify',
+          'update',
+          'change',
+          'fix',
+          'add',
+          'save',
+          'patch',
+          'batch',
+          'multiple',
+          'replace',
+        ],
+        priority: 2,
+      },
+      file_search: {
+        tools: ['find_files', 'grep', 'glob', 'rag_search'],
+        keywords: [
+          'search',
+          'find',
+          'where',
+          'grep',
+          'locate',
+          'pattern',
+          'regex',
+          'glob',
+          'semantic',
+          'rag',
+          'codebase',
+        ],
+        priority: 3,
+      },
+      execution: {
+        tools: ['execute_command', 'bash', 'run_command', 'secure_command'],
+        keywords: [
+          'run',
+          'execute',
+          'command',
+          'terminal',
+          'shell',
+          'npm',
+          'pnpm',
+          'bun',
+          'yarn',
+          'install',
+          'build',
+          'test',
+          'start',
+          'secure',
+        ],
+        priority: 4,
+      },
+      filesystem_utilities: {
+        tools: ['list', 'tree', 'watch', 'diff', 'json_patch'],
+        keywords: ['filesystem', 'utilities', 'tree', 'diff', 'compare', 'watch', 'monitor', 'list', 'json', 'patch'],
+        priority: 5,
+      },
+      git: {
+        tools: ['git_tools'],
+        keywords: [
+          'git',
+          'commit',
+          'push',
+          'pull',
+          'branch',
+          'merge',
+          'diff',
+          'status',
+          'apply',
+          'patch',
+          'repository',
+        ],
+        priority: 6,
+      },
+      analysis: {
+        tools: ['analyze_project', 'manage_packages', 'generate_code'],
+        keywords: [
+          'analyze',
+          'explain',
+          'understand',
+          'structure',
+          'architecture',
+          'project',
+          'overview',
+          'package',
+          'dependency',
+          'generate',
+          'code',
+        ],
+        priority: 7,
+      },
+      workflows: {
+        tools: [
+          'workflow_code_review',
+          'workflow_optimize_code',
+          'workflow_smart_route',
+          'workflow_implement_feature',
+          'workflow_translate',
+          'workflow_generate_code',
+        ],
+        keywords: [
+          'workflow',
+          'pipeline',
+          'review',
+          'optimize',
+          'implement',
+          'feature',
+          'translate',
+          'generate',
+          'quality',
+          'parallel',
+          'orchestrate',
+          'iterate',
+        ],
+        priority: 8,
+      },
+      ai_vision: {
+        tools: ['vision_analysis', 'image_generation'],
+        keywords: [
+          'vision',
+          'image',
+          'picture',
+          'photo',
+          'analyze',
+          'generate',
+          'create',
+          'ai',
+          'multimodal',
+          'dall-e',
+          'claude',
+          'gemini',
+        ],
+        priority: 9,
+      },
+      blockchain: {
+        tools: ['coinbase_agentkit', 'goat_tool'],
+        keywords: [
+          'blockchain',
+          'crypto',
+          'bitcoin',
+          'ethereum',
+          'defi',
+          'wallet',
+          'transaction',
+          'coinbase',
+          'polymarket',
+          'erc20',
+          'polygon',
+          'base',
+        ],
+        priority: 10,
+      },
+      browser_automation: {
+        tools: [
+          'browserbase',
+          'browser_navigate',
+          'browser_click',
+          'browser_type',
+          'browser_screenshot',
+          'browser_extract_text',
+          'browser_wait_for_element',
+          'browser_scroll',
+          'browser_execute_script',
+          'browser_get_page_info',
+        ],
+        keywords: [
+          'browser',
+          'web',
+          'automation',
+          'selenium',
+          'playwright',
+          'click',
+          'navigate',
+          'screenshot',
+          'scrape',
+          'extract',
+          'javascript',
+          'scroll',
+          'wait',
+        ],
+        priority: 11,
+      },
+      manufacturing: {
+        tools: ['text_to_cad', 'text_to_gcode'],
+        keywords: [
+          'cad',
+          'cnc',
+          '3d',
+          'print',
+          'manufacturing',
+          'gcode',
+          'laser',
+          'engineering',
+          'design',
+          'prototype',
+        ],
+        priority: 12,
+      },
+      design_tools: {
+        tools: ['figma_tool'],
+        keywords: ['figma', 'design', 'ui', 'ux', 'prototype', 'mockup', 'component', 'library'],
+        priority: 13,
+      },
+      project_management: {
+        tools: ['snapshot_tool'],
+        keywords: ['snapshot', 'backup', 'restore', 'version', 'state', 'checkpoint', 'rollback'],
+        priority: 14,
+      },
+      code_quality: {
+        tools: ['format_suggestion'],
+        keywords: ['format', 'lint', 'style', 'prettier', 'eslint', 'quality', 'standardize'],
+        priority: 15,
+      },
+      documentation: {
+        tools: [
+          'web_search',
+          'smart_docs_search',
+          'smart_docs_load',
+          'smart_docs_context',
+          'docs_request',
+          'memory_search',
+        ],
+        keywords: [
+          'documentation',
+          'docs',
+          'search',
+          'web',
+          'online',
+          'help',
+          'reference',
+          'manual',
+          'guide',
+          'memory',
+          'context',
+        ],
+        priority: 16,
+      },
+    }
+
+    // Score each category based on keyword matches
+    const categoryScores: {
+      category: string
+      score: number
+      priority: number
+    }[] = []
+
+    for (const [category, config] of Object.entries(toolCategories)) {
+      let score = 0
+      for (const keyword of config.keywords) {
+        if (lowerMessage.includes(keyword)) {
+          score += 1
+        }
+      }
+      if (score > 0) {
+        categoryScores.push({ category, score, priority: config.priority })
+      }
+    }
+
+    // Sort by score (desc) then priority (asc)
+    categoryScores.sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score
+      return a.priority - b.priority
+    })
+
+    // Collect tools from top categories
+    const selectedTools: Record<string, CoreTool> = {}
+    const selectedToolNames = new Set<string>()
+
+    for (const { category } of categoryScores) {
+      const categoryTools = toolCategories[category].tools
+      for (const toolName of categoryTools) {
+        if (allTools[toolName] && !selectedToolNames.has(toolName)) {
+          selectedTools[toolName] = allTools[toolName]
+          selectedToolNames.add(toolName)
+
+          if (selectedToolNames.size >= maxTools) break
+        }
+      }
+      if (selectedToolNames.size >= maxTools) break
+    }
+
+    // Default core tools if no specific category matched
+    if (selectedToolNames.size === 0) {
+      const coreTools = [
+        'read_file',
+        'write_file',
+        'find_files',
+        'execute_command',
+        'grep',
+        'list',
+        'tree',
+        'web_search',
+        'git_tools',
+        'json_patch',
+      ]
+      for (const toolName of coreTools) {
+        if (allTools[toolName]) {
+          selectedTools[toolName] = allTools[toolName]
+          if (Object.keys(selectedTools).length >= maxTools) break
+        }
+      }
+    }
+
+    // Always include read_file for context gathering
+    if (!selectedTools['read_file'] && allTools['read_file']) {
+      selectedTools['read_file'] = allTools['read_file']
+    }
+
+
+
+    return selectedTools
   }
 
   // Truncate long free-form strings to keep prompts safe
@@ -229,21 +659,13 @@ export class AdvancedAIProvider implements AutonomousProvider {
     return totalTokens
   }
 
-  // Intelligent message truncation with token optimization - MODEL-AWARE MODE
-  private async truncateMessages(messages: CoreMessage[], maxTokens?: number): Promise<CoreMessage[]> {
-    // Get actual model context limit with safety margin
-    const modelInfo = this.getCurrentModelInfo()
-    const modelContextLimit = modelInfo.config?.maxContextTokens || 200000
-    const safetyMargin = 0.15 // 15% safety margin
-    const effectiveLimit = Math.floor(modelContextLimit * (1 - safetyMargin))
-
-    // Use provided limit or model-specific limit with safety margin
-    const targetTokens = Math.min(maxTokens || 60000, effectiveLimit)
+  // Intelligent message truncation with token optimization - ULTRA AGGRESSIVE MODE
+  private async truncateMessages(messages: CoreMessage[], maxTokens: number = 60000): Promise<CoreMessage[]> {
     // First apply token optimization to all messages
     const optimizedMessages = await this.optimizeMessages(messages)
     const currentTokens = this.estimateMessagesTokens(optimizedMessages)
 
-    if (currentTokens <= targetTokens) {
+    if (currentTokens <= maxTokens) {
       return optimizedMessages
     }
 
@@ -272,9 +694,9 @@ export class AdvancedAIProvider implements AutonomousProvider {
       const msg = recentMessages[i]
       const msgTokens = this.estimateTokens(typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content))
 
-      if (accumulatedTokens + msgTokens > targetTokens) {
+      if (accumulatedTokens + msgTokens > maxTokens) {
         // Truncate this message if it's too long
-        const availableTokens = targetTokens - accumulatedTokens
+        const availableTokens = maxTokens - accumulatedTokens
         const availableChars = Math.max(500, availableTokens * 3) // Conservative char conversion
 
         const content = typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content)
@@ -817,10 +1239,10 @@ Respond in a helpful, professional manner with clear explanations and actionable
               formatter: validationResult?.formatter,
               validation: validationResult
                 ? {
-                    isValid: validationResult.isValid,
-                    errors: validationResult.errors,
-                    warnings: validationResult.warnings,
-                  }
+                  isValid: validationResult.isValid,
+                  errors: validationResult.errors,
+                  warnings: validationResult.warnings,
+                }
                 : null,
               reasoning: reasoning || `File ${backedUp ? 'updated' : 'created'} by agent`,
             }
@@ -924,7 +1346,6 @@ Respond in a helpful, professional manner with clear explanations and actionable
             const { stdout, stderr } = await execAsync(fullCommand, {
               cwd: commandCwd,
               timeout,
-              maxBuffer: 1024 * 1024 * 10, // 10MB
             })
 
             const duration = Date.now() - startTime
@@ -1164,10 +1585,19 @@ Respond in a helpful, professional manner with clear explanations and actionable
         description:
           'Read multiple files safely with optional content search and context - preferred for batch operations',
         parameters: z.object({
-          files: z.array(z.string()).optional().describe('Explicit file paths to read'),
-          globs: z.array(z.string()).optional().describe('Glob patterns (e.g., src/**/*.ts)'),
+          files: z
+            .union([z.string(), z.array(z.string())])
+            .optional()
+            .describe('Explicit file paths to read - can be string or array'),
+          globs: z
+            .union([z.string(), z.array(z.string())])
+            .optional()
+            .describe('Glob patterns (e.g., "src/**/*.ts" or ["src/**/*.ts"])'),
           root: z.string().optional().describe('Root directory for search'),
-          exclude: z.array(z.string()).optional().describe('Patterns to exclude'),
+          exclude: z
+            .union([z.string(), z.array(z.string())])
+            .optional()
+            .describe('Patterns to exclude - can be string or array'),
           pattern: z.string().optional().describe('Search pattern within files'),
           useRegex: z.boolean().default(false).describe('Use regex for pattern'),
           caseSensitive: z.boolean().default(false).describe('Case sensitive search'),
@@ -1176,7 +1606,14 @@ Respond in a helpful, professional manner with clear explanations and actionable
         execute: async (params) => {
           const multiReadTool = this.toolRegistry.getTool('multi-read-tool')
           if (!multiReadTool) return { error: 'Multi-read tool not available' }
-          const result = await multiReadTool.execute(params)
+          // Normalize string inputs to arrays
+          const normalizedParams = {
+            ...params,
+            files: params.files ? (Array.isArray(params.files) ? params.files : [params.files]) : undefined,
+            globs: params.globs ? (Array.isArray(params.globs) ? params.globs : [params.globs]) : undefined,
+            exclude: params.exclude ? (Array.isArray(params.exclude) ? params.exclude : [params.exclude]) : undefined,
+          }
+          const result = await multiReadTool.execute(normalizedParams)
           return result.success ? result.data : { error: result.error }
         },
       }),
@@ -1279,15 +1716,28 @@ Respond in a helpful, professional manner with clear explanations and actionable
       find_files: tool({
         description: 'Find files matching glob patterns with intelligent filtering',
         parameters: z.object({
-          patterns: z.array(z.string()).describe('Glob patterns (e.g., **/*.ts, src/**/*.json)'),
+          patterns: z
+            .union([z.string(), z.array(z.string())])
+            .describe(
+              'Glob patterns - can be a single string or array (e.g., "**/*.ts" or ["**/*.ts", "src/**/*.json"])'
+            ),
           cwd: z.string().optional().describe('Working directory for search'),
-          exclude: z.array(z.string()).optional().describe('Patterns to exclude'),
+          exclude: z
+            .union([z.string(), z.array(z.string())])
+            .optional()
+            .describe('Patterns to exclude - can be a single string or array'),
           maxDepth: z.number().optional().describe('Maximum directory depth'),
         }),
         execute: async (params) => {
           const findTool = this.toolRegistry.getTool('find-files-tool')
           if (!findTool) return { error: 'Find files tool not available' }
-          const result = await findTool.execute(params)
+          // Normalize patterns to array
+          const normalizedParams = {
+            ...params,
+            patterns: Array.isArray(params.patterns) ? params.patterns : [params.patterns],
+            exclude: params.exclude ? (Array.isArray(params.exclude) ? params.exclude : [params.exclude]) : undefined,
+          }
+          const result = await findTool.execute(normalizedParams)
           return result.success ? result.data : { error: result.error }
         },
       }),
@@ -1396,7 +1846,10 @@ Respond in a helpful, professional manner with clear explanations and actionable
             .union([z.string(), z.array(z.string())])
             .describe('Glob pattern(s) (e.g., "**/*.ts", ["*.ts", "*.tsx"])'),
           path: z.string().optional().describe('Base path for search'),
-          ignorePatterns: z.array(z.string()).optional().describe('Patterns to ignore'),
+          ignorePatterns: z
+            .union([z.string(), z.array(z.string())])
+            .optional()
+            .describe('Patterns to ignore - can be string or array'),
           onlyFiles: z.boolean().optional().describe('Return only files'),
           onlyDirectories: z.boolean().optional().describe('Return only directories'),
           followSymlinks: z.boolean().optional().describe('Follow symbolic links'),
@@ -1413,7 +1866,17 @@ Respond in a helpful, professional manner with clear explanations and actionable
         execute: async (params) => {
           const globTool = this.toolRegistry.getTool('glob-tool')
           if (!globTool) return { error: 'Glob tool not available' }
-          const result = await globTool.execute(params)
+          // Normalize string inputs to arrays
+          const normalizedParams = {
+            ...params,
+            pattern: Array.isArray(params.pattern) ? params.pattern : [params.pattern],
+            ignorePatterns: params.ignorePatterns
+              ? Array.isArray(params.ignorePatterns)
+                ? params.ignorePatterns
+                : [params.ignorePatterns]
+              : undefined,
+          }
+          const result = await globTool.execute(normalizedParams)
           return result.success ? result.data : { error: result.error }
         },
       }),
@@ -1449,7 +1912,10 @@ Respond in a helpful, professional manner with clear explanations and actionable
           showHidden: z.boolean().default(false).describe('Include hidden files'),
           showSize: z.boolean().default(false).describe('Show file sizes'),
           showFullPath: z.boolean().default(false).describe('Show full paths'),
-          ignorePatterns: z.array(z.string()).optional().describe('Patterns to ignore'),
+          ignorePatterns: z
+            .union([z.string(), z.array(z.string())])
+            .optional()
+            .describe('Patterns to ignore - can be string or array'),
           onlyDirectories: z.boolean().default(false).describe('Show only directories'),
           sortBy: z.enum(['name', 'size', 'type']).optional().describe('Sort order'),
           useIcons: z.boolean().default(true).describe('Use file type icons'),
@@ -1457,7 +1923,16 @@ Respond in a helpful, professional manner with clear explanations and actionable
         execute: async (params) => {
           const treeTool = this.toolRegistry.getTool('tree-tool')
           if (!treeTool) return { error: 'Tree tool not available' }
-          const result = await treeTool.execute(params)
+          // Normalize string inputs to arrays
+          const normalizedParams = {
+            ...params,
+            ignorePatterns: params.ignorePatterns
+              ? Array.isArray(params.ignorePatterns)
+                ? params.ignorePatterns
+                : [params.ignorePatterns]
+              : undefined,
+          }
+          const result = await treeTool.execute(normalizedParams)
           return result.success ? result.data : { error: result.error }
         },
       }),
@@ -1470,8 +1945,14 @@ Respond in a helpful, professional manner with clear explanations and actionable
             .union([z.string(), z.array(z.string())])
             .optional()
             .describe('Path(s) to watch'),
-          patterns: z.array(z.string()).optional().describe('File patterns to watch'),
-          ignorePatterns: z.array(z.string()).optional().describe('Patterns to ignore'),
+          patterns: z
+            .union([z.string(), z.array(z.string())])
+            .optional()
+            .describe('File patterns to watch - can be string or array'),
+          ignorePatterns: z
+            .union([z.string(), z.array(z.string())])
+            .optional()
+            .describe('Patterns to ignore - can be string or array'),
           ignoreInitial: z.boolean().default(true).describe('Ignore initial file scan'),
           persistent: z.boolean().default(true).describe('Keep watching after first event'),
           depth: z.number().optional().describe('Maximum directory depth'),
@@ -1486,7 +1967,22 @@ Respond in a helpful, professional manner with clear explanations and actionable
         execute: async (params) => {
           const watchTool = this.toolRegistry.getTool('watch-tool')
           if (!watchTool) return { error: 'Watch tool not available' }
-          const result = await watchTool.execute(params)
+          // Normalize string inputs to arrays
+          const normalizedParams = {
+            ...params,
+            path: params.path ? (Array.isArray(params.path) ? params.path : [params.path]) : undefined,
+            patterns: params.patterns
+              ? Array.isArray(params.patterns)
+                ? params.patterns
+                : [params.patterns]
+              : undefined,
+            ignorePatterns: params.ignorePatterns
+              ? Array.isArray(params.ignorePatterns)
+                ? params.ignorePatterns
+                : [params.ignorePatterns]
+              : undefined,
+          }
+          const result = await watchTool.execute(normalizedParams)
           return result.success ? result.data : { error: result.error }
         },
       }),
@@ -1878,7 +2374,20 @@ Respond in a helpful, professional manner with clear explanations and actionable
       ? await this.resolveAdaptiveModel('chat_default', truncatedMessages)
       : undefined
     const model = this.getModel(effectiveModelName) as any
-    const tools = this.getAdvancedTools()
+    const allTools = this.getAdvancedTools()
+
+    // Get last user message for active tools selection
+    const lastUserMsg = truncatedMessages.filter((m) => m.role === 'user').pop()
+    const userContent =
+      typeof lastUserMsg?.content === 'string'
+        ? lastUserMsg.content
+        : Array.isArray(lastUserMsg?.content)
+          ? lastUserMsg.content.map((p: any) => ('text' in p ? p.text : '')).join(' ')
+          : ''
+
+    // Active Tools Pattern: Select relevant tools based on user's message
+    // Reference: https://ai-sdk.dev/docs/agents - best practices
+    const tools = this.selectActiveTools(userContent, allTools, 7) // Allow up to 7 tools for autonomous mode
 
     try {
       // ADVANCED: Check completion protocol cache first (ultra-efficient)
@@ -1895,8 +2404,8 @@ Respond in a helpful, professional manner with clear explanations and actionable
             ? lastUserMessage.content
             : Array.isArray(lastUserMessage.content)
               ? lastUserMessage.content
-                  .map((part) => (typeof part === 'string' ? part : part.experimental_providerMetadata?.content || ''))
-                  .join('')
+                .map((part) => (typeof part === 'string' ? part : part.experimental_providerMetadata?.content || ''))
+                .join('')
               : String(lastUserMessage.content)
 
         // Use ToolRouter for intelligent tool analysis
@@ -2029,6 +2538,12 @@ Respond in a helpful, professional manner with clear explanations and actionable
             : msg.content,
       })) as CoreMessage[]
 
+      // Track step progress for loop control
+      let stepCount = 0
+      let totalToolCalls = 0
+      let consecutiveEmptySteps = 0
+      const maxConsecutiveEmptySteps = 3 // Stop after 3 empty steps (loop detection)
+
       const streamOpts: any = {
         model,
         messages: finalMessages,
@@ -2036,7 +2551,82 @@ Respond in a helpful, professional manner with clear explanations and actionable
         maxToolRoundtrips: isAnalysisRequest ? 20 : 30, // Reduced to prevent token overflow
         temperature: params.temperature,
         abortSignal,
-        onStepFinish: (_evt: any) => {},
+        // AI SDK toolChoice: 'auto' (default), 'none', 'required', or { type: 'tool', toolName: 'specific-tool' }
+        // For autonomous operations, use 'auto' to let model decide tool usage
+        toolChoice: 'auto',
+        // AI SDK Tool Call Repair - automatically fix invalid tool calls
+        experimental_repairToolCall: this.createToolCallRepairHandler(model, tools),
+        // AI SDK Agent Loop Control - onStepFinish callback
+        // Reference: https://ai-sdk.dev/docs/agents/loop-control
+        onStepFinish: (step: {
+          stepType: 'initial' | 'continue' | 'tool-result'
+          text: string
+          toolCalls: Array<{ toolName: string; args: unknown }>
+          toolResults: Array<{ toolName: string; result: unknown }>
+          usage: {
+            promptTokens: number
+            completionTokens: number
+            totalTokens: number
+          }
+          finishReason: 'stop' | 'length' | 'tool-calls' | 'content-filter' | 'error' | 'other'
+          isContinued: boolean
+        }) => {
+          stepCount++
+
+          // Track tool call usage for intelligent loop control
+          const toolCallsInStep = step.toolCalls?.length || 0
+          totalToolCalls += toolCallsInStep
+
+          // Loop detection: track consecutive empty steps
+          if (!step.text && toolCallsInStep === 0) {
+            consecutiveEmptySteps++
+          } else {
+            consecutiveEmptySteps = 0
+          }
+
+          // Log step progress
+          const stepInfo = {
+            step: stepCount,
+            type: step.stepType,
+            toolCalls: toolCallsInStep,
+            totalToolCalls,
+            tokens: step.usage?.totalTokens || 0,
+            finishReason: step.finishReason,
+          }
+
+          // Emit step event for UI updates
+          advancedUI.logFunctionUpdate(
+            'info',
+            `${darkGrayColor('Step:')} ${blueColor(`${stepCount} ${step.stepType}`)} | ${darkGrayColor('Tools:')} ${blueColor(toolCallsInStep)} | ${darkGrayColor('Tokens:')} ${blueColor(step.usage?.totalTokens || 0)}`,
+            '⚡'
+          )
+
+          // Loop control: warn if stuck in loop
+          if (consecutiveEmptySteps >= maxConsecutiveEmptySteps) {
+            advancedUI.logWarning(
+              `[LoopControl] Detected ${consecutiveEmptySteps} consecutive empty steps - potential loop`
+            )
+          }
+
+          // Log tool results for debugging
+          if (step.toolResults?.length > 0) {
+            for (const result of step.toolResults) {
+              advancedUI.logFunctionUpdate(
+                'success',
+                `${darkGrayColor('Tool result:')} ${greenColor(result.toolName)}`,
+                '✓'
+              )
+            }
+          }
+        },
+      }
+
+      // Get current model config for provider-specific settings
+      const cfg = this.getCurrentModelInfo().config as any
+
+      // Override toolChoice from config if specified
+      if (cfg?.toolChoice) {
+        streamOpts.toolChoice = cfg.toolChoice
       }
 
       // OpenRouter and Anthropic models REQUIRE maxTokens
@@ -2283,10 +2873,10 @@ Respond in a helpful, professional manner with clear explanations and actionable
                     ? lastUserMessage.content
                     : Array.isArray(lastUserMessage.content)
                       ? lastUserMessage.content
-                          .map((part) =>
-                            typeof part === 'string' ? part : part.experimental_providerMetadata?.content || ''
-                          )
-                          .join('')
+                        .map((part) =>
+                          typeof part === 'string' ? part : part.experimental_providerMetadata?.content || ''
+                        )
+                        .join('')
                       : String(lastUserMessage.content)
 
                 // Salva nella cache intelligente
@@ -2303,6 +2893,18 @@ Respond in a helpful, professional manner with clear explanations and actionable
                   )
                 } catch (_cacheError: any) {
                   // Continue without caching - don't fail the stream
+                }
+
+                // Emit REAL token usage from AI SDK (not estimates)
+                if (delta.usage) {
+                  yield {
+                    type: 'usage',
+                    usage: {
+                      promptTokens: delta.usage.promptTokens || 0,
+                      completionTokens: delta.usage.completionTokens || 0,
+                      totalTokens: delta.usage.totalTokens || 0,
+                    },
+                  }
                 }
 
                 yield {
@@ -3054,11 +3656,11 @@ Requirements:
       const routingCfg = configManager.get('modelRouting')
       const resolved = routingCfg?.enabled
         ? await this.resolveAdaptiveModel('code_gen', [
-            {
-              role: 'user',
-              content: `${type}: ${description} (${language})`,
-            } as any,
-          ])
+          {
+            role: 'user',
+            content: `${type}: ${description} (${language})`,
+          } as any,
+        ])
         : undefined
       const model = this.getModel(resolved) as any
       const params = this.getProviderParams()
@@ -3137,7 +3739,7 @@ Requirements:
         const msg = `[Router] ${info.name} → ${decision.selectedModel} (${decision.tier}, ~${decision.estimatedTokens} tok)`
         if (nik?.advancedUI) nik.advancedUI.logInfo('model router', msg)
         else console.log(chalk.dim(msg))
-      } catch {}
+      } catch { }
 
       // The router returns a provider model id. Our config keys match these ids in default models.
       // If key is missing, fallback to current model name in config.
@@ -3382,7 +3984,7 @@ Requirements:
         } else if (configData.model.includes('gemini') || configData.model.startsWith('google/')) {
           return { maxTokens: 4000, temperature: 0.7 } // Google models
         } else if (configData.model.startsWith('anthropic/')) {
-          return { maxTokens: 8000, temperature: 1 } // Anthropic models
+          return { maxTokens: 4000, temperature: 1 } // Anthropic models
         }
         return { maxTokens: 4000, temperature: 1 }
 

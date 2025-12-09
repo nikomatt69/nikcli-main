@@ -13,8 +13,8 @@ import { z } from 'zod'
 import { configManager, type ModelConfig } from '../core/config-manager'
 import { streamttyService } from '../services/streamtty-service'
 import { adaptiveModelRouter, type ModelScope } from './adaptive-model-router'
-import { ReasoningDetector } from './reasoning-detector'
 import { openRouterRegistry } from './openrouter-model-registry'
+import { ReasoningDetector } from './reasoning-detector'
 
 // ====================== ⚡︎ ZOD VALIDATION SCHEMAS ======================
 
@@ -102,8 +102,7 @@ function isZeroCompletionResponse(result: any): boolean {
     }
   }
 
-  if ((!result?.text || result.text.trim() === '') &&
-    (!result?.toolCalls || result.toolCalls.length === 0)) {
+  if ((!result?.text || result.text.trim() === '') && (!result?.toolCalls || result.toolCalls.length === 0)) {
     if (!finishReason || finishReason === 'error') {
       return true
     }
@@ -184,11 +183,13 @@ export class ModelProvider {
 
         if (isZeroCompletionResponse(result) && attempt < maxRetries) {
           if (ZERO_COMPLETION_CONFIG.enableLogging) {
-            console.log(require('chalk').dim(
-              `[ZeroCompletion] ${context}: Empty response (attempt ${attempt}/${maxRetries}), retrying...`
-            ))
+            console.log(
+              require('chalk').dim(
+                `[ZeroCompletion] ${context}: Empty response (attempt ${attempt}/${maxRetries}), retrying...`
+              )
+            )
           }
-          await new Promise(r => setTimeout(r, ZERO_COMPLETION_CONFIG.retryDelayMs * attempt))
+          await new Promise((r) => setTimeout(r, ZERO_COMPLETION_CONFIG.retryDelayMs * attempt))
           continue
         }
 
@@ -198,11 +199,9 @@ export class ModelProvider {
 
         if (attempt < maxRetries && this.isRetryableError(error)) {
           if (ZERO_COMPLETION_CONFIG.enableLogging) {
-            console.log(require('chalk').dim(
-              `[Retry] ${context}: ${error.message} (attempt ${attempt}/${maxRetries})`
-            ))
+            console.log(require('chalk').dim(`[Retry] ${context}: ${error.message} (attempt ${attempt}/${maxRetries})`))
           }
-          await new Promise(r => setTimeout(r, ZERO_COMPLETION_CONFIG.retryDelayMs * attempt))
+          await new Promise((r) => setTimeout(r, ZERO_COMPLETION_CONFIG.retryDelayMs * attempt))
           continue
         }
 
@@ -458,7 +457,7 @@ export class ModelProvider {
           if (nik?.advancedUI) nik.advancedUI.logInfo('Model Router', msg)
           else console.log(require('chalk').dim(msg))
         }
-      } catch { }
+      } catch {}
     }
     const effectiveConfig: ModelConfig = { ...currentModelConfig, model: effectiveModelId } as ModelConfig
     // Enforce light quota check for OpenRouter usage if authenticated
@@ -472,7 +471,7 @@ export class ModelProvider {
           }
         }
       }
-    } catch (_) { }
+    } catch (_) {}
 
     const model = this.getModel(effectiveConfig)
 
@@ -540,7 +539,7 @@ export class ModelProvider {
             exclude: false,
             enabled: true,
           }
-            ; (reasoningConfig as any).include_reasoning = (reasoningConfig as any).include_reasoning ?? true
+          ;(reasoningConfig as any).include_reasoning = (reasoningConfig as any).include_reasoning ?? true
           baseOptions.experimental_providerMetadata.openrouter.reasoning = reasoningConfig
         }
         const transforms = (effectiveConfig as any).transforms || configManager.get('openrouterTransforms')
@@ -561,16 +560,11 @@ export class ModelProvider {
       }
     }
     // Execute with Zero Completion Insurance retry logic
-    const result = await this.executeWithRetry(
-      () => generateText(baseOptions),
-      'generateResponse'
-    )
+    const result = await this.executeWithRetry(() => generateText(baseOptions), 'generateResponse')
 
     // Check for zero completion response after all retries
     if (isZeroCompletionResponse(result)) {
-      console.log(require('chalk').yellow(
-        '[ZeroCompletion] Protected response - no charges applied'
-      ))
+      console.log(require('chalk').yellow('[ZeroCompletion] Protected response - no charges applied'))
     }
 
     // Record usage for OpenRouter (only if successful completion)
@@ -581,7 +575,7 @@ export class ModelProvider {
           await authProvider.recordUsage('apiCalls', 1)
         }
       }
-    } catch (_) { }
+    } catch (_) {}
 
     // Extract reasoning if available and display if requested
     if (reasoningEnabled) {
@@ -671,7 +665,7 @@ export class ModelProvider {
           const msg = `[Router] ${currentModelName} → ${decision.selectedModel} (${decision.tier}, ~${decision.estimatedTokens} tok)`
           if (nik?.advancedUI) nik.advancedUI.logInfo('Model Router', msg)
           else console.log(require('chalk').dim(msg))
-        } catch { }
+        } catch {}
       }
     }
 
@@ -741,7 +735,7 @@ export class ModelProvider {
             exclude: false,
             enabled: true,
           }
-            ; (reasoningConfig as any).include_reasoning = (reasoningConfig as any).include_reasoning ?? true
+          ;(reasoningConfig as any).include_reasoning = (reasoningConfig as any).include_reasoning ?? true
           streamOptions.experimental_providerMetadata.openrouter.reasoning = reasoningConfig
         }
         const transforms = (effectiveConfig2 as any).transforms || configManager.get('openrouterTransforms')
@@ -811,7 +805,7 @@ export class ModelProvider {
           const msg = `[Router] ${configManager.getCurrentModel()} → ${decision.selectedModel} (${decision.tier}, ~${decision.estimatedTokens} tok)`
           if (nik?.advancedUI) nik.advancedUI.logInfo('Model Router', msg)
           else console.log(require('chalk').dim(msg))
-        } catch { }
+        } catch {}
       }
     }
     const model = this.getModel({ ...currentModelConfig, model: effId3 } as ModelConfig)

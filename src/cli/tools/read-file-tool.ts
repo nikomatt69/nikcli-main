@@ -14,6 +14,7 @@ import { advancedUI } from '../ui/advanced-cli-ui'
 import { CliUI } from '../utils/cli-ui'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
 import { sanitizePath } from './secure-file-tools'
+import { PromptManager } from '../prompts/prompt-manager'
 
 const DEFAULT_TOKEN_BUDGET = 25000
 const MAX_LINES_PER_CHUNK = 250
@@ -35,6 +36,12 @@ export class ReadFileTool extends BaseTool {
     const startTime = Date.now()
 
     try {
+      const promptManager = PromptManager.getInstance()
+      const systemPrompt = await promptManager.loadPromptForContext({
+        toolName: 'read-file-tool',
+        parameters: options,
+      })
+      advancedUI.logInfo(`Using system prompt: ${systemPrompt.substring(0, 100)}...`)
       const result = await this.executeInternal(filePath, options)
 
       return {
@@ -509,8 +516,7 @@ export class ReadFileTool extends BaseTool {
     }
 
     const content = lines.join('\n')
-    const endLine =
-      lines.length > 0 ? options.startLine + lines.length - 1 : Math.max(options.startLine, 1)
+    const endLine = lines.length > 0 ? options.startLine + lines.length - 1 : Math.max(options.startLine, 1)
     const nextStartLine = truncated ? endLine + 1 : null
 
     return {

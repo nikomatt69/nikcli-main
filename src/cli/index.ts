@@ -10,16 +10,7 @@ process.env.NIKCLI_QUIET_STARTUP = 'true'
 
 // Force stdout to be non-blocking for streaming in pkg binaries
 // This ensures streaming output works correctly when compiled with pkg
-if (process.stdout.isTTY) {
-  process.stdout.setDefaultEncoding('utf8')
-} else {
-  // For non-TTY (like pkg binaries), ensure unbuffered output
-  if (typeof (process.stdout as any)._handle?.setBlocking === 'function') {
-    ;(process.stdout as any)._handle.setBlocking(true)
-  }
-  // Force line buffering for better streaming experience
-  process.stdout.setDefaultEncoding('utf8')
-}
+process.stdout.setDefaultEncoding('utf8')
 
 import chalk from 'chalk'
 import gradient from 'gradient-string'

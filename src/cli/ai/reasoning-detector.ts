@@ -4,8 +4,8 @@
  * Dynamically fetches model capabilities from OpenRouter API
  */
 
-import { type LanguageModelV1, experimental_wrapLanguageModel } from 'ai'
-import { openRouterRegistry, type ModelCapabilities } from './openrouter-model-registry'
+import { experimental_wrapLanguageModel, type LanguageModelV1 } from 'ai'
+import { type ModelCapabilities, openRouterRegistry } from './openrouter-model-registry'
 
 /**
  * Reasoning capabilities interface - now dynamic, not model-specific
@@ -244,16 +244,19 @@ export class ReasoningDetector {
   /**
    * Get or create a reasoning middleware instance for a provider
    */
-  static getMiddleware(provider: string, config?: ReasoningMiddlewareConfig): ReturnType<typeof createReasoningMiddleware> {
+  static getMiddleware(
+    provider: string,
+    config?: ReasoningMiddlewareConfig
+  ): ReturnType<typeof createReasoningMiddleware> {
     const providerConfig = PROVIDER_REASONING_CONFIG[provider as SupportedProvider]
     const tagName = config?.tagName || providerConfig?.defaultTagName || 'thinking'
     const cacheKey = `${provider}:${tagName}`
 
-    if (!this.middlewareCache.has(cacheKey)) {
-      this.middlewareCache.set(cacheKey, createReasoningMiddleware({ tagName, ...config }))
+    if (!ReasoningDetector.middlewareCache.has(cacheKey)) {
+      ReasoningDetector.middlewareCache.set(cacheKey, createReasoningMiddleware({ tagName, ...config }))
     }
 
-    return this.middlewareCache.get(cacheKey)!
+    return ReasoningDetector.middlewareCache.get(cacheKey)!
   }
 
   /**
@@ -263,8 +266,8 @@ export class ReasoningDetector {
   static detectReasoningSupport(provider: string, modelId: string): ReasoningCapabilities {
     // Check cache first
     const cacheKey = `${provider}:${modelId}`
-    const cached = this.capabilitiesCache.get(cacheKey)
-    if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
+    const cached = ReasoningDetector.capabilitiesCache.get(cacheKey)
+    if (cached && Date.now() - cached.timestamp < ReasoningDetector.CACHE_TTL) {
       return cached.capabilities
     }
 
@@ -279,8 +282,8 @@ export class ReasoningDetector {
    */
   static async detectReasoningSupportAsync(provider: string, modelId: string): Promise<ReasoningCapabilities> {
     const cacheKey = `${provider}:${modelId}`
-    const cached = this.capabilitiesCache.get(cacheKey)
-    if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
+    const cached = ReasoningDetector.capabilitiesCache.get(cacheKey)
+    if (cached && Date.now() - cached.timestamp < ReasoningDetector.CACHE_TTL) {
       return cached.capabilities
     }
 
@@ -288,8 +291,8 @@ export class ReasoningDetector {
     if (provider === 'openrouter') {
       try {
         const modelCapabilities = await openRouterRegistry.getCapabilities(modelId)
-        const capabilities = this.convertToReasoningCapabilities(modelCapabilities)
-        this.capabilitiesCache.set(cacheKey, { capabilities, timestamp: Date.now() })
+        const capabilities = ReasoningDetector.convertToReasoningCapabilities(modelCapabilities)
+        ReasoningDetector.capabilitiesCache.set(cacheKey, { capabilities, timestamp: Date.now() })
         return capabilities
       } catch {
         // Fallback to default on error
@@ -324,13 +327,17 @@ export class ReasoningDetector {
   /**
    * Async version - checks actual model capabilities for OpenRouter
    */
-  static async shouldEnableReasoningAsync(provider: string, modelId: string, userPreference?: boolean): Promise<boolean> {
+  static async shouldEnableReasoningAsync(
+    provider: string,
+    modelId: string,
+    userPreference?: boolean
+  ): Promise<boolean> {
     if (userPreference !== undefined) {
       return userPreference
     }
 
     if (provider === 'openrouter') {
-      const caps = await this.detectReasoningSupportAsync(provider, modelId)
+      const caps = await ReasoningDetector.detectReasoningSupportAsync(provider, modelId)
       return caps.supportsReasoning
     }
 
@@ -341,18 +348,15 @@ export class ReasoningDetector {
    * Get provider-specific reasoning configuration
    */
   static getProviderReasoningConfig(provider: string) {
-    return (
-      PROVIDER_REASONING_CONFIG[provider as SupportedProvider] ||
-      PROVIDER_REASONING_CONFIG.openrouter
-    )
+    return PROVIDER_REASONING_CONFIG[provider as SupportedProvider] || PROVIDER_REASONING_CONFIG.openrouter
   }
 
   /**
    * Extract reasoning content from model response
    */
   static extractReasoning(response: any, provider: string): ExtractedReasoning {
-    const config = this.getProviderReasoningConfig(provider)
-    const middleware = this.getMiddleware(provider)
+    const config = ReasoningDetector.getProviderReasoningConfig(provider)
+    const middleware = ReasoningDetector.getMiddleware(provider)
 
     // 1. Check for reasoning already extracted by middleware
     if (response.reasoning && typeof response.reasoning === 'string') {
@@ -421,7 +425,7 @@ export class ReasoningDetector {
    * Check if a provider supports reasoning middleware
    */
   static supportsReasoningMiddleware(provider: string): boolean {
-    const config = this.getProviderReasoningConfig(provider)
+    const config = ReasoningDetector.getProviderReasoningConfig(provider)
     return config.supportsMiddleware
   }
 
@@ -430,7 +434,7 @@ export class ReasoningDetector {
    * For OpenRouter, dynamically builds metadata based on model capabilities
    */
   static getReasoningProviderMetadata(provider: string, enabled = true): Record<string, any> {
-    const config = this.getProviderReasoningConfig(provider)
+    const config = ReasoningDetector.getProviderReasoningConfig(provider)
 
     if (provider === 'openrouter') {
       return {
@@ -486,7 +490,7 @@ export class ReasoningDetector {
       })
     }
 
-    return this.getReasoningProviderMetadata(provider, enabled)
+    return ReasoningDetector.getReasoningProviderMetadata(provider, enabled)
   }
 
   /**
@@ -518,7 +522,7 @@ export class ReasoningDetector {
    * Wrap a model with reasoning extraction middleware
    */
   static wrapModel(model: LanguageModelV1, provider: string, config?: ReasoningMiddlewareConfig): LanguageModelV1 {
-    const providerConfig = this.getProviderReasoningConfig(provider)
+    const providerConfig = ReasoningDetector.getProviderReasoningConfig(provider)
     return wrapWithReasoningMiddleware(model, {
       tagName: providerConfig.defaultTagName,
       ...config,
@@ -529,7 +533,7 @@ export class ReasoningDetector {
    * Process streaming chunks to extract reasoning in real-time
    */
   static processStreamChunk(chunk: any, provider: string): { text?: string; reasoning?: string; type: string } {
-    const middleware = this.getMiddleware(provider)
+    const middleware = ReasoningDetector.getMiddleware(provider)
 
     if (chunk.type === 'thinking' || chunk.type === 'reasoning') {
       return {
@@ -584,7 +588,7 @@ export class ReasoningDetector {
   static async getReasoningEnabledModelsAsync(): Promise<string[]> {
     try {
       const models = await openRouterRegistry.getReasoningModels()
-      return models.map(m => m.id)
+      return models.map((m) => m.id)
     } catch {
       return []
     }

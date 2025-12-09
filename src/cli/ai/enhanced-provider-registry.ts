@@ -1,28 +1,28 @@
+import { createAnthropic } from '@ai-sdk/anthropic'
+import { createCerebras } from '@ai-sdk/cerebras'
+import { createGoogleGenerativeAI } from '@ai-sdk/google'
+import { createGroq } from '@ai-sdk/groq'
+import { createOpenAI } from '@ai-sdk/openai'
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
+import { createVercel } from '@ai-sdk/vercel'
+import type { CoreMessage } from 'ai'
 import {
   experimental_createProviderRegistry as createProviderRegistry,
   experimental_customProvider as customProvider,
-} from 'ai';
-import { createAnthropic } from '@ai-sdk/anthropic';
-import { createOpenAI } from '@ai-sdk/openai';
-import { createGoogleGenerativeAI } from '@ai-sdk/google';
-import { createCerebras } from '@ai-sdk/cerebras';
-import { createGroq } from '@ai-sdk/groq';
-import { createVercel } from '@ai-sdk/vercel';
-import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
-import { createOllama } from 'ollama-ai-provider';
-import type { CoreMessage } from 'ai';
+} from 'ai'
+import { createOllama } from 'ollama-ai-provider'
 
 // Environment type
 interface Environment {
-  ANTHROPIC_API_KEY?: string;
-  OPENAI_API_KEY?: string;
-  GOOGLE_GENERATIVE_AI_API_KEY?: string;
-  OPENROUTER_API_KEY?: string;
-  V0_API_KEY?: string;
-  CEREBRAS_API_KEY?: string;
-  GROQ_API_KEY?: string;
-  LLAMACPP_BASE_URL?: string;
-  LMSTUDIO_BASE_URL?: string;
+  ANTHROPIC_API_KEY?: string
+  OPENAI_API_KEY?: string
+  GOOGLE_GENERATIVE_AI_API_KEY?: string
+  OPENROUTER_API_KEY?: string
+  V0_API_KEY?: string
+  CEREBRAS_API_KEY?: string
+  GROQ_API_KEY?: string
+  LLAMACPP_BASE_URL?: string
+  LMSTUDIO_BASE_URL?: string
 }
 
 // Enhanced OpenRouter provider with latest features
@@ -37,7 +37,7 @@ const createOpenRouterProvider = () => {
     },
     // Enhanced compatibility settings
     compatibility: 'strict',
-  });
+  })
 
   return customProvider({
     languageModels: {
@@ -80,8 +80,8 @@ const createOpenRouterProvider = () => {
       coding: base('openai/gpt-5.1-codex') as any,
     },
     fallbackProvider: base as any,
-  });
-};
+  })
+}
 
 // Anthropic provider with enhanced reasoning support
 const createAnthropicProvider = () => {
@@ -91,7 +91,7 @@ const createAnthropicProvider = () => {
     headers: {
       'anthropic-version': '2023-06-01',
     },
-  });
+  })
 
   return customProvider({
     languageModels: {
@@ -113,15 +113,15 @@ const createAnthropicProvider = () => {
       powerful: base('claude-opus-4.5') as any,
     },
     fallbackProvider: base as any,
-  });
-};
+  })
+}
 
 // OpenAI provider with latest models
 const createOpenAIProvider = () => {
   const base = createOpenAI({
     apiKey: process.env.OPENAI_API_KEY,
     compatibility: 'strict',
-  });
+  })
 
   return customProvider({
     languageModels: {
@@ -142,14 +142,14 @@ const createOpenAIProvider = () => {
       reasoning: base('o3') as any,
     },
     fallbackProvider: base as any,
-  });
-};
+  })
+}
 
 // Google provider with Gemini 3
 const createGoogleProvider = () => {
   const base = createGoogleGenerativeAI({
     apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
-  });
+  })
 
   return customProvider({
     languageModels: {
@@ -168,8 +168,8 @@ const createGoogleProvider = () => {
       thinking: base('gemini-3-pro-preview') as any,
     },
     fallbackProvider: base as any,
-  });
-};
+  })
+}
 
 // Unified provider registry with enhanced features
 export const enhancedProviderRegistry = createProviderRegistry({
@@ -206,7 +206,7 @@ export const enhancedProviderRegistry = createProviderRegistry({
     apiKey: 'lm-studio',
     baseURL: process.env.LMSTUDIO_BASE_URL || 'http://localhost:1234/v1',
   }) as any,
-} as any);
+} as any)
 
 // Enhanced model selection utilities
 export class EnhancedModelSelector {
@@ -217,7 +217,7 @@ export class EnhancedModelSelector {
     'anthropic:sonnet-4.5',
     'anthropic:opus-4.5',
     'openai:gpt-5.1',
-  ]);
+  ])
 
   private static visionCapableModels = new Set([
     'openrouter:gpt-5.1',
@@ -226,7 +226,7 @@ export class EnhancedModelSelector {
     'openrouter:gpt-4o',
     'google:3-pro',
     'anthropic:opus-4.5',
-  ]);
+  ])
 
   private static fastModels = new Set([
     'openrouter:claude-haiku-4.5',
@@ -234,7 +234,7 @@ export class EnhancedModelSelector {
     'anthropic:haiku-4.5',
     'openai:gpt-5.1-chat',
     'google:2.5-flash',
-  ]);
+  ])
 
   private static powerfulModels = new Set([
     'openrouter:gpt-5.1',
@@ -242,19 +242,19 @@ export class EnhancedModelSelector {
     'openrouter:deepseek-v3.2-speciale',
     'anthropic:opus-4.5',
     'google:3-pro',
-  ]);
+  ])
 
   /**
    * Get optimal model based on requirements
    */
   static selectOptimalModel(
     requirements: {
-      reasoning?: boolean;
-      vision?: boolean;
-      speed?: 'fast' | 'balanced' | 'powerful';
-      context?: 'small' | 'medium' | 'large';
-      budget?: 'low' | 'medium' | 'high';
-    } = {},
+      reasoning?: boolean
+      vision?: boolean
+      speed?: 'fast' | 'balanced' | 'powerful'
+      context?: 'small' | 'medium' | 'large'
+      budget?: 'low' | 'medium' | 'high'
+    } = {}
   ): string {
     const {
       reasoning = false,
@@ -262,113 +262,109 @@ export class EnhancedModelSelector {
       speed = 'balanced',
       context = 'medium',
       budget = 'medium',
-    } = requirements;
+    } = requirements
 
     // Start with speed preference
-    let candidates: Set<string>;
+    let candidates: Set<string>
 
     switch (speed) {
       case 'fast':
-        candidates = this.fastModels;
-        break;
+        candidates = EnhancedModelSelector.fastModels
+        break
       case 'powerful':
-        candidates = this.powerfulModels;
-        break;
+        candidates = EnhancedModelSelector.powerfulModels
+        break
       default:
-        candidates = new Set([...this.fastModels, ...this.powerfulModels]);
+        candidates = new Set([...EnhancedModelSelector.fastModels, ...EnhancedModelSelector.powerfulModels])
     }
 
     // Filter by capabilities
     if (reasoning) {
-      candidates = new Set(
-        [...candidates].filter((id) => this.reasoningEnabledModels.has(id)),
-      );
+      candidates = new Set([...candidates].filter((id) => EnhancedModelSelector.reasoningEnabledModels.has(id)))
     }
 
     if (vision) {
-      candidates = new Set(
-        [...candidates].filter((id) => this.visionCapableModels.has(id)),
-      );
+      candidates = new Set([...candidates].filter((id) => EnhancedModelSelector.visionCapableModels.has(id)))
     }
 
     // Select first available candidate
-    const selected = [...candidates][0];
+    const selected = [...candidates][0]
 
     if (!selected) {
       // Fallback to safe default
-      return 'openrouter:balanced';
+      return 'openrouter:balanced'
     }
 
-    return selected;
+    return selected
   }
 
   /**
    * Get model capabilities
    */
   static getModelCapabilities(modelId: string): {
-    supportsReasoning: boolean;
-    supportsVision: boolean;
-    contextLength: number;
-    estimatedCost: 'low' | 'medium' | 'high';
-    speed: 'fast' | 'medium' | 'slow';
+    supportsReasoning: boolean
+    supportsVision: boolean
+    contextLength: number
+    estimatedCost: 'low' | 'medium' | 'high'
+    speed: 'fast' | 'medium' | 'slow'
   } {
-    const [provider, model] = modelId.split(':');
+    const [provider, model] = modelId.split(':')
 
     const capabilities: {
-      supportsReasoning: boolean;
-      supportsVision: boolean;
-      contextLength: number;
-      estimatedCost: 'low' | 'medium' | 'high';
-      speed: 'fast' | 'medium' | 'slow';
+      supportsReasoning: boolean
+      supportsVision: boolean
+      contextLength: number
+      estimatedCost: 'low' | 'medium' | 'high'
+      speed: 'fast' | 'medium' | 'slow'
     } = {
-      supportsReasoning: this.reasoningEnabledModels.has(modelId),
-      supportsVision: this.visionCapableModels.has(modelId),
+      supportsReasoning: EnhancedModelSelector.reasoningEnabledModels.has(modelId),
+      supportsVision: EnhancedModelSelector.visionCapableModels.has(modelId),
       contextLength: 128000, // Default context length
       estimatedCost: 'medium',
       speed: 'medium',
-    };
+    }
 
     // Provider-specific capabilities
     switch (provider) {
       case 'openrouter':
         if (model.includes('claude-haiku')) {
-          capabilities.contextLength = 200000;
-          capabilities.speed = 'fast';
-          capabilities.estimatedCost = 'low';
+          capabilities.contextLength = 200000
+          capabilities.speed = 'fast'
+          capabilities.estimatedCost = 'low'
         } else if (model.includes('claude-opus')) {
-          capabilities.contextLength = 200000;
-          capabilities.speed = 'slow';
-          capabilities.estimatedCost = 'high';
-          capabilities.supportsReasoning = true;
+          capabilities.contextLength = 200000
+          capabilities.speed = 'slow'
+          capabilities.estimatedCost = 'high'
+          capabilities.supportsReasoning = true
         } else if (model.includes('gpt-5.1')) {
-          capabilities.contextLength = 400000;
-          capabilities.speed = 'medium';
-          capabilities.supportsReasoning = true;
-          capabilities.supportsVision = true;
+          capabilities.contextLength = 400000
+          capabilities.speed = 'medium'
+          capabilities.supportsReasoning = true
+          capabilities.supportsVision = true
         }
-        break;
+        break
       case 'anthropic':
         if (model.includes('haiku')) {
-          capabilities.contextLength = 200000;
-          capabilities.speed = 'fast';
-          capabilities.estimatedCost = 'low';
+          capabilities.contextLength = 200000
+          capabilities.speed = 'fast'
+          capabilities.estimatedCost = 'low'
         } else if (model.includes('opus')) {
-          capabilities.contextLength = 200000;
-          capabilities.speed = 'slow';
-          capabilities.estimatedCost = 'high';
-          capabilities.supportsReasoning = true;
+          capabilities.contextLength = 200000
+          capabilities.speed = 'slow'
+          capabilities.estimatedCost = 'high'
+          capabilities.supportsReasoning = true
         }
-        break;
+        break
       case 'google':
-        capabilities.contextLength = 1050000; // Gemini 3 Pro
+        capabilities.contextLength = 1050000 // Gemini 3 Pro
         if (model.includes('flash')) {
-          capabilities.speed = 'fast';
-          capabilities.estimatedCost = 'low';
+          capabilities.speed = 'fast'
+          capabilities.estimatedCost = 'low'
         }
-        break;
+        break
     }
 
-    return capabilities;
+    return capabilities
   }
 }
 
@@ -381,10 +377,10 @@ export const providerUtils = {
    */
   getLanguageModel: (provider: string, model: string) => {
     try {
-      return enhancedProviderRegistry.languageModel(`${provider}:${model}`);
+      return enhancedProviderRegistry.languageModel(`${provider}:${model}`)
     } catch (error) {
       // Fallback to balanced model
-      return enhancedProviderRegistry.languageModel('openrouter:balanced');
+      return enhancedProviderRegistry.languageModel('openrouter:balanced')
     }
   },
 
@@ -392,7 +388,7 @@ export const providerUtils = {
    * Get text embedding model
    */
   getTextEmbeddingModel: (provider: string, model: string) => {
-    return enhancedProviderRegistry.textEmbeddingModel(`${provider}:${model}`);
+    return enhancedProviderRegistry.textEmbeddingModel(`${provider}:${model}`)
   },
 
   /**
@@ -407,25 +403,34 @@ export const providerUtils = {
       groq: process.env.GROQ_API_KEY,
       cerebras: process.env.CEREBRAS_API_KEY,
       vercel: process.env.V0_API_KEY,
-    };
+    }
 
-    return !!envVars[provider];
+    return !!envVars[provider]
   },
 
   /**
    * Get available providers
    */
   getAvailableProviders: (): string[] => {
-    const allProviders = ['openrouter', 'anthropic', 'openai', 'google', 'cerebras', 'groq', 'vercel', 'ollama', 'llamacpp', 'lmstudio'];
-    return allProviders.filter((provider) =>
-      providerUtils.isProviderAvailable(provider),
-    );
+    const allProviders = [
+      'openrouter',
+      'anthropic',
+      'openai',
+      'google',
+      'cerebras',
+      'groq',
+      'vercel',
+      'ollama',
+      'llamacpp',
+      'lmstudio',
+    ]
+    return allProviders.filter((provider) => providerUtils.isProviderAvailable(provider))
   },
-};
+}
 
 /**
  * Legacy compatibility exports
  */
-export const providerRegistry = enhancedProviderRegistry;
-export const getLanguageModel = providerUtils.getLanguageModel;
-export const getTextEmbeddingModel = providerUtils.getTextEmbeddingModel;
+export const providerRegistry = enhancedProviderRegistry
+export const getLanguageModel = providerUtils.getLanguageModel
+export const getTextEmbeddingModel = providerUtils.getTextEmbeddingModel

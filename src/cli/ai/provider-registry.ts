@@ -1,16 +1,16 @@
+import { createAnthropic } from '@ai-sdk/anthropic'
+import { createCerebras } from '@ai-sdk/cerebras'
+import { createGoogleGenerativeAI } from '@ai-sdk/google'
+import { createGroq } from '@ai-sdk/groq'
+import { createMistral } from '@ai-sdk/mistral'
+import { createOpenAI } from '@ai-sdk/openai'
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
+import { createVercel } from '@ai-sdk/vercel'
+import { createXai } from '@ai-sdk/xai'
 import {
   experimental_createProviderRegistry as createProviderRegistry,
   experimental_customProvider as customProvider,
 } from 'ai'
-import { createAnthropic } from '@ai-sdk/anthropic'
-import { createOpenAI } from '@ai-sdk/openai'
-import { createGoogleGenerativeAI } from '@ai-sdk/google'
-import { createCerebras } from '@ai-sdk/cerebras'
-import { createGroq } from '@ai-sdk/groq'
-import { createVercel } from '@ai-sdk/vercel'
-import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
-import { createMistral } from '@ai-sdk/mistral'
-import { createXai } from '@ai-sdk/xai'
 
 /**
  * OpenRouter provider with custom configuration
@@ -42,9 +42,6 @@ export const openrouterProvider = customProvider({
     'gpt-5.1-codex': openrouterBase('openai/gpt-5.1-codex') as any, // 400K context, coding optimized
     'gpt-5.1-codex-mini': openrouterBase('openai/gpt-5.1-codex-mini') as any, // 400K context, $0.25/M input
 
-
-
-
     // === Anthropic Claude 4.5 Models (Latest - 200K-1M context) ===
     'claude-opus-4.5': openrouterBase('anthropic/claude-opus-4.5') as any, // 200K context, $5/M input, $25/M output
     'claude-sonnet-4.5': openrouterBase('anthropic/claude-sonnet-4.5') as any, // 1M context, $3/M input, $15/M output
@@ -63,23 +60,17 @@ export const openrouterProvider = customProvider({
     // === Google Gemini 2.5 Models (Fallback tier) ===
     'gemini-2.5-pro': openrouterBase('google/gemini-2.5-pro') as any,
 
-
     // === DeepSeek V3.2 Models (Latest - 131K context) ===
     'deepseek-v3.2-speciale': openrouterBase('deepseek/deepseek-v3.2-speciale') as any, // High-compute, max reasoning
     'deepseek-v3.2': openrouterBase('deepseek/deepseek-v3.2') as any, // 131K context, $0.28/M input
-
 
     // === MoonshotAI Kimi K2 Models (Latest - 262K context) ===
     'kimi-k2-thinking': openrouterBase('moonshotai/kimi-k2-thinking') as any, // 262K context, long-horizon reasoning
     'kimi-k2-0905': openrouterBase('moonshotai/kimi-k2-0905') as any, // 1T params, 32B active
 
-
-
-
     // === xAI Grok Models (131K context) ===
     'grok-4-fast': openrouterBase('xai/grok-4-fast') as any, // 131K context, frontier reasoning
     'grok-4.1-fast:free': openrouterBase('xai/grok-4.1-fast:free') as any, // Free tier
-
 
     // === Mistral AI Models ===
 
@@ -166,9 +157,9 @@ export const openaiProvider = customProvider({
     'gpt-4o-mini': openaiBase('gpt-4o-mini') as any,
 
     // === Reasoning Models ===
-    'o3': openaiBase('o3') as any,
+    o3: openaiBase('o3') as any,
     'o4-mini': openaiBase('o4-mini') as any,
-    'o1': openaiBase('o1') as any,
+    o1: openaiBase('o1') as any,
     'o1-mini': openaiBase('o1-mini') as any,
 
     // === Aliases ===
@@ -329,7 +320,6 @@ export const MODEL_ALIASES: Record<string, { provider: string; model: string }> 
   deepseek: { provider: 'openrouter', model: 'deepseek/deepseek-v3.2' },
   'deepseek-speciale': { provider: 'openrouter', model: 'deepseek/deepseek-v3.2-speciale' },
 
-
   // === MoonshotAI Kimi K2 (long-context reasoning) ===
   kimi: { provider: 'openrouter', model: 'moonshotai/kimi-k2-0905' },
   'kimi-thinking': { provider: 'openrouter', model: 'moonshotai/kimi-k2-thinking' },
@@ -337,7 +327,6 @@ export const MODEL_ALIASES: Record<string, { provider: string; model: string }> 
   // === xAI Grok (fast reasoning) ===
   grok: { provider: 'openrouter', model: 'xai/grok-4-fast' },
   'grok-free': { provider: 'openrouter', model: 'xai/grok-4.1-fast:free' },
-
 
   // === Auto (OpenRouter Auto Router) ===
   auto: { provider: 'openrouter', model: 'openrouter/auto' },

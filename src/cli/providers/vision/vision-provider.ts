@@ -728,38 +728,38 @@ Deliver detailed, structured insights for complete image understanding.`
       const anthropicKey =
         simpleConfigManager.getApiKey('claude-3-5-sonnet-20241022') || simpleConfigManager.getApiKey('anthropic')
       if (anthropicKey) providers.push('claude')
-    } catch { }
+    } catch {}
 
     // Check OpenAI
     try {
       const openaiKey = simpleConfigManager.getApiKey('gpt-4o') || simpleConfigManager.getApiKey('openai')
       if (openaiKey) providers.push('openai')
-    } catch { }
+    } catch {}
 
     // Check Google
     try {
       const googleKey = simpleConfigManager.getApiKey('gemini-1.5-pro') || simpleConfigManager.getApiKey('google')
       if (googleKey) providers.push('google')
-    } catch { }
+    } catch {}
 
     // Check OpenRouter
     try {
       const openrouterKey = simpleConfigManager.getApiKey('openrouter') || process.env.OPENROUTER_API_KEY
       if (openrouterKey) providers.push('openrouter')
-    } catch { }
+    } catch {}
 
     // Check SAM3 (OpenAI-compatible endpoint)
     try {
       const sam3Key = process.env.SAM3_API_KEY || process.env.OPENAI_COMPATIBLE_API_KEY
       const sam3Base = process.env.SAM3_BASE_URL || process.env.OPENAI_COMPATIBLE_BASE_URL
       if (sam3Key && sam3Base) providers.push('sam3')
-    } catch { }
+    } catch {}
 
     // Check Vercel
     try {
       const vercelKey = simpleConfigManager.getApiKey('v0-1.0-md') || simpleConfigManager.getApiKey('vercel')
       if (vercelKey) providers.push('vercel')
-    } catch { }
+    } catch {}
 
     return providers
   }

@@ -9,11 +9,11 @@ interface PromptState {
 export class FixedPromptManager extends EventEmitter {
   private static instance: FixedPromptManager
 
-  private terminalHeight: number
-  private terminalWidth: number
+  private terminalHeight: number = 0
+  private terminalWidth: number = 0
   private promptHeight: number = 6 // Base height
   private scrollRegionStart: number = 1
-  private scrollRegionEnd: number
+  private scrollRegionEnd: number = 0
   private isActive: boolean = false
   private currentPrompt: PromptState | null = null
 

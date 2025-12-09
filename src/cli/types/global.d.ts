@@ -5,12 +5,6 @@
 // Bun runtime types
 declare global {
   // Bun global variable when running with Bun runtime
-  const Bun:
-    | {
-      version: string
-      // Add other Bun properties as needed
-    }
-    | undefined
 
   // Node.js process extensions
   namespace NodeJS {
@@ -23,10 +17,8 @@ declare global {
       SUPABASE_URL?: string
       SUPABASE_ANON_KEY?: string
       REDIS_URL?: string
-
     }
   }
 }
-
 
 export { }

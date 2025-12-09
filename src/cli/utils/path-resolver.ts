@@ -2,8 +2,9 @@
  * PathResolver - Centralized path resolution with proper directory/file detection
  * Fixes path handling issues across all tools
  */
-import { dirname, normalize, resolve, sep } from 'node:path'
+
 import { statSync } from 'node:fs'
+import { dirname, normalize, resolve, sep } from 'node:path'
 
 export interface ResolvedPath {
   absolutePath: string
