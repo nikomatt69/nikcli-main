@@ -22,18 +22,18 @@ import { type QualityEvaluation, type WorkflowResult, workflowPatterns } from '.
 
 export interface ModelConfig {
   provider:
-    | 'openai'
-    | 'anthropic'
-    | 'google'
-    | 'vercel'
-    | 'gateway'
-    | 'openrouter'
-    | 'ollama'
-    | 'cerebras'
-    | 'groq'
-    | 'llamacpp'
-    | 'lmstudio'
-    | 'openai-compatible'
+  | 'openai'
+  | 'anthropic'
+  | 'google'
+  | 'vercel'
+  | 'gateway'
+  | 'openrouter'
+  | 'ollama'
+  | 'cerebras'
+  | 'groq'
+  | 'llamacpp'
+  | 'lmstudio'
+  | 'openai-compatible'
   model: string
   temperature?: number
   maxTokens?: number
@@ -213,7 +213,7 @@ Invalid arguments: ${JSON.stringify(toolCall.args, null, 2)}
 Please provide corrected arguments for this tool. Only output the corrected JSON arguments, nothing else.`,
             },
           ],
-          maxTokens: 1000,
+          maxTokens: 500,
         })
 
         // Try to parse the corrected arguments
@@ -981,10 +981,10 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
       rootPath: relative(process.cwd(), rootPath),
       packageInfo: packageInfo
         ? {
-            name: packageInfo.name as string,
-            version: packageInfo.version,
-            description: packageInfo.description,
-          }
+          name: packageInfo.name as string,
+          version: packageInfo.version,
+          description: packageInfo.description,
+        }
         : null,
       framework,
       technologies,
@@ -1348,7 +1348,7 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
             }
           }
         }
-      } catch (_) {}
+      } catch (_) { }
 
       // Track step progress for loop control (AI SDK best practice)
       // Reference: https://ai-sdk.dev/docs/agents/loop-control
@@ -1361,7 +1361,7 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
         messages,
         tools,
         temperature: 1,
-        maxTokens: 4000,
+        maxTokens: 6000,
         maxSteps: 10,
         // AI SDK toolChoice: 'auto' (default), 'none', 'required', or { type: 'tool', toolName: 'specific-tool' }
         // 'auto' - model decides whether to use tools
@@ -1596,7 +1596,7 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
             await authProvider.recordUsage('apiCalls', 1)
           }
         }
-      } catch (_) {}
+      } catch (_) { }
       yield {
         type: 'finish',
         finishReason: finishResult,
@@ -1645,7 +1645,7 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
         tools,
         maxSteps: 10,
         temperature: 1,
-        maxTokens: 4000,
+        maxTokens: 6000,
         // AI SDK toolChoice: 'auto' (default), 'none', 'required', or { type: 'tool', toolName: 'specific-tool' }
         toolChoice: 'auto',
         // AI SDK Tool Call Repair - automatically fix invalid tool calls
@@ -1845,15 +1845,15 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
     options: AIProviderOptions = {}
   ): AsyncGenerator<{
     type:
-      | 'text'
-      | 'tool_call'
-      | 'tool_call_complete'
-      | 'tool_result'
-      | 'finish'
-      | 'reasoning'
-      | 'style_applied'
-      | 'error'
-      | 'usage'
+    | 'text'
+    | 'tool_call'
+    | 'tool_call_complete'
+    | 'tool_result'
+    | 'finish'
+    | 'reasoning'
+    | 'style_applied'
+    | 'error'
+    | 'usage'
     content?: string
     toolCall?: any
     toolCallId?: string

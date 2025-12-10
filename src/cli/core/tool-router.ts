@@ -860,6 +860,33 @@ export class ToolRouter extends EventEmitter {
         suggestions.action = 'browseAndAnalyze'
         break
       }
+
+      case 'read_file':
+      case 'read-file-tool': {
+        // Extract file path from content
+        // Patterns: "read file path/to/file", "open path/to/file", "cat path/to/file"
+        const filePathMatch = content.match(
+          /(?:read|open|cat|view|display|show)\s+(?:file|path)?\s*(?::?)?\s*([^\s]+\.[\w]+|[^\s/][^\s]*)(?:\s|$)/i
+        )
+        if (filePathMatch) {
+          suggestions.filePath = filePathMatch[1]
+        }
+
+        // Token budget options (conservative defaults)
+        if (content.includes('brief') || content.includes('summary')) {
+          suggestions.tokenBudget = 1500  // Very brief
+          suggestions.maxLines = 30
+        } else if (content.includes('full') || content.includes('complete')) {
+          suggestions.tokenBudget = 3000  // Conservative default
+          suggestions.maxLines = 100
+        } else {
+          // Default to conservative budget
+          suggestions.tokenBudget = 3000
+          suggestions.maxLines = 100
+        }
+
+        break
+      }
     }
 
     return suggestions
@@ -1669,6 +1696,21 @@ export class ToolRouter extends EventEmitter {
             params.url = urlObject
             params.action = 'browseAndAnalyze'
           }
+        }
+        break
+
+      case 'read_file':
+      case 'read-file-tool':
+        if (intentAnalysis.targetObjects?.length > 0) {
+          params.filePath = intentAnalysis.targetObjects[0]
+        }
+        // Add token budget based on intent
+        if (intentAnalysis.context?.includes('brief') || intentAnalysis.context?.includes('summary')) {
+          params.tokenBudget = 2000
+          params.maxLines = 50
+        } else {
+          params.tokenBudget = 8000
+          params.maxLines = 200
         }
         break
     }

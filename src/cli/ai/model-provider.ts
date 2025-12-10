@@ -29,7 +29,7 @@ export const ChatMessageSchema = z.object({
 export const GenerateOptionsSchema = z.object({
   messages: z.array(ChatMessageSchema).min(1),
   temperature: z.number().min(0).max(2).optional(),
-  maxTokens: z.number().int().min(1).max(100000).optional(),
+  maxTokens: z.number().int().min(1).max(80000).optional(),
   stream: z.boolean().optional(),
   // Routing hints (optional)
   scope: z.enum(['chat_default', 'planning', 'code_gen', 'tool_light', 'tool_heavy', 'vision']).optional(),
@@ -457,7 +457,7 @@ export class ModelProvider {
           if (nik?.advancedUI) nik.advancedUI.logInfo('Model Router', msg)
           else console.log(require('chalk').dim(msg))
         }
-      } catch {}
+      } catch { }
     }
     const effectiveConfig: ModelConfig = { ...currentModelConfig, model: effectiveModelId } as ModelConfig
     // Enforce light quota check for OpenRouter usage if authenticated
@@ -471,7 +471,7 @@ export class ModelProvider {
           }
         }
       }
-    } catch (_) {}
+    } catch (_) { }
 
     const model = this.getModel(effectiveConfig)
 
@@ -484,7 +484,7 @@ export class ModelProvider {
       baseOptions.maxTokens = validatedOptions.maxTokens
     } else if (currentModelConfig.provider === 'openrouter') {
       // OpenRouter needs maxTokens set for all models
-      baseOptions.maxTokens = 8000
+      baseOptions.maxTokens = 6000
     } else if (currentModelConfig.provider !== 'openai') {
       baseOptions.maxTokens = 6000 // provider-specific default when not supplied
     }
@@ -539,7 +539,7 @@ export class ModelProvider {
             exclude: false,
             enabled: true,
           }
-          ;(reasoningConfig as any).include_reasoning = (reasoningConfig as any).include_reasoning ?? true
+            ; (reasoningConfig as any).include_reasoning = (reasoningConfig as any).include_reasoning ?? true
           baseOptions.experimental_providerMetadata.openrouter.reasoning = reasoningConfig
         }
         const transforms = (effectiveConfig as any).transforms || configManager.get('openrouterTransforms')
@@ -575,7 +575,7 @@ export class ModelProvider {
           await authProvider.recordUsage('apiCalls', 1)
         }
       }
-    } catch (_) {}
+    } catch (_) { }
 
     // Extract reasoning if available and display if requested
     if (reasoningEnabled) {
@@ -665,7 +665,7 @@ export class ModelProvider {
           const msg = `[Router] ${currentModelName} → ${decision.selectedModel} (${decision.tier}, ~${decision.estimatedTokens} tok)`
           if (nik?.advancedUI) nik.advancedUI.logInfo('Model Router', msg)
           else console.log(require('chalk').dim(msg))
-        } catch {}
+        } catch { }
       }
     }
 
@@ -686,10 +686,10 @@ export class ModelProvider {
       streamOptions.temperature = 1.0
     }
 
-    streamOptions.maxTokens = validatedOptions.maxTokens ?? 1500
+    streamOptions.maxTokens = validatedOptions.maxTokens ?? 6000
     if (currentModelConfig.provider === 'openrouter') {
       // OpenRouter needs maxTokens set for all models
-      streamOptions.maxTokens = validatedOptions.maxTokens ?? 4000
+      streamOptions.maxTokens = validatedOptions.maxTokens ?? 6000
     }
 
     // OpenRouter-specific parameters support for streaming - dynamic based on model capabilities
@@ -735,7 +735,7 @@ export class ModelProvider {
             exclude: false,
             enabled: true,
           }
-          ;(reasoningConfig as any).include_reasoning = (reasoningConfig as any).include_reasoning ?? true
+            ; (reasoningConfig as any).include_reasoning = (reasoningConfig as any).include_reasoning ?? true
           streamOptions.experimental_providerMetadata.openrouter.reasoning = reasoningConfig
         }
         const transforms = (effectiveConfig2 as any).transforms || configManager.get('openrouterTransforms')
@@ -805,7 +805,7 @@ export class ModelProvider {
           const msg = `[Router] ${configManager.getCurrentModel()} → ${decision.selectedModel} (${decision.tier}, ~${decision.estimatedTokens} tok)`
           if (nik?.advancedUI) nik.advancedUI.logInfo('Model Router', msg)
           else console.log(require('chalk').dim(msg))
-        } catch {}
+        } catch { }
       }
     }
     const model = this.getModel({ ...currentModelConfig, model: effId3 } as ModelConfig)
@@ -831,7 +831,7 @@ export class ModelProvider {
     }
 
     // Set maxTokens for all providers
-    generateObjectParams.maxTokens = options.maxTokens ?? 4000
+    generateObjectParams.maxTokens = options.maxTokens ?? 6000
 
     // Add AI SDK steps and finalStep support
     if (options.steps) {

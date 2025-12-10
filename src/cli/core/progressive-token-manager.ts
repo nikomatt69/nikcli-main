@@ -59,13 +59,13 @@ export class ProgressiveTokenManager {
 
   constructor(config?: Partial<ProgressiveTokenConfig>) {
     this.config = {
-      maxTokensPerChunk: TOKEN_LIMITS.PROGRESSIVE?.MAX_TOKENS_PER_CHUNK ?? 15000, // ULTRA reduced
-      maxTokensTotal: 120000, // DRASTICALLY reduced to 120k (80k safety margin)
+      maxTokensPerChunk: TOKEN_LIMITS.PROGRESSIVE?.MAX_TOKENS_PER_CHUNK ?? 6000, // ULTRA reduced
+      maxTokensTotal: 80000, // DRASTICALLY reduced to 120k (80k safety margin)
       compressionRatio: TOKEN_LIMITS.PROMPT_CAPS?.TARGET_CONTEXT_COMPRESSION_RATIO ?? 0.2, // ULTRA aggressive compression
       enableCheckpointing: true,
       checkpointDir: './.checkpoints',
       maxRetries: TOKEN_LIMITS.PROGRESSIVE?.MAX_RETRIES ?? 1, // Only 1 retry
-      summaryMaxTokens: 150, // DRASTICALLY reduced
+      summaryMaxTokens: 200, // DRASTICALLY reduced
       ...config,
     }
 
@@ -143,8 +143,8 @@ export class ProgressiveTokenManager {
           ? message.content
           : Array.isArray(message.content)
             ? message.content
-                .map((c: any) => (typeof c === 'object' && c.type === 'text' ? c.text : JSON.stringify(c)))
-                .join('\n')
+              .map((c: any) => (typeof c === 'object' && c.type === 'text' ? c.text : JSON.stringify(c)))
+              .join('\n')
             : JSON.stringify(message.content)
       const messageTokens = this.estimateTokens(content)
 

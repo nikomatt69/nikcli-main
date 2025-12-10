@@ -1,6 +1,13 @@
 import { z } from 'zod'
 import { SUPPORTED_SHELL_NAMES } from '../tools/shell-support'
 
+// Costanti centralizzate per token management
+export const TOKEN_CONSTANTS = {
+  DEFAULT_TOKEN_BUDGET: 25000,
+  MAX_LINES_PER_CHUNK: 200,
+  TOKEN_CHAR_RATIO: 3.7,
+} as const
+
 export const ValidationResultSchema = z.object({
   isValid: z.boolean(),
   errors: z.array(z.string()),
@@ -82,7 +89,7 @@ export const ReadFileOptionsSchema = z.object({
   stripComments: z.boolean().optional(),
   parseJson: z.boolean().optional(),
   startLine: z.number().int().min(1).optional(),
-  maxLinesPerChunk: z.number().int().min(1).max(500).optional(),
+  maxLinesPerChunk: z.number().int().min(1).max(200).optional(), // Max 200 to align with system prompt token management requirements
   tokenBudget: z.number().int().min(1000).optional(),
 })
 
@@ -112,17 +119,19 @@ export const CommandOptionsSchema = z.object({
   skipConfirmation: z.boolean().optional(),
   env: z.record(z.string()).optional(),
   shell: z.enum(SUPPORTED_SHELL_NAMES).optional(),
+  allowDangerous: z.boolean().optional(),
 })
 
 export const CommandResultSchema = z.object({
-  success: z.boolean(),
+  success: z.boolean().optional(),
   stdout: z.string(),
   stderr: z.string(),
   exitCode: z.number().int(),
   command: z.string(),
   duration: z.number().min(0),
-  workingDirectory: z.string(),
+  workingDirectory: z.string().optional(),
   shell: z.enum(SUPPORTED_SHELL_NAMES).optional(),
+  safe: z.boolean().optional(),
 })
 
 export const EditOperationSchema = z.object({
@@ -198,6 +207,30 @@ export const CodeContextSchema = z.object({
   workspaceRoot: z.string(),
 })
 
+export const FileInfoSchema = z.object({
+  path: z.string(),
+  size: z.number().int().min(0),
+  isFile: z.boolean().optional(),
+  isDirectory: z.boolean().optional(),
+  created: z.date().optional(),
+  modified: z.date(),
+  accessed: z.date().optional(),
+  extension: z.string(),
+  isReadable: z.boolean().optional(),
+  content: z.string().optional(),
+  language: z.string().optional(),
+})
+
+export const BatchSessionSchema = z.object({
+  id: z.string(),
+  commands: z.array(z.string()),
+  approved: z.boolean(),
+  createdAt: z.date(),
+  expiresAt: z.date(),
+  results: z.array(CommandResultSchema),
+  status: z.enum(['pending', 'approved', 'executing', 'completed', 'failed', 'expired']),
+})
+
 export type ToolExecutionResult = z.infer<typeof ToolExecutionResultSchema>
 export type WriteFileOptions = z.infer<typeof WriteFileOptionsSchema>
 export type WriteFileResult = z.infer<typeof WriteFileResultSchema>
@@ -217,6 +250,8 @@ export type FileSearchResult = z.infer<typeof FileSearchResultSchema>
 export type ValidationResult = z.infer<typeof ValidationResultSchema>
 export type LSPDiagnostic = z.infer<typeof LSPDiagnosticSchema>
 export type CodeContext = z.infer<typeof CodeContextSchema>
+export type FileInfo = z.infer<typeof FileInfoSchema>
+export type BatchSession = z.infer<typeof BatchSessionSchema>
 
 export type ContentValidator = (content: string, filePath: string) => Promise<ValidationResult>
 export type ContentTransformer = (content: string, filePath: string) => Promise<string>

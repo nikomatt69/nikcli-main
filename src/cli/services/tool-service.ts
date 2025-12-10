@@ -1,4 +1,3 @@
-import { execSync } from 'node:child_process'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import chalk from 'chalk'
@@ -8,9 +7,14 @@ import { semanticSearchEngine } from '../context/semantic-search-engine'
 import { workspaceContext } from '../context/workspace-context'
 import { simpleConfigManager } from '../core/config-manager'
 import { ExecutionPolicyManager, type ToolApprovalRequest } from '../policies/execution-policy'
+import { TOKEN_CONSTANTS } from '../schemas/tool-schemas'
 import { ContentValidators } from '../tools/write-file-tool'
 import { advancedUI } from '../ui/advanced-cli-ui'
 import { type ApprovalRequest, type ApprovalResponse, ApprovalSystem } from '../ui/approval-system'
+import { bunExec } from '../utils/bun-compat'
+
+// Token limiting constants from centralized schema
+const { DEFAULT_TOKEN_BUDGET, MAX_LINES_PER_CHUNK, TOKEN_CHAR_RATIO } = TOKEN_CONSTANTS
 
 export interface ToolExecution {
   id: string
@@ -483,17 +487,37 @@ export class ToolService {
   }
 
   // Tool implementations
-  private async readFile(args: { filePath: string }): Promise<{ content: string; size: number }> {
+  private async readFile(args: { filePath: string; tokenBudget?: number; maxLines?: number }): Promise<{ content: string; size: number; truncated?: boolean }> {
     const fullPath = path.resolve(this.workingDirectory, args.filePath)
 
     if (!fs.existsSync(fullPath)) {
       throw new Error(`File not found: ${args.filePath}`)
     }
 
-    const content = fs.readFileSync(fullPath, 'utf8')
+    let content = fs.readFileSync(fullPath, 'utf8')
+    let truncated = false
+
+    // Apply token budget limiting to prevent context overflow
+    const tokenBudget = args.tokenBudget ?? DEFAULT_TOKEN_BUDGET
+    const maxLines = args.maxLines ?? MAX_LINES_PER_CHUNK
+    const maxChars = tokenBudget * TOKEN_CHAR_RATIO
+
+    if (content.length > maxChars) {
+      const lines = content.split('\n')
+      const truncatedLines = lines.slice(0, Math.min(lines.length, maxLines))
+      const estimatedTokens = Math.ceil(truncatedLines.join('\n').length / TOKEN_CHAR_RATIO)
+
+      content = truncatedLines.join('\n')
+      if (truncatedLines.length < lines.length || estimatedTokens > tokenBudget) {
+        content += `\n\n... [File truncated - exceeds token budget (${estimatedTokens} tokens, budget: ${tokenBudget})]`
+        truncated = true
+      }
+    }
+
     return {
       content,
       size: content.length,
+      truncated,
     }
   }
 
@@ -642,41 +666,39 @@ export class ToolService {
     timeout?: number
   }): Promise<{ stdout: string; stderr: string; exitCode: number }> {
     try {
-      const result = execSync(args.command, {
+      const result = await bunExec(args.command, {
         cwd: this.workingDirectory,
-        encoding: 'utf8',
         timeout: args.timeout || 30000,
       })
 
       return {
-        stdout: result.toString(),
-        stderr: '',
-        exitCode: 0,
+        stdout: result.stdout,
+        stderr: result.stderr,
+        exitCode: result.exitCode,
       }
     } catch (error: any) {
       return {
-        stdout: error.stdout?.toString() || '',
-        stderr: error.stderr?.toString() || error.message,
-        exitCode: error.status || 1,
+        stdout: '',
+        stderr: error.message,
+        exitCode: 1,
       }
     }
   }
 
   private async gitStatus(_args: {}): Promise<{ status: string; files: Array<{ path: string; status: string }> }> {
     try {
-      const result = execSync('git status --porcelain', {
+      const result = await bunExec('git status --porcelain', {
         cwd: this.workingDirectory,
-        encoding: 'utf8',
       })
 
-      const files = result
+      const files = result.stdout
         .trim()
-        .split('\\n')
+        .split('\n')
         .filter((line) => line)
         .map((line) => {
           const status = line.slice(0, 2)
-          const path = line.slice(3)
-          return { path, status }
+          const filePath = line.slice(3)
+          return { path: filePath, status }
         })
 
       return {
@@ -691,12 +713,11 @@ export class ToolService {
   private async gitDiff(args: { staged?: boolean }): Promise<{ diff: string }> {
     try {
       const command = args.staged ? 'git diff --cached' : 'git diff'
-      const result = execSync(command, {
+      const result = await bunExec(command, {
         cwd: this.workingDirectory,
-        encoding: 'utf8',
       })
 
-      return { diff: result }
+      return { diff: result.stdout }
     } catch (_error) {
       throw new Error('Failed to get git diff')
     }
@@ -716,9 +737,8 @@ export class ToolService {
         }
       }
 
-      const _result = execSync(command, {
+      await bunExec(command, {
         cwd: this.workingDirectory,
-        encoding: 'utf8',
       })
 
       return {

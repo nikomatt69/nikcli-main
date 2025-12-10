@@ -6,10 +6,23 @@
  * Integrates with native Polymarket APIs and builder program
  */
 
-import type { AgentInstance, AgentStatus, AgentTask } from './agent-router'
-import type { AgentMetrics } from './base-agent'
+import { EventEmitter } from 'node:events'
+import type { AgentInstance } from './agent-router'
+import type { AgentTask as RouterAgentTask, TaskPriority as RouterTaskPriority } from './agent-router'
+import type { AgentMetrics as BaseAgentMetrics } from './base-agent'
 import { BaseAgent } from './base-agent'
 import { EventBus, EventTypes } from './event-bus'
+import type {
+  Agent,
+  AgentConfig,
+  AgentContext,
+  AgentMetrics,
+  AgentStatus,
+  AgentTask,
+  AgentTaskResult,
+  AgentTodo,
+  TaskPriority,
+} from '../../types/types'
 
 // ============================================================
 // POLYMARKET AGENT TYPES
@@ -57,10 +70,18 @@ export interface PolymarketPosition {
 // POLYMARKET AGENT
 // ============================================================
 
-export class PolymarketAgent extends BaseAgent implements AgentInstance {
+export class PolymarketAgent extends EventEmitter implements Agent {
   private goatProvider: any
-  id = 'polymarket-agent'
-  capabilities = [
+  private workingDirectory: string
+  private guidance: string = ''
+
+  // Agent interface properties
+  public readonly id: string = 'polymarket-agent'
+  public readonly name: string = 'Polymarket Trading Agent'
+  public readonly description: string =
+    'Specialized agent for Polymarket prediction market operations with order placement, market analysis, and risk assessment'
+  public readonly specialization: string = 'Prediction Market Trading (Polymarket)'
+  public readonly capabilities: string[] = [
     'market-analysis',
     'order-placement',
     'risk-assessment',
@@ -70,10 +91,12 @@ export class PolymarketAgent extends BaseAgent implements AgentInstance {
     'order-optimization',
     'builder-attribution',
   ]
-  specialization = 'Prediction Market Trading (Polymarket)'
-  status: AgentStatus = 'offline'
-  currentTasks = 0
-  maxConcurrentTasks = 5
+  public readonly version: string = '1.0.0'
+  public status: AgentStatus = 'initializing'
+  public currentTasks: number = 0
+  public readonly maxConcurrentTasks: number = 5
+
+  // Legacy AgentInstance properties for backward compatibility
   maxConcurrentTasksDefault = 5
 
   private marketCache: Map<string, PolymarketMarketAnalysis> = new Map()
@@ -83,14 +106,22 @@ export class PolymarketAgent extends BaseAgent implements AgentInstance {
     tasksExecuted: 0,
     tasksSucceeded: 0,
     tasksFailed: 0,
+    tasksInProgress: 0,
     averageExecutionTime: 0,
     totalExecutionTime: 0,
+    successRate: 0,
+    tokensConsumed: 0,
+    apiCallsTotal: 0,
     lastActive: new Date(),
+    uptime: 0,
+    productivity: 0,
+    accuracy: 0,
   }
 
   constructor(goatProvider: any, workingDirectory: string = process.cwd()) {
-    super(workingDirectory)
+    super()
     this.goatProvider = goatProvider
+    this.workingDirectory = workingDirectory
     this.setup()
   }
 
@@ -123,7 +154,7 @@ export class PolymarketAgent extends BaseAgent implements AgentInstance {
       // Pre-load markets
       await this.preloadMarkets()
 
-      this.status = 'available'
+      this.status = 'ready'
       console.log(`✓ ${this.specialization} ready`)
     } catch (error: any) {
       this.status = 'error'
@@ -150,7 +181,7 @@ export class PolymarketAgent extends BaseAgent implements AgentInstance {
   /**
    * Execute a task
    */
-  async onExecuteTask(task: AgentTask): Promise<any> {
+  async onExecuteTask(task: RouterAgentTask): Promise<any> {
     if (this.currentTasks >= this.maxConcurrentTasks) {
       throw new Error('Max concurrent tasks reached')
     }
@@ -203,7 +234,7 @@ export class PolymarketAgent extends BaseAgent implements AgentInstance {
     } finally {
       this.currentTasks--
       if (this.currentTasks === 0) {
-        this.status = 'available'
+        this.status = 'ready'
       }
     }
   }
@@ -211,7 +242,7 @@ export class PolymarketAgent extends BaseAgent implements AgentInstance {
   /**
    * Analyze Polymarket
    */
-  private async handleMarketAnalysis(task: AgentTask): Promise<PolymarketMarketAnalysis[]> {
+  private async handleMarketAnalysis(task: RouterAgentTask): Promise<PolymarketMarketAnalysis[]> {
     const nativeClient = this.goatProvider.getPolymarketNativeClient()
     if (!nativeClient) {
       throw new Error('Native client not available')
@@ -261,7 +292,7 @@ export class PolymarketAgent extends BaseAgent implements AgentInstance {
   /**
    * Handle order placement
    */
-  private async handleOrderPlacement(task: AgentTask): Promise<any> {
+  private async handleOrderPlacement(task: RouterAgentTask): Promise<any> {
     const orderIntent = this.parseOrderIntent(task.description)
     if (!orderIntent) {
       throw new Error('Could not parse order intent from task description')
@@ -319,7 +350,7 @@ export class PolymarketAgent extends BaseAgent implements AgentInstance {
   /**
    * Risk assessment for orders
    */
-  private async handleRiskAssessment(task: AgentTask): Promise<any> {
+  private async handleRiskAssessment(task: RouterAgentTask): Promise<any> {
     const orderIntent = this.parseOrderIntent(task.description)
     if (!orderIntent) {
       throw new Error('Could not parse order intent')
@@ -342,7 +373,7 @@ export class PolymarketAgent extends BaseAgent implements AgentInstance {
   /**
    * Position management
    */
-  private async handlePositionManagement(task: AgentTask): Promise<PolymarketPosition[]> {
+  private async handlePositionManagement(task: RouterAgentTask): Promise<PolymarketPosition[]> {
     // Would fetch from blockchain or database
     return Array.from(this.positionCache.values())
   }
@@ -350,7 +381,7 @@ export class PolymarketAgent extends BaseAgent implements AgentInstance {
   /**
    * Market monitoring with WebSocket
    */
-  private async handleMarketMonitoring(task: AgentTask): Promise<any> {
+  private async handleMarketMonitoring(task: RouterAgentTask): Promise<any> {
     const wsManager = this.goatProvider.getWebSocketManager()
     if (!wsManager) {
       throw new Error('WebSocket manager not available')
@@ -382,7 +413,7 @@ export class PolymarketAgent extends BaseAgent implements AgentInstance {
   /**
    * Generic task handling
    */
-  private async handleGenericTask(task: AgentTask): Promise<any> {
+  private async handleGenericTask(task: RouterAgentTask): Promise<any> {
     return {
       taskId: task.id,
       status: 'processing',
@@ -501,9 +532,9 @@ export class PolymarketAgent extends BaseAgent implements AgentInstance {
     }
 
     const total = this.metrics.tasksSucceeded + this.metrics.tasksFailed
-    this.agentMetrics.tasksSucceeded = total > 0 ? (this.metrics.tasksSucceeded / total) * 100 : 0
+    this.metrics.successRate = total > 0 ? (this.metrics.tasksSucceeded / total) * 100 : 0
     this.metrics.averageExecutionTime =
-      total > 0 ? (this.metrics.totalExecutionTime! * (total - 1) + duration) / total : duration
+      total > 0 ? (this.metrics.totalExecutionTime * (total - 1) + duration) / total : duration
     this.metrics.lastActive = new Date()
   }
 
@@ -520,9 +551,7 @@ export class PolymarketAgent extends BaseAgent implements AgentInstance {
   getMetrics(): AgentMetrics {
     return {
       ...this.metrics,
-      totalTasks: this.metrics.tasksSucceeded + this.metrics.tasksFailed,
-      tasksCompleted: this.metrics.tasksSucceeded,
-      lastExecutionTime: this.metrics.lastActive,
+      lastActive: this.metrics.lastActive,
     }
   }
 
@@ -556,6 +585,127 @@ export class PolymarketAgent extends BaseAgent implements AgentInstance {
    */
   getMarketCache(): Map<string, PolymarketMarketAnalysis> {
     return new Map(this.marketCache)
+  }
+
+  // ==================== Agent Interface Methods ====================
+
+  /**
+   * Initialize the agent (Agent interface)
+   */
+  async initialize(context?: AgentContext): Promise<void> {
+    return this.onInitialize()
+  }
+
+  /**
+   * Run method (Agent interface)
+   */
+  async run(task: AgentTask): Promise<AgentTaskResult> {
+    return this.executeTask(task)
+  }
+
+  /**
+   * Execute method (legacy compatibility)
+   */
+  async execute(task: AgentTask): Promise<AgentTaskResult> {
+    return this.executeTask(task)
+  }
+
+  /**
+   * Cleanup method (Agent interface)
+   */
+  async cleanup(): Promise<void> {
+    return this.onStop()
+  }
+
+  /**
+   * Execute a todo (converts to task)
+   */
+  async executeTodo(todo: AgentTodo): Promise<void> {
+    const routerTask: RouterAgentTask = {
+      id: todo.id,
+      type: 'internal',
+      description: todo.description,
+      priority: todo.priority as RouterTaskPriority,
+    }
+    await this.onExecuteTask(routerTask)
+  }
+
+  /**
+   * Execute task (Agent interface)
+   */
+  async executeTask(task: AgentTask): Promise<AgentTaskResult> {
+    const startTime = new Date()
+
+    // Convert AgentTask to RouterAgentTask for internal processing
+    const routerTask: RouterAgentTask = {
+      id: task.id,
+      type: task.type,
+      description: task.description,
+      priority: task.priority as RouterTaskPriority,
+      metadata: task.data,
+    }
+
+    try {
+      const result = await this.onExecuteTask(routerTask)
+
+      return {
+        taskId: task.id,
+        agentId: this.id,
+        status: 'completed',
+        startTime,
+        endTime: new Date(),
+        result,
+        duration: Date.now() - startTime.getTime(),
+      }
+    } catch (error: any) {
+      return {
+        taskId: task.id,
+        agentId: this.id,
+        status: 'failed',
+        startTime,
+        endTime: new Date(),
+        error: error.message,
+        duration: Date.now() - startTime.getTime(),
+      }
+    }
+  }
+
+  /**
+   * Get agent status
+   */
+  getStatus(): AgentStatus {
+    return this.status
+  }
+
+  /**
+   * Check if agent can handle task (Agent interface)
+   */
+  canHandle(task: AgentTask): boolean {
+    const taskDesc = task.description?.toLowerCase() || ''
+    return (
+      this.capabilities.some((cap) => taskDesc.includes(cap.toLowerCase())) ||
+      taskDesc.includes('polymarket') ||
+      taskDesc.includes('trading') ||
+      taskDesc.includes('market')
+    )
+  }
+
+  /**
+   * Update guidance
+   */
+  updateGuidance(guidance: string): void {
+    this.guidance = guidance
+  }
+
+  /**
+   * Update configuration
+   */
+  updateConfiguration(config: Partial<AgentConfig>): void {
+    // Note: maxConcurrentTasks is read-only in Agent interface
+    // Use maxConcurrentTasksDefault for configuration purposes
+    if (config.maxConcurrentTasks) {
+      this.maxConcurrentTasksDefault = config.maxConcurrentTasks
+    }
   }
 }
 

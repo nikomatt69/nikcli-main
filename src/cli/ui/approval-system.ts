@@ -2111,6 +2111,19 @@ class ComplianceEngine {
  * Enterprise Workflow Management Engine
  */
 class WorkflowEngine {
+  /**
+   * Get configured timeout for approval prompts
+   * @returns Timeout in milliseconds (default: 30000ms = 30 seconds)
+   */
+  private getApprovalTimeout(): number {
+    try {
+      const config = configManager.getConfig()
+      return config.sessionSettings?.approvalTimeoutMs || 30000
+    } catch (_error) {
+      return 30000 // Default: 30 seconds
+    }
+  }
+
   async createWorkflow(request: ApprovalRequest): Promise<ApprovalWorkflow> {
     const steps: WorkflowStep[] = []
 

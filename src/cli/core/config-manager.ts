@@ -24,8 +24,8 @@ const ModelConfigSchema = z.object({
   ]),
   model: z.string(),
   temperature: z.number().min(0).max(2).optional(),
-  maxTokens: z.number().min(1).max(8000).optional(),
-  maxContextTokens: z.number().min(1).max(10000000).optional().describe('Maximum context window for this model'),
+  maxTokens: z.number().min(1).max(6000).optional(),
+  maxContextTokens: z.number().min(1).max(200000).optional().describe('Maximum context window for this model'),
   // Reasoning configuration
   enableReasoning: z.boolean().optional().describe('Enable reasoning for supported models'),
   reasoningMode: z.enum(['auto', 'explicit', 'disabled']).optional().describe('How to handle reasoning'),
@@ -61,7 +61,7 @@ const ConfigSchema = z.object({
   currentModel: z.string(),
   currentEmbeddingModel: z.string().default('openai/text-embedding-3-small'),
   temperature: z.number().min(0).max(2).default(0.7),
-  maxTokens: z.number().min(1).max(8000).default(8000),
+  maxTokens: z.number().min(1).max(6000).default(6000),
   chatHistory: z.boolean().default(true),
   maxHistoryLength: z.number().min(1).max(1000).default(100),
   // Optional system prompt for general chat mode
@@ -1599,7 +1599,7 @@ export class SimpleConfigManager {
       enabled: true,
       endpoint: 'https://nikcli-drive-production.up.railway.app',
       apiKey: process.env.NIKDRIVE_API_KEY || '',
-      timeout: 30000,
+      timeout: 300000,
       retries: 3,
       retryDelayMs: 1000,
       features: {
@@ -1613,7 +1613,7 @@ export class SimpleConfigManager {
       cacheTtl: 300,
     },
     temperature: 1,
-    maxTokens: 8000,
+    maxTokens: 6000,
     chatHistory: true,
     maxHistoryLength: 100,
     systemPrompt: undefined,
@@ -2259,7 +2259,7 @@ export class SimpleConfigManager {
             )
           }
         })
-        .catch(() => {})
+        .catch(() => { })
     }
   }
 
@@ -2324,9 +2324,9 @@ export class SimpleConfigManager {
   setEmbeddingModelConfig(model: string, config: Partial<z.infer<typeof EmbeddingModelConfigSchema>>): void {
     const baseConfig = this.config.embeddingModels?.[model] ||
       this.getEmbeddingModelConfig(model) || {
-        provider: this.inferEmbeddingProvider(model),
-        model,
-      }
+      provider: this.inferEmbeddingProvider(model),
+      model,
+    }
 
     this.config.embeddingModels = {
       ...this.config.embeddingModels,
@@ -2414,7 +2414,7 @@ export class SimpleConfigManager {
           provider: 'openrouter',
           model: model,
           temperature: 0.7,
-          maxTokens: 8000,
+          maxTokens: 6000,
           maxContextTokens: this.getDefaultContextTokens(model),
         }
       }

@@ -799,7 +799,7 @@ export class UnifiedRAGSystem {
             if (indexedCount % 100 === 0) {
             }
           }
-        } catch (fileError) {}
+        } catch (fileError) { }
       }
 
       // Batch index documents with progress tracking
@@ -843,7 +843,7 @@ export class UnifiedRAGSystem {
                 )
               }
             }
-          } catch (error) {}
+          } catch (error) { }
         }
 
         let successfulBatches = 0
@@ -2227,7 +2227,7 @@ export class UnifiedRAGSystem {
    */
   async searchWithTokenLimit(
     query: string,
-    maxTokens: number = 2000,
+    maxTokens: number = 3000,
     options?: {
       limit?: number
       includeContent?: boolean
@@ -2246,16 +2246,16 @@ export class UnifiedRAGSystem {
     advancedUI.logFunctionUpdate(
       'info',
       `🎯 Optimized results: ${results.length} → ${truncatedResults.length} contexts, ` +
-        `~${estimateTokensFromChars(truncatedResults.reduce((sum, r) => sum + r.content.length, 0))} tokens`
+      `~${estimateTokensFromChars(truncatedResults.reduce((sum, r) => sum + r.content.length, 0))} tokens`
     )
     advancedUI.logFunctionUpdate(
       'info',
       `🎯 Optimized results: ${results.length} → ${truncatedResults.length} contexts, ` +
-        `~${estimateTokensFromChars(truncatedResults.reduce((sum, r) => sum + r.content.length, 0))} tokens`
+      `~${estimateTokensFromChars(truncatedResults.reduce((sum, r) => sum + r.content.length, 0))} tokens`
     )
     chalk.blue(
       `🎯 Optimized results: ${results.length} → ${truncatedResults.length} contexts, ` +
-        `~${estimateTokensFromChars(truncatedResults.reduce((sum, r) => sum + r.content.length, 0))} tokens`
+      `~${estimateTokensFromChars(truncatedResults.reduce((sum, r) => sum + r.content.length, 0))} tokens`
     )
 
     return truncatedResults

@@ -1,4 +1,4 @@
-import crypto from 'node:crypto'
+import * as crypto from 'node:crypto'
 import type { CoreMessage } from 'ai'
 import { simpleConfigManager } from '../core/config-manager'
 import { universalTokenizer } from '../core/universal-tokenizer-service'

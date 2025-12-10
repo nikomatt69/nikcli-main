@@ -1,24 +1,37 @@
-import { createReadStream } from 'node:fs'
-import readline from 'node:readline'
 import chalk from 'chalk'
-import { z } from 'zod'
 import { ContextAwareRAGSystem } from '../context/context-aware-rag'
 import { lspManager } from '../lsp/lsp-manager'
 import {
+  type FileInfo,
   type ReadFileOptions,
   ReadFileOptionsSchema,
   type ReadFileResult,
   ReadFileResultSchema,
+  TOKEN_CONSTANTS,
 } from '../schemas/tool-schemas'
 import { advancedUI } from '../ui/advanced-cli-ui'
 import { CliUI } from '../utils/cli-ui'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
 import { sanitizePath } from './secure-file-tools'
 import { PromptManager } from '../prompts/prompt-manager'
+import { bunFile, bunShell } from '../utils/bun-compat'
 
-const DEFAULT_TOKEN_BUDGET = 8000
-const MAX_LINES_PER_CHUNK = 200
-const TOKEN_CHAR_RATIO = 3.7
+const { DEFAULT_TOKEN_BUDGET, MAX_LINES_PER_CHUNK, TOKEN_CHAR_RATIO } = TOKEN_CONSTANTS
+
+// Enhanced compression configuration
+interface CompressionMetrics {
+  originalSize: number
+  compressedSize: number
+  tokensSaved: number
+  fieldsCompressed: string[]
+}
+
+interface CompressionConfig {
+  maxTokens: number
+  preserveFields: string[]
+  priorityFields: string[]
+  compressionRatio: number
+}
 
 /**
  * Production-ready Read File Tool
@@ -30,6 +43,190 @@ export class ReadFileTool extends BaseTool {
   constructor(workingDirectory: string) {
     super('read-file-tool', workingDirectory)
     this.contextSystem = new ContextAwareRAGSystem(workingDirectory)
+  }
+
+  // Enhanced compression with intelligent strategies
+  private truncateForPrompt(s: string, maxChars: number = 2000, contentType: string = 'text'): string {
+    if (!s) return ''
+    if (s.length <= maxChars) return s
+
+    // Smart truncation based on content type
+    switch (contentType) {
+      case 'code': {
+        // Try to truncate at line boundaries for code
+        const lines = s.split('\n')
+        let truncated = ''
+        for (const line of lines) {
+          if (truncated.length + line.length > maxChars) break
+          truncated += `${line}\n`
+        }
+        return truncated + '…[code truncated]'
+      }
+
+      case 'json': {
+        // Try to truncate at object boundaries
+        try {
+          const parsed = JSON.parse(s)
+          const truncatedJson = JSON.stringify(parsed, null, 2)
+          return truncatedJson.length > maxChars
+            ? truncatedJson.slice(0, maxChars) + '…[json truncated]'
+            : truncatedJson
+        } catch {
+          // Fallback to regular truncation
+          break
+        }
+      }
+
+      default: {
+        // Smart text truncation at sentence boundaries
+        const sentences = s.match(/[^.!?]+[.!?]+/g) || [s]
+        let result = ''
+        for (const sentence of sentences) {
+          if (result.length + sentence.length > maxChars) break
+          result += sentence
+        }
+        return result || s.slice(0, maxChars) + '…[truncated]'
+      }
+    }
+
+    return s.slice(0, maxChars) + '…[truncated]'
+  }
+
+  // 🗜️ Enhanced compression with field prioritization
+  private compressToolResult(result: any, toolName: string): { compressed: any; metrics: CompressionMetrics } {
+    if (!result) return { compressed: result, metrics: this.emptyMetrics() }
+
+    const config = this.getCompressionConfig(toolName)
+    const metrics: CompressionMetrics = {
+      originalSize: this.estimateTokens(result),
+      compressedSize: 0,
+      tokensSaved: 0,
+      fieldsCompressed: [],
+    }
+
+    const compressed = this.compressValue(result, config, metrics)
+    metrics.compressedSize = this.estimateTokens(compressed)
+    metrics.tokensSaved = metrics.originalSize - metrics.compressedSize
+
+    return { compressed, metrics }
+  }
+
+  private getCompressionConfig(toolName: string): CompressionConfig {
+    const baseConfig = {
+      maxTokens: 4000,
+      preserveFields: ['success', 'error', 'filePath', 'size'],
+      priorityFields: ['content', 'analysis', 'metadata'],
+      compressionRatio: 0.7,
+    }
+
+    // Tool-specific configurations
+    const toolConfigs: Record<string, Partial<CompressionConfig>> = {
+      'read-file-tool': {
+        priorityFields: ['content', 'analysis', 'lines'],
+        compressionRatio: 0.8,
+      },
+      'bash-tool': {
+        priorityFields: ['stdout', 'stderr', 'exitCode'],
+        compressionRatio: 0.6,
+      },
+    }
+
+    return { ...baseConfig, ...(toolConfigs[toolName] || {}) }
+  }
+
+  private compressValue(value: any, config: CompressionConfig, metrics: CompressionMetrics): any {
+    if (typeof value === 'string') {
+      if (value.length > 1000) {
+        const maxLength = Math.floor(1000 * config.compressionRatio)
+        return this.truncateForPrompt(value, maxLength, this.inferContentType(value))
+      }
+      return value
+    }
+
+    if (Array.isArray(value)) {
+      if (value.length > 10) {
+        metrics.fieldsCompressed.push('array')
+        return this.smartArrayCompress(value)
+      }
+      return value
+    }
+
+    if (typeof value === 'object' && value !== null) {
+      return this.compressObject(value, config, metrics)
+    }
+
+    return value
+  }
+
+  private compressObject(obj: any, config: CompressionConfig, metrics: CompressionMetrics): any {
+    const compressed: any = {}
+    const entries = Object.entries(obj)
+
+    // Sort by priority
+    entries.sort(([keyA], [keyB]) => {
+      const priorityA = config.priorityFields.includes(keyA) ? 1 : 0
+      const priorityB = config.priorityFields.includes(keyB) ? 1 : 0
+      return priorityB - priorityA
+    })
+
+    for (const [key, value] of entries) {
+      if (config.preserveFields.includes(key)) {
+        compressed[key] = value
+        continue
+      }
+
+      compressed[key] = this.compressValue(value, config, metrics)
+      if (typeof value === 'string' && value.length > 500) {
+        metrics.fieldsCompressed.push(key)
+      }
+    }
+
+    return compressed
+  }
+
+  private smartArrayCompress(array: any[]): any[] {
+    if (array.length <= 10) return array
+
+    // Smart sampling: take first 3, middle 2, and last 3
+    const sampleSize = 8
+    const step = Math.floor(array.length / sampleSize)
+    const sampled = []
+
+    for (let i = 0; i < sampleSize && i * step < array.length; i++) {
+      sampled.push(array[i * step])
+    }
+
+    return sampled.concat([`...and ${array.length - sampled.length} more items [compressed]`])
+  }
+
+  private estimateTokens(content: any): number {
+    if (typeof content === 'string') {
+      const contentType = this.inferContentType(content)
+      const ratios = { code: 0.35, json: 0.3, markdown: 0.28, text: 0.25 }
+      return Math.ceil(content.length * (ratios[contentType as keyof typeof ratios] || 0.25))
+    }
+
+    if (typeof content === 'object' && content !== null) {
+      return Object.values(content).reduce((total, value) => total as any + this.estimateTokens(value), 0) as any
+    }
+
+    return 1
+  }
+
+  private inferContentType(content: string): string {
+    if (content.includes('```') || content.includes('function') || content.includes('class')) return 'code'
+    if (content.includes('{') || content.includes('[')) return 'json'
+    if (content.includes('#') || content.includes('*')) return 'markdown'
+    return 'text'
+  }
+
+  private emptyMetrics(): CompressionMetrics {
+    return {
+      originalSize: 0,
+      compressedSize: 0,
+      tokensSaved: 0,
+      fieldsCompressed: [],
+    }
   }
 
   async execute(filePath: string, options: ReadFileOptions = {}): Promise<ToolExecutionResult> {
@@ -44,13 +241,24 @@ export class ReadFileTool extends BaseTool {
       advancedUI.logInfo(`Using system prompt: ${systemPrompt.substring(0, 100)}...`)
       const result = await this.executeInternal(filePath, options)
 
+      // Apply enhanced compression to result
+      const { compressed: compressedResult, metrics } = this.compressToolResult(result, this.name)
+
+      // Log compression statistics
+      if (metrics.tokensSaved > 100) {
+        advancedUI.logInfo(
+          `🗜️ Compressed result: saved ${metrics.tokensSaved} tokens (${((metrics.tokensSaved / metrics.originalSize) * 100).toFixed(1)}%)`
+        )
+      }
+
       return {
         success: result.success,
-        data: result,
+        data: compressedResult,
         metadata: {
           executionTime: Date.now() - startTime,
           toolName: this.name,
           parameters: { filePath, options },
+
         },
       }
     } catch (error: any) {
@@ -81,15 +289,21 @@ export class ReadFileTool extends BaseTool {
 
       // Check file size if maxSize is specified
       if (validatedOptions.maxSize) {
-        const stats = await import('node:fs/promises').then((fs) => fs.stat(sanitizedPath))
-        if (stats.size > validatedOptions.maxSize) {
-          throw new Error(`File too large: ${stats.size} bytes (max: ${validatedOptions.maxSize})`)
+        const file = bunFile(sanitizedPath)
+        const exists = await file.exists()
+        if (!exists) {
+          throw new Error(`File not found: ${sanitizedPath}`)
+        }
+        const size = file.size
+        if (size > validatedOptions.maxSize) {
+          throw new Error(`File too large: ${size} bytes (max: ${validatedOptions.maxSize})`)
         }
       }
 
       // Read file with specified encoding using chunking to respect token and line budgets
       const encoding = validatedOptions.encoding || 'utf8'
-      const { size: fileSize } = await import('node:fs/promises').then((fs) => fs.stat(sanitizedPath))
+      const file = bunFile(sanitizedPath)
+      const fileSize = file.size
       const effectiveMaxLinesPerChunk = Math.min(
         validatedOptions.maxLinesPerChunk ?? MAX_LINES_PER_CHUNK,
         MAX_LINES_PER_CHUNK,
@@ -119,8 +333,13 @@ export class ReadFileTool extends BaseTool {
         if (lines.length > validatedOptions.maxLines) {
           processedContent =
             lines.slice(0, validatedOptions.maxLines).join('\n') +
-            `\n... (truncated ${lines.length - validatedOptions.maxLines} lines)`
+            `\n\n... [File truncated at line ${validatedOptions.maxLines}. Total: ${lines.length} lines]`
         }
+      }
+
+      // Add continuation message if file was truncated by token budget
+      if (chunk.truncated && chunk.nextStartLine !== null) {
+        processedContent += `\n\n💡 To read more: read_file(filePath, { startLine: ${chunk.nextStartLine}, tokenBudget: 3000, maxLinesPerChunk: 200 })`
       }
 
       const result: ReadFileResult = {
@@ -191,56 +410,75 @@ export class ReadFileTool extends BaseTool {
   }
 
   /**
-   * Read file with streaming for large files
+   * Read file with streaming for large files using Bun
    */
-  async readStream(filePath: string, chunkSize: number = 1024 * 64): Promise<AsyncIterable<string>> {
+  async readStream(filePath: string, _chunkSize: number = 1024 * 64): Promise<AsyncIterable<string>> {
     const sanitizedPath = sanitizePath(filePath, this.workingDirectory)
-    const fs = await import('node:fs')
-    const stream = fs.createReadStream(sanitizedPath, {
-      encoding: 'utf8',
-      highWaterMark: chunkSize,
-    })
+    const file = bunFile(sanitizedPath)
+
+    // For large files, use Bun's streaming capability
+    const stream = file.stream()
+    const reader = stream.getReader()
+    const decoder = new TextDecoder('utf8')
 
     return {
       async *[Symbol.asyncIterator]() {
-        for await (const chunk of stream) {
-          yield chunk
+        try {
+          while (true) {
+            const { done, value } = await reader.read()
+            if (done) break
+            yield decoder.decode(value, { stream: true })
+          }
+        } finally {
+          reader.releaseLock()
         }
       },
     }
   }
 
   /**
-   * Check if file exists and is readable
+   * Check if file exists and is readable using Bun
    */
   async canRead(filePath: string): Promise<boolean> {
     try {
       const sanitizedPath = sanitizePath(filePath, this.workingDirectory)
-      const fs = await import('node:fs/promises')
-      await fs.access(sanitizedPath, fs.constants.R_OK)
-      return true
+      const file = bunFile(sanitizedPath)
+      return await file.exists()
     } catch {
       return false
     }
   }
 
   /**
-   * Get file information without reading content
+   * Get file information without reading content using Bun
    */
   async getFileInfo(filePath: string): Promise<FileInfo> {
     try {
       const sanitizedPath = sanitizePath(filePath, this.workingDirectory)
-      const fs = await import('node:fs/promises')
-      const stats = await fs.stat(sanitizedPath)
+      const file = bunFile(sanitizedPath)
+      const exists = await file.exists()
+
+      if (!exists) {
+        throw new Error(`File not found: ${sanitizedPath}`)
+      }
+
+      // Use Bun shell to get file stats for more detailed information
+      const statsResult = await bunShell(`stat -f "%N|%z|%B|%m|%a" "${sanitizedPath}"`, { quiet: true })
+
+      if (statsResult.exitCode !== 0) {
+        throw new Error(`Failed to get file stats: ${statsResult.stderr}`)
+      }
+
+      const [_name, size, _blockSize, modifiedTime, accessTime] = statsResult.stdout.trim().split('|')
 
       return {
         path: sanitizedPath,
-        size: stats.size,
-        isFile: stats.isFile(),
-        isDirectory: stats.isDirectory(),
-        created: stats.birthtime,
-        modified: stats.mtime,
-        accessed: stats.atime,
+        size: parseInt(size, 10),
+        isFile: !sanitizedPath.endsWith('/'),
+        isDirectory: sanitizedPath.endsWith('/'),
+        created: new Date(parseInt(modifiedTime, 10) * 1000), // Approximate
+        modified: new Date(parseInt(modifiedTime, 10) * 1000),
+        accessed: new Date(parseInt(accessTime, 10) * 1000),
         extension: this.getFileExtension(filePath),
         isReadable: await this.canRead(filePath),
       }
@@ -275,7 +513,7 @@ export class ReadFileTool extends BaseTool {
       case '.html':
       case '.xml': {
         // Remove HTML/XML comments with complete sanitization
-        let previousContent
+        let previousContent: string
         do {
           previousContent = content
           content = content.replace(/<!--[\s\S]*?-->/g, '')
@@ -377,7 +615,7 @@ export class ReadFileTool extends BaseTool {
       console.log(chalk.green('✓ Image analysis completed'))
 
       // Display image analysis in UI
-      if (analysis && analysis.description) {
+      if (analysis?.description) {
         advancedUI.showFileContent(filePath, analysis.description)
       }
 
@@ -463,7 +701,7 @@ export class ReadFileTool extends BaseTool {
 
   private async readChunkWithBudget(
     sanitizedPath: string,
-    encoding: BufferEncoding,
+    _encoding: BufferEncoding,
     options: {
       startLine: number
       maxLinesPerChunk: number
@@ -477,50 +715,44 @@ export class ReadFileTool extends BaseTool {
     truncated: boolean
     estimatedTokens: number
   }> {
-    const stream = createReadStream(sanitizedPath, {
-      encoding,
-      highWaterMark: 64 * 1024,
-    })
-    const reader = readline.createInterface({
-      input: stream,
-      crlfDelay: Infinity,
-    })
+    // Use Bun's native file reading with line splitting
+    const file = bunFile(sanitizedPath)
+    const content = await file.text()
 
-    const lines: string[] = []
+    const lines = content.split('\n')
+    const resultLines: string[] = []
     let charCount = 0
-    let currentLine = 0
     let truncated = false
     const maxLines = Math.max(1, Math.min(options.maxLinesPerChunk, MAX_LINES_PER_CHUNK))
     const tokenBudget = Math.max(1000, Math.min(options.tokenBudget, DEFAULT_TOKEN_BUDGET))
 
-    try {
-      for await (const line of reader) {
-        currentLine++
-        if (currentLine < options.startLine) {
-          continue
-        }
+    // Process lines starting from the requested line
+    for (let i = options.startLine - 1; i < lines.length; i++) {
+      const line = lines[i]
+      const currentLineNum = i + 1
 
-        const projectedCharCount = charCount + line.length + 1 // include newline
-        const projectedTokens = this.estimateTokensFromLength(projectedCharCount)
-        if (lines.length >= maxLines || projectedTokens > tokenBudget) {
-          truncated = true
-          break
-        }
-
-        lines.push(line)
-        charCount = projectedCharCount
+      if (currentLineNum < options.startLine) {
+        continue
       }
-    } finally {
-      reader.close()
-      stream.close()
+
+      const projectedCharCount = charCount + line.length + 1 // include newline
+      const projectedTokens = this.estimateTokensFromLength(projectedCharCount)
+
+      if (resultLines.length >= maxLines || projectedTokens > tokenBudget) {
+        truncated = true
+        break
+      }
+
+      resultLines.push(line)
+      charCount = projectedCharCount
     }
 
-    const content = lines.join('\n')
-    const endLine = lines.length > 0 ? options.startLine + lines.length - 1 : Math.max(options.startLine, 1)
+    const resultContent = resultLines.join('\n')
+    const endLine = resultLines.length > 0 ? options.startLine + resultLines.length - 1 : Math.max(options.startLine, 1)
     const nextStartLine = truncated ? endLine + 1 : null
 
     return {
-      content,
+      content: resultContent,
       startLine: options.startLine,
       endLine,
       nextStartLine,
@@ -530,16 +762,5 @@ export class ReadFileTool extends BaseTool {
   }
 }
 
-export const FileInfoSchema = z.object({
-  path: z.string(),
-  size: z.number().int().min(0),
-  isFile: z.boolean(),
-  isDirectory: z.boolean(),
-  created: z.date(),
-  modified: z.date(),
-  accessed: z.date(),
-  extension: z.string(),
-  isReadable: z.boolean(),
-})
-
-export type FileInfo = z.infer<typeof FileInfoSchema>
+// Re-export FileInfo from centralized schemas for backwards compatibility
+export { type FileInfo } from '../schemas/tool-schemas'

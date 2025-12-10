@@ -1,4 +1,5 @@
 import fs from 'node:fs/promises'
+import { statSync } from 'node:fs'
 import path from 'node:path'
 import boxen from 'boxen'
 import chalk from 'chalk'
@@ -379,7 +380,7 @@ export class NikCLI {
     // Compact mode by default (cleaner output unless explicitly disabled)
     try {
       if (!process.env.NIKCLI_COMPACT) process.env.NIKCLI_COMPACT = '1'
-    } catch {}
+    } catch { }
 
     // Initialize core managers
     this.configManager = simpleConfigManager
@@ -419,8 +420,8 @@ export class NikCLI {
     // Initialize token tracking system
     this.initializeTokenTrackingSystem()
 
-    // Expose this instance globally for command handlers
-    ;(global as any).__nikCLI = this
+      // Expose this instance globally for command handlers
+      ; (global as any).__nikCLI = this
 
     this.setupEventHandlers()
     // Bridge orchestrator events into NikCLI output
@@ -458,14 +459,14 @@ export class NikCLI {
     // Render initial prompt
     void void this.renderPromptArea()
 
-    // Expose NikCLI globally for token management
-    ;(global as any).__nikcli = this
+      // Expose NikCLI globally for token management
+      ; (global as any).__nikcli = this
 
     // Patch inquirer to avoid status bar redraw during interactive prompts
     try {
       const originalPrompt = (inquirer as any).prompt?.bind(inquirer)
       if (originalPrompt) {
-        ;(inquirer as any).prompt = async (...args: any[]) => {
+        ; (inquirer as any).prompt = async (...args: any[]) => {
           this.isInquirerActive = true
           this.stopStatusBar()
           try {
@@ -1119,19 +1120,19 @@ export class NikCLI {
     process.on('unhandledRejection', (reason: any) => {
       try {
         console.log(require('chalk').red(`\n✖ Unhandled rejection: ${reason?.message || reason}`))
-      } catch {}
+      } catch { }
       try {
         this.renderPromptAfterOutput()
-      } catch {}
+      } catch { }
     })
 
     process.on('uncaughtException', (err: any) => {
       try {
         console.log(require('chalk').red(`\n✖ Uncaught exception: ${err?.message || err}`))
-      } catch {}
+      } catch { }
       try {
         this.renderPromptAfterOutput()
-      } catch {}
+      } catch { }
     })
 
     // Listen for auth events to sync memory with user
@@ -2066,9 +2067,9 @@ export class NikCLI {
   private showAdvancedHeader(): void {
     const header = boxen(
       `${chalk.cyanBright.bold('🔌 NikCLI')} ${chalk.gray('v0.3.1-beta')}\n` +
-        `${chalk.gray('Autonomous AI Developer Assistant')}\n\n` +
-        `${chalk.blue('Status:')} ${this.getOverallStatus()}  ${chalk.blue('Active Tasks:')} ${this.indicators.size}\n` +
-        `${chalk.blue('Mode:')} ${this.currentMode}  ${chalk.blue('Live Updates:')} Enabled`,
+      `${chalk.gray('Autonomous AI Developer Assistant')}\n\n` +
+      `${chalk.blue('Status:')} ${this.getOverallStatus()}  ${chalk.blue('Active Tasks:')} ${this.indicators.size}\n` +
+      `${chalk.blue('Mode:')} ${this.currentMode}  ${chalk.blue('Live Updates:')} Enabled`,
       {
         padding: 1,
         margin: { top: 0, bottom: 1, left: 0, right: 0 },
@@ -2528,18 +2529,14 @@ export class NikCLI {
    * Enhanced chat interface with Claude Code-style slash commands
    */
   private async startEnhancedChat(): Promise<void> {
-    // Disable macOS paste warning by setting terminal environment
-    if (process.platform === 'darwin') {
-      // Set environment variables to suppress macOS paste dialog
-      process.env.TERM_PROGRAM_VERSION = '1.0'
-      process.env.DISABLE_AUTO_TITLE = 'true'
-
-      // Try to disable bracketed paste mode which triggers the dialog
-      if (process.stdout.isTTY) {
-        // Disable bracketed paste mode
-        process.stdout.write('\x1b[?2004l')
-      }
+    // Enable bracketed paste mode for paste detection
+    if (process.stdout.isTTY) {
+      // Enable bracketed paste mode - terminal will wrap pasted text with \e[200~ ... \e[201~
+      process.stdout.write('\x1b[?2004h')
     }
+
+    // Setup raw stdin interception for bracketed paste detection BEFORE readline
+    this.setupBracketedPasteInterception()
 
     this.rl = readline.createInterface({
       input: process.stdin,
@@ -2591,25 +2588,25 @@ export class NikCLI {
           // Kill any running subprocesses started by tools
           try {
             const procs = toolsManager.getRunningProcesses?.() || []
-            ;(async () => {
-              let killed = 0
-              await Promise.all(
-                procs.map(async (p: any) => {
-                  try {
-                    const ok = await toolsManager.killProcess?.(p.pid)
-                    if (ok) killed++
-                  } catch {
-                    /* ignore */
-                  }
-                })
-              )
-              if (killed > 0) {
-                advancedUI.logFunctionUpdate(
-                  'info',
-                  chalk.yellow(`  Terminated ${killed} running process${killed > 1 ? 'es' : ''}`)
+              ; (async () => {
+                let killed = 0
+                await Promise.all(
+                  procs.map(async (p: any) => {
+                    try {
+                      const ok = await toolsManager.killProcess?.(p.pid)
+                      if (ok) killed++
+                    } catch {
+                      /* ignore */
+                    }
+                  })
                 )
-              }
-            })()
+                if (killed > 0) {
+                  advancedUI.logFunctionUpdate(
+                    'info',
+                    chalk.yellow(`  Terminated ${killed} running process${killed > 1 ? 'es' : ''}`)
+                  )
+                }
+              })()
           } catch {
             /* ignore */
           }
@@ -2710,6 +2707,19 @@ export class NikCLI {
     }
 
     this.rl?.on('line', async (input) => {
+      // Skip if we're in bracketed paste mode (content handled by handleConsolidatedPaste)
+      if (this.pasteHandler.isPasting()) {
+        return
+      }
+
+      // Check if there's pending paste content (user pressed Enter after paste)
+      const pendingPaste = this.consumePendingPaste()
+      if (pendingPaste) {
+        // User pressed Enter - submit the stored paste content
+        await this.processSingleInput(pendingPaste)
+        return
+      }
+
       const trimmed = input.trim()
 
       if (!trimmed) {
@@ -2718,6 +2728,7 @@ export class NikCLI {
       }
 
       // 📋 PASTE DETECTION: Check if this is a multiline paste operation
+      // (fallback for terminals without bracketed paste support)
       const lineCount = trimmed.split('\n').length
       const isPasteOperation = this.pasteHandler.detectPasteOperation(trimmed)
 
@@ -2756,10 +2767,10 @@ export class NikCLI {
     const lines: string[] = []
     const warningBox = boxen(
       chalk.red.bold('🚨  BETA VERSION WARNING\n\n') +
-        chalk.cyan(`${banner}\n`) +
-        chalk.cyan('For detailed security information, visit:\n') +
-        chalk.blue.underline('https://github.com/nikomatt69/nikcli-main/blob/main/SECURITY.md\n\n') +
-        chalk.white('By continuing, you acknowledge these risks.'),
+      chalk.cyan(`${banner}\n`) +
+      chalk.cyan('For detailed security information, visit:\n') +
+      chalk.blue.underline('https://github.com/nikomatt69/nikcli-main/blob/main/SECURITY.md\n\n') +
+      chalk.white('By continuing, you acknowledge these risks.'),
       {
         padding: 1,
         borderStyle: 'round',
@@ -2772,8 +2783,8 @@ export class NikCLI {
     lines.push(chalk.cyan('API key'))
     lines.push(
       chalk.white('• Env: ANTHROPIC_API_KEY | OPENAI_API_KEY | OPENROUTER_API_KEY') +
-        '\n' +
-        chalk.white('  GOOGLE_GENERATIVE_AI_API_KEY | AI_GATEWAY_API_KEY')
+      '\n' +
+      chalk.white('  GOOGLE_GENERATIVE_AI_API_KEY | AI_GATEWAY_API_KEY')
     )
     lines.push(chalk.white('• /set-key-<provider> <key> saved in  ~/.nikcli'))
     lines.push('')
@@ -2956,6 +2967,84 @@ export class NikCLI {
       bar.stop()
     }
     this.progressBars.clear()
+  }
+
+  /**
+   * Setup bracketed paste interception for raw stdin data
+   * This intercepts paste markers before readline processes them
+   */
+  private setupBracketedPasteInterception(): void {
+    if (!process.stdin.isTTY) return
+
+    // Buffer for accumulating raw stdin data
+    let pendingData = ''
+
+    // Override the read method to intercept data
+    const self = this
+    process.stdin.on('data', (chunk: Buffer) => {
+      const data = chunk.toString()
+      pendingData += data
+
+      // Process through paste handler
+      const result = self.pasteHandler.processRawData(pendingData)
+      pendingData = ''
+
+      if (result.isPasteComplete && result.pastedContent) {
+        // Paste completed - handle as consolidated input
+        setImmediate(() => {
+          self.handleConsolidatedPaste(result.pastedContent!)
+        })
+      }
+
+      // Note: passthrough data is handled by readline automatically since
+      // we're not blocking the data event, just intercepting for detection
+    })
+  }
+
+  // Buffer for pending paste content (waits for Enter to submit)
+  private pendingPasteContent: string | null = null
+  private pendingPasteId: number | null = null
+
+  /**
+   * Handle consolidated paste content (from bracketed paste mode)
+   * Stores content and shows indicator - waits for Enter to submit
+   */
+  private async handleConsolidatedPaste(content: string): Promise<void> {
+    const trimmed = content.trim()
+    if (!trimmed) return
+
+    // Clear any partial readline input that may have accumulated
+    if (this.rl) {
+      this.rl.write('', { ctrl: true, name: 'u' }) // Clear current line
+    }
+
+    // Process through paste handler for display formatting
+    const pasteResult = this.pasteHandler.processPastedText(trimmed)
+
+    // Store the content - will be submitted when user presses Enter
+    this.pendingPasteContent = pasteResult.originalText
+    this.pendingPasteId = pasteResult.pasteId || null
+
+    // Show Claude Code-style collapsed indicator in the prompt line
+    if (this.rl) {
+      // Write the indicator as the current line content (user sees this before pressing Enter)
+      this.rl.write(pasteResult.displayText)
+    }
+
+    // Do NOT process yet - wait for Enter key (handled by 'line' event)
+  }
+
+  /**
+   * Check if there's pending paste content and return it
+   */
+  private consumePendingPaste(): string | null {
+    if (this.pendingPasteContent) {
+      const content = this.pendingPasteContent
+      this.pendingPasteContent = null
+      this.pendingPasteId = null
+      return content
+    }
+    return null
   }
 
   /**
@@ -4027,10 +4116,10 @@ export class NikCLI {
         this.printPanel(
           boxen(
             chalk.red(`✖ Token limit exceeded\n\n`) +
-              chalk.gray(
-                `Current: ${chalk.cyan(tokenQuota.used.toString())}/${chalk.cyan(tokenQuota.limit.toString())}\n`
-              ) +
-              chalk.gray('Upgrade to Pro to increase limits'),
+            chalk.gray(
+              `Current: ${chalk.cyan(tokenQuota.used.toString())}/${chalk.cyan(tokenQuota.limit.toString())}\n`
+            ) +
+            chalk.gray('Upgrade to Pro to increase limits'),
             {
               title: 'Token Quota Exceeded',
               padding: 1,
@@ -4068,7 +4157,7 @@ export class NikCLI {
       // Record usage in project memory
       try {
         this.projectMemory.recordUsage({ type: 'command', details: input })
-      } catch {}
+      } catch { }
 
       // Load relevant project context for enhanced chat responses
       const relevantContext = await this.getRelevantProjectContext(input)
@@ -4303,7 +4392,7 @@ export class NikCLI {
     try {
       process.env.NIKCLI_COMPACT = '1'
       process.env.NIKCLI_SUPER_COMPACT = '1'
-    } catch {}
+    } catch { }
     this.addLiveUpdate({
       type: 'info',
       content: '🎯 Entering Enhanced Planning Mode with TaskMaster AI...',
@@ -4441,10 +4530,10 @@ export class NikCLI {
 
         try {
           inputQueue.disableBypass()
-        } catch {}
+        } catch { }
         try {
           advancedUI.stopInteractiveMode?.()
-        } catch {}
+        } catch { }
         this.resumePromptAndRender()
       } else {
         this.addLiveUpdate({ type: 'info', content: '📝 Plan saved to todo.md', source: 'planning' })
@@ -4488,10 +4577,10 @@ export class NikCLI {
 
         try {
           inputQueue.disableBypass()
-        } catch {}
+        } catch { }
         try {
           advancedUI.stopInteractiveMode?.()
-        } catch {}
+        } catch { }
 
         this.cleanupPlanArtifacts()
         this.resumePromptAndRender()
@@ -4595,8 +4684,18 @@ export class NikCLI {
 
     switch (resolvedTool) {
       case 'read-file-tool':
-      case 'read_file':
-        return `cat "${params.file_path || params.filePath}"`
+      case 'read_file': {
+        const filePath = params?.file_path || params?.filePath
+        if (!filePath) {
+          // Try to extract from original input as fallback
+          const match = originalInput.match(/(?:read|open|cat|view)\s+(?:file\s+)?(.+?)(?:\s+|$)/i)
+          if (match) {
+            return `cat "${match[1]}"`
+          }
+          throw new Error('No file path provided for read operation')
+        }
+        return `cat "${filePath}"`
+      }
 
       case 'write-file-tool':
       case 'write_file':
@@ -4821,7 +4920,7 @@ EOF`
       // Stop interactive mode
       try {
         advancedUI.stopInteractiveMode?.()
-      } catch {}
+      } catch { }
 
       // Restore prompt
       this.resumePromptAndRender()
@@ -4843,7 +4942,7 @@ EOF`
     this.activeTimers.forEach((timer) => {
       try {
         clearTimeout(timer)
-      } catch {}
+      } catch { }
     })
     this.activeTimers.clear()
   }
@@ -4855,7 +4954,7 @@ EOF`
     this.inquirerInstances.forEach((instance) => {
       try {
         instance.removeAllListeners?.()
-      } catch {}
+      } catch { }
     })
     this.inquirerInstances.clear()
   }
@@ -5220,7 +5319,7 @@ EOF`
       // Notify plan completion (failed)
       try {
         void this.sendPlanCompletionNotification(plan, false)
-      } catch {}
+      } catch { }
 
       throw error
     }
@@ -5317,12 +5416,12 @@ ${todo.description ? `\n**Description:** ${todo.description}` : ''}
 **Agent Outputs:**
 
 ${agentOutputs
-  .map(
-    (ao) => `### ${ao.agentName} (${ao.specialization})
+        .map(
+          (ao) => `### ${ao.agentName} (${ao.specialization})
 ${ao.output || '(No output)'}
 `
-  )
-  .join('\n\n')}
+        )
+        .join('\n\n')}
 
 **Your Job:**
 Synthesize these outputs into ONE coherent result with the following sections:
@@ -5585,7 +5684,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
    */
   private ensureParallelToolchainResizeHook(): void {
     if ((this as any)._parallelResizeHookSet) return
-    ;(this as any)._parallelResizeHookSet = true
+      ; (this as any)._parallelResizeHookSet = true
     process.stdout.on('resize', () => {
       if (!this.parallelToolchainDisplay || this.parallelToolchainDisplay.size === 0) return
       const terminalHeight = process.stdout.rows || 24
@@ -6248,11 +6347,11 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
 
     const summary = boxen(
       `${chalk.bold('Execution Summary')}\n\n` +
-        `${chalk.green('✓ Completed:')} ${completed}\n` +
-        `${chalk.red('✖ Failed:')} ${failed}\n` +
-        `${chalk.yellow('⚠︎ Warnings:')} ${warnings}\n` +
-        `${chalk.blue('📊 Total:')} ${indicators.length}\n\n` +
-        `${chalk.gray('Overall Status:')} ${this.getOverallStatusText()}`,
+      `${chalk.green('✓ Completed:')} ${completed}\n` +
+      `${chalk.red('✖ Failed:')} ${failed}\n` +
+      `${chalk.yellow('⚠︎ Warnings:')} ${warnings}\n` +
+      `${chalk.blue('📊 Total:')} ${indicators.length}\n\n` +
+      `${chalk.gray('Overall Status:')} ${this.getOverallStatusText()}`,
       {
         padding: 1,
         margin: { top: 1, bottom: 1, left: 0, right: 0 },
@@ -6292,16 +6391,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
 
     // DISABLED: Auto-todo generation in default chat mode
     // Now only triggers when user explicitly mentions "todo"
-    try {
-      const wantsTodos = /\btodo(s)?\b/i.test(input)
-      if (wantsTodos) {
-        console.log(chalk.cyan('📋 Detected explicit todo request — generating todos...'))
-        await this.autoGenerateTodosAndOrchestrate(input)
-        return // Background execution will proceed; keep chat responsive
-      }
-    } catch {
-      /* fallback to normal chat if assessment fails */
-    }
+
 
     // Handle execute command for last generated plan
     if (input.toLowerCase().trim() === 'execute' && this.lastGeneratedPlan) {
@@ -6360,7 +6450,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
               'success',
               0
             )
-          } catch {}
+          } catch { }
 
           // Auto-execute high-confidence tool recommendations in VM if available
           if (topRecommendation.confidence > 0.7 && this.activeVMContainer) {
@@ -6587,7 +6677,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
         if (interactiveStarted) {
           try {
             advancedUI.stopInteractiveMode?.()
-          } catch {}
+          } catch { }
         }
         this.rl?.prompt()
       }
@@ -6958,7 +7048,16 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
           let step = parseInt(getFlag('step') || `${defaultStep}`, 10)
           if (!Number.isFinite(step) || step <= 0) step = defaultStep
 
-          const fileInfo = await toolsManager.readFile(filePath)
+          // Pre-flight check for large files - apply token budget limits
+          const stats = statSync(filePath)
+          const fileSizeKB = stats.size / 1024
+          const readOptions = { tokenBudget: 3000, maxLines: 100 } // Conservative defaults
+          if (fileSizeKB > 100) {
+            console.warn(chalk.yellow(`⚠️  Large file detected (${fileSizeKB.toFixed(0)}KB)`))
+            console.warn(chalk.yellow('   Reading with conservative token limits (3000 tokens max, 100 lines max)...'))
+          }
+
+          const fileInfo = await toolsManager.readFile(filePath, readOptions)
           const lines = fileInfo.content.split(/\r?\n/)
           const total = lines.length
 
@@ -7464,10 +7563,10 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
             this.printPanel(
               boxen(
                 chalk.red(`✖ Session limit reached\n\n`) +
-                  chalk.gray(
-                    `Current: ${chalk.cyan(sessionQuota.used.toString())}/${chalk.cyan(sessionQuota.limit.toString())}\n`
-                  ) +
-                  chalk.gray('Upgrade to Pro to increase limits'),
+                chalk.gray(
+                  `Current: ${chalk.cyan(sessionQuota.used.toString())}/${chalk.cyan(sessionQuota.limit.toString())}\n`
+                ) +
+                chalk.gray('Upgrade to Pro to increase limits'),
                 {
                   title: 'Session Quota Exceeded',
                   padding: 1,
@@ -7711,9 +7810,9 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
               this.printPanel(
                 boxen(
                   `Provider: ${provider}\n` +
-                    `Model: ${modelCfg?.model || modelName}\n` +
-                    `API key not configured.\n` +
-                    `Tip: /set-key ${modelName} <your-api-key>  |  ${tip}`,
+                  `Model: ${modelCfg?.model || modelName}\n` +
+                  `API key not configured.\n` +
+                  `Tip: /set-key ${modelName} <your-api-key>  |  ${tip}`,
                   { title: '🔑 API Key Missing', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'yellow' }
                 )
               )
@@ -7970,8 +8069,8 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
                 )
               )
 
-              // Set up collaboration context for this agent
-              ;(agent as any).collaborationContext = collaborationContext
+                // Set up collaboration context for this agent
+                ; (agent as any).collaborationContext = collaborationContext
 
               return {
                 agentIdentifier,
@@ -8257,8 +8356,8 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
                 )
               )
 
-              // Set up collaboration context for this agent
-              ;(agent as any).collaborationContext = collaborationContext
+                // Set up collaboration context for this agent
+                ; (agent as any).collaborationContext = collaborationContext
 
               return {
                 agentIdentifier,
@@ -8395,7 +8494,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
                 // Calculate token usage
                 const totalTokens = session.totalInputTokens + session.totalOutputTokens
                 const maxTokens = session.modelLimits.context
-                percentage = (totalTokens / maxTokens) * 100
+                percentage = (totalTokens / maxTokens) * 1000
                 const remaining = maxTokens - totalTokens
 
                 // Model & Session info
@@ -10332,16 +10431,16 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     // Initialize project memory for this workspace
     try {
       await this.projectMemory.initializeProject(this.workingDirectory)
-    } catch {}
+    } catch { }
 
     // Warm up learning and feedback systems (non-blocking)
     try {
       const insights = this.agentLearningSystem.getAgentInsights()
-    } catch {}
+    } catch { }
 
     try {
       const stats = this.intelligentFeedbackWrapper.getLearningStats()
-    } catch {}
+    } catch { }
 
     // Initialize memory and snapshot services
     await memoryService.initialize()
@@ -10774,9 +10873,9 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       this.printPanel(
         boxen(
           `${chalk.cyan('Session Tokens:', 'general')}\n` +
-            `Input (User): ${chalk.white(userTokens.toLocaleString())} tokens\n` +
-            `Output (Assistant): ${chalk.white(assistantTokens.toLocaleString())} tokens\n` +
-            `Total: ${chalk.white((userTokens + assistantTokens).toLocaleString())} tokens`,
+          `Input (User): ${chalk.white(userTokens.toLocaleString())} tokens\n` +
+          `Output (Assistant): ${chalk.white(assistantTokens.toLocaleString())} tokens\n` +
+          `Total: ${chalk.white((userTokens + assistantTokens).toLocaleString())} tokens`,
           {
             padding: 1,
             margin: 1,
@@ -10791,10 +10890,10 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       console.log(
         chalk.white(
           'Model'.padEnd(30) +
-            'Total Cost'.padStart(12) +
-            'Input Cost'.padStart(12) +
-            'Output Cost'.padStart(12) +
-            'Provider'.padStart(15)
+          'Total Cost'.padStart(12) +
+          'Input Cost'.padStart(12) +
+          'Output Cost'.padStart(12) +
+          'Provider'.padStart(15)
         )
       )
       console.log(chalk.gray('─'.repeat(90)))
@@ -10855,13 +10954,13 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       this.printPanel(
         boxen(
           `${chalk.cyan('Current Model:', 'general')}\n` +
-            `${chalk.white(pricing.displayName)}\n\n` +
-            `${chalk.green('Input Pricing:')} $${pricing.input.toFixed(2)} per 1M tokens\n` +
-            `${chalk.green('Output Pricing:')} $${pricing.output.toFixed(2)} per 1M tokens\n\n` +
-            `${chalk.yellow('Examples:')}\n` +
-            `• 1K input + 1K output = $${((pricing.input + pricing.output) / 1000).toFixed(4)}\n` +
-            `• 10K input + 10K output = $${((pricing.input + pricing.output) / 100).toFixed(4)}\n` +
-            `• 100K input + 100K output = $${((pricing.input + pricing.output) / 10).toFixed(3)}`,
+          `${chalk.white(pricing.displayName)}\n\n` +
+          `${chalk.green('Input Pricing:')} $${pricing.input.toFixed(2)} per 1M tokens\n` +
+          `${chalk.green('Output Pricing:')} $${pricing.output.toFixed(2)} per 1M tokens\n\n` +
+          `${chalk.yellow('Examples:')}\n` +
+          `• 1K input + 1K output = $${((pricing.input + pricing.output) / 1000).toFixed(4)}\n` +
+          `• 10K input + 10K output = $${((pricing.input + pricing.output) / 100).toFixed(4)}\n` +
+          `• 100K input + 100K output = $${((pricing.input + pricing.output) / 10).toFixed(3)}`,
           {
             padding: 1,
             margin: 1,
@@ -10904,9 +11003,9 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       this.printPanel(
         boxen(
           `${chalk.cyan('Estimation Parameters:', 'general')}\n` +
-            `Target Tokens: ${chalk.white(targetTokens.toLocaleString())}\n` +
-            `Input Tokens: ${chalk.white(inputTokens.toLocaleString())} (50%)\n` +
-            `Output Tokens: ${chalk.white(outputTokens.toLocaleString())} (50%)`,
+          `Target Tokens: ${chalk.white(targetTokens.toLocaleString())}\n` +
+          `Input Tokens: ${chalk.white(inputTokens.toLocaleString())} (50%)\n` +
+          `Output Tokens: ${chalk.white(outputTokens.toLocaleString())} (50%)`,
           {
             padding: 1,
             margin: 1,
@@ -11032,18 +11131,18 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
         this.printPanel(
           boxen(
             `${chalk.cyan.bold('🔮 Advanced Cache System Statistics', 'general')}\n\n` +
-              redisStats +
-              `${chalk.magenta('📦 Full Response Cache:')}\n` +
-              `  Entries: ${chalk.white(stats.totalEntries.toLocaleString())}\n` +
-              `  Hits: ${chalk.green(stats.totalHits.toLocaleString())}\n` +
-              `  Tokens Saved: ${chalk.yellow(stats.totalTokensSaved.toLocaleString())}\n\n` +
-              `${chalk.cyan('🔮 Completion Protocol Cache:')} ${chalk.red('NEW!')}\n` +
-              `  Patterns: ${chalk.white(completionStats.totalPatterns.toLocaleString())}\n` +
-              `  Hits: ${chalk.green(completionStats.totalHits.toLocaleString())}\n` +
-              `  Avg Confidence: ${chalk.blue(Math.round(completionStats.averageConfidence * 100))}%\n\n` +
-              `${chalk.green.bold('💰 Total Savings:')}\n` +
-              `Combined Tokens: ${chalk.yellow(totalTokensSaved.toLocaleString())}\n` +
-              `Estimated Cost: ~$${((totalTokensSaved * 0.003) / 1000).toFixed(2)}`,
+            redisStats +
+            `${chalk.magenta('📦 Full Response Cache:')}\n` +
+            `  Entries: ${chalk.white(stats.totalEntries.toLocaleString())}\n` +
+            `  Hits: ${chalk.green(stats.totalHits.toLocaleString())}\n` +
+            `  Tokens Saved: ${chalk.yellow(stats.totalTokensSaved.toLocaleString())}\n\n` +
+            `${chalk.cyan('🔮 Completion Protocol Cache:')} ${chalk.red('NEW!')}\n` +
+            `  Patterns: ${chalk.white(completionStats.totalPatterns.toLocaleString())}\n` +
+            `  Hits: ${chalk.green(completionStats.totalHits.toLocaleString())}\n` +
+            `  Avg Confidence: ${chalk.blue(Math.round(completionStats.averageConfidence * 100))}%\n\n` +
+            `${chalk.green.bold('💰 Total Savings:')}\n` +
+            `Combined Tokens: ${chalk.yellow(totalTokensSaved.toLocaleString())}\n` +
+            `Estimated Cost: ~$${((totalTokensSaved * 0.003) / 1000).toFixed(2)}`,
             {
               padding: 1,
               margin: 1,
@@ -11088,19 +11187,19 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
           this.printPanel(
             boxen(
               `${chalk.cyan('🎯 Precise Token Tracking Session', 'general')}\n\n` +
-                `Model: ${chalk.white(`${currentProvider}:${currentModel}`)}\n` +
-                `Messages: ${chalk.white(stats.session.messageCount.toLocaleString())}\n` +
-                `Input Tokens: ${chalk.white(stats.session.totalInputTokens.toLocaleString())}\n` +
-                `Output Tokens: ${chalk.white(stats.session.totalOutputTokens.toLocaleString())}\n` +
-                `Total Tokens: ${chalk.white(totalTokens.toLocaleString())}\n` +
-                `Context Limit: ${chalk.gray(limits.context.toLocaleString())}\n` +
-                `Usage: ${usagePercent > 90 ? chalk.red(`${usagePercent.toFixed(1)}%`) : usagePercent > 80 ? chalk.yellow(`${usagePercent.toFixed(1)}%`) : chalk.green(`${usagePercent.toFixed(1)}%`)}\n` +
-                `Remaining: ${chalk.gray((limits.context - totalTokens).toLocaleString())} tokens\n\n` +
-                `${chalk.yellow('💰 Precise Real-time Cost:')}\n` +
-                `Total Session Cost: ${chalk.yellow.bold(`$${stats.session.totalCost.toFixed(6)}`)}\n` +
-                `Average per Message: ${chalk.green(`$${stats.costPerMessage.toFixed(6)}`)}\n` +
-                `Tokens per Minute: ${chalk.blue(Math.round(stats.tokensPerMinute).toLocaleString())}\n` +
-                `Session Duration: ${`${chalk.gray(Math.round(stats.session.lastActivity.getTime() - stats.session.startTime.getTime()) / 60000)} min`}`,
+              `Model: ${chalk.white(`${currentProvider}:${currentModel}`)}\n` +
+              `Messages: ${chalk.white(stats.session.messageCount.toLocaleString())}\n` +
+              `Input Tokens: ${chalk.white(stats.session.totalInputTokens.toLocaleString())}\n` +
+              `Output Tokens: ${chalk.white(stats.session.totalOutputTokens.toLocaleString())}\n` +
+              `Total Tokens: ${chalk.white(totalTokens.toLocaleString())}\n` +
+              `Context Limit: ${chalk.gray(limits.context.toLocaleString())}\n` +
+              `Usage: ${usagePercent > 90 ? chalk.red(`${usagePercent.toFixed(1)}%`) : usagePercent > 80 ? chalk.yellow(`${usagePercent.toFixed(1)}%`) : chalk.green(`${usagePercent.toFixed(1)}%`)}\n` +
+              `Remaining: ${chalk.gray((limits.context - totalTokens).toLocaleString())} tokens\n\n` +
+              `${chalk.yellow('💰 Precise Real-time Cost:')}\n` +
+              `Total Session Cost: ${chalk.yellow.bold(`$${stats.session.totalCost.toFixed(6)}`)}\n` +
+              `Average per Message: ${chalk.green(`$${stats.costPerMessage.toFixed(6)}`)}\n` +
+              `Tokens per Minute: ${chalk.blue(Math.round(stats.tokensPerMinute).toLocaleString())}\n` +
+              `Session Duration: ${`${chalk.gray(Math.round(stats.session.lastActivity.getTime() - stats.session.startTime.getTime()) / 60000)} min`}`,
               {
                 padding: 1,
                 margin: 1,
@@ -11117,9 +11216,9 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
             this.printPanel(
               boxen(
                 `${chalk.yellow('⚡ Optimization Recommendations:', 'general')}\n\n` +
-                  `Status: ${optimization.recommendation === 'continue' ? chalk.green('✓ Good') : chalk.yellow('⚠︎  Attention needed')}\n` +
-                  `Action: ${chalk.white(optimization.recommendation.replace('_', ' ').toUpperCase())}\n` +
-                  `Reason: ${chalk.gray(optimization.reason)}`,
+                `Status: ${optimization.recommendation === 'continue' ? chalk.green('✓ Good') : chalk.yellow('⚠︎  Attention needed')}\n` +
+                `Action: ${chalk.white(optimization.recommendation.replace('_', ' ').toUpperCase())}\n` +
+                `Reason: ${chalk.gray(optimization.reason)}`,
                 {
                   padding: 1,
                   margin: 1,
@@ -11168,18 +11267,18 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
         this.printPanel(
           boxen(
             `${chalk.cyan(`${isPrecise ? '🎯' : '📊'} Session Token Analysis`, 'general')}\n\n` +
-              `Messages: ${chalk.white(chatSession.messages.length.toLocaleString())}\n` +
-              `Characters: ${chalk.white(totalChars.toLocaleString())}\n` +
-              `${isPrecise ? 'Precise' : 'Est.'} Tokens: ${chalk.white(preciseTokens.toLocaleString())}\n` +
-              `Context Limit: ${chalk.gray(limits.context.toLocaleString())}\n` +
-              `Usage: ${usagePercent > 90 ? chalk.red(`${usagePercent.toFixed(1)}%`) : usagePercent > 80 ? chalk.yellow(`${usagePercent.toFixed(1)}%`) : chalk.green(`${usagePercent.toFixed(1)}%`)}\n` +
-              `Remaining: ${chalk.gray((limits.context - preciseTokens).toLocaleString())} tokens\n\n` +
-              `${chalk.yellow('💰 Cost Analysis:')}\n` +
-              `Model: ${chalk.white(currentCost.model)}\n` +
-              `Input Cost: ${chalk.green(`$${currentCost.inputCost.toFixed(6)}`)}\n` +
-              `Output Cost: ${chalk.green(`$${currentCost.outputCost.toFixed(6)}`)}\n` +
-              `Total Cost: ${chalk.yellow.bold(`$${currentCost.totalCost.toFixed(6)}`)}\n\n` +
-              `${chalk.blue('💡 Tokenizer:')} ${isPrecise ? chalk.green('Universal Tokenizer ✓') : chalk.yellow('Character estimation (fallback)')}`,
+            `Messages: ${chalk.white(chatSession.messages.length.toLocaleString())}\n` +
+            `Characters: ${chalk.white(totalChars.toLocaleString())}\n` +
+            `${isPrecise ? 'Precise' : 'Est.'} Tokens: ${chalk.white(preciseTokens.toLocaleString())}\n` +
+            `Context Limit: ${chalk.gray(limits.context.toLocaleString())}\n` +
+            `Usage: ${usagePercent > 90 ? chalk.red(`${usagePercent.toFixed(1)}%`) : usagePercent > 80 ? chalk.yellow(`${usagePercent.toFixed(1)}%`) : chalk.green(`${usagePercent.toFixed(1)}%`)}\n` +
+            `Remaining: ${chalk.gray((limits.context - preciseTokens).toLocaleString())} tokens\n\n` +
+            `${chalk.yellow('💰 Cost Analysis:')}\n` +
+            `Model: ${chalk.white(currentCost.model)}\n` +
+            `Input Cost: ${chalk.green(`$${currentCost.inputCost.toFixed(6)}`)}\n` +
+            `Output Cost: ${chalk.green(`$${currentCost.outputCost.toFixed(6)}`)}\n` +
+            `Total Cost: ${chalk.yellow.bold(`$${currentCost.totalCost.toFixed(6)}`)}\n\n` +
+            `${chalk.blue('💡 Tokenizer:')} ${isPrecise ? chalk.green('Universal Tokenizer ✓') : chalk.yellow('Character estimation (fallback)')}`,
             {
               padding: 1,
               margin: 1,
@@ -11199,8 +11298,8 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
         this.printPanel(
           boxen(
             `System: ${systemMsgs.length} messages (${sysTokens.toLocaleString()} tokens)\n` +
-              `User: ${userMsgs.length} messages (${userTokens.toLocaleString()} tokens)\n` +
-              `Assistant: ${assistantMsgs.length} messages (${assistantTokens.toLocaleString()} tokens)`,
+            `User: ${userMsgs.length} messages (${userTokens.toLocaleString()} tokens)\n` +
+            `Assistant: ${assistantMsgs.length} messages (${assistantTokens.toLocaleString()} tokens)`,
             {
               title: 'Message Breakdown',
               padding: 1,
@@ -11215,8 +11314,8 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
         this.printPanel(
           boxen(
             `${chalk.yellow('💡 Tip:', 'general')} For more precise tracking, start a new session to enable\n` +
-              `real-time token monitoring with the Universal Tokenizer.\n\n` +
-              `Current session uses ${isPrecise ? 'precise' : 'estimated'} counting.`,
+            `real-time token monitoring with the Universal Tokenizer.\n\n` +
+            `Current session uses ${isPrecise ? 'precise' : 'estimated'} counting.`,
             {
               padding: 1,
               margin: 1,
@@ -11308,7 +11407,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
               const c = calc(userTokens, assistantTokens, name)
               const avgPer1K = (c.totalCost / sessionTokens) * 1000
               lines.push(`${c.model}  avg $/1K: $${avgPer1K.toFixed(4)}  total: $${c.totalCost.toFixed(4)}`)
-            } catch {}
+            } catch { }
           })
           if (lines.length > 0) {
             this.printPanel(
@@ -11321,7 +11420,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
               })
             )
           }
-        } catch {}
+        } catch { }
 
         // Recommendations
         if (preciseTokens > 150000) {
@@ -13115,17 +13214,17 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
             this._stripAnsi(controlsLeft).length -
             this._stripAnsi(controlsCenter).length -
             this._stripAnsi(controlsRight).length) /
-            2
+          2
         )
       )
       const rightPadding = Math.max(
         1,
         terminalWidth -
-          2 -
-          this._stripAnsi(controlsLeft).length -
-          centerPadding -
-          this._stripAnsi(controlsCenter).length -
-          this._stripAnsi(controlsRight).length
+        2 -
+        this._stripAnsi(controlsLeft).length -
+        centerPadding -
+        this._stripAnsi(controlsCenter).length -
+        this._stripAnsi(controlsRight).length
       )
 
       process.stdout.write(
@@ -13448,7 +13547,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     const currentModel = this.configManager.getCurrentModel()
 
     // Get model limits - fallback to 120k for unknown models
-    let maxTokens = 120000
+    let maxTokens = this.configManager.getMaxContextTokens()
     try {
       // Detect provider from model name
       let provider = 'anthropic'
@@ -13770,7 +13869,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
           .map((a) => a.agentType)
           .join(', ')
         dynamicInfo = chalk.white(agentNames)
-      } catch {}
+      } catch { }
     }
 
     const escShortcut = chalk.hex('#666666')('Interrupt:Esc')
@@ -13831,17 +13930,17 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
             this._stripAnsi(controlsLeft).length -
             this._stripAnsi(controlsCenter).length -
             this._stripAnsi(controlsRight).length) /
-            2
+          2
         )
       )
       const rightPadding = Math.max(
         1,
         terminalWidth -
-          2 -
-          this._stripAnsi(controlsLeft).length -
-          centerPadding -
-          this._stripAnsi(controlsCenter).length -
-          this._stripAnsi(controlsRight).length
+        2 -
+        this._stripAnsi(controlsLeft).length -
+        centerPadding -
+        this._stripAnsi(controlsCenter).length -
+        this._stripAnsi(controlsRight).length
       )
       promptLines.push(
         bgColor(
@@ -13931,17 +14030,17 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
             this._stripAnsi(controlsLeft).length -
             this._stripAnsi(controlsCenter).length -
             this._stripAnsi(controlsRight).length) /
-            2
+          2
         )
       )
       const rightPadding = Math.max(
         1,
         terminalWidth -
-          2 -
-          this._stripAnsi(controlsLeft).length -
-          centerPadding -
-          this._stripAnsi(controlsCenter).length -
-          this._stripAnsi(controlsRight).length
+        2 -
+        this._stripAnsi(controlsLeft).length -
+        centerPadding -
+        this._stripAnsi(controlsCenter).length -
+        this._stripAnsi(controlsRight).length
       )
       process.stdout.write(
         bgColor(
@@ -14813,8 +14912,8 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       this.updateSpinnerText(operation)
     }, 500)
 
-    // Store interval for cleanup
-    ;(this.activeSpinner as any)._interval = interval
+      // Store interval for cleanup
+      ; (this.activeSpinner as any)._interval = interval
   }
 
   /**
@@ -15108,6 +15207,14 @@ This file is automatically maintained by NikCLI to provide consistent context ac
   private async shutdown(): Promise<void> {
     this.printShutdownHeader()
 
+    // Disable bracketed paste mode before exit
+    if (process.stdout.isTTY) {
+      process.stdout.write('\x1b[?2004l')
+    }
+
+    // Cancel any pending paste operation
+    this.pasteHandler.cancelPaste()
+
     // Stop ads timer
     this.stopAdsTimer()
 
@@ -15222,12 +15329,12 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         if (!finalized) {
           this.updateStatusIndicator(uniqueId, { status: 'failed', details: 'Command aborted' })
         }
-      } catch {}
+      } catch { }
       // Ensure the prompt is rendered on a clean line without overlaps
       try {
         process.stdout.write('\n')
         await new Promise((resolve) => setTimeout(resolve, 50))
-      } catch {}
+      } catch { }
       this.renderPromptAfterOutput()
     }
   }
@@ -18401,8 +18508,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
             `${chalk.bold('Total Sessions:')} ${chalk.cyan(total.count ?? 0)}`,
             `${chalk.bold('Active:')} ${chalk.green(active.count ?? 0)}    ${chalk.bold('Archived:')} ${chalk.yellow(archived.count ?? 0)}`,
             `${chalk.bold('Public:')} ${chalk.magenta(publicSessions.count ?? 0)}`,
-            `${chalk.bold('Last Updated:')} ${
-              latest.data ? `${latest.data.title || 'Untitled'} (${this.formatTimestamp(latest.data.updated_at)})` : '—'
+            `${chalk.bold('Last Updated:')} ${latest.data ? `${latest.data.title || 'Untitled'} (${this.formatTimestamp(latest.data.updated_at)})` : '—'
             }`,
           ]
 
@@ -18610,11 +18716,9 @@ This file is automatically maintained by NikCLI to provide consistent context ac
 
           const statsLines = [
             `${chalk.bold('Total Blueprints:')} ${chalk.cyan(total.count ?? 0)}`,
-            `${chalk.bold('Public:')} ${chalk.green(publicCount.count ?? 0)} | ${chalk.bold('Private:')} ${
-              (total.count ?? 0) - (publicCount.count ?? 0)
+            `${chalk.bold('Public:')} ${chalk.green(publicCount.count ?? 0)} | ${chalk.bold('Private:')} ${(total.count ?? 0) - (publicCount.count ?? 0)
             }`,
-            `${chalk.bold('Top Install:')} ${
-              latest.data ? `${latest.data.name} (${latest.data.install_count ?? 0} installs)` : '—'
+            `${chalk.bold('Top Install:')} ${latest.data ? `${latest.data.name} (${latest.data.install_count ?? 0} installs)` : '—'
             }`,
           ]
 
@@ -18853,8 +18957,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
             return [
               `${chalk.cyan(`${index + 1}.`)} ${chalk.bold(metric.event_type)} ${chalk.gray(metric.id)}`,
               `   User: ${metric.user_id || 'n/a'} | Session: ${metric.session_id || 'n/a'}`,
-              `   Timestamp: ${this.formatTimestamp(metric.timestamp)}${
-                metric.error_code ? chalk.red(` | Error: ${metric.error_code}`) : ''
+              `   Timestamp: ${this.formatTimestamp(metric.timestamp)}${metric.error_code ? chalk.red(` | Error: ${metric.error_code}`) : ''
               }`,
             ].join('\n')
           })
@@ -19161,8 +19264,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       lines.push(chalk.bold('📅 Account Information'))
       lines.push(`  Account Created: ${new Date(user.created_at).toLocaleString()}`)
       lines.push(
-        `  Last Sign In: ${
-          (user as any).last_sign_in_at ? new Date((user as any).last_sign_in_at).toLocaleString() : 'Never'
+        `  Last Sign In: ${(user as any).last_sign_in_at ? new Date((user as any).last_sign_in_at).toLocaleString() : 'Never'
         }`
       )
       lines.push(
@@ -19296,96 +19398,6 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     }
   }
 
-  /**
-   * Auto-generate todos and orchestrate background agents for complex tasks
-   */
-  private async autoGenerateTodosAndOrchestrate(input: string): Promise<void> {
-    try {
-      console.log(chalk.blue('📋 Creating execution todos...'))
-
-      // Use agent todo manager directly for chat default (NOT enhanced planning)
-      const { agentTodoManager } = await import('./core/agent-todo-manager')
-
-      // Create universal agent ID for this task
-      const universalAgentId = `universal-agent-${Date.now()}`
-
-      // Generate todos using agent todo manager (max 6 for chat default)
-      const todos = await agentTodoManager.planTodos(universalAgentId, input)
-
-      // Limit to max 6 todos for chat default
-      const limitedTodos = todos.slice(0, 6)
-
-      // Display todos to user
-
-      // Start executing todos with background agents
-      console.log(chalk.green('🚀 Starting background execution...'))
-      console.log(
-        chalk.gray(
-          `I've broken down your request into ${limitedTodos.length} actionable steps and started working on them in the background.`
-        )
-      )
-      console.log(chalk.gray('You can continue chatting while I work.'))
-
-      // Execute todos in background (non-blocking)
-      this.executeInBackground(limitedTodos, universalAgentId)
-    } catch (error: any) {
-      console.log(chalk.red(`✖ Failed to generate todos: ${error.message}`))
-      // Fallback to direct response
-      console.log(chalk.yellow('⚡︎ Falling back to direct chat response...'))
-
-      // Continue with normal chat flow
-      const relevantContext = await this.getRelevantProjectContext(input)
-      const _enhancedInput = relevantContext ? `${input}\n\nContext: ${relevantContext}` : input
-
-      // Build model-ready messages
-      chatManager.addMessage(input, 'user')
-      const messages = chatManager.getContextMessages().map((m) => ({
-        role: m.role as 'system' | 'user' | 'assistant',
-        content: m.content,
-      }))
-
-      // Simple AI response
-      process.stdout.write(`${chalk.cyan('\nAssistant: ')}`)
-      let _assistantText = ''
-      let _shouldFormatOutput = false
-      let _streamedLines = 0
-      const _terminalWidth = process.stdout.columns || 80
-
-      const streamController = new AbortController()
-      this.currentStreamControllers.add(streamController)
-      try {
-        for await (const ev of advancedAIProvider.streamChatWithFullAutonomy(messages, streamController.signal)) {
-          if (ev.type === 'text_delta' && ev.content) {
-            _assistantText += ev.content
-            // Stream through streamttyService for markdown rendering
-            const { streamttyService } = await import('./services/streamtty-service')
-            await streamttyService.streamChunk(ev.content, 'ai')
-
-            // Track lines for clearing
-            const linesInChunk = Math.ceil(ev.content.length / _terminalWidth) + (ev.content.match(/\n/g) || []).length
-            _streamedLines += linesInChunk
-          } else if (ev.type === 'complete') {
-            // Mark that we should format output
-            if (_assistantText.length > 200) {
-              _shouldFormatOutput = true
-            }
-          }
-        }
-      } finally {
-        this.currentStreamControllers.delete(streamController)
-      }
-
-      // Already rendered through streamttyService during streaming
-      // No need for additional formatting or clearing
-      if (_shouldFormatOutput) {
-        // Just add a newline for spacing
-        console.log('')
-      }
-
-      // Update token usage after streaming completes (sync with session)
-      this.syncTokensFromSession()
-    }
-  }
 
   /**
    * Execute todos in background using orchestrated agents
@@ -19861,10 +19873,10 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     // Prevent user input queue interference during interactive prompts
     try {
       this.suspendPrompt()
-    } catch {}
+    } catch { }
     try {
       inputQueue.enableBypass()
-    } catch {}
+    } catch { }
 
     try {
       const sectionChoices = [
@@ -20356,7 +20368,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       // Always disable bypass and restore prompt
       try {
         inputQueue.disableBypass()
-      } catch {}
+      } catch { }
       process.stdout.write('')
       await new Promise((resolve) => setTimeout(resolve, 150))
       this.renderPromptAfterOutput()
@@ -20370,10 +20382,10 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     // Prevent user input queue interference
     try {
       this.suspendPrompt()
-    } catch {}
+    } catch { }
     try {
       inputQueue.enableBypass()
-    } catch {}
+    } catch { }
 
     try {
       const sectionChoices = [
@@ -20494,7 +20506,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     } finally {
       try {
         inputQueue.disableBypass()
-      } catch {}
+      } catch { }
       process.stdout.write('')
       await new Promise((resolve) => setTimeout(resolve, 150))
       this.renderPromptAfterOutput()
@@ -20508,10 +20520,10 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     // Prevent user input queue interference
     try {
       this.suspendPrompt()
-    } catch {}
+    } catch { }
     try {
       inputQueue.enableBypass()
-    } catch {}
+    } catch { }
 
     try {
       const sectionChoices = [
@@ -20622,7 +20634,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     } finally {
       try {
         inputQueue.disableBypass()
-      } catch {}
+      } catch { }
       process.stdout.write('')
       await new Promise((resolve) => setTimeout(resolve, 150))
       this.renderPromptAfterOutput()
@@ -22046,7 +22058,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     } finally {
       try {
         inputQueue.disableBypass()
-      } catch {}
+      } catch { }
       this.resumePromptAndRender()
     }
   }
@@ -22595,13 +22607,12 @@ This file is automatically maintained by NikCLI to provide consistent context ac
 
           if (stats.redis.health) {
             statusContent += `  Latency: ${chalk.blue(stats.redis.health.latency)}ms\n`
-            statusContent += `  Status: ${
-              stats.redis.health.status === 'healthy'
-                ? chalk.green('Healthy')
-                : stats.redis.health.status === 'degraded'
-                  ? chalk.yellow('Degraded')
-                  : chalk.red('Unhealthy')
-            }\n`
+            statusContent += `  Status: ${stats.redis.health.status === 'healthy'
+              ? chalk.green('Healthy')
+              : stats.redis.health.status === 'degraded'
+                ? chalk.yellow('Degraded')
+                : chalk.red('Unhealthy')
+              }\n`
           }
 
           statusContent += `\n${chalk.cyan('Performance:')}\n`
@@ -23892,6 +23903,6 @@ let globalNikCLI: NikCLI | null = null
 // Export function to set global instance
 export function setGlobalNikCLI(instance: NikCLI): void {
   globalNikCLI = instance
-  // Use consistent global variable name
-  ;(global as any).__nikCLI = instance
+    // Use consistent global variable name
+    ; (global as any).__nikCLI = instance
 }

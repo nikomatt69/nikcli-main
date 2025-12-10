@@ -115,12 +115,12 @@ export class WorkspaceContextManager {
     path: string
     max?: number
   }> = [
-    { kind: 'directory', path: 'src/cli/background-agents', max: 8 },
-    { kind: 'directory', path: 'src/cli/cloud', max: 6 },
-    { kind: 'directory', path: 'src/cli/github-bot', max: 4 },
-    { kind: 'file', path: 'src/cli/core/api-key-manager.ts' },
-    { kind: 'file', path: 'src/cli/core/config-manager.ts' },
-  ]
+      { kind: 'directory', path: 'src/cli/background-agents', max: 8 },
+      { kind: 'directory', path: 'src/cli/cloud', max: 6 },
+      { kind: 'directory', path: 'src/cli/github-bot', max: 4 },
+      { kind: 'file', path: 'src/cli/core/api-key-manager.ts' },
+      { kind: 'file', path: 'src/cli/core/config-manager.ts' },
+    ]
 
   // Integrated components
   private fileFilter: FileFilterSystem
@@ -282,7 +282,7 @@ export class WorkspaceContextManager {
     query: string,
     limit: number,
     threshold: number,
-    maxTokens: number = 4000
+    maxTokens: number = 2000
   ): Promise<ContextSearchResult[]> {
     const results: ContextSearchResult[] = []
     const queryEmbedding = this.createSimpleEmbedding(query)

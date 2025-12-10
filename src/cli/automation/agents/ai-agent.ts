@@ -38,7 +38,7 @@ export class AIAnalysisAgent extends BaseAgent {
 
       const text = await modelProvider.generateResponse({
         messages,
-        maxTokens: 4000,
+        maxTokens: 6000,
         ...extraOptions,
       })
 

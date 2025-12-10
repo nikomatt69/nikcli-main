@@ -58,10 +58,10 @@ export const TOKEN_LIMITS = {
 
   // Chat trimming & summarization window - Optimized for minimal context
   CHAT: {
-    MAX_CONTEXT_TOKENS: 100000, // DRASTICALLY reduced to 3k tokens (was 100k)
+    MAX_CONTEXT_TOKENS: 80000, // DRASTICALLY reduced to 3k tokens (was 100k)
     MAX_RECENT_NON_SYSTEM: 4, // Further reduced to 4 messages
     HEAD_TAIL_WINDOW: 2, // Reduced to 2 messages
-    EMERGENCY_TRUNCATE_AT: 80000, // HARD truncate at 120k tokens (80k safety margin)
+    EMERGENCY_TRUNCATE_AT: 50000, // HARD truncate at 120k tokens (80k safety margin)
   },
 
   // RAG chunking defaults - Further optimized for cost efficiency
@@ -76,7 +76,7 @@ export const TOKEN_LIMITS = {
 
   // Progressive processing guardrails
   PROGRESSIVE: {
-    MAX_TOKENS_PER_CHUNK: 2500,
+    MAX_TOKENS_PER_CHUNK: 1500,
     MAX_RETRIES: 2,
   },
 }

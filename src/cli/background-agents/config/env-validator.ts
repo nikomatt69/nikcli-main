@@ -67,8 +67,8 @@ class EnvironmentValidator {
 
       // AI Configuration
       openrouterModel: this.getOptional('OPENROUTER_MODEL') || '@preset/nikcli',
-      maxTokens: this.getNumber('MAX_TOKENS', 8000),
-      temperature: this.getNumber('TEMPERATURE', 0.7),
+      maxTokens: this.getNumber('MAX_TOKENS', 6000),
+      temperature: this.getNumber('TEMPERATURE', 1),
 
       // Queue
       queueType: this.getEnum('QUEUE_TYPE', ['local', 'redis'], 'local') as any,

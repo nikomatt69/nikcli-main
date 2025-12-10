@@ -22,12 +22,24 @@ export class PasteHandler {
   private lastInputTime: number = 0
   private config: PasteDetectionConfig
 
+  // Bracketed Paste Mode markers
+  private static readonly PASTE_START = '\x1b[200~'
+  private static readonly PASTE_END = '\x1b[201~'
+  private static readonly MAX_MARKER_LENGTH = 7 // Length of \x1b[200~ or \x1b[201~
+  private static readonly PASTE_TIMEOUT_MS = 5000 // 5 seconds timeout
+
+  // State for bracketed paste detection
+  private isPasteMode: boolean = false
+  private rawPasteBuffer: string = ''
+  private partialMarkerBuffer: string = '' // Buffer for split markers across chunks
+  private pasteStartTime: number = 0
+
   constructor(config?: Partial<PasteDetectionConfig>) {
     this.config = {
       minLengthThreshold: 500,
       minLineThreshold: 10,
       rapidInputThreshold: 100,
-      maxDisplayLines: 3,
+      maxDisplayLines: 0,
       ...config,
     }
   }
@@ -131,31 +143,16 @@ export class PasteHandler {
   }
 
   /**
-   * Create Claude Code-style display text
+   * Create Claude Code-style display text (SOLO indicatore collassato, nessuna preview)
    */
-  private createDisplayText(text: string, pasteId: number): string {
-    const lineCount = this.countLines(text)
-    const lines = text.split('\n')
+  private createDisplayText(_text: string, pasteId: number): string {
+    const lineCount = this.countLines(_text)
 
-    // Show first few lines for context
-    const previewLines = lines.slice(0, this.config.maxDisplayLines)
-    let preview = previewLines.join('\n')
-
-    // Truncate very long lines in preview
-    const maxLineLength = 100
-    preview = preview
-      .split('\n')
-      .map((line) => (line.length > maxLineLength ? `${line.substring(0, maxLineLength)}...` : line))
-      .join('\n')
-
-    if (lineCount > this.config.maxDisplayLines) {
-      const additionalLines = lineCount - this.config.maxDisplayLines
-      const truncationIndicator = chalk.gray(`[Pasted text #${pasteId} +${additionalLines} lines]`)
-      return `${preview}\n${truncationIndicator}`
+    // Solo indicatore collassato come Claude Code
+    if (lineCount > 1) {
+      return chalk.gray(`[Pasted text #${pasteId} +${lineCount} lines]`)
     } else {
-      // For shorter content, still show the indicator but with different format
-      const indicator = chalk.gray(`[Pasted text #${pasteId}]`)
-      return `${preview}\n${indicator}`
+      return chalk.gray(`[Pasted text #${pasteId}]`)
     }
   }
 
@@ -285,5 +282,157 @@ export class PasteHandler {
    */
   clearStoredContent(): void {
     this.pastedContentMap.clear()
+  }
+
+  /**
+   * Process raw stdin data to detect bracketed paste markers
+   * Handles edge cases: split markers, timeouts, escape sequences in content
+   */
+  processRawData(data: string): {
+    isPasteComplete: boolean
+    pastedContent: string | null
+    passthrough: string | null
+  } {
+    // Prepend any partial marker from previous chunk
+    let input = this.partialMarkerBuffer + data
+    this.partialMarkerBuffer = ''
+
+    // Check for paste timeout
+    if (this.isPasteMode && this.pasteStartTime > 0) {
+      if (Date.now() - this.pasteStartTime > PasteHandler.PASTE_TIMEOUT_MS) {
+        // Paste timeout - treat buffer as complete content
+        const content = this.rawPasteBuffer + input
+        this.cancelPaste()
+        return { isPasteComplete: true, pastedContent: content, passthrough: null }
+      }
+    }
+
+    // Check if input ends with partial escape sequence that could be a marker
+    // Pattern matches: \x1b, \x1b[, \x1b[2, \x1b[20, \x1b[200, \x1b[201
+    const partialMatch = input.match(/\x1b(?:\[(?:2(?:0(?:[01])?)?)?)?$/)
+    if (partialMatch) {
+      this.partialMarkerBuffer = partialMatch[0]
+      input = input.slice(0, -partialMatch[0].length)
+      // If input is empty after removing partial, wait for next chunk
+      if (!input) {
+        return { isPasteComplete: false, pastedContent: null, passthrough: null }
+      }
+    }
+
+    // Look for markers
+    const startIdx = input.indexOf(PasteHandler.PASTE_START)
+    const endIdx = input.indexOf(PasteHandler.PASTE_END)
+
+    // CASE 1: Not in paste mode, no start marker found
+    if (!this.isPasteMode && startIdx === -1) {
+      return { isPasteComplete: false, pastedContent: null, passthrough: input }
+    }
+
+    // CASE 2: Not in paste mode, found start marker
+    if (!this.isPasteMode && startIdx !== -1) {
+      const beforePaste = input.substring(0, startIdx)
+      const afterStart = input.substring(startIdx + PasteHandler.PASTE_START.length)
+
+      // Check if end marker is also in this chunk (complete paste in one chunk)
+      const endInAfter = afterStart.indexOf(PasteHandler.PASTE_END)
+
+      if (endInAfter !== -1) {
+        // Complete paste in single chunk
+        const pasteContent = afterStart.substring(0, endInAfter)
+        const afterEnd = afterStart.substring(endInAfter + PasteHandler.PASTE_END.length)
+
+        // Sanitize content before returning
+        const sanitized = this.sanitizeContent(pasteContent)
+
+        return {
+          isPasteComplete: true,
+          pastedContent: sanitized,
+          passthrough: (beforePaste || '') + (afterEnd || '') || null,
+        }
+      }
+
+      // Start marker found but no end - begin accumulation
+      this.isPasteMode = true
+      this.pasteStartTime = Date.now()
+      this.rawPasteBuffer = afterStart
+
+      return {
+        isPasteComplete: false,
+        pastedContent: null,
+        passthrough: beforePaste || null,
+      }
+    }
+
+    // CASE 3: In paste mode, look for end marker
+    if (this.isPasteMode) {
+      if (endIdx !== -1) {
+        // Found end marker - complete paste
+        this.rawPasteBuffer += input.substring(0, endIdx)
+        const afterEnd = input.substring(endIdx + PasteHandler.PASTE_END.length)
+
+        const content = this.rawPasteBuffer
+        this.isPasteMode = false
+        this.rawPasteBuffer = ''
+        this.pasteStartTime = 0
+
+        // Sanitize content before returning
+        const sanitized = this.sanitizeContent(content)
+
+        return {
+          isPasteComplete: true,
+          pastedContent: sanitized,
+          passthrough: afterEnd || null,
+        }
+      }
+
+      // No end marker - continue accumulation
+      this.rawPasteBuffer += input
+      return { isPasteComplete: false, pastedContent: null, passthrough: null }
+    }
+
+    // Default: pass through
+    return { isPasteComplete: false, pastedContent: null, passthrough: input }
+  }
+
+  /**
+   * Sanitize pasted content by removing ANSI escape sequences
+   * Preserves actual text content while removing terminal formatting
+   */
+  private sanitizeContent(content: string): string {
+    return content
+      // Remove standard ANSI escape codes (colors, formatting)
+      .replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '')
+      // Remove OSC sequences (Operating System Command)
+      .replace(/\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)/g, '')
+      // Remove DCS, PM, APC sequences
+      .replace(/\x1b[PX^_][^\x1b]*\x1b\\/g, '')
+      // Remove single-character escape sequences
+      .replace(/\x1b[NOc]/g, '')
+      // Remove any remaining bare escape characters (safety net)
+      .replace(/\x1b(?!\[)/g, '')
+  }
+
+  /**
+   * Check if currently in paste mode (accumulating bracketed paste content)
+   */
+  isPasting(): boolean {
+    return this.isPasteMode
+  }
+
+  /**
+   * Cancel ongoing paste operation and clear all buffers
+   */
+  cancelPaste(): void {
+    this.isPasteMode = false
+    this.rawPasteBuffer = ''
+    this.partialMarkerBuffer = ''
+    this.pasteStartTime = 0
+  }
+
+  /**
+   * Get current paste buffer size (for debugging/monitoring)
+   */
+  getPasteBufferSize(): number {
+    return this.rawPasteBuffer.length
   }
 }

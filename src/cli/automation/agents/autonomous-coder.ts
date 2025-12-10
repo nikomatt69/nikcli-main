@@ -296,6 +296,10 @@ ${error.line ? `Line: ${error.line}` : ''}`,
     try {
       // Read the file first to understand context
       const fileInfo = await toolsManager.readFile(fix.file)
+      if (!fileInfo.content) {
+        console.log(chalk.yellow(`⚠ File is empty: ${fix.file}`))
+        return
+      }
       console.log(chalk.gray(`📄 File has ${fileInfo.content.split('\n').length} lines`))
 
       await toolsManager.editFile(fix.file, fix.changes)
@@ -341,6 +345,7 @@ Return empty array [] if no new dependencies needed.`,
       // Limit to first 5 files
       try {
         const fileInfo = await toolsManager.readFile(file)
+        if (!fileInfo.content) continue
         const optimization = await this.generateOptimization(file, fileInfo.content)
 
         if (optimization?.optimized) {

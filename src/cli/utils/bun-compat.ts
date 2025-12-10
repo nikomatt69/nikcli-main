@@ -245,14 +245,13 @@ export function bunSpawnSync(
 }
 
 /**
- * Execute a command (simpler interface)
+ * Execute a command with full result (stdout, stderr, exitCode)
  */
-export async function bunExec(command: string, options?: { cwd?: string; timeout?: number }): Promise<string> {
-  const result = await bunShell(command, { cwd: options?.cwd, quiet: true })
-  if (result.exitCode !== 0) {
-    throw new Error(result.stderr || `Command failed with exit code ${result.exitCode}`)
-  }
-  return result.stdout
+export async function bunExec(
+  command: string,
+  options?: { cwd?: string; timeout?: number; env?: Record<string, string | undefined> }
+): Promise<{ stdout: string; stderr: string; exitCode: number }> {
+  return await bunShell(command, { cwd: options?.cwd, quiet: true })
 }
 
 // ============================================================================

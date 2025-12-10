@@ -188,3 +188,7 @@ console.log('Is Readable:', info.isReadable);
 5. Log access patterns for security analysis
 
 This tool provides enterprise-level file reading capabilities with comprehensive processing, analysis, and integration features essential for intelligent development workflows.
+
+## Enterprise Guidance (Read Operations)
+- Preflight annotates operationType=read and lists affected path(s); approval not required.
+- Policies may escalate on path scope violations (outside workspace) or massive batch reads.

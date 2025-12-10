@@ -1,21 +1,17 @@
-import { type ChildProcess, exec, spawn } from 'node:child_process'
+import { type ChildProcess, spawn } from 'node:child_process'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
-import { promisify } from 'node:util'
 import chalk from 'chalk'
+import { type FileInfo, TOKEN_CONSTANTS } from '../schemas/tool-schemas'
 import { PathResolver } from '../utils/path-resolver'
+import { bunExec } from '../utils/bun-compat'
 
-const execAsync = promisify(exec)
+// Token limiting constants from centralized schema
+const { DEFAULT_TOKEN_BUDGET, MAX_LINES_PER_CHUNK, TOKEN_CHAR_RATIO } = TOKEN_CONSTANTS
 
-export interface FileInfo {
-  path: string
-  content: string
-  size: number
-  modified: Date
-  extension: string
-  language?: string
-}
+// Re-export FileInfo for backwards compatibility
+export type { FileInfo } from '../schemas/tool-schemas'
 
 export interface SearchResult {
   file: string
@@ -68,7 +64,7 @@ export class ToolsManager {
   }
 
   // File Operations
-  async readFile(filePath: string): Promise<FileInfo> {
+  async readFile(filePath: string, options?: { tokenBudget?: number; maxLines?: number }): Promise<FileInfo> {
     const resolved = this.pathResolver.resolve(filePath)
     const fullPath = resolved.absolutePath
 
@@ -77,8 +73,24 @@ export class ToolsManager {
     }
 
     const stats = fs.statSync(fullPath)
-    const content = fs.readFileSync(fullPath, 'utf8')
+    let content = fs.readFileSync(fullPath, 'utf8')
     const extension = path.extname(fullPath).slice(1)
+
+    // Apply token budget limiting to prevent context overflow
+    const tokenBudget = options?.tokenBudget ?? DEFAULT_TOKEN_BUDGET
+    const maxLines = options?.maxLines ?? MAX_LINES_PER_CHUNK
+    const maxChars = tokenBudget * TOKEN_CHAR_RATIO
+
+    if (content.length > maxChars) {
+      const lines = content.split('\n')
+      const truncatedLines = lines.slice(0, Math.min(lines.length, maxLines))
+      const estimatedTokens = Math.ceil(truncatedLines.join('\n').length / TOKEN_CHAR_RATIO)
+
+      content = truncatedLines.join('\n')
+      if (truncatedLines.length < lines.length || estimatedTokens > tokenBudget) {
+        content += `\n\n... [File truncated - exceeds token budget (${estimatedTokens} tokens, budget: ${tokenBudget})]`
+      }
+    }
 
     return {
       path: filePath,
@@ -109,6 +121,9 @@ export class ToolsManager {
     changes: { line?: number; find?: string; replace: string; insert?: boolean }[]
   ): Promise<void> {
     const fileInfo = await this.readFile(filePath)
+    if (!fileInfo.content) {
+      throw new Error(`File has no content: ${filePath}`)
+    }
     let lines = fileInfo.content.split('\n')
 
     for (const change of changes) {
@@ -171,6 +186,7 @@ export class ToolsManager {
     for (const file of files) {
       try {
         const fileInfo = await this.readFile(file)
+        if (!fileInfo.content) continue
         const lines = fileInfo.content.split('\n')
 
         lines.forEach((line, index) => {
@@ -215,12 +231,12 @@ export class ToolsManager {
       if (options.stream || options.interactive) {
         return await this.runCommandStream(fullCommand, { cwd, env, interactive: options.interactive })
       } else {
-        const { stdout, stderr } = await execAsync(fullCommand, {
+        const result = await bunExec(fullCommand, {
           cwd,
           timeout: options.timeout || 60000,
           env,
-          maxBuffer: 1024 * 1024 * 10, // 10MB buffer
         })
+        const { stdout, stderr } = result
 
         const duration = Date.now() - startTime
         this.addToHistory(fullCommand, true, stdout + stderr)
@@ -776,6 +792,7 @@ export class ToolsManager {
 
     try {
       const pkg = await this.readFile('package.json')
+      if (!pkg.content) throw new Error('Empty package.json')
       packageInfo = JSON.parse(pkg.content)
 
       // Detect framework

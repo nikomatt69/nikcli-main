@@ -1,7 +1,6 @@
 import { exec } from 'node:child_process'
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
-
-import { dirname, extname, join, relative, resolve } from 'node:path'
+import { basename, dirname, extname, join, relative, resolve } from 'node:path'
 import { promisify } from 'node:util'
 import { createAnthropic } from '@ai-sdk/anthropic'
 import { createCerebras } from '@ai-sdk/cerebras'
@@ -221,7 +220,7 @@ Invalid arguments: ${JSON.stringify(toolCall.args, null, 2)}
 Please provide corrected arguments for this tool. Only output the corrected JSON arguments, nothing else.`,
             },
           ],
-          maxTokens: 1000,
+          maxTokens: 2000,
         })
 
         // Try to parse the corrected arguments
@@ -1032,19 +1031,59 @@ Respond in a helpful, professional manner with clear explanations and actionable
   // Advanced file operations with context awareness
   private getAdvancedTools(): Record<string, CoreTool> {
     return {
-      // Enhanced file reading with analysis
+      // Enhanced file reading with analysis and chunking support
       read_file: tool({
-        description: 'Read and analyze file contents with metadata',
+        description: `Read and analyze file contents with metadata and intelligent chunking.
+
+CRITICAL TOKEN MANAGEMENT:
+- Always reads in 200-line chunks by default to prevent token overflow
+- Use startLine and maxLinesPerChunk for incremental reading of large files
+- Token budget (default: 3000) automatically truncates content if exceeded
+
+USAGE EXAMPLES:
+- Read first 200 lines: read_file("src/file.ts")
+- Read lines 201-400: read_file("src/file.ts", { startLine: 201, maxLinesPerChunk: 200 })
+- Read with JSON parsing: read_file("package.json", { parseJson: true })
+- Read without comments: read_file("src/file.ts", { stripComments: true })
+
+The tool automatically handles chunking, token limits, and provides continuation hints when files are truncated.`,
         parameters: z.object({
-          path: z.string().describe('File path to read'),
-          analyze: z.boolean().optional().default(true).describe('Whether to analyze file structure'),
+          path: z.string().min(1).describe('File path to read (relative to project root). Example: "src/components/Button.tsx"'),
+          analyze: z.boolean().optional().default(true).describe('Whether to analyze file structure and extract metadata (functions, imports, exports, etc.)'),
+          encoding: z.string().optional().default('utf8').describe('File encoding (default: utf8). Use utf8 for text files, binary files will be detected automatically.'),
+          maxSize: z.number().int().min(1).optional().describe('Maximum file size in bytes to read (safety limit). Prevents reading extremely large files. Example: 10485760 for 10MB limit.'),
+          maxLines: z.number().int().min(1).optional().describe('Maximum total lines to read (overrides maxLinesPerChunk if smaller). Useful for reading only first N lines.'),
+          stripComments: z.boolean().optional().default(false).describe('Strip comments from code files (JS/TS/Python/CSS/HTML). Reduces token usage for large files.'),
+          parseJson: z.boolean().optional().default(false).describe('Parse content as JSON and return parsed object instead of string. Use for config files like package.json, tsconfig.json.'),
+          startLine: z.number().int().min(1).optional().default(1).describe('Starting line number (1-based). Default: 1. Use for incremental reading: startLine=1 for lines 1-200, startLine=201 for lines 201-400, etc.'),
+          maxLinesPerChunk: z.number().int().min(1).max(200).optional().default(200).describe('Maximum lines to read per chunk (default: 200, max: 200). CRITICAL: Never exceed 200 to avoid token overflow. This is enforced by the system prompt.'),
+          tokenBudget: z.number().int().min(1000).optional().default(3000).describe('Token budget for this read operation (default: 3000). Content will be automatically truncated if estimated tokens exceed this budget. Increase only if necessary.'),
         }),
-        execute: async ({ path, analyze }) => {
+        execute: async ({
+          path,
+          analyze = true,
+          encoding = 'utf8',
+          maxSize,
+          maxLines,
+          stripComments = false,
+          parseJson = false,
+          startLine = 1,
+          maxLinesPerChunk = 200,
+          tokenBudget = 3000
+        }) => {
           try {
             // Load tool-specific prompt for context
             const toolPrompt = await this.getToolPrompt('read_file', {
               path,
               analyze,
+              encoding,
+              maxSize,
+              maxLines,
+              stripComments,
+              parseJson,
+              startLine,
+              maxLinesPerChunk,
+              tokenBudget,
             })
 
             const fullPath = resolve(this.workingDirectory, path)
@@ -1052,35 +1091,160 @@ Respond in a helpful, professional manner with clear explanations and actionable
               return { error: `File not found: ${path}` }
             }
 
-            const content = readFileSync(fullPath, 'utf-8')
             const stats = statSync(fullPath)
+
+            // Check maxSize if specified
+            if (maxSize && stats.size > maxSize) {
+              return { error: `File too large: ${stats.size} bytes (max: ${maxSize} bytes)` }
+            }
+
             const extension = extname(fullPath)
+
+            // Read file content with specified encoding
+            // NOTE: We read the full file first, then chunk it in memory
+            // This is necessary to calculate line numbers correctly
+            const fullContent = readFileSync(fullPath, encoding as BufferEncoding)
+            const allLines = fullContent.split('\n')
+            const totalLines = allLines.length
+
+            // Calculate effective chunk size
+            // CRITICAL: Always respect the 200-line limit to prevent token overflow
+            // This aligns with the system prompt requirement for token management
+            const effectiveMaxLines = Math.min(
+              maxLinesPerChunk,
+              maxLines ?? maxLinesPerChunk,
+              200 // Hard limit to respect token budget (system prompt requirement)
+            )
+
+            // Read chunk based on startLine and maxLinesPerChunk
+            const startIdx = Math.max(0, startLine - 1)
+            const endIdx = Math.min(startIdx + effectiveMaxLines, allLines.length)
+            const chunkLines = allLines.slice(startIdx, endIdx)
+            let content = chunkLines.join('\n')
+
+            const isTruncated = endIdx < allLines.length
+            const nextStartLine = isTruncated ? endIdx + 1 : null
+            const actualStartLine = startIdx + 1
+            const actualEndLine = endIdx
+
+            // Strip comments if requested
+            if (stripComments && this.isCodeFile(path)) {
+              content = this.stripComments(content, extension)
+            }
+
+            // Estimate tokens (rough: ~3.7 chars per token)
+            // This is a conservative estimate to prevent token overflow
+            const estimatedTokens = Math.ceil(content.length / 3.7)
+
+            // If content exceeds token budget, truncate further
+            // This ensures we never exceed the specified token budget
+            let finalContent = content
+            let finalTruncated = isTruncated
+            let finalNextStartLine = nextStartLine
+            let finalEndLine = actualEndLine
+
+            if (estimatedTokens > tokenBudget) {
+              // Truncate to fit token budget
+              const maxChars = tokenBudget * 3.7
+              const lines = content.split('\n')
+              let charCount = 0
+              let lineIdx = 0
+
+              for (let i = 0; i < lines.length; i++) {
+                const lineChars = lines[i].length + 1 // +1 for newline
+                if (charCount + lineChars > maxChars) {
+                  lineIdx = i
+                  break
+                }
+                charCount += lineChars
+                lineIdx = i + 1
+              }
+
+              finalContent = lines.slice(0, lineIdx).join('\n')
+              finalEndLine = actualStartLine + lineIdx - 1
+              finalTruncated = true
+              finalNextStartLine = finalEndLine + 1
+            }
+
+            // Parse JSON if requested
+            let parsedContent: any = null
+            if (parseJson) {
+              try {
+                parsedContent = JSON.parse(finalContent)
+              } catch (parseError: any) {
+                return { error: `Failed to parse JSON: ${parseError.message}` }
+              }
+            }
 
             let analysis = null
             if (analyze) {
-              analysis = this.analyzeFileContent(content, extension)
+              analysis = this.analyzeFileContent(finalContent, extension)
             }
 
-            // Store in context for future operations
+            // Store in context for future operations (store chunk info)
             this.executionContext.set(`file:${path}`, {
-              content,
+              content: finalContent,
               stats,
               analysis,
               lastRead: new Date(),
-              toolPrompt, // Store prompt for potential reuse
+              toolPrompt,
+              chunkInfo: {
+                startLine: actualStartLine,
+                endLine: finalEndLine,
+                nextStartLine: finalNextStartLine,
+                truncated: finalTruncated,
+                totalLines,
+              },
             })
 
-            return {
-              content,
+            // Build result aligned with ReadFileResultSchema
+            const result: any = {
+              success: true,
+              filePath: relative(this.workingDirectory, fullPath),
+              content: parsedContent || finalContent,
               size: stats.size,
-              modified: stats.mtime,
-              path: relative(this.workingDirectory, fullPath),
-              extension,
-              analysis,
-              lines: content.split('\n').length,
+              encoding,
+              metadata: {
+                lines: finalContent.split('\n').length,
+                isEmpty: finalContent.length === 0,
+                isBinary: encoding !== 'utf8' && encoding !== 'utf-8',
+                extension,
+                startLine: actualStartLine,
+                endLine: finalEndLine,
+                nextStartLine: finalNextStartLine,
+                truncated: finalTruncated,
+                estimatedTokens: Math.ceil(finalContent.length / 3.7),
+              },
             }
+
+            // Add analysis if requested (not part of schema but useful)
+            if (analyze && analysis) {
+              result.analysis = analysis
+            }
+
+            // Add continuation hint if truncated (helpful for AI agents)
+            if (finalTruncated && finalNextStartLine) {
+              result.continuationHint = `💡 File truncated at line ${finalEndLine} of ${totalLines}. To read more: read_file("${path}", { startLine: ${finalNextStartLine}, maxLinesPerChunk: 200, tokenBudget: 3000 })`
+              result.metadata.totalLines = totalLines
+            }
+
+            return result
           } catch (error: any) {
-            return { error: `Failed to read file: ${error.message}` }
+            // Return error in ReadFileResultSchema format
+            return {
+              success: false,
+              filePath: path,
+              content: '',
+              size: 0,
+              encoding: encoding || 'utf8',
+              error: `Failed to read file: ${error.message}`,
+              metadata: {
+                lines: 0,
+                isEmpty: true,
+                isBinary: false,
+                extension: extname(path),
+              },
+            }
           }
         },
       }),
@@ -1091,12 +1255,19 @@ Respond in a helpful, professional manner with clear explanations and actionable
         parameters: z.object({
           path: z.string().describe('File path to write'),
           content: z.string().describe('Content to write'),
-          backup: z.boolean().default(true).describe('Create backup if file exists'),
-          validate: z.boolean().default(true).describe('Use LSP validation before writing'),
+          encoding: z.string().optional().default('utf8').describe('File encoding (default: utf8)'),
+          mode: z.number().int().optional().describe('File mode/permissions (octal, e.g., 0o644)'),
+          createBackup: z.boolean().optional().default(true).describe('Create backup if file exists (alias: backup)'),
+          backup: z.boolean().optional().default(true).describe('Create backup if file exists (deprecated: use createBackup)'),
+          autoRollback: z.boolean().optional().default(false).describe('Automatically rollback on validation failure'),
+          verifyWrite: z.boolean().optional().default(true).describe('Verify file was written correctly by reading it back'),
+          showDiff: z.boolean().optional().default(true).describe('Show diff preview before writing'),
+          skipFormatting: z.boolean().optional().default(false).describe('Skip automatic code formatting'),
+          validate: z.boolean().optional().default(true).describe('Use LSP validation before writing'),
           agentId: z.string().optional().describe('ID of the agent making this request'),
           reasoning: z.string().optional().describe('Reasoning behind this file creation/modification'),
         }),
-        execute: async ({ path, content, backup, validate, agentId, reasoning }) => {
+        execute: async ({ path, content, encoding = 'utf8', mode, createBackup = true, backup = true, autoRollback = false, verifyWrite = true, showDiff = true, skipFormatting = false, validate = true, agentId, reasoning }) => {
           try {
             // Load tool-specific prompt for context
             const toolPrompt = await this.getToolPrompt('write_file', {
@@ -1161,9 +1332,12 @@ Respond in a helpful, professional manner with clear explanations and actionable
               }
             }
 
+            // Use createBackup if provided, otherwise fallback to backup
+            const shouldBackup = createBackup || backup
+
             // Create backup if file exists
             let backedUp = false
-            if (backup && existsSync(fullPath)) {
+            if (shouldBackup && existsSync(fullPath)) {
               const backupPath = `${fullPath}.backup.${Date.now()}`
               writeFileSync(backupPath, readFileSync(fullPath, 'utf-8'))
               backedUp = true
@@ -1182,9 +1356,9 @@ Respond in a helpful, professional manner with clear explanations and actionable
               /* ignore */
             }
 
-            // Show visual diff in stream/panels when content changed
+            // Show visual diff in stream/panels when content changed (if enabled)
             try {
-              if (!hasExisting) {
+              if (showDiff && !hasExisting) {
                 const fd: FileDiff = {
                   filePath: fullPath,
                   originalContent: '',
@@ -1194,7 +1368,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
                 }
                 console.log('\n')
                 DiffViewer.showFileDiff(fd, { compact: true })
-              } else if (existingContent !== finalContent) {
+              } else if (showDiff && existingContent !== finalContent) {
                 const fd: FileDiff = {
                   filePath: fullPath,
                   originalContent: existingContent,
@@ -1211,8 +1385,46 @@ Respond in a helpful, professional manner with clear explanations and actionable
             }
 
             // Write the validated file
-            writeFileSync(fullPath, finalContent, 'utf-8')
+            writeFileSync(fullPath, finalContent, encoding as BufferEncoding)
             const stats = statSync(fullPath)
+
+            // Set file mode if specified
+            if (mode !== undefined) {
+              try {
+                await execAsync(`chmod ${mode.toString(8)} "${fullPath}"`, { cwd: this.workingDirectory })
+              } catch {
+                // Ignore chmod errors on some systems
+              }
+            }
+
+            // Verify write if enabled
+            if (verifyWrite) {
+              try {
+                const writtenContent = readFileSync(fullPath, encoding as BufferEncoding)
+                if (writtenContent !== finalContent) {
+                  if (autoRollback && backedUp) {
+                    // Rollback from backup
+                    const backupPath = `${fullPath}.backup.${Date.now()}`
+                    const backupFiles = readdirSync(dirname(fullPath)).filter((f) => f.startsWith(basename(fullPath) + '.backup.'))
+                    if (backupFiles.length > 0) {
+                      const latestBackup = backupFiles.sort().reverse()[0]
+                      const backupContent = readFileSync(resolve(dirname(fullPath), latestBackup), encoding as BufferEncoding)
+                      writeFileSync(fullPath, backupContent, encoding as BufferEncoding)
+                      advancedUI.logFunctionUpdate('error', 'Write verification failed - rolled back to backup', '✖')
+                      return {
+                        success: false,
+                        error: 'Write verification failed - content mismatch',
+                        path,
+                        rolledBack: true,
+                      }
+                    }
+                  }
+                  advancedUI.logFunctionUpdate('warning', 'Write verification detected content mismatch', '⚠')
+                }
+              } catch (verifyError: any) {
+                advancedUI.logFunctionUpdate('warning', `Write verification failed: ${verifyError.message}`, '⚠')
+              }
+            }
 
             advancedUI.logFunctionUpdate('success', `File written successfully: ${path} (${stats.size} bytes)`, '✓')
 
@@ -1237,10 +1449,10 @@ Respond in a helpful, professional manner with clear explanations and actionable
               formatter: validationResult?.formatter,
               validation: validationResult
                 ? {
-                    isValid: validationResult.isValid,
-                    errors: validationResult.errors,
-                    warnings: validationResult.warnings,
-                  }
+                  isValid: validationResult.isValid,
+                  errors: validationResult.errors,
+                  warnings: validationResult.warnings,
+                }
                 : null,
               reasoning: reasoning || `File ${backedUp ? 'updated' : 'created'} by agent`,
             }
@@ -1298,11 +1510,19 @@ Respond in a helpful, professional manner with clear explanations and actionable
         description: 'Execute commands autonomously with context awareness and safety checks',
         parameters: z.object({
           command: z.string().describe('Command to execute'),
-          args: z.array(z.string()).default([]).describe('Command arguments'),
-          autonomous: z.boolean().default(true).describe('Execute without confirmation'),
-          timeout: z.number().default(30000).describe('Timeout in milliseconds'),
+          args: z.array(z.string()).optional().default([]).describe('Command arguments'),
+          cwd: z.string().optional().describe('Working directory for command execution (defaults to project root)'),
+          timeout: z.number().int().min(100).optional().default(30000).describe('Timeout in milliseconds (min: 100ms)'),
+          skipConfirmation: z.boolean().optional().default(true).describe('Skip confirmation prompts (alias: autonomous)'),
+          autonomous: z.boolean().optional().default(true).describe('Execute without confirmation (deprecated: use skipConfirmation)'),
+          env: z.record(z.string()).optional().describe('Environment variables to set for command'),
+          shell: z.enum(['bash', 'sh', 'zsh', 'fish', 'powershell', 'cmd']).optional().describe('Shell to use for command execution'),
         }),
-        execute: async ({ command, args, autonomous, timeout }) => {
+        execute: async ({ command, args = [], cwd, timeout = 30000, skipConfirmation = true, autonomous = true, env, shell }) => {
+          const fullCommand = args.length > 0 ? `${command} ${args.join(' ')}` : command
+          const commandCwd = cwd ? resolve(this.workingDirectory, cwd) : this.workingDirectory
+          const startTime = Date.now()
+
           try {
             // Load tool-specific prompt for context
             const toolPrompt = await this.getToolPrompt('execute_command', {
@@ -1312,11 +1532,11 @@ Respond in a helpful, professional manner with clear explanations and actionable
             })
             CliUI.logDebug(`Using system prompt: ${toolPrompt.substring(0, 100)}...`)
 
-            const fullCommand = args.length > 0 ? `${command} ${args.join(' ')}` : command
+            const effectiveSkipConfirmation = skipConfirmation || autonomous
 
             // Safety check for dangerous commands
             const isDangerous = this.isDangerousCommand(fullCommand)
-            if (isDangerous && !autonomous) {
+            if (isDangerous && !effectiveSkipConfirmation) {
               return {
                 error: 'Command requires manual confirmation',
                 command: fullCommand,
@@ -1324,9 +1544,8 @@ Respond in a helpful, professional manner with clear explanations and actionable
               }
             }
 
-            // Verifica che il comando non esca dalla directory del progetto
+            // Use provided cwd or default to project root
             const projectRoot = this.workingDirectory
-            const commandCwd = this.workingDirectory
 
             // Controlla se il comando tenta di cambiare directory
             if (fullCommand.includes('cd ') && !fullCommand.includes(`cd ${projectRoot}`)) {
@@ -1340,10 +1559,15 @@ Respond in a helpful, professional manner with clear explanations and actionable
             advancedUI.logFunctionCall('executing')
             advancedUI.logFunctionUpdate('info', fullCommand, '●')
 
-            const startTime = Date.now()
+            // Prepare environment variables
+            const commandEnv = env ? { ...process.env, ...env } : process.env
+
+            // Execute command with options
             const { stdout, stderr } = await execAsync(fullCommand, {
               cwd: commandCwd,
               timeout,
+              env: commandEnv,
+              shell: shell || undefined, // Use shell if specified
             })
 
             const duration = Date.now() - startTime
@@ -1364,20 +1588,26 @@ Respond in a helpful, professional manner with clear explanations and actionable
             // Command completed
 
             return {
-              command: fullCommand,
+              success: true,
               stdout: stdout.trim(),
               stderr: stderr.trim(),
-              success: true,
+              exitCode: 0, // execAsync doesn't throw on success
+              command: fullCommand,
               duration,
-              cwd: commandCwd,
+              workingDirectory: commandCwd,
+              shell: shell || undefined,
             }
           } catch (error: any) {
             advancedUI.logFunctionUpdate('error', `Command failed: ${error.message}`, '✖')
             return {
-              command: `${command} ${args.join(' ')}`,
-              error: error.message,
               success: false,
-              code: error.code,
+              stdout: '',
+              stderr: error.message,
+              exitCode: error.code || 1,
+              command: fullCommand,
+              duration: Date.now() - startTime,
+              workingDirectory: commandCwd,
+              shell: shell || undefined,
             }
           }
         },
@@ -1446,7 +1676,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
             })
             CliUI.logDebug(`Using system prompt: ${toolPrompt.substring(0, 100)}...`)
 
-            const command = 'npm'
+            const command = 'bun'
             let args: string[] = []
 
             switch (action) {
@@ -1672,13 +1902,20 @@ Respond in a helpful, professional manner with clear explanations and actionable
           edits: z
             .array(
               z.object({
-                file: z.string().describe('File path to edit'),
-                search: z.string().describe('Text to search for'),
-                replace: z.string().describe('Replacement text'),
+                file: z.string().min(1).describe('File path to edit'),
+                search: z.string().min(1).describe('Text to search for (oldString)'),
+                replace: z.string().describe('Replacement text (newString)'),
+                replaceAll: z.boolean().optional().default(true).describe('Replace all occurrences in this edit'),
               })
             )
-            .describe('Array of edit operations'),
-          dryRun: z.boolean().default(false).describe('Preview changes without applying'),
+            .min(1)
+            .describe('Array of edit operations (at least one required)'),
+          createBackup: z.boolean().optional().default(true).describe('Create backup before editing'),
+          showDiff: z.boolean().optional().default(true).describe('Show diff preview of changes'),
+          validateSyntax: z.boolean().optional().default(true).describe('Validate syntax after edits'),
+          autoFormat: z.boolean().optional().default(true).describe('Auto-format code after edits'),
+          dryRun: z.boolean().optional().default(false).describe('Preview changes without applying (alias: previewOnly)'),
+          previewOnly: z.boolean().optional().default(false).describe('Preview changes without applying'),
         }),
         execute: async (params) => {
           const multiEditTool = this.toolRegistry.getTool('multi-edit-tool')
@@ -1692,6 +1929,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
               filePath: edit.file,
               oldString: edit.search,
               newString: edit.replace,
+              replaceAll: edit.replaceAll ?? true,
             }))
             .filter((op) => op.filePath && op.oldString !== undefined && op.newString !== undefined)
 
@@ -1699,12 +1937,17 @@ Respond in a helpful, professional manner with clear explanations and actionable
             return { error: 'No valid edits provided' }
           }
 
+          const isPreview = params.dryRun || params.previewOnly
+
           const result = await multiEditTool.execute({
             operations,
-            previewOnly: params.dryRun,
-            dryRun: params.dryRun,
+            previewOnly: isPreview,
+            dryRun: isPreview,
             rollbackOnError: true,
-            createBackup: true,
+            createBackup: params.createBackup ?? true,
+            showDiff: params.showDiff ?? true,
+            validateSyntax: params.validateSyntax ?? true,
+            autoFormat: params.autoFormat ?? true,
           })
           return result.success ? result.data : { error: result.error }
         },
@@ -1724,7 +1967,11 @@ Respond in a helpful, professional manner with clear explanations and actionable
             .union([z.string(), z.array(z.string())])
             .optional()
             .describe('Patterns to exclude - can be a single string or array'),
-          maxDepth: z.number().optional().describe('Maximum directory depth'),
+          maxResults: z.number().int().min(1).max(1000).optional().describe('Maximum number of results (1-1000)'),
+          includeHidden: z.boolean().optional().default(false).describe('Include hidden files'),
+          extensions: z.array(z.string()).optional().describe('Filter by file extensions (e.g., [".ts", ".tsx"])'),
+          excludePatterns: z.array(z.string()).optional().describe('Array of patterns to exclude'),
+          caseSensitive: z.boolean().optional().default(false).describe('Case sensitive pattern matching'),
         }),
         execute: async (params) => {
           const findTool = this.toolRegistry.getTool('find-files-tool')
@@ -1744,10 +1991,12 @@ Respond in a helpful, professional manner with clear explanations and actionable
       edit_file: tool({
         description: 'Edit file with diff preview, validation and backup',
         parameters: z.object({
-          file: z.string().describe('File path to edit'),
-          search: z.string().describe('Exact text to find'),
-          replace: z.string().describe('Replacement text'),
-          backup: z.boolean().default(true).describe('Create backup before editing'),
+          file: z.string().min(1).describe('File path to edit'),
+          search: z.string().min(1).describe('Exact text to find (oldString)'),
+          replace: z.string().describe('Replacement text (newString)'),
+          replaceAll: z.boolean().optional().default(true).describe('Replace all occurrences (default: true)'),
+          createBackup: z.boolean().optional().default(true).describe('Create backup before editing (alias: backup)'),
+          backup: z.boolean().optional().default(true).describe('Create backup before editing (deprecated: use createBackup)'),
         }),
         execute: async (params) => {
           const editTool = this.toolRegistry.getTool('edit-tool')
@@ -1757,12 +2006,14 @@ Respond in a helpful, professional manner with clear explanations and actionable
             return { error: 'file, search and replace are required' }
           }
 
+          const shouldBackup = params.createBackup !== undefined ? params.createBackup : params.backup
+
           const result = await editTool.execute({
             filePath: params.file,
             oldString: params.search,
             newString: params.replace,
-            replaceAll: true,
-            createBackup: params.backup,
+            replaceAll: params.replaceAll ?? true,
+            createBackup: shouldBackup,
           })
           return result.success ? result.data : { error: result.error }
         },
@@ -2402,8 +2653,8 @@ Respond in a helpful, professional manner with clear explanations and actionable
             ? lastUserMessage.content
             : Array.isArray(lastUserMessage.content)
               ? lastUserMessage.content
-                  .map((part) => (typeof part === 'string' ? part : part.experimental_providerMetadata?.content || ''))
-                  .join('')
+                .map((part) => (typeof part === 'string' ? part : part.experimental_providerMetadata?.content || ''))
+                .join('')
               : String(lastUserMessage.content)
 
         // Use ToolRouter for intelligent tool analysis
@@ -2477,7 +2728,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
       }
 
       // Check if we're approaching token limits and need to create a summary
-      const tokenLimit = 150000 // Conservative limit
+      const tokenLimit = 80000 // Conservative limit
       const isAnalysisRequest =
         lastUserMessage &&
         typeof lastUserMessage.content === 'string' &&
@@ -2871,10 +3122,10 @@ Respond in a helpful, professional manner with clear explanations and actionable
                     ? lastUserMessage.content
                     : Array.isArray(lastUserMessage.content)
                       ? lastUserMessage.content
-                          .map((part) =>
-                            typeof part === 'string' ? part : part.experimental_providerMetadata?.content || ''
-                          )
-                          .join('')
+                        .map((part) =>
+                          typeof part === 'string' ? part : part.experimental_providerMetadata?.content || ''
+                        )
+                        .join('')
                       : String(lastUserMessage.content)
 
                 // Salva nella cache intelligente
@@ -3366,6 +3617,51 @@ Stay within project directory.`,
   }
 
   // Helper methods for intelligent analysis
+  private isCodeFile(filePath: string): boolean {
+    const codeExtensions = [
+      '.js', '.ts', '.jsx', '.tsx', '.py', '.java', '.c', '.cpp', '.h', '.hpp',
+      '.cs', '.php', '.rb', '.go', '.rs', '.swift', '.kt', '.scala', '.clj',
+      '.css', '.scss', '.sass', '.less', '.html', '.xml', '.json', '.yaml', '.yml',
+    ]
+    const ext = extname(filePath).toLowerCase()
+    return codeExtensions.includes(ext)
+  }
+
+  private stripComments(content: string, extension: string): string {
+    switch (extension.toLowerCase()) {
+      case '.js':
+      case '.ts':
+      case '.jsx':
+      case '.tsx':
+        // Remove single-line comments
+        content = content.replace(/\/\/.*$/gm, '')
+        // Remove multi-line comments
+        content = content.replace(/\/\*[\s\S]*?\*\//g, '')
+        break
+      case '.py':
+        // Remove Python comments
+        content = content.replace(/#.*$/gm, '')
+        break
+      case '.css':
+      case '.scss':
+        // Remove CSS comments
+        content = content.replace(/\/\*[\s\S]*?\*\//g, '')
+        break
+      case '.html':
+      case '.xml': {
+        // Remove HTML/XML comments
+        let previousContent: string
+        do {
+          previousContent = content
+          content = content.replace(/<!--[\s\S]*?-->/g, '')
+        } while (content !== previousContent)
+        break
+      }
+    }
+    // Clean up extra whitespace
+    return content.replace(/\n\s*\n/g, '\n').trim()
+  }
+
   private analyzeFileContent(content: string, extension: string): any {
     const analysis: any = {
       lines: content.split('\n').length,
@@ -3654,11 +3950,11 @@ Requirements:
       const routingCfg = configManager.get('modelRouting')
       const resolved = routingCfg?.enabled
         ? await this.resolveAdaptiveModel('code_gen', [
-            {
-              role: 'user',
-              content: `${type}: ${description} (${language})`,
-            } as any,
-          ])
+          {
+            role: 'user',
+            content: `${type}: ${description} (${language})`,
+          } as any,
+        ])
         : undefined
       const model = this.getModel(resolved) as any
       const params = this.getProviderParams()
@@ -3737,7 +4033,7 @@ Requirements:
         const msg = `[Router] ${info.name} → ${decision.selectedModel} (${decision.tier}, ~${decision.estimatedTokens} tok)`
         if (nik?.advancedUI) nik.advancedUI.logInfo('model router', msg)
         else console.log(chalk.dim(msg))
-      } catch {}
+      } catch { }
 
       // The router returns a provider model id. Our config keys match these ids in default models.
       // If key is missing, fallback to current model name in config.
@@ -3915,7 +4211,7 @@ Requirements:
     const configData = allModels[model]
 
     if (!configData) {
-      return { maxTokens: 3000, temperature: 0.8 } // Further REDUCED for cost efficiency
+      return { maxTokens: 8000, temperature: 1 } // Further REDUCED for cost efficiency
     }
 
     // Provider-specific token limits and settings
@@ -3923,11 +4219,11 @@ Requirements:
       case 'openai':
         // OpenAI models - Further REDUCED for cost efficiency
         if (configData.model.includes('gpt-5')) {
-          return { maxTokens: 3000, temperature: 0.8 } // Further REDUCED from 4096
+          return { maxTokens: 3000, temperature: 1 } // Further REDUCED from 4096
         } else if (configData.model.includes('gpt-4')) {
-          return { maxTokens: 3000, temperature: 0.8 } // Further REDUCED from 4096
+          return { maxTokens: 3000, temperature: 1 } // Further REDUCED from 4096
         }
-        return { maxTokens: 3000, temperature: 0.8 }
+        return { maxTokens: 3000, temperature: 1 }
 
       case 'anthropic':
         // Claude models - Further REDUCED for cost efficiency
@@ -3984,10 +4280,10 @@ Requirements:
         } else if (configData.model.startsWith('anthropic/')) {
           return { maxTokens: 3000, temperature: 0.8 } // Anthropic models - reduced
         }
-        return { maxTokens: 3000, temperature: 0.8 } // Default - reduced
+        return { maxTokens: 8000, temperature: 1 } // Default - reduced
 
       default:
-        return { maxTokens: 3000, temperature: 0.8 } // Further reduced for cost efficiency
+        return { maxTokens: 8000, temperature: 1 } // Further reduced for cost efficiency
     }
   }
 

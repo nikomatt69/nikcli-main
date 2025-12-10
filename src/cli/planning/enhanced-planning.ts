@@ -555,6 +555,32 @@ export class EnhancedPlanningSystem {
             }
           }
 
+          // 2.5) If todo wants to read files (e.g., "read package.json"), use read-file-tool
+          const wantsRead = /\b(read|open|view|display|show|examine|analyze|inspect)\b/i.test(
+            `${todo.title} ${todo.description || ''}`
+          )
+          if (
+            wantsRead &&
+            Array.isArray(todo.files) &&
+            todo.files.length > 0
+          ) {
+            const readFile = registry.getTool('read-file-tool') as any
+            if (readFile) {
+              for (const filePath of todo.files) {
+                if (!filePath || typeof filePath !== 'string') continue
+                try {
+                  await readFile.execute(filePath, {
+                    tokenBudget: 8000,
+                    maxLines: 200,
+                  })
+                } catch (err) {
+                  console.warn(`Could not read file ${filePath}:`, err)
+                  // Continue anyway, don't fail the entire toolchain
+                }
+              }
+            }
+          }
+
           // 3) For analysis-like todos without commands/files, do a light read-only check
           const isAnalysis = ['analysis', 'planning', 'testing', 'documentation'].includes(
             (todo.category || '').toLowerCase()

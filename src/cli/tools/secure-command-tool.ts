@@ -1,18 +1,20 @@
-import { exec } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
 import * as path from 'node:path'
-import { promisify } from 'node:util'
 import chalk from 'chalk'
 import inquirer from 'inquirer'
 import { inputQueue } from '../core/input-queue'
+import {
+  type BatchSession as BatchSessionBase,
+  type CommandOptions,
+  type CommandResult,
+} from '../schemas/tool-schemas'
+import { bunExec } from '../utils/bun-compat'
 import {
   DEFAULT_SHELL_NAME,
   resolveShellConfig,
   type ShellConfiguration,
   type SupportedShellName,
 } from './shell-support'
-
-const execAsync = promisify(exec)
 
 /**
  * Safe commands that can be executed without user confirmation
@@ -83,42 +85,13 @@ const DANGEROUS_COMMANDS = new Set([
   'batch',
 ])
 
-/**
- * Result of command execution
- */
-export interface CommandResult {
-  stdout: string
-  stderr: string
-  exitCode: number
-  command: string
-  duration: number
-  safe: boolean
-  shell: SupportedShellName
-}
+// Re-export types from tool-schemas for backwards compatibility
+export type { CommandResult, CommandOptions } from '../schemas/tool-schemas'
 
 /**
- * Options for command execution
+ * Extended BatchSession with callback handlers (not serializable in Zod)
  */
-export interface CommandOptions {
-  cwd?: string
-  timeout?: number
-  env?: Record<string, string>
-  skipConfirmation?: boolean
-  allowDangerous?: boolean
-  shell?: SupportedShellName
-}
-
-/**
- * Batch execution session for one-time approval
- */
-export interface BatchSession {
-  id: string
-  commands: string[]
-  approved: boolean
-  createdAt: Date
-  expiresAt: Date
-  results: CommandResult[]
-  status: 'pending' | 'approved' | 'executing' | 'completed' | 'failed' | 'expired'
+export interface BatchSession extends BatchSessionBase {
   onProgress?: (command: string, index: number, total: number) => void
   onComplete?: (results: CommandResult[]) => void
   onError?: (error: Error, command: string, index: number) => void
@@ -507,13 +480,13 @@ export class SecureCommandTool {
       console.log(chalk.gray(`🐚 Shell: ${shellConfig.displayName}`))
       env.SHELL = shellConfig.executable
 
-      const { stdout, stderr } = await execAsync(command, {
+      const result = await bunExec(command, {
         cwd,
         env,
         timeout,
-        encoding: 'utf8',
-        shell: shellConfig.executable,
       })
+      const stdout = result.stdout
+      const stderr = result.stderr
 
       const duration = Date.now() - startTime
       const success = true
