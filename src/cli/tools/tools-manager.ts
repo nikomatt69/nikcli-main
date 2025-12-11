@@ -56,7 +56,12 @@ export class ToolsManager {
   private workingDirectory: string
   private pathResolver: PathResolver
   private runningProcesses: Map<number, ProcessInfo> = new Map()
-  private commandHistory: Array<{ command: string; timestamp: Date; success: boolean; output: string }> = []
+  private commandHistory: Array<{
+    command: string
+    timestamp: Date
+    success: boolean
+    output: string
+  }> = []
 
   constructor(workingDir?: string) {
     this.workingDirectory = workingDir || process.cwd()
@@ -77,7 +82,8 @@ export class ToolsManager {
     const extension = path.extname(fullPath).slice(1)
 
     // Apply token budget limiting to prevent context overflow
-    const tokenBudget = options?.tokenBudget ?? DEFAULT_TOKEN_BUDGET
+    // Enforce minimum token budget of 1000 as required by schema
+    const tokenBudget = Math.max(1000, options?.tokenBudget ?? DEFAULT_TOKEN_BUDGET)
     const maxLines = options?.maxLines ?? MAX_LINES_PER_CHUNK
     const maxChars = tokenBudget * TOKEN_CHAR_RATIO
 
@@ -118,7 +124,12 @@ export class ToolsManager {
 
   async editFile(
     filePath: string,
-    changes: { line?: number; find?: string; replace: string; insert?: boolean }[]
+    changes: {
+      line?: number
+      find?: string
+      replace: string
+      insert?: boolean
+    }[]
   ): Promise<void> {
     const fileInfo = await this.readFile(filePath)
     if (!fileInfo.content) {
@@ -229,7 +240,11 @@ export class ToolsManager {
       const startTime = Date.now()
 
       if (options.stream || options.interactive) {
-        return await this.runCommandStream(fullCommand, { cwd, env, interactive: options.interactive })
+        return await this.runCommandStream(fullCommand, {
+          cwd,
+          env,
+          interactive: options.interactive,
+        })
       } else {
         const result = await bunExec(fullCommand, {
           cwd,
@@ -325,7 +340,11 @@ export class ToolsManager {
 
   async installPackage(
     packageName: string,
-    options: { global?: boolean; dev?: boolean; manager?: 'npm' | 'yarn' | 'pnpm' } = {}
+    options: {
+      global?: boolean
+      dev?: boolean
+      manager?: 'npm' | 'yarn' | 'pnpm'
+    } = {}
   ): Promise<boolean> {
     const manager = options.manager || 'npm'
     const command = manager
@@ -386,7 +405,12 @@ export class ToolsManager {
     return Array.from(this.runningProcesses.values())
   }
 
-  getCommandHistory(limit?: number): Array<{ command: string; timestamp: Date; success: boolean; output: string }> {
+  getCommandHistory(limit?: number): Array<{
+    command: string
+    timestamp: Date
+    success: boolean
+    output: string
+  }> {
     return limit ? this.commandHistory.slice(-limit) : this.commandHistory
   }
 
@@ -453,7 +477,11 @@ export class ToolsManager {
     }
   }
 
-  async typeCheck(): Promise<{ success: boolean; output: string; errors?: ErrorAnalysis[] }> {
+  async typeCheck(): Promise<{
+    success: boolean
+    output: string
+    errors?: ErrorAnalysis[]
+  }> {
     const result = await this.runCommand('npx', ['tsc', '--noEmit'])
     const errors = this.parseTypeErrors(result.stderr)
 
@@ -513,7 +541,11 @@ export class ToolsManager {
   }
 
   // Git Operations
-  async gitStatus(): Promise<{ modified: string[]; untracked: string[]; staged: string[] }> {
+  async gitStatus(): Promise<{
+    modified: string[]
+    untracked: string[]
+    staged: string[]
+  }> {
     const result = await this.runCommand('git', ['status', '--porcelain'])
     const lines = result.stdout.split('\n').filter(Boolean)
 
@@ -714,7 +746,9 @@ export class ToolsManager {
           commands.push('npm install express', 'npm install -D typescript @types/node @types/express ts-node')
           fs.mkdirSync(projectPath, { recursive: true })
           await this.runCommand('npm', ['init', '-y'], { cwd: projectPath })
-          await this.runCommand('npm', ['install', 'express'], { cwd: projectPath })
+          await this.runCommand('npm', ['install', 'express'], {
+            cwd: projectPath,
+          })
           await this.runCommand('npm', ['install', '-D', 'typescript', '@types/node', '@types/express', 'ts-node'], {
             cwd: projectPath,
           })

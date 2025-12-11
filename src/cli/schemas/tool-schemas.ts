@@ -90,7 +90,7 @@ export const ReadFileOptionsSchema = z.object({
   parseJson: z.boolean().optional(),
   startLine: z.number().int().min(1).optional(),
   maxLinesPerChunk: z.number().int().min(1).max(200).optional(), // Max 200 to align with system prompt token management requirements
-  tokenBudget: z.number().int().min(1000).optional(),
+  tokenBudget: z.number().int().min(1).optional(),
 })
 
 export const ReadFileResultSchema = z.object({
@@ -217,7 +217,7 @@ export const FileInfoSchema = z.object({
   accessed: z.date().optional(),
   extension: z.string(),
   isReadable: z.boolean().optional(),
-  content: z.string().optional(),
+  content: z.string(),
   language: z.string().optional(),
 })
 

@@ -269,7 +269,10 @@ export class ToolService {
         analysis: {
           intent: analysis.intent.type,
           confidence: analysis.confidence,
-          entities: analysis.entities.map((e) => ({ text: e.text, type: e.type })),
+          entities: analysis.entities.map((e) => ({
+            text: e.text,
+            type: e.type,
+          })),
           expandedQuery: analysis.expandedQuery,
         },
       }
@@ -487,7 +490,11 @@ export class ToolService {
   }
 
   // Tool implementations
-  private async readFile(args: { filePath: string; tokenBudget?: number; maxLines?: number }): Promise<{ content: string; size: number; truncated?: boolean }> {
+  private async readFile(args: {
+    filePath: string
+    tokenBudget?: number
+    maxLines?: number
+  }): Promise<{ content: string; size: number; truncated?: boolean }> {
     const fullPath = path.resolve(this.workingDirectory, args.filePath)
 
     if (!fs.existsSync(fullPath)) {
@@ -498,7 +505,8 @@ export class ToolService {
     let truncated = false
 
     // Apply token budget limiting to prevent context overflow
-    const tokenBudget = args.tokenBudget ?? DEFAULT_TOKEN_BUDGET
+    // Enforce minimum token budget of 1000 as required by schema
+    const tokenBudget = Math.max(1000, args.tokenBudget ?? DEFAULT_TOKEN_BUDGET)
     const maxLines = args.maxLines ?? MAX_LINES_PER_CHUNK
     const maxChars = tokenBudget * TOKEN_CHAR_RATIO
 
@@ -557,9 +565,9 @@ export class ToolService {
     }
   }
 
-  private async listFiles(args: {
-    path?: string
-  }): Promise<{ files: Array<{ name: string; type: 'file' | 'directory'; size?: number }> }> {
+  private async listFiles(args: { path?: string }): Promise<{
+    files: Array<{ name: string; type: 'file' | 'directory'; size?: number }>
+  }> {
     const targetPath = path.resolve(this.workingDirectory, args.path || '.')
 
     if (!fs.existsSync(targetPath)) {
@@ -685,7 +693,10 @@ export class ToolService {
     }
   }
 
-  private async gitStatus(_args: {}): Promise<{ status: string; files: Array<{ path: string; status: string }> }> {
+  private async gitStatus(_args: {}): Promise<{
+    status: string
+    files: Array<{ path: string; status: string }>
+  }> {
     try {
       const result = await bunExec('git status --porcelain', {
         cwd: this.workingDirectory,
@@ -837,7 +848,10 @@ export class ToolService {
   // New tool handlers for documentation
   private async searchDocumentation(args: { query: string; category?: string; limit?: number }): Promise<any> {
     try {
-      return { success: true, message: 'Documentation search - implement with docLibrary.search()' }
+      return {
+        success: true,
+        message: 'Documentation search - implement with docLibrary.search()',
+      }
     } catch (error: any) {
       return { success: false, error: error.message }
     }
@@ -850,7 +864,10 @@ export class ToolService {
     category?: string
   }): Promise<any> {
     try {
-      return { success: true, message: 'Smart docs search - implement with smartDocsTools' }
+      return {
+        success: true,
+        message: 'Smart docs search - implement with smartDocsTools',
+      }
     } catch (error: any) {
       return { success: false, error: error.message }
     }
@@ -858,7 +875,10 @@ export class ToolService {
 
   private async docsRequest(args: { concept: string; context: string; urgency?: string }): Promise<any> {
     try {
-      return { success: true, message: 'Docs request - implement with docsRequestTool' }
+      return {
+        success: true,
+        message: 'Docs request - implement with docsRequestTool',
+      }
     } catch (error: any) {
       return { success: false, error: error.message }
     }
@@ -866,7 +886,10 @@ export class ToolService {
 
   private async webSearch(args: { query: string; type?: string }): Promise<any> {
     try {
-      return { success: true, message: 'Web search - implement with web search provider' }
+      return {
+        success: true,
+        message: 'Web search - implement with web search provider',
+      }
     } catch (error: any) {
       return { success: false, error: error.message }
     }
@@ -874,7 +897,10 @@ export class ToolService {
 
   private async browseWeb(args: { url: string; action?: string }): Promise<any> {
     try {
-      return { success: true, message: 'Browse web - implement with browserbase tool' }
+      return {
+        success: true,
+        message: 'Browse web - implement with browserbase tool',
+      }
     } catch (error: any) {
       return { success: false, error: error.message }
     }
@@ -882,7 +908,10 @@ export class ToolService {
 
   private async visionAnalysis(args: { imagePath: string; prompt?: string }): Promise<any> {
     try {
-      return { success: true, message: 'Vision analysis - implement with vision analysis tool' }
+      return {
+        success: true,
+        message: 'Vision analysis - implement with vision analysis tool',
+      }
     } catch (error: any) {
       return { success: false, error: error.message }
     }
@@ -890,7 +919,10 @@ export class ToolService {
 
   private async imageGeneration(args: { prompt: string; model?: string }): Promise<any> {
     try {
-      return { success: true, message: 'Image generation - implement with image generation tool' }
+      return {
+        success: true,
+        message: 'Image generation - implement with image generation tool',
+      }
     } catch (error: any) {
       return { success: false, error: error.message }
     }
@@ -898,7 +930,10 @@ export class ToolService {
 
   private async blockchainOps(args: { action: string; params?: any }): Promise<any> {
     try {
-      return { success: true, message: 'Blockchain ops - implement with coinbase agentkit' }
+      return {
+        success: true,
+        message: 'Blockchain ops - implement with coinbase agentkit',
+      }
     } catch (error: any) {
       return { success: false, error: error.message }
     }
@@ -906,7 +941,10 @@ export class ToolService {
 
   private async figmaOps(args: { action: string; params?: any }): Promise<any> {
     try {
-      return { success: true, message: 'Figma ops - implement with figma tool' }
+      return {
+        success: true,
+        message: 'Figma ops - implement with figma tool',
+      }
     } catch (error: any) {
       return { success: false, error: error.message }
     }
