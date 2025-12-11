@@ -1,0 +1,137 @@
+graph TB
+    %% User Interface Layer
+    CLI[CLI Interface]
+    API[API Gateway]
+    WEB[Web Dashboard]
+    
+    %% Core Orchestration Layer
+    UA[Universal Agent<br/>Base-Controller]
+    OS[Orchestrator Service<br/>Main Coordination Hub]
+    PS[Planning Service<br/>Advanced Execution Planning]
+    
+    %% Specialized Agent System
+    RA[React Agent<br/>Frontend Specialist]
+    BA[Backend Agent<br/>API/Server Specialist]
+    DA[DevOps Agent<br/>Infrastructure Specialist]
+    CRA[Code Review Agent<br/>Quality Assurance]
+    OA[Optimization Agent<br/>Performance Specialist]
+    
+    %% Core Services
+    TS[Tool Service<br/>Tool Registry & Management]
+    AIP[AI Provider<br/>Advanced AI Integration]
+    CS[Context System<br/>Context-Aware RAG]
+    FO[File Operations<br/>Core File Management]
+    
+    %% Cognitive Framework
+    TCF[Task Cognition<br/>Intent Classification]
+    EE[Entity Extraction<br/>Parse & Identify]
+    CA[Complexity Assessment<br/>1-10 Scale Analysis]
+    ASC[Adaptive Strategy<br/>Orchestration Logic]
+    
+    %% Task Management
+    TMA[TaskMaster AI<br/>Primary Planning Tool]
+    MBD[Manual Breakdown<br/>Fallback Strategy]
+    TQ[Task Queue<br/>Execution Management]
+    
+    %% Data & State Management
+    WS[Workspace<br/>Project Environment]
+    CC[Context Cache<br/>RAG Memory]
+    SS[Session State<br/>Runtime Context]
+    
+    %% External Integrations
+    NPM[Package Manager<br/>npm/yarn/pnpm]
+    DOCKER[Container Runtime<br/>Docker Platform]
+    GIT[Version Control<br/>Git Operations]
+    IDE[IDE Integration<br/>LSP Support]
+    CLOUD[Cloud Services<br/>Deployment Platform]
+    
+    %% Task Flow Process
+    TASK_IN[User Task Input] --> UA
+    UA --> TCF
+    TCF --> EE
+    EE --> CA
+    CA --> PS
+    
+    %% Planning Phase
+    PS --> TMA
+    TMA --> TQ
+    TMA -.->|Fallback| MBD
+    MBD --> TQ
+    
+    %% Execution Phase
+    TQ --> OS
+    OS --> UA
+    
+    %% Agent Delegation Decision
+    UA -->|Complexity ≥ 4<br/>& Specialization Match| RA
+    UA -->|Complexity ≥ 4<br/>& Specialization Match| BA
+    UA -->|Complexity ≥ 4<br/>& Specialization Match| DA
+    UA -->|Complexity ≥ 4<br/>& Specialization Match| CRA
+    UA -->|Complexity ≥ 4<br/>& Specialization Match| OA
+    
+    %% Core Service Integration
+    UA --> TS
+    UA --> AIP
+    UA --> CS
+    UA --> FO
+    
+    %% Service Interactions
+    TS --> NPM
+    TS --> DOCKER
+    TS --> GIT
+    FO --> IDE
+    CS --> CC
+    PS --> WS
+    OS --> SS
+    
+    %% Agent Service Calls
+    RA --> TS
+    RA --> FO
+    BA --> TS
+    BA --> FO
+    DA --> DOCKER
+    DA --> GIT
+    CRA --> CS
+    OA --> AIP
+    
+    %% Adaptive Strategy
+    CA --> ASC
+    ASC -->|Sequential<br/>Complexity ≤ 3| TQ
+    ASC -->|Parallel<br/>Independent Tasks| TQ
+    ASC -->|Hybrid<br/>Mixed Dependencies| TQ
+    ASC -->|Adaptive<br/>Complexity 9-10| TQ
+    
+    %% Quality Assurance Loop
+    TQ --> QA[Quality Assurance<br/>Validation & Testing]
+    QA -->|Failed| UA
+    QA -->|Passed| COMPLETE[Task Complete]
+    
+    %% External Service Flow
+    NPM --> CLOUD
+    DOCKER --> CLOUD
+    GIT --> CLOUD
+    IDE --> UA
+    
+    %% Context Intelligence
+    CS --> TCF
+    CS --> EE
+    CS -->|Workspace Analysis| WS
+    
+    %% Styling
+    classDef userInterface fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    classDef orchestration fill:#f3e5f5,stroke:#4a148c,stroke-width:3px
+    classDef agents fill:#e8f5e8,stroke:#1b5e20,stroke-width:2px
+    classDef services fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    classDef cognitive fill:#fce4ec,stroke:#880e4f,stroke-width:2px
+    classDef taskMgmt fill:#f1f8e9,stroke:#33691e,stroke-width:2px
+    classDef data fill:#e0f2f1,stroke:#004d40,stroke-width:2px
+    classDef external fill:#fafafa,stroke:#424242,stroke-width:2px
+    
+    class CLI,API,WEB userInterface
+    class UA,OS,PS orchestration
+    class RA,BA,DA,CRA,OA agents
+    class TS,AIP,CS,FO services
+    class TCF,EE,CA,ASC cognitive
+    class TMA,MBD,TQ taskMgmt
+    class WS,CC,SS data
+    class NPM,DOCKER,GIT,IDE,CLOUD external

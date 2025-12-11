@@ -39,7 +39,7 @@ export class PasteHandler {
       minLengthThreshold: 500,
       minLineThreshold: 10,
       rapidInputThreshold: 100,
-      maxDisplayLines: 0,
+      maxDisplayLines: 1,
       ...config,
     }
   }
@@ -106,7 +106,7 @@ export class PasteHandler {
     }
 
     const pasteId = this.storePastedContent(input)
-    const displayText = this.createDisplayText(input, pasteId)
+    const displayText = this.createDisplayText('', pasteId)
 
     return {
       shouldTruncate: true,

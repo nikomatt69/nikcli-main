@@ -1,7 +1,7 @@
 import path, { join } from 'node:path'
+import { bunFile, bunWrite, copyFile, mkdirp, removeFile, bunGlob } from '../utils/bun-compat'
 import { ContextAwareRAGSystem } from '../context/context-aware-rag'
 import { lspManager } from '../lsp/lsp-manager'
-import { PromptManager } from '../prompts/prompt-manager'
 import {
   type AppendOptions,
   type ContentValidator,
@@ -16,7 +16,6 @@ import {
 import { advancedUI } from '../ui/advanced-cli-ui'
 import { diffManager } from '../ui/diff-manager'
 import { DiffViewer, type FileDiff } from '../ui/diff-viewer'
-import { bunFile, bunGlob, bunWrite, copyFile, mkdirp, removeFile } from '../utils/bun-compat'
 import { CliUI } from '../utils/cli-ui'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
 
@@ -606,7 +605,7 @@ export class ContentValidators {
         }
 
         // Clean up temp file
-        await removeFile(tempFilePath).catch(() => {})
+        await removeFile(tempFilePath).catch(() => { })
       } catch (lspError: any) {
         warnings.push(`LSP validation unavailable: ${lspError.message}`)
 
