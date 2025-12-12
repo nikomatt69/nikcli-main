@@ -309,7 +309,7 @@ export class AiSdkEmbeddingProvider {
         return finalResults
       } catch (error: any) {
         lastError = error instanceof Error ? error : new Error(String(error))
-        advancedUI.logWarning(`⚠︎ Embedding failed with ${candidate.name}: ${lastError.message}`)
+
       }
     }
 
@@ -359,7 +359,7 @@ export class AiSdkEmbeddingProvider {
           const batchResult = await this.generateBatch(batch, config)
           return { index: i + batchIndex, result: batchResult }
         } catch (error) {
-          advancedUI.logWarning(`⚠︎ Batch ${i + batchIndex} failed: ${(error as Error).message}`)
+
           throw error
         }
       })
@@ -434,10 +434,10 @@ export class AiSdkEmbeddingProvider {
             const modelKey = configManager.getApiKey(config.model)
             const apiKey = config.baseURL?.includes('openrouter.ai')
               ? configManager.getApiKey('openrouter') ||
-                modelKey ||
-                process.env.OPENROUTER_API_KEY ||
-                configManager.getApiKey('openai') ||
-                process.env.OPENAI_API_KEY
+              modelKey ||
+              process.env.OPENROUTER_API_KEY ||
+              configManager.getApiKey('openai') ||
+              process.env.OPENAI_API_KEY
               : modelKey || configManager.getApiKey('openai') || process.env.OPENAI_API_KEY
 
             if (!apiKey) {

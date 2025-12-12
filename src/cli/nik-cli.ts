@@ -1167,7 +1167,11 @@ export class NikCLI {
 
       // Always show in default chat mode and structured UI via addLiveUpdate
       if (this.currentMode === 'default') {
-        this.addLiveUpdate({ type: 'info', content: task.task, source: `agent_${task.agentType}` })
+        this.addLiveUpdate({
+          type: 'info',
+          content: task.task,
+          source: `agent_${task.agentType}`,
+        })
       }
 
       // Render prompt after output
@@ -1177,14 +1181,22 @@ export class NikCLI {
     agentService.on('task_progress', (_task, update) => {
       const progress = typeof update.progress === 'number' ? `${update.progress}% ` : ''
       const desc = update.description ? `- ${update.description}` : ''
-      this.addLiveUpdate({ type: 'progress', content: `${progress}${desc}`, source: 'agentprogress' })
+      this.addLiveUpdate({
+        type: 'progress',
+        content: `${progress}${desc}`,
+        source: 'agentprogress',
+      })
 
       // Render prompt after output
       this.renderPromptAfterOutput()
     })
 
     agentService.on('tool_use', (_task, update) => {
-      this.addLiveUpdate({ type: 'info', content: `${update.tool}: ${update.description}`, source: 'tooluse' })
+      this.addLiveUpdate({
+        type: 'info',
+        content: `${update.tool}: ${update.description}`,
+        source: 'tooluse',
+      })
 
       // Render prompt after output
       this.renderPromptAfterOutput()
@@ -1193,15 +1205,29 @@ export class NikCLI {
     agentService.on('task_complete', (task) => {
       const indicatorId = `task-${task.id}`
       if (task.status === 'completed') {
-        this.updateStatusIndicator(indicatorId, { status: 'completed', details: 'Task completed successfully' })
+        this.updateStatusIndicator(indicatorId, {
+          status: 'completed',
+          details: 'Task completed successfully',
+        })
 
         // Show in default mode and structured UI
         if (this.currentMode === 'default') {
-          this.addLiveUpdate({ type: 'log', content: 'Task completed successfully', source: `agent_${task.agentType}` })
+          this.addLiveUpdate({
+            type: 'log',
+            content: 'Task completed successfully',
+            source: `agent_${task.agentType}`,
+          })
         }
       } else {
-        this.updateStatusIndicator(indicatorId, { status: 'failed', details: task.error || 'Unknown error' })
-        this.addLiveUpdate({ type: 'error', content: `Failed: ${task.error}`, source: `agent_${task.agentType}` })
+        this.updateStatusIndicator(indicatorId, {
+          status: 'failed',
+          details: task.error || 'Unknown error',
+        })
+        this.addLiveUpdate({
+          type: 'error',
+          content: `Failed: ${task.error}`,
+          source: `agent_${task.agentType}`,
+        })
 
         // Show in default mode and structured UI
         if (this.currentMode === 'default') {
@@ -1229,15 +1255,24 @@ export class NikCLI {
 
     // 2. Planning Events (planningManager emits: stepStart, stepProgress, stepComplete)
     this.planningManager.on('stepStart', (event: any) => {
-      this.routeEventToUI('planning_step_start', { step: event.step, description: event.description })
+      this.routeEventToUI('planning_step_start', {
+        step: event.step,
+        description: event.description,
+      })
     })
 
     this.planningManager.on('stepProgress', (event: any) => {
-      this.routeEventToUI('planning_step_progress', { step: event.step, progress: event.progress })
+      this.routeEventToUI('planning_step_progress', {
+        step: event.step,
+        progress: event.progress,
+      })
     })
 
     this.planningManager.on('stepComplete', (event: any) => {
-      this.routeEventToUI('planning_step_complete', { step: event.step, result: event.result })
+      this.routeEventToUI('planning_step_complete', {
+        step: event.step,
+        result: event.result,
+      })
     })
 
     // 3. Tool/Agent Events (agentService emits: file_read, file_write, file_list, grep_results, tool_call, tool_result, error)
@@ -1453,7 +1488,11 @@ export class NikCLI {
   private routeToConsole(eventType: string, eventData: any): void {
     switch (eventType) {
       case 'planning_step_start':
-        this.addLiveUpdate({ type: 'info', content: eventData.description, source: 'planning' })
+        this.addLiveUpdate({
+          type: 'info',
+          content: eventData.description,
+          source: 'planning',
+        })
         break
       case 'planning_step_progress':
         this.addLiveUpdate({
@@ -1463,13 +1502,25 @@ export class NikCLI {
         })
         break
       case 'planning_step_complete':
-        this.addLiveUpdate({ type: 'log', content: `Complete: ${eventData.step}`, source: 'planning' })
+        this.addLiveUpdate({
+          type: 'log',
+          content: `Complete: ${eventData.step}`,
+          source: 'planning',
+        })
         break
       case 'agent_file_read':
-        this.addLiveUpdate({ type: 'info', content: `File read: ${eventData.path}`, source: 'fileoperations' })
+        this.addLiveUpdate({
+          type: 'info',
+          content: `File read: ${eventData.path}`,
+          source: 'fileoperations',
+        })
         break
       case 'agent_file_written':
-        this.addLiveUpdate({ type: 'log', content: `File written: ${eventData.path}`, source: 'fileoperations' })
+        this.addLiveUpdate({
+          type: 'log',
+          content: `File written: ${eventData.path}`,
+          source: 'fileoperations',
+        })
         break
       case 'agent_file_list':
         this.addLiveUpdate({
@@ -3277,7 +3328,13 @@ export class NikCLI {
               '/queue clear    - Clear all queued inputs',
               '/queue process  - Process next queued input',
             ].join('\n'),
-            { title: '📥 Input Queue', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'yellow' }
+            {
+              title: '📥 Input Queue',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'yellow',
+            }
           )
         )
     }
@@ -4227,7 +4284,10 @@ export class NikCLI {
 
       if (!selectedVM) {
         advancedUI.logFunctionUpdate('info', chalk.cyan('🎯 No VM selected. Choose a VM to chat with:'))
-        selectedVM = await vmSelector.selectVM({ interactive: true, sortBy: 'activity' })
+        selectedVM = await vmSelector.selectVM({
+          interactive: true,
+          sortBy: 'activity',
+        })
 
         if (!selectedVM) {
           advancedUI.logFunctionUpdate('info', chalk.gray('VM mode cancelled'))
@@ -4432,7 +4492,11 @@ export class NikCLI {
         }
 
         usedTaskMaster = true
-        this.addLiveUpdate({ type: 'log', content: '✓ TaskMaster AI plan generated', source: 'planning' })
+        this.addLiveUpdate({
+          type: 'log',
+          content: '✓ TaskMaster AI plan generated',
+          source: 'planning',
+        })
 
         this.initializePlanHud(plan)
 
@@ -4452,7 +4516,11 @@ export class NikCLI {
           content: `⚠︎ TaskMaster planning failed: ${error.message}`,
           source: 'planning',
         })
-        this.addLiveUpdate({ type: 'info', content: '⚡︎ Falling back to enhanced planning...', source: 'planning' })
+        this.addLiveUpdate({
+          type: 'info',
+          content: '⚡︎ Falling back to enhanced planning...',
+          source: 'planning',
+        })
 
         // Fallback to original enhanced planning
         plan = await enhancedPlanning.generatePlan(input, {
@@ -4485,13 +4553,21 @@ export class NikCLI {
 
       // Show plan summary (only in non-compact mode)
       if (process.env.NIKCLI_COMPACT !== '1') {
-        this.addLiveUpdate({ type: 'log', content: '📋 Plan Generated', source: 'planning' })
+        this.addLiveUpdate({
+          type: 'log',
+          content: '📋 Plan Generated',
+          source: 'planning',
+        })
         this.addLiveUpdate({
           type: 'log',
           content: `✓ Todo file saved: ${path.join(this.workingDirectory, 'todo.md')}`,
           source: 'planning',
         })
-        this.addLiveUpdate({ type: 'info', content: `📊 ${plan.todos.length} todos created`, source: 'planning' })
+        this.addLiveUpdate({
+          type: 'info',
+          content: `📊 ${plan.todos.length} todos created`,
+          source: 'planning',
+        })
         this.addLiveUpdate({
           type: 'info',
           content: `⏱️ Estimated duration: ${Math.round(plan.estimatedTotalDuration)} minutes`,
@@ -4525,7 +4601,11 @@ export class NikCLI {
         void this.sendPlanCompletionNotification(plan, executionSuccess)
 
         // After task execution, return to default mode
-        this.addLiveUpdate({ type: 'log', content: '⚡︎ Returning to default mode...', source: 'planning' })
+        this.addLiveUpdate({
+          type: 'log',
+          content: '⚡︎ Returning to default mode...',
+          source: 'planning',
+        })
         this.currentMode = 'default'
 
         try {
@@ -4536,7 +4616,11 @@ export class NikCLI {
         } catch { }
         this.resumePromptAndRender()
       } else {
-        this.addLiveUpdate({ type: 'info', content: '📝 Plan saved to todo.md', source: 'planning' })
+        this.addLiveUpdate({
+          type: 'info',
+          content: '📝 Plan saved to todo.md',
+          source: 'planning',
+        })
 
         // Ask if they want to generate a NEW plan instead
         const newPlan = await approvalSystem.confirmPlanAction(
@@ -4572,7 +4656,11 @@ export class NikCLI {
         // Send plan completion notification (not executed but saved)
         void this.sendPlanCompletionNotification(plan, true)
 
-        this.addLiveUpdate({ type: 'log', content: '⚡︎ Returning to normal mode...', source: 'planning' })
+        this.addLiveUpdate({
+          type: 'log',
+          content: '⚡︎ Returning to normal mode...',
+          source: 'planning',
+        })
         this.currentMode = 'default'
 
         try {
@@ -4586,8 +4674,16 @@ export class NikCLI {
         this.resumePromptAndRender()
       }
     } catch (error: any) {
-      this.addLiveUpdate({ type: 'error', content: `✖ Planning failed: ${error.message}`, source: 'planning' })
-      this.addLiveUpdate({ type: 'warning', content: '⚡︎ Forcing recovery to default mode...', source: 'planning' })
+      this.addLiveUpdate({
+        type: 'error',
+        content: `✖ Planning failed: ${error.message}`,
+        source: 'planning',
+      })
+      this.addLiveUpdate({
+        type: 'warning',
+        content: '⚡︎ Forcing recovery to default mode...',
+        source: 'planning',
+      })
 
       // CRITICAL: Force recovery on any error
       this.forceRecoveryToDefaultMode()
@@ -5157,7 +5253,11 @@ EOF`
                 toolName,
                 ev.toolArgs,
                 { mode: 'plan', toolCallId, agentName },
-                { showInRecentUpdates: true, streamToTerminal: true, persistent: true }
+                {
+                  showInRecentUpdates: true,
+                  streamToTerminal: true,
+                  persistent: true,
+                }
               )
               activeToolCallId = toolCallId
               lastToolName = toolName
@@ -5171,7 +5271,11 @@ EOF`
                   activeToolCallId,
                   ev.toolResult,
                   { mode: 'plan', agentName },
-                  { showInRecentUpdates: true, streamToTerminal: true, persistent: true }
+                  {
+                    showInRecentUpdates: true,
+                    streamToTerminal: true,
+                    persistent: true,
+                  }
                 )
               }
               activeToolCallId = undefined
@@ -5188,7 +5292,11 @@ EOF`
 
             case 'error':
               // Stream error
-              this.addLiveUpdate({ type: 'error', content: `✖ ${agentName} error: ${ev.error}`, source: 'plan-exec' })
+              this.addLiveUpdate({
+                type: 'error',
+                content: `✖ ${agentName} error: ${ev.error}`,
+                source: 'plan-exec',
+              })
               throw new Error(ev.error)
           }
         }
@@ -5475,7 +5583,11 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
    * Pre-merge agent outputs: deduplicate common sections, align headings
    */
   private preMergeAgentOutputs(
-    agentOutputs: Array<{ agentName: string; specialization: string; output: string }>
+    agentOutputs: Array<{
+      agentName: string
+      specialization: string
+      output: string
+    }>
   ): string {
     const sections: string[] = []
 
@@ -5803,10 +5915,17 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
 
     try {
       // Execute task exactly like default mode using tool router
-      const taskMessage = { role: 'user' as const, content: task.description || task.title }
+      const taskMessage = {
+        role: 'user' as const,
+        content: task.description || task.title,
+      }
       const toolRecommendations = toolRouter.analyzeMessage(taskMessage)
 
-      this.addLiveUpdate({ type: 'info', content: `⚡︎ Analyzing task with tool router...`, source: 'task-exec' })
+      this.addLiveUpdate({
+        type: 'info',
+        content: `⚡︎ Analyzing task with tool router...`,
+        source: 'task-exec',
+      })
 
       if (toolRecommendations.length > 0) {
         const topRecommendation = toolRecommendations[0]
@@ -5942,7 +6061,9 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
         const relevantFiles = await this.findRelevantFiles(task)
         for (const filePath of relevantFiles.slice(0, 3)) {
           try {
-            const { content } = await toolService.executeTool('read_file', { filePath })
+            const { content } = await toolService.executeTool('read_file', {
+              filePath,
+            })
             advancedUI.logFunctionUpdate('success', `Analyzed ${filePath}: ${content.length} characters`)
           } catch (error: any) {
             advancedUI.logFunctionUpdate('warning', `Could not read ${filePath}: ${error.message}`)
@@ -6125,7 +6246,9 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
   private async persistActivePlanTodoFile(): Promise<void> {
     if (!this.activePlanForHud) return
     try {
-      await this.saveTaskMasterPlanToFile(this.activePlanForHud, 'todo.md', { silent: true })
+      await this.saveTaskMasterPlanToFile(this.activePlanForHud, 'todo.md', {
+        silent: true,
+      })
     } catch (error: any) {
       advancedUI.logFunctionUpdate('warning', `Could not update todo.md: ${error.message}`)
     }
@@ -6392,7 +6515,6 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     // DISABLED: Auto-todo generation in default chat mode
     // Now only triggers when user explicitly mentions "todo"
 
-
     // Handle execute command for last generated plan
     if (input.toLowerCase().trim() === 'execute' && this.lastGeneratedPlan) {
       advancedUI.logFunctionCall('executing')
@@ -6426,7 +6548,10 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       let interactiveStarted = false
       try {
         // Direct chat response without complexity assessment or auto-todos
-        const toolRecommendations = toolRouter.analyzeMessage({ role: 'user', content: input })
+        const toolRecommendations = toolRouter.analyzeMessage({
+          role: 'user',
+          content: input,
+        })
         if (toolRecommendations.length > 0) {
           const topRecommendation = toolRecommendations[0]
           console.log(
@@ -6660,7 +6785,10 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
 
           // Track assistant response tokens
           try {
-            const assistantMessage = { role: 'assistant' as const, content: assistantText.trim() }
+            const assistantMessage = {
+              role: 'assistant' as const,
+              content: assistantText.trim(),
+            }
             await contextTokenManager.trackMessage(assistantMessage, undefined, true) // isOutput = true
           } catch (error) {
             console.debug('Token tracking failed for assistant response:', error)
@@ -7058,7 +7186,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
           }
 
           const fileInfo = await toolsManager.readFile(filePath, readOptions)
-          const lines = fileInfo.content.split(/\r?\n/)
+          const lines = fileInfo.content?.split(/\r?\n/) || ''
           const total = lines.length
 
           const key = `read:${path.resolve(filePath)}`
@@ -7077,7 +7205,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
               console.log(chalk.yellow('End of file reached.'))
               return { printed: false, end: total }
             }
-            const slice = lines.slice(f - 1, t).join('\n')
+            const slice = lines.slice(f - 1, t).concat('\n')
             console.log(chalk.gray(`Showing lines ${f}-${t} of ${total}`))
             console.log(slice)
             return { printed: true, end: t }
@@ -7108,14 +7236,20 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
             printSlice(f, t)
             this.sessionContext.set(key, { nextStart: t + 1, step })
           } else if (mode === 'more') {
-            const state = this.sessionContext.get(key) || { nextStart: 1, step }
+            const state = this.sessionContext.get(key) || {
+              nextStart: 1,
+              step,
+            }
             // Allow overriding step via flag in --more
             if (hasFlag('step')) state.step = step
             const f = clamp(state.nextStart || 1, 1, total)
             const t = clamp(f + (state.step || step) - 1, 1, total)
             const res = printSlice(f, t)
             if (res.printed) {
-              this.sessionContext.set(key, { nextStart: res.end + 1, step: state.step || step })
+              this.sessionContext.set(key, {
+                nextStart: res.end + 1,
+                step: state.step || step,
+              })
               if (res.end < total) {
                 console.log(chalk.gray('─'.repeat(50)))
                 console.log(
@@ -7136,7 +7270,10 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
                 const f = 1
                 const t = clamp(f + defaultStep - 1, 1, total)
                 printSlice(f, t)
-                this.sessionContext.set(key, { nextStart: t + 1, step: defaultStep })
+                this.sessionContext.set(key, {
+                  nextStart: t + 1,
+                  step: defaultStep,
+                })
                 if (t < total) {
                   console.log(chalk.gray('─'.repeat(50)))
                   this.printPanel(
@@ -7300,7 +7437,10 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
               console.log(`  ${result.content}`)
             })
             if (end < results.length) {
-              this.sessionContext.set(key, { offset: end, limit: state.limit || limit })
+              this.sessionContext.set(key, {
+                offset: end,
+                limit: state.limit || limit,
+              })
               console.log(chalk.gray('─'.repeat(50)))
               console.log(
                 chalk.cyan(
@@ -7315,7 +7455,11 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
         }
       }
     } catch (error: any) {
-      this.addLiveUpdate({ type: 'error', content: `File operation failed: ${error.message}`, source: 'file-ops' })
+      this.addLiveUpdate({
+        type: 'error',
+        content: `File operation failed: ${error.message}`,
+        source: 'file-ops',
+      })
       console.log(chalk.red(`✖ Error: ${error.message}`))
     } finally {
       await this.performCommandCleanup()
@@ -7363,7 +7507,9 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
           const uniqueId = `cmd-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
           this.createStatusIndicator(uniqueId, `Executing: ${cmd}`)
 
-          const result = await toolsManager.runCommand(cmd, cmdArgs, { stream: true })
+          const result = await toolsManager.runCommand(cmd, cmdArgs, {
+            stream: true,
+          })
 
           const success = result.code === 0
           this.updateStatusIndicator(uniqueId, {
@@ -7416,7 +7562,9 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
 
           for (let i = 0; i < packages.length; i++) {
             const pkg = packages[i]
-            this.updateStatusIndicator(installId, { details: `Installing ${pkg}...` })
+            this.updateStatusIndicator(installId, {
+              details: `Installing ${pkg}...`,
+            })
 
             const success = await toolsManager.installPackage(pkg, {
               global: isGlobal,
@@ -7425,10 +7573,18 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
             })
 
             if (!success) {
-              this.addLiveUpdate({ type: 'warning', content: `Failed to install ${pkg}`, source: 'install' })
+              this.addLiveUpdate({
+                type: 'warning',
+                content: `Failed to install ${pkg}`,
+                source: 'install',
+              })
               console.log(chalk.yellow(`⚠︎ Failed to install ${pkg}`))
             } else {
-              this.addLiveUpdate({ type: 'log', content: `Installed ${pkg}`, source: 'install' })
+              this.addLiveUpdate({
+                type: 'log',
+                content: `Installed ${pkg}`,
+                source: 'install',
+              })
             }
 
             this.updateAdvancedProgress(installId, i + 1, packages.length)
@@ -7539,7 +7695,11 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
         }
       }
     } catch (error: any) {
-      this.addLiveUpdate({ type: 'error', content: `Terminal operation failed: ${error.message}`, source: 'terminal' })
+      this.addLiveUpdate({
+        type: 'error',
+        content: `Terminal operation failed: ${error.message}`,
+        source: 'terminal',
+      })
       console.log(chalk.red(`✖ Error: ${error.message}`))
     } finally {
       await this.performCommandCleanup()
@@ -7747,7 +7907,11 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
         }
       }
     } catch (error: any) {
-      this.addLiveUpdate({ type: 'error', content: `Session management failed: ${error.message}`, source: 'session' })
+      this.addLiveUpdate({
+        type: 'error',
+        content: `Session management failed: ${error.message}`,
+        source: 'session',
+      })
       console.log(chalk.red(`✖ Error: ${error.message}`))
     } finally {
       await this.performCommandCleanup()
@@ -7813,7 +7977,13 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
                   `Model: ${modelCfg?.model || modelName}\n` +
                   `API key not configured.\n` +
                   `Tip: /set-key ${modelName} <your-api-key>  |  ${tip}`,
-                  { title: '🔑 API Key Missing', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'yellow' }
+                  {
+                    title: '🔑 API Key Missing',
+                    padding: 1,
+                    margin: 1,
+                    borderStyle: 'round',
+                    borderColor: 'yellow',
+                  }
                 )
               )
 
@@ -7949,9 +8119,25 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
               })
             )
           } catch (error: any) {
+            let errorMessage = 'OAuth error occurred'
+
+            if (error.message.includes('invalid_grant')) {
+              errorMessage = [
+                chalk.red('✖ Authorization code expired or invalid'),
+                '',
+                chalk.dim('The authorization code has expired or was already used.'),
+                chalk.dim('Please get a new code and try again:'),
+                chalk.dim('1. Run /auth anthropic to get a fresh URL'),
+                chalk.dim('2. Complete the authorization quickly'),
+                chalk.dim('3. Use /auth anthropic-login immediately after'),
+              ].join('\n')
+            } else {
+              errorMessage = `✖ OAuth error: ${error.message}`
+            }
+
             this.printPanel(
-              boxen(`Failed to launch ${agentName}: ${error.message}`, {
-                title: 'Agent Error',
+              boxen(errorMessage, {
+                title: 'OAuth Error',
                 padding: 1,
                 margin: 1,
                 borderStyle: 'round',
@@ -8119,7 +8305,11 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
             .map((r) => r.value.agent)
 
           // Generate a single TaskMaster plan (like plan mode)
-          this.addLiveUpdate({ type: 'info', content: '📋 Generating execution plan...', source: 'planning' })
+          this.addLiveUpdate({
+            type: 'info',
+            content: '📋 Generating execution plan...',
+            source: 'planning',
+          })
           const plan = await planningService.createPlan(taskDescription, {
             showProgress: false,
             autoExecute: false,
@@ -8406,7 +8596,11 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
             .map((r) => r.value.agent)
 
           // Generate a single TaskMaster plan (like plan mode)
-          this.addLiveUpdate({ type: 'info', content: '📋 Generating execution plan...', source: 'planning' })
+          this.addLiveUpdate({
+            type: 'info',
+            content: '📋 Generating execution plan...',
+            source: 'planning',
+          })
           const plan = await planningService.createPlan(taskDescription, {
             showProgress: false,
             autoExecute: false,
@@ -8663,7 +8857,11 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
         }
       }
     } catch (error: any) {
-      this.addLiveUpdate({ type: 'error', content: `Advanced feature failed: ${error.message}`, source: 'advanced' })
+      this.addLiveUpdate({
+        type: 'error',
+        content: `Advanced feature failed: ${error.message}`,
+        source: 'advanced',
+      })
       console.log(chalk.red(`✖ Error: ${error.message}`))
     } finally {
       await this.performCommandCleanup()
@@ -8846,12 +9044,18 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
           {
             stepId: 'analysis',
             description: `${blueprint.name} analyzing task requirements`,
-            schema: { type: 'object', properties: { progress: { type: 'string' } } },
+            schema: {
+              type: 'object',
+              properties: { progress: { type: 'string' } },
+            },
           },
           {
             stepId: 'execution',
             description: `${blueprint.name} executing specialized work`,
-            schema: { type: 'object', properties: { status: { type: 'string' } } },
+            schema: {
+              type: 'object',
+              properties: { status: { type: 'string' } },
+            },
           },
         ]
 
@@ -8938,15 +9142,27 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
 
     if (specialization.includes('security') || specialization.includes('audit')) {
       tools.push(
-        { name: 'vulnerability-scanner', description: 'Scan for security issues' },
-        { name: 'dependency-checker', description: 'Check dependency vulnerabilities' },
-        { name: 'code-security-analyzer', description: 'Analyze code for security patterns' }
+        {
+          name: 'vulnerability-scanner',
+          description: 'Scan for security issues',
+        },
+        {
+          name: 'dependency-checker',
+          description: 'Check dependency vulnerabilities',
+        },
+        {
+          name: 'code-security-analyzer',
+          description: 'Analyze code for security patterns',
+        }
       )
     }
 
     if (specialization.includes('performance') || specialization.includes('optimization')) {
       tools.push(
-        { name: 'performance-profiler', description: 'Profile code performance' },
+        {
+          name: 'performance-profiler',
+          description: 'Profile code performance',
+        },
         { name: 'bundle-analyzer', description: 'Analyze bundle size' },
         { name: 'memory-tracker', description: 'Track memory usage' }
       )
@@ -8964,7 +9180,10 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     tools.push(
       { name: 'file-reader', description: 'Read and analyze files' },
       { name: 'code-parser', description: 'Parse code structures' },
-      { name: 'collaboration-interface', description: 'Interface with other agents' }
+      {
+        name: 'collaboration-interface',
+        description: 'Interface with other agents',
+      }
     )
 
     return tools
@@ -9180,7 +9399,11 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
           break
       }
     } catch (error: any) {
-      this.addLiveUpdate({ type: 'error', content: `Style command failed: ${error.message}`, source: 'style' })
+      this.addLiveUpdate({
+        type: 'error',
+        content: `Style command failed: ${error.message}`,
+        source: 'style',
+      })
       this.printPanel(
         boxen(`Style command failed: ${error.message}`, {
           title: 'Style Error',
@@ -9427,7 +9650,11 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
         await this.handleGCodeCommands(args)
       }
     } catch (error: any) {
-      this.addLiveUpdate({ type: 'error', content: `CAD command failed: ${error.message}`, source: 'cad' })
+      this.addLiveUpdate({
+        type: 'error',
+        content: `CAD command failed: ${error.message}`,
+        source: 'cad',
+      })
       console.log(chalk.red(`✖ Error: ${error.message}`))
     } finally {
       await this.performCommandCleanup()
@@ -9712,7 +9939,11 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
         }
       }
     } catch (error: any) {
-      this.addLiveUpdate({ type: 'error', content: `Figma command failed: ${error.message}`, source: 'figma' })
+      this.addLiveUpdate({
+        type: 'error',
+        content: `Figma command failed: ${error.message}`,
+        source: 'figma',
+      })
       console.log(chalk.red(`✖ Error: ${error.message}`))
     } finally {
       await this.performCommandCleanup()
@@ -10103,7 +10334,13 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
           ? `No documents found in category: ${category}`
           : 'No documents in library\nUse /doc-add <url> to add documentation'
         this.printPanel(
-          boxen(msg, { title: 'Documentation', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'yellow' })
+          boxen(msg, {
+            title: 'Documentation',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'yellow',
+          })
         )
         return
       }
@@ -10714,7 +10951,11 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     this.progressBars.clear()
 
     console.log(chalk.green('✓ Session and UI state cleared'))
-    this.addLiveUpdate({ type: 'info', content: 'Session cleared', source: 'session' })
+    this.addLiveUpdate({
+      type: 'info',
+      content: 'Session cleared',
+      source: 'session',
+    })
   }
 
   private async compactSession(): Promise<void> {
@@ -11095,7 +11336,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
         console.log(`  Max cache size: 1000 entries`)
         console.log(`  Similarity threshold: 0.85`)
         console.log(`  Max age: 7 days`)
-        console.log(`  Cache file: ./.nikcli/token-cache.json`)
+        console.log(`  Cache file: ~/.nikcli/token-cache.json`)
         break
 
       case 'export': {
@@ -11375,7 +11616,13 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
               `Output Cost: $${currentCost.outputCost.toFixed(6)}`,
               `Total Cost:  $${currentCost.totalCost.toFixed(6)}`,
             ].join('\n'),
-            { title: 'Current Model Pricing', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'cyan' }
+            {
+              title: 'Current Model Pricing',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'cyan',
+            }
           )
         )
 
@@ -11389,7 +11636,13 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
                 `Daily (50k tokens, 'general'): $${projectedDailyCost.toFixed(4)}`,
                 `Monthly (~1.5M tokens): $${projectedMonthlyCost.toFixed(2)}`,
               ].join('\n'),
-              { title: 'Cost Projections', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'yellow' }
+              {
+                title: 'Cost Projections',
+                padding: 1,
+                margin: 1,
+                borderStyle: 'round',
+                borderColor: 'yellow',
+              }
             )
           )
         }
@@ -11605,9 +11858,14 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
         default:
           if (['on', 'enable', 'off', 'of', 'disable', 'status'].includes(subcommand)) {
             // Toggle auto‑todos behavior via config
-            const cfg = (this.configManager.get('autoTodo') as any) || { requireExplicitTrigger: false }
+            const cfg = (this.configManager.get('autoTodo') as any) || {
+              requireExplicitTrigger: false,
+            }
             if (subcommand === 'on' || subcommand === 'enable') {
-              this.configManager.set('autoTodo', { ...cfg, requireExplicitTrigger: false } as any)
+              this.configManager.set('autoTodo', {
+                ...cfg,
+                requireExplicitTrigger: false,
+              } as any)
               this.printPanel(
                 boxen(
                   'Auto‑todos enabled (complex inputs can trigger background todos, ).\nUse "/todos off" to require explicit "todo".',
@@ -11621,7 +11879,10 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
                 )
               )
             } else if (subcommand === 'off' || subcommand === 'of' || subcommand === 'disable') {
-              this.configManager.set('autoTodo', { ...cfg, requireExplicitTrigger: true } as any)
+              this.configManager.set('autoTodo', {
+                ...cfg,
+                requireExplicitTrigger: true,
+              } as any)
               this.printPanel(
                 boxen(
                   'Auto‑todos disabled. Only messages containing "todo" will trigger todos.\nUse "/todos on" to enable automatic triggering.',
@@ -11663,7 +11924,11 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
           }
       }
     } catch (error: any) {
-      this.addLiveUpdate({ type: 'error', content: `Todo operation failed: ${error.message}`, source: 'todo' })
+      this.addLiveUpdate({
+        type: 'error',
+        content: `Todo operation failed: ${error.message}`,
+        source: 'todo',
+      })
       this.printPanel(
         boxen(`Todo operation failed: ${error.message}`, {
           title: 'Todos Error',
@@ -12858,7 +13123,10 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
   /**
    * Build a comprehensive repository overview for NIKOCLI.md
    */
-  private async generateRepositoryOverview(): Promise<{ markdown: string; summary: any }> {
+  private async generateRepositoryOverview(): Promise<{
+    markdown: string
+    summary: any
+  }> {
     const pkgPath = path.join(this.workingDirectory, 'package.json')
     let pkg: any = null
     try {
@@ -12982,7 +13250,13 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     lines.push('- Update sections as needed, or regenerate with /init --force.')
 
     const markdown = lines.join('\n')
-    const summary = { totalFiles: counts.files, totalDirs: counts.dirs, testFiles: counts.tests, gitBranch, lastCommit }
+    const summary = {
+      totalFiles: counts.files,
+      totalDirs: counts.dirs,
+      testFiles: counts.tests,
+      gitBranch,
+      lastCommit,
+    }
     return { markdown, summary }
   }
 
@@ -14587,7 +14861,10 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
   /**
    * Format tool call info for structured logging
    */
-  private formatToolCallInfo(ev: any): { functionName: string; details: string | null } {
+  private formatToolCallInfo(ev: any): {
+    functionName: string
+    details: string | null
+  } {
     const toolName = ev.toolName || 'unknown'
     const args = ev.toolArgs || ev.args || {}
 
@@ -14860,9 +15137,18 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
    */
   private initializeModelPricing(): void {
     // Anthropic Claude pricing (per 1M tokens)
-    this.modelPricing.set('claude-sonnet-4-20250514', { input: 15.0, output: 75.0 })
-    this.modelPricing.set('claude-3-5-sonnet-latest', { input: 0.25, output: 1.25 })
-    this.modelPricing.set('claude-4-opus-20250514', { input: 3.0, output: 15.0 })
+    this.modelPricing.set('claude-sonnet-4-20250514', {
+      input: 15.0,
+      output: 75.0,
+    })
+    this.modelPricing.set('claude-3-5-sonnet-latest', {
+      input: 0.25,
+      output: 1.25,
+    })
+    this.modelPricing.set('claude-4-opus-20250514', {
+      input: 3.0,
+      output: 15.0,
+    })
 
     // OpenAI pricing (per 1M tokens)
     this.modelPricing.set('gpt-4o', { input: 5.0, output: 15.0 })
@@ -14872,7 +15158,10 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     // Google Gemini pricing (per 1M tokens)
     this.modelPricing.set('gemini-2.5-pro', { input: 1.25, output: 5.0 })
     this.modelPricing.set('gemini-2.5-flash', { input: 0.075, output: 0.3 })
-    this.modelPricing.set('gemini-2.5-flash-lite', { input: 0.075, output: 0.3 })
+    this.modelPricing.set('gemini-2.5-flash-lite', {
+      input: 0.075,
+      output: 0.3,
+    })
   }
 
   /**
@@ -15327,7 +15616,10 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     } finally {
       try {
         if (!finalized) {
-          this.updateStatusIndicator(uniqueId, { status: 'failed', details: 'Command aborted' })
+          this.updateStatusIndicator(uniqueId, {
+            status: 'failed',
+            details: 'Command aborted',
+          })
         }
       } catch { }
       // Ensure the prompt is rendered on a clean line without overlaps
@@ -15803,9 +16095,15 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       case 'quotas':
         await this.showAuthQuotas()
         break
+      case 'anthropic':
+        await this.handleAnthropicOAuth(args.slice(1))
+        break
+      case 'anthropic-login':
+        await this.handleAnthropicOAuthLogin()
+        break
       default:
         this.printPanel(
-          boxen('Usage: /auth [signin|signup|signout|profile|quotas]', {
+          boxen('Usage: /auth [signin|signup|signout|profile|quotas|anthropic]', {
             title: 'Auth Command',
             padding: 1,
             margin: 1,
@@ -15822,6 +16120,275 @@ This file is automatically maintained by NikCLI to provide consistent context ac
    */
   private async handleAuthSignIn(): Promise<void> {
     await this.openInteractiveLoginModal()
+  }
+
+  /**
+   * Handle Anthropic OAuth for Claude Pro/Max subscription
+   */
+  private async handleAnthropicOAuth(args: string[]): Promise<void> {
+    const subCmd = args[0] || 'login'
+
+    try {
+      const { getAuthorizationUrl, exchangeCodeForTokens } = await import('./auth/anthropic-oauth')
+
+      if (subCmd === 'status') {
+        const hasOAuth = this.configManager.hasAnthropicOAuth()
+        const tokens = this.configManager.getAnthropicOAuthTokens()
+
+        if (hasOAuth && tokens) {
+          const expiresIn = Math.max(0, Math.floor((tokens.expires - Date.now()) / 1000 / 60))
+          this.printPanel(
+            boxen(
+              [
+                chalk.green('✓ Anthropic OAuth: Connected'),
+                '',
+                `Token expires in: ${expiresIn} minutes`,
+                chalk.dim('Using Claude Pro/Max subscription'),
+              ].join('\n'),
+              {
+                title: '🔐 Anthropic OAuth Status',
+                padding: 1,
+                margin: 1,
+                borderStyle: 'round',
+                borderColor: 'green',
+              }
+            )
+          )
+        } else {
+          this.printPanel(
+            boxen(
+              [
+                chalk.yellow('⚠︎ Anthropic OAuth: Not connected'),
+                '',
+                chalk.dim('Use /auth anthropic to connect your Claude Pro/Max subscription'),
+              ].join('\n'),
+              {
+                title: '🔐 Anthropic OAuth Status',
+                padding: 1,
+                margin: 1,
+                borderStyle: 'round',
+                borderColor: 'yellow',
+              }
+            )
+          )
+        }
+        return
+      }
+
+      if (subCmd === 'logout' || subCmd === 'disconnect') {
+        this.configManager.clearAnthropicOAuth()
+        this.printPanel(
+          boxen(chalk.green('✓ Anthropic OAuth disconnected'), {
+            title: '🔐 Anthropic OAuth',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'green',
+          })
+        )
+        return
+      }
+
+      // Login flow - mostra solo URL
+      const { url, verifier } = getAuthorizationUrl('max')
+      const nik: any = (global as any).__nikCLI
+
+      // Store verifier temporarily for login completion
+      this.configManager.setAnthropicOAuthVerifier(verifier)
+
+      // Panel persistente con URL
+      nik?.beginPanelOutput?.()
+      this.printPanel(
+        boxen(
+          [
+            chalk.cyan('🔐 Anthropic OAuth - Claude Pro/Max'),
+            chalk.gray('─'.repeat(40)),
+            '',
+            'Open this URL in your browser:',
+            '',
+            `\x1b]8;;${url}\x07${chalk.blue(url)}\x1b]8;;\x07`,
+            '',
+            chalk.dim('After authorizing, use /auth anthropic-login to complete the process.'),
+          ].join('\n'),
+          {
+            title: 'Anthropic OAuth Login',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'cyan',
+          }
+        )
+      )
+      nik?.endPanelOutput?.()
+    } catch (error: any) {
+      this.printPanel(
+        boxen(chalk.red(`✖ OAuth error: ${error.message}`), {
+          title: 'Error',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+      )
+    }
+  }
+
+  /**
+   * Handle Anthropic OAuth login with interactive code input
+   */
+  private async handleAnthropicOAuthLogin(): Promise<void> {
+    const nik: any = (global as any).__nikCLI
+
+    try {
+      const { exchangeCodeForTokens } = await import('./auth/anthropic-oauth')
+
+      // Get stored verifier from previous auth request
+      const verifier = this.configManager.getAnthropicOAuthVerifier()
+
+      if (!verifier) {
+        this.printPanel(
+          boxen(
+            [
+              chalk.red('✖ No authorization session found'),
+              '',
+              chalk.dim('Please start the authorization process again:'),
+              chalk.dim('1. Run /auth anthropic to get a fresh URL'),
+              chalk.dim('2. Complete the authorization in your browser'),
+              chalk.dim('3. Use /auth anthropic-login immediately after'),
+            ].join('\n'),
+            {
+              title: 'Session Error',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'red',
+            }
+          )
+        )
+        return
+      }
+
+      // Sospendi prompt per input interattivo
+      const inquirer = (await import('inquirer')).default
+      const { inputQueue } = await import('./core/input-queue')
+
+      nik?.suspendPrompt?.()
+      inputQueue.enableBypass()
+
+      let code: string
+      try {
+        const answers = await inquirer.prompt([
+          {
+            type: 'input',
+            name: 'code',
+            message: 'Paste authorization code:',
+            validate: (input: string) => (input.length > 10 ? true : 'Please paste the full authorization code'),
+          },
+        ])
+        code = answers.code
+      } finally {
+        inputQueue.disableBypass()
+        nik?.renderPromptAfterOutput?.()
+      }
+
+      // Exchange code for tokens
+      this.printPanel(
+        boxen(chalk.blue('⚡︎ Exchanging code for tokens...'), {
+          title: 'Processing',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'blue',
+        })
+      )
+
+      const tokens = await exchangeCodeForTokens(code.trim(), verifier)
+
+      // Clear the temporary verifier
+      this.configManager.clearAnthropicOAuthVerifier()
+
+      if (tokens) {
+        this.configManager.setAnthropicOAuthTokens(tokens)
+
+        // Set Anthropic as the active provider since OAuth is now configured
+        const currentConfig = this.configManager.getApiKey('anthropicKey')
+        if (currentConfig !== 'anthropic') {
+          this.configManager.getCurrentModel()
+          this.printPanel(
+            boxen(
+              [
+                chalk.green('✓ Anthropic OAuth connected successfully!'),
+                '',
+                chalk.yellow('🔄 Provider automatically set to Anthropic'),
+                chalk.dim('You can now use Claude models with your Pro/Max subscription.'),
+                chalk.dim('Token will auto-refresh when needed.'),
+              ].join('\n'),
+              {
+                title: '🎉 Success',
+                padding: 1,
+                margin: 1,
+                borderStyle: 'round',
+                borderColor: 'green',
+              }
+            )
+          )
+        } else {
+          this.printPanel(
+            boxen(
+              [
+                chalk.green('✓ Anthropic OAuth connected successfully!'),
+                '',
+                chalk.dim('You can now use Claude models with your Pro/Max subscription.'),
+                chalk.dim('Token will auto-refresh when needed.'),
+              ].join('\n'),
+              {
+                title: '🎉 Success',
+                padding: 1,
+                margin: 1,
+                borderStyle: 'round',
+                borderColor: 'green',
+              }
+            ))
+        }
+      } else {
+        this.printPanel(
+          boxen(chalk.red('✖ Failed to exchange code for tokens. Please try again.'), {
+            title: 'Error',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'red',
+          })
+        )
+      }
+    } catch (error: any) {
+      this.printPanel(
+        boxen(chalk.red(`✖ OAuth error: ${error.message}`), {
+          title: 'Error',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+      )
+    }
+  }
+
+  /**
+   * Wrap long URLs to fit in terminal
+   */
+  private wrapUrl(url: string): string[] {
+    const maxWidth = 60
+    if (url.length <= maxWidth) {
+      return [chalk.blue.underline(url)]
+    }
+
+    const lines: string[] = []
+    for (let i = 0; i < url.length; i += maxWidth) {
+      const chunk = url.substring(i, i + maxWidth)
+      lines.push(chalk.blue.underline(chunk))
+    }
+    return lines
   }
 
   /**
@@ -16571,7 +17138,10 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         return
       }
       const id = args[0]
-      await snapshotService.restoreSnapshot(id, { backup: true, overwrite: true })
+      await snapshotService.restoreSnapshot(id, {
+        backup: true,
+        overwrite: true,
+      })
       this.printPanel(
         boxen(`Restored snapshot: ${id}`, {
           title: '📸 Snapshot Restored',
@@ -18146,12 +18716,36 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       // NikCLI Integration Features
       console.log(chalk.bold.cyan('🔌 NikCLI Integration'))
       const integrationFeatures = [
-        { name: 'Session Synchronization', description: 'Sync chat sessions across devices', available: true },
-        { name: 'Agent Blueprints', description: 'Share and discover AI agent configurations', available: true },
-        { name: 'Usage Analytics', description: 'Track token usage and performance metrics', available: true },
-        { name: 'Team Collaboration', description: 'Share workspaces and collaborate in real-time', available: true },
-        { name: 'Cloud Caching', description: 'Persistent cache for AI responses and data', available: true },
-        { name: 'User Profiles & Quotas', description: 'Manage usage limits and subscription tiers', available: true },
+        {
+          name: 'Session Synchronization',
+          description: 'Sync chat sessions across devices',
+          available: true,
+        },
+        {
+          name: 'Agent Blueprints',
+          description: 'Share and discover AI agent configurations',
+          available: true,
+        },
+        {
+          name: 'Usage Analytics',
+          description: 'Track token usage and performance metrics',
+          available: true,
+        },
+        {
+          name: 'Team Collaboration',
+          description: 'Share workspaces and collaborate in real-time',
+          available: true,
+        },
+        {
+          name: 'Cloud Caching',
+          description: 'Persistent cache for AI responses and data',
+          available: true,
+        },
+        {
+          name: 'User Profiles & Quotas',
+          description: 'Manage usage limits and subscription tiers',
+          available: true,
+        },
       ]
 
       integrationFeatures.forEach((feature) => {
@@ -19398,7 +19992,6 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     }
   }
 
-
   /**
    * Execute todos in background using orchestrated agents
    */
@@ -19936,7 +20529,12 @@ This file is automatically maintained by NikCLI to provide consistent context ac
                 default: cfg.maxTokens,
                 validate: (v: any) => asNumber(v, 1, 800000),
               },
-              { type: 'confirm', name: 'chatHistory', message: 'Enable chat history?', default: cfg.chatHistory },
+              {
+                type: 'confirm',
+                name: 'chatHistory',
+                message: 'Enable chat history?',
+                default: cfg.chatHistory,
+              },
               {
                 type: 'input',
                 name: 'maxHistoryLength',
@@ -19954,7 +20552,9 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           }
           case 'autotodos': {
             const current = !!cfg.autoTodo?.requireExplicitTrigger
-            const { requireExplicitTrigger } = await inquirer.prompt<{ requireExplicitTrigger: boolean }>([
+            const { requireExplicitTrigger } = await inquirer.prompt<{
+              requireExplicitTrigger: boolean
+            }>([
               {
                 type: 'confirm',
                 name: 'requireExplicitTrigger',
@@ -19962,14 +20562,27 @@ This file is automatically maintained by NikCLI to provide consistent context ac
                 default: current,
               },
             ])
-            this.configManager.set('autoTodo', { ...(cfg.autoTodo || {}), requireExplicitTrigger } as any)
+            this.configManager.set('autoTodo', {
+              ...(cfg.autoTodo || {}),
+              requireExplicitTrigger,
+            } as any)
             console.log(chalk.green('✓ Updated Auto Todos settings'))
             break
           }
           case 'routing': {
             const { enabled, verbose, mode } = await inquirer.prompt([
-              { type: 'confirm', name: 'enabled', message: 'Enable routing?', default: cfg.modelRouting.enabled },
-              { type: 'confirm', name: 'verbose', message: 'Verbose routing logs?', default: cfg.modelRouting.verbose },
+              {
+                type: 'confirm',
+                name: 'enabled',
+                message: 'Enable routing?',
+                default: cfg.modelRouting.enabled,
+              },
+              {
+                type: 'confirm',
+                name: 'verbose',
+                message: 'Verbose routing logs?',
+                default: cfg.modelRouting.verbose,
+              },
               {
                 type: 'list',
                 name: 'mode',
@@ -19978,7 +20591,11 @@ This file is automatically maintained by NikCLI to provide consistent context ac
                 default: cfg.modelRouting.mode,
               },
             ])
-            this.configManager.set('modelRouting', { enabled, verbose, mode } as any)
+            this.configManager.set('modelRouting', {
+              enabled,
+              verbose,
+              mode,
+            } as any)
             console.log(chalk.green('✓ Updated Model Routing'))
             break
           }
@@ -20090,10 +20707,30 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           case 'sandbox': {
             const s = cfg.sandbox
             const a = await inquirer.prompt([
-              { type: 'confirm', name: 'enabled', message: 'Enable sandbox?', default: s.enabled },
-              { type: 'confirm', name: 'allowFileSystem', message: 'Allow file system?', default: s.allowFileSystem },
-              { type: 'confirm', name: 'allowNetwork', message: 'Allow network?', default: s.allowNetwork },
-              { type: 'confirm', name: 'allowCommands', message: 'Allow commands?', default: s.allowCommands },
+              {
+                type: 'confirm',
+                name: 'enabled',
+                message: 'Enable sandbox?',
+                default: s.enabled,
+              },
+              {
+                type: 'confirm',
+                name: 'allowFileSystem',
+                message: 'Allow file system?',
+                default: s.allowFileSystem,
+              },
+              {
+                type: 'confirm',
+                name: 'allowNetwork',
+                message: 'Allow network?',
+                default: s.allowNetwork,
+              },
+              {
+                type: 'confirm',
+                name: 'allowCommands',
+                message: 'Allow commands?',
+                default: s.allowCommands,
+              },
             ])
             this.configManager.set('sandbox', { ...s, ...a } as any)
             console.log(chalk.green('✓ Updated Sandbox settings'))
@@ -20123,7 +20760,10 @@ This file is automatically maintained by NikCLI to provide consistent context ac
                   type: 'list',
                   name: 'model',
                   message: 'Choose current model',
-                  choices: list.map((m) => ({ name: `${m.name} (${(m.config as any).provider})`, value: m.name })),
+                  choices: list.map((m) => ({
+                    name: `${m.name} (${(m.config as any).provider})`,
+                    value: m.name,
+                  })),
                   default: this.configManager.getCurrentModel(),
                 },
               ])
@@ -20142,7 +20782,12 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           case 'middleware': {
             const m = cfg.middleware
             const security = await inquirer.prompt([
-              { type: 'confirm', name: 'enabled', message: 'Enable security middleware?', default: m.security.enabled },
+              {
+                type: 'confirm',
+                name: 'enabled',
+                message: 'Enable security middleware?',
+                default: m.security.enabled,
+              },
               {
                 type: 'list',
                 name: 'riskThreshold',
@@ -20152,7 +20797,12 @@ This file is automatically maintained by NikCLI to provide consistent context ac
               },
             ])
             const logging = await inquirer.prompt([
-              { type: 'confirm', name: 'enabled', message: 'Enable logging middleware?', default: m.logging.enabled },
+              {
+                type: 'confirm',
+                name: 'enabled',
+                message: 'Enable logging middleware?',
+                default: m.logging.enabled,
+              },
               {
                 type: 'list',
                 name: 'logLevel',
@@ -20180,7 +20830,10 @@ This file is automatically maintained by NikCLI to provide consistent context ac
               ...m,
               security: { ...m.security, ...security },
               logging: { ...m.logging, ...logging },
-              performance: { ...m.performance, slowExecutionThreshold: Number(performance.slowThreshold) },
+              performance: {
+                ...m.performance,
+                slowExecutionThreshold: Number(performance.slowThreshold),
+              },
             } as any)
             console.log(chalk.green('✓ Updated Middleware settings'))
             break
@@ -20188,15 +20841,30 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           case 'reasoning': {
             const r = cfg.reasoning
             const ans = await inquirer.prompt([
-              { type: 'confirm', name: 'enabled', message: 'Enable reasoning globally?', default: r.enabled },
-              { type: 'confirm', name: 'autoDetect', message: 'Auto-detect reasoning models?', default: r.autoDetect },
+              {
+                type: 'confirm',
+                name: 'enabled',
+                message: 'Enable reasoning globally?',
+                default: r.enabled,
+              },
+              {
+                type: 'confirm',
+                name: 'autoDetect',
+                message: 'Auto-detect reasoning models?',
+                default: r.autoDetect,
+              },
               {
                 type: 'confirm',
                 name: 'showReasoningProcess',
                 message: 'Show reasoning process to user?',
                 default: r.showReasoningProcess,
               },
-              { type: 'confirm', name: 'logReasoning', message: 'Log reasoning to debug?', default: r.logReasoning },
+              {
+                type: 'confirm',
+                name: 'logReasoning',
+                message: 'Log reasoning to debug?',
+                default: r.logReasoning,
+              },
             ])
             this.configManager.set('reasoning', ans as any)
             console.log(chalk.green('✓ Updated Reasoning settings'))
@@ -20225,14 +20893,22 @@ This file is automatically maintained by NikCLI to provide consistent context ac
                 default: e.autoSwitchOnFailure,
               },
             ])
-            this.configManager.set('embeddingProvider', { ...e, ...ans } as any)
+            this.configManager.set('embeddingProvider', {
+              ...e,
+              ...ans,
+            } as any)
             console.log(chalk.green('✓ Updated Embedding Provider settings'))
             break
           }
           case 'diff': {
             const d = cfg.diff
             const ans = await inquirer.prompt([
-              { type: 'confirm', name: 'enabled', message: 'Enable diff display?', default: d.enabled },
+              {
+                type: 'confirm',
+                name: 'enabled',
+                message: 'Enable diff display?',
+                default: d.enabled,
+              },
               {
                 type: 'list',
                 name: 'style',
@@ -20240,8 +20916,19 @@ This file is automatically maintained by NikCLI to provide consistent context ac
                 choices: ['unified', 'side-by-side', 'compact'],
                 default: d.style,
               },
-              { type: 'list', name: 'theme', message: 'Theme', choices: ['dark', 'light', 'auto'], default: d.theme },
-              { type: 'confirm', name: 'showLineNumbers', message: 'Show line numbers?', default: d.showLineNumbers },
+              {
+                type: 'list',
+                name: 'theme',
+                message: 'Theme',
+                choices: ['dark', 'light', 'auto'],
+                default: d.theme,
+              },
+              {
+                type: 'confirm',
+                name: 'showLineNumbers',
+                message: 'Show line numbers?',
+                default: d.showLineNumbers,
+              },
               {
                 type: 'input',
                 name: 'contextLines',
@@ -20250,7 +20937,11 @@ This file is automatically maintained by NikCLI to provide consistent context ac
                 validate: (v: any) => asNumber(v, 0, 10),
               },
             ])
-            this.configManager.set('diff', { ...d, ...ans, contextLines: Number(ans.contextLines) } as any)
+            this.configManager.set('diff', {
+              ...d,
+              ...ans,
+              contextLines: Number(ans.contextLines),
+            } as any)
             console.log(chalk.green('✓ Updated Diff Display settings'))
             break
           }
@@ -20297,10 +20988,17 @@ This file is automatically maintained by NikCLI to provide consistent context ac
               this.configManager.set('outputStyle', {
                 ...o,
                 defaultStyle,
-                customizations: { ...o.customizations, ...custom, verbosityLevel: Number(custom.verbosityLevel) },
+                customizations: {
+                  ...o.customizations,
+                  ...custom,
+                  verbosityLevel: Number(custom.verbosityLevel),
+                },
               } as any)
             } else {
-              this.configManager.set('outputStyle', { ...o, defaultStyle } as any)
+              this.configManager.set('outputStyle', {
+                ...o,
+                defaultStyle,
+              } as any)
             }
             console.log(chalk.green('✓ Updated Output Style settings'))
             break
@@ -20325,7 +21023,9 @@ This file is automatically maintained by NikCLI to provide consistent context ac
               },
             ])
             if (action === 'toggle') {
-              const { serverName } = await inquirer.prompt<{ serverName: string }>([
+              const { serverName } = await inquirer.prompt<{
+                serverName: string
+              }>([
                 {
                   type: 'list',
                   name: 'serverName',
@@ -20338,14 +21038,26 @@ This file is automatically maintained by NikCLI to provide consistent context ac
               ])
               const server = mcpServers[serverName]
               const { enabled } = await inquirer.prompt([
-                { type: 'confirm', name: 'enabled', message: `Enable ${serverName}?`, default: server.enabled },
+                {
+                  type: 'confirm',
+                  name: 'enabled',
+                  message: `Enable ${serverName}?`,
+                  default: server.enabled,
+                },
               ])
               server.enabled = enabled
               this.configManager.set('mcp', mcpServers as any)
               console.log(chalk.green(`✓ ${serverName} ${enabled ? 'enabled' : 'disabled'}`))
             } else if (action === 'view') {
-              const { serverName } = await inquirer.prompt<{ serverName: string }>([
-                { type: 'list', name: 'serverName', message: 'Select server', choices: serverNames },
+              const { serverName } = await inquirer.prompt<{
+                serverName: string
+              }>([
+                {
+                  type: 'list',
+                  name: 'serverName',
+                  message: 'Select server',
+                  choices: serverNames,
+                },
               ])
               const server = mcpServers[serverName]
               console.log(chalk.blue(`\nMCP Server: ${serverName}`))
@@ -20447,7 +21159,13 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         switch (section) {
           case 'overview': {
             await this.showContextOverview()
-            await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+            await inquirer.prompt([
+              {
+                type: 'input',
+                name: 'continue',
+                message: 'Press Enter to continue...',
+              },
+            ])
             break
           }
           case 'rag': {
@@ -20475,7 +21193,13 @@ This file is automatically maintained by NikCLI to provide consistent context ac
             await workspaceContext.refreshWorkspaceIndex()
             await unifiedRAGSystem.analyzeProject(this.workingDirectory)
             console.log(chalk.green('✓ Index refreshed successfully\n'))
-            await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+            await inquirer.prompt([
+              {
+                type: 'input',
+                name: 'continue',
+                message: 'Press Enter to continue...',
+              },
+            ])
             break
           }
           case 'clear': {
@@ -20493,7 +21217,13 @@ This file is automatically maintained by NikCLI to provide consistent context ac
               await workspaceContext.selectPaths([])
               console.log(chalk.green('\n✓ Context cleared successfully\n'))
             }
-            await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+            await inquirer.prompt([
+              {
+                type: 'input',
+                name: 'continue',
+                message: 'Press Enter to continue...',
+              },
+            ])
             break
           }
           default:
@@ -20570,7 +21300,13 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         switch (section) {
           case 'overview': {
             await this.showIndexOverview()
-            await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+            await inquirer.prompt([
+              {
+                type: 'input',
+                name: 'continue',
+                message: 'Press Enter to continue...',
+              },
+            ])
             break
           }
           case 'browse': {
@@ -20616,12 +21352,24 @@ This file is automatically maintained by NikCLI to provide consistent context ac
 
               console.log(chalk.green('✓ Index rebuilt successfully\n'))
             }
-            await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+            await inquirer.prompt([
+              {
+                type: 'input',
+                name: 'continue',
+                message: 'Press Enter to continue...',
+              },
+            ])
             break
           }
           case 'stats': {
             await this.showIndexStatistics()
-            await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+            await inquirer.prompt([
+              {
+                type: 'input',
+                name: 'continue',
+                message: 'Press Enter to continue...',
+              },
+            ])
             break
           }
           default:
@@ -20715,7 +21463,13 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         console.log(`  Max Index Files: ${ragConfig.maxIndexFiles}`)
         console.log(`  Chunk Size: ${ragConfig.chunkSize} tokens`)
         console.log()
-        await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+        await inquirer.prompt([
+          {
+            type: 'input',
+            name: 'continue',
+            message: 'Press Enter to continue...',
+          },
+        ])
         break
       }
       case 'configure': {
@@ -20770,7 +21524,13 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         })
 
         console.log(chalk.green('\n✓ RAG configuration updated successfully\n'))
-        await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+        await inquirer.prompt([
+          {
+            type: 'input',
+            name: 'continue',
+            message: 'Press Enter to continue...',
+          },
+        ])
         break
       }
       case 'add': {
@@ -20797,7 +21557,13 @@ This file is automatically maintained by NikCLI to provide consistent context ac
 
           console.log(chalk.green('✓ Paths added to RAG index\n'))
         }
-        await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+        await inquirer.prompt([
+          {
+            type: 'input',
+            name: 'continue',
+            message: 'Press Enter to continue...',
+          },
+        ])
         break
       }
       case 'remove': {
@@ -20806,7 +21572,13 @@ This file is automatically maintained by NikCLI to provide consistent context ac
 
         if (selectedPaths.length === 0) {
           console.log(chalk.yellow('\n⚠︎  No paths in RAG to remove\n'))
-          await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+          await inquirer.prompt([
+            {
+              type: 'input',
+              name: 'continue',
+              message: 'Press Enter to continue...',
+            },
+          ])
           break
         }
 
@@ -20832,14 +21604,26 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           })
           console.log()
         }
-        await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+        await inquirer.prompt([
+          {
+            type: 'input',
+            name: 'continue',
+            message: 'Press Enter to continue...',
+          },
+        ])
         break
       }
       case 'refresh': {
         console.log(chalk.blue('\n⚡ Refreshing RAG index...'))
         await unifiedRAGSystem.analyzeProject(this.workingDirectory)
         console.log(chalk.green('✓ RAG index refreshed\n'))
-        await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+        await inquirer.prompt([
+          {
+            type: 'input',
+            name: 'continue',
+            message: 'Press Enter to continue...',
+          },
+        ])
         break
       }
     }
@@ -20850,7 +21634,13 @@ This file is automatically maintained by NikCLI to provide consistent context ac
 
     if (!session) {
       console.log(chalk.yellow('\n⚠︎  No active conversation session\n'))
-      await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+      await inquirer.prompt([
+        {
+          type: 'input',
+          name: 'continue',
+          message: 'Press Enter to continue...',
+        },
+      ])
       return
     }
 
@@ -20879,7 +21669,13 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         console.log(`  Context Limit: ${session.modelLimits.context.toLocaleString()}`)
         console.log(`  Max Output: ${session.modelLimits.output.toLocaleString()}`)
         console.log()
-        await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+        await inquirer.prompt([
+          {
+            type: 'input',
+            name: 'continue',
+            message: 'Press Enter to continue...',
+          },
+        ])
         break
       }
       case 'messages': {
@@ -20898,7 +21694,13 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           })
         }
         console.log()
-        await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+        await inquirer.prompt([
+          {
+            type: 'input',
+            name: 'continue',
+            message: 'Press Enter to continue...',
+          },
+        ])
         break
       }
       case 'limits': {
@@ -20921,7 +21723,13 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         this.configManager.set('maxHistoryLength', maxHistory)
 
         console.log(chalk.green('\n✓ Context limits updated\n'))
-        await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+        await inquirer.prompt([
+          {
+            type: 'input',
+            name: 'continue',
+            message: 'Press Enter to continue...',
+          },
+        ])
         break
       }
       case 'clear': {
@@ -20937,7 +21745,13 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           await contextTokenManager.endSession()
           console.log(chalk.green('\n✓ Conversation cleared\n'))
         }
-        await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+        await inquirer.prompt([
+          {
+            type: 'input',
+            name: 'continue',
+            message: 'Press Enter to continue...',
+          },
+        ])
         break
       }
     }
@@ -20978,7 +21792,13 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           console.log()
         }
 
-        await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+        await inquirer.prompt([
+          {
+            type: 'input',
+            name: 'continue',
+            message: 'Press Enter to continue...',
+          },
+        ])
         break
       }
       case 'priority': {
@@ -20988,7 +21808,13 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         console.log('  • Recent usage patterns')
         console.log('  • Semantic relevance to queries')
         console.log()
-        await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+        await inquirer.prompt([
+          {
+            type: 'input',
+            name: 'continue',
+            message: 'Press Enter to continue...',
+          },
+        ])
         break
       }
       case 'configure': {
@@ -21010,7 +21836,13 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         console.log(
           chalk.green(`\n✓ Agent context configured (max files: ${maxFiles}, threshold: ${searchThreshold})\n`)
         )
-        await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+        await inquirer.prompt([
+          {
+            type: 'input',
+            name: 'continue',
+            message: 'Press Enter to continue...',
+          },
+        ])
         break
       }
     }
@@ -21045,7 +21877,13 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           console.log(`  Framework: ${ctx.projectMetadata.framework}`)
         }
         console.log()
-        await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+        await inquirer.prompt([
+          {
+            type: 'input',
+            name: 'continue',
+            message: 'Press Enter to continue...',
+          },
+        ])
         break
       }
       case 'paths': {
@@ -21067,14 +21905,26 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           await workspaceContext.selectPaths(pathList)
           console.log(chalk.green(`✓ Selected ${pathList.length} path(s)\n`))
         }
-        await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+        await inquirer.prompt([
+          {
+            type: 'input',
+            name: 'continue',
+            message: 'Press Enter to continue...',
+          },
+        ])
         break
       }
       case 'refresh': {
         console.log(chalk.blue('\n⚡ Refreshing base context...'))
         await workspaceContext.refreshWorkspaceIndex()
         console.log(chalk.green('✓ Base context refreshed\n'))
-        await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+        await inquirer.prompt([
+          {
+            type: 'input',
+            name: 'continue',
+            message: 'Press Enter to continue...',
+          },
+        ])
         break
       }
     }
@@ -21115,7 +21965,13 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         this.configManager.set('maxTokens', ans.maxTokens)
         this.configManager.set('maxHistoryLength', ans.maxHistoryLength)
         console.log(chalk.green('\n✓ Token settings updated\n'))
-        await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+        await inquirer.prompt([
+          {
+            type: 'input',
+            name: 'continue',
+            message: 'Press Enter to continue...',
+          },
+        ])
         break
       }
       case 'cache': {
@@ -21143,7 +21999,13 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         }
 
         console.log(chalk.green('\n✓ Cache settings updated\n'))
-        await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+        await inquirer.prompt([
+          {
+            type: 'input',
+            name: 'continue',
+            message: 'Press Enter to continue...',
+          },
+        ])
         break
       }
       case 'advanced': {
@@ -21169,7 +22031,13 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         })
 
         console.log(chalk.green('\n✓ Advanced settings updated\n'))
-        await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+        await inquirer.prompt([
+          {
+            type: 'input',
+            name: 'continue',
+            message: 'Press Enter to continue...',
+          },
+        ])
         break
       }
     }
@@ -21220,7 +22088,13 @@ This file is automatically maintained by NikCLI to provide consistent context ac
 
     if (indexedFiles.length === 0) {
       console.log(chalk.yellow('\n⚠︎  No files indexed\n'))
-      await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+      await inquirer.prompt([
+        {
+          type: 'input',
+          name: 'continue',
+          message: 'Press Enter to continue...',
+        },
+      ])
       return
     }
 
@@ -21253,7 +22127,13 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           console.log(`  Summary: ${fileData.summary}`)
         }
         console.log()
-        await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+        await inquirer.prompt([
+          {
+            type: 'input',
+            name: 'continue',
+            message: 'Press Enter to continue...',
+          },
+        ])
       }
     }
   }
@@ -21292,7 +22172,13 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         console.log(chalk.red(`Search error: ${error.message}`))
       }
 
-      await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+      await inquirer.prompt([
+        {
+          type: 'input',
+          name: 'continue',
+          message: 'Press Enter to continue...',
+        },
+      ])
     }
   }
 
@@ -21312,7 +22198,13 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       await workspaceContext.selectPaths(pathList)
 
       console.log(chalk.green('✓ Paths added to index\n'))
-      await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+      await inquirer.prompt([
+        {
+          type: 'input',
+          name: 'continue',
+          message: 'Press Enter to continue...',
+        },
+      ])
     }
   }
 
@@ -21322,7 +22214,13 @@ This file is automatically maintained by NikCLI to provide consistent context ac
 
     if (selectedPaths.length === 0) {
       console.log(chalk.yellow('\n⚠︎  No paths to remove\n'))
-      await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+      await inquirer.prompt([
+        {
+          type: 'input',
+          name: 'continue',
+          message: 'Press Enter to continue...',
+        },
+      ])
       return
     }
 
@@ -21348,7 +22246,13 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         console.log(chalk.gray(`  - ${path.relative(this.workingDirectory, p)}`))
       })
       console.log()
-      await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+      await inquirer.prompt([
+        {
+          type: 'input',
+          name: 'continue',
+          message: 'Press Enter to continue...',
+        },
+      ])
     }
   }
 
@@ -21398,7 +22302,13 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     })
 
     console.log(chalk.green('\n✓ Index settings updated successfully\n'))
-    await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+    await inquirer.prompt([
+      {
+        type: 'input',
+        name: 'continue',
+        message: 'Press Enter to continue...',
+      },
+    ])
   }
 
   private async showIndexStatistics(): Promise<void> {
@@ -21968,7 +22878,10 @@ This file is automatically maintained by NikCLI to provide consistent context ac
             type: 'list',
             name: 'model',
             message: 'Choose model',
-            choices: modelsForProvider.map((m) => ({ name: m.label, value: m.name })),
+            choices: modelsForProvider.map((m) => ({
+              name: m.label,
+              value: m.name,
+            })),
             pageSize: Math.min(15, modelsForProvider.length),
           },
         ])
@@ -22075,7 +22988,13 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       this.printPanel(
         boxen(
           'Configure Coinbase CDP credentials. Keys are stored encrypted in ~/.nikcli/config.json and applied to this session. Leave a field blank to keep the current value.',
-          { title: '🔑 Set Coinbase Keys', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'cyan' }
+          {
+            title: '🔑 Set Coinbase Keys',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'cyan',
+          }
         )
       )
 
@@ -22175,7 +23094,13 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       this.printPanel(
         boxen(
           'Configure Browserbase credentials. Keys are stored encrypted in ~/.nikcli/config.json and applied to this session. Leave a field blank to keep the current value.',
-          { title: '🌐 Set Browserbase Keys', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'cyan' }
+          {
+            title: '🌐 Set Browserbase Keys',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'cyan',
+          }
         )
       )
 
@@ -22262,7 +23187,13 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       this.printPanel(
         boxen(
           'Configure Figma and v0 credentials. Keys are stored encrypted in ~/.nikcli/config.json and applied to this session. Leave a field blank to keep the current value.',
-          { title: '🎨 Set Figma Keys', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'cyan' }
+          {
+            title: '🎨 Set Figma Keys',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'cyan',
+          }
         )
       )
 
@@ -22359,7 +23290,13 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       this.printPanel(
         boxen(
           'Configure Upstash Redis credentials for enhanced caching. Keys are stored encrypted in ~/.nikcli/config.json and applied to this session. Leave a field blank to keep the current value.',
-          { title: '🚀 Set Redis Keys', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'red' }
+          {
+            title: '🚀 Set Redis Keys',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'red',
+          }
         )
       )
 
@@ -22460,7 +23397,13 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       this.printPanel(
         boxen(
           'Configure Upstash Vector credentials for unified vector database. Keys are stored encrypted in ~/.nikcli/config.json and applied to this session. Leave a field blank to keep the current value.',
-          { title: '🚀 Set Vector Keys', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' }
+          {
+            title: '🚀 Set Vector Keys',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'blue',
+          }
         )
       )
 
@@ -23120,7 +24063,9 @@ This file is automatically maintained by NikCLI to provide consistent context ac
 
       if (taskContext.includes('documentation') || taskContext.includes('doc')) {
         try {
-          const result = await toolService.executeTool('find_files', { pattern: '*.md' })
+          const result = await toolService.executeTool('find_files', {
+            pattern: '*.md',
+          })
           if (Array.isArray(result?.matches)) {
             relevantFiles.push(...result.matches.slice(0, 3))
           }
@@ -23132,7 +24077,9 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       // For code analysis, add main source files
       if (taskContext.includes('code') || taskContext.includes('analysis') || taskContext.includes('structure')) {
         try {
-          const srcFiles = await toolService.executeTool('find_files', { pattern: 'src/**/*.{ts,js,tsx,jsx}' })
+          const srcFiles = await toolService.executeTool('find_files', {
+            pattern: 'src/**/*.{ts,js,tsx,jsx}',
+          })
           if (Array.isArray(srcFiles?.matches)) {
             relevantFiles.push(...srcFiles.matches.slice(0, 5))
           }
@@ -23527,7 +24474,10 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       this.closeSlashMenu()
     }
 
-    const savedAuth = ((configManager.get('auth') as any) || {}) as { email?: string; user?: string }
+    const savedAuth = ((configManager.get('auth') as any) || {}) as {
+      email?: string
+      user?: string
+    }
     const wasBypassEnabled = inputQueue.isBypassEnabled?.() ?? false
     let answers: { email: string; password: string; remember: boolean } | null = null
 

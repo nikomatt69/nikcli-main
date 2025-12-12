@@ -1,10 +1,22 @@
 // src/cli/integrations/core/integration-orchestrator.ts
 
-import { TaskMasterAI } from 'task-master-ai'
+
 import type { EventBus } from '../../automation/agents/event-bus'
 import type { EnhancedGitHubService } from '../github/github-service'
 import type { EnhancedSlackService } from '../slack/slack-service'
 import type { IntegrationConfig, WorkflowEvent } from '../types'
+
+// Stub interface for TaskMasterAI - to be replaced with actual implementation
+interface TaskMasterAI {
+  generateTasksWithAI(prompt: string): Promise<any>
+}
+
+class TaskMasterAIStub implements TaskMasterAI {
+  async generateTasksWithAI(prompt: string): Promise<any> {
+    console.log(`TaskMasterAI stub called with: ${prompt}`)
+    return { tasks: [], message: 'TaskMasterAI stub - not implemented' }
+  }
+}
 
 export interface WorkflowDefinition {
   id: string
@@ -56,7 +68,7 @@ export class IntegrationOrchestrator {
     this.githubService = githubService
     this.slackService = slackService
     this.eventBus = eventBus
-    this.taskMaster = new TaskMasterAI()
+    this.taskMaster = new TaskMasterAIStub()
 
     this.initializeDefaultWorkflows()
     this.setupEventListeners()
@@ -358,7 +370,7 @@ export class IntegrationOrchestrator {
       }
     }
     // Store action results for potential template expansion
-    ;(event as any).actionResults = actionResults
+    ; (event as any).actionResults = actionResults
   }
 
   private async executeAction(action: WorkflowAction, event: WorkflowEvent, previousResults: any[]): Promise<any> {

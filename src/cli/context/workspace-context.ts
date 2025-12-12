@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import * as fs from 'node:fs'
-import * as fsPromises from 'node:fs/promises'
 import * as path from 'node:path'
+import { bunFile, bunGlob, fileExistsSync, readTextSync } from '../utils/bun-compat'
 
 import { tool } from 'ai'
 import chalk from 'chalk'
@@ -487,7 +487,7 @@ export class WorkspaceContextManager {
     this.context.directories.clear()
 
     for (const selectedPath of this.context.selectedPaths) {
-      if (fs.existsSync(selectedPath)) {
+      if (fileExistsSync(selectedPath)) {
         const stat = fs.statSync(selectedPath)
 
         if (stat.isDirectory()) {
@@ -959,7 +959,7 @@ Selected Paths: ${this.context.selectedPaths.join(', ')}`
         if (!this.context.files.has(filePath)) {
           try {
             const stats = fs.statSync(filePath)
-            const content = fs.readFileSync(filePath, 'utf-8')
+            const content = readTextSync(filePath)
             const language = this.getLanguageFromPath(filePath)
 
             const fileContext: FileContext = {
@@ -1007,7 +1007,7 @@ Selected Paths: ${this.context.selectedPaths.join(', ')}`
 
     try {
       const stats = fs.statSync(filePath)
-      const content = fs.readFileSync(filePath, 'utf-8')
+      const content = readTextSync(filePath)
       const language = this.getLanguageFromPath(filePath)
 
       // Generate semantic embedding using unified interface
@@ -1046,20 +1046,20 @@ Selected Paths: ${this.context.selectedPaths.join(', ')}`
     }
   }
 
-  // Helper method to scan directory with file filter
+  // Helper method to scan directory with file filter (Bun-optimized)
   private async scanDirectoryWithFilter(dirPath: string): Promise<string[]> {
     const filteredFiles: string[] = []
 
-    const scanDir = async (currentPath: string): Promise<void> => {
+    const scanDir = (currentPath: string): void => {
       try {
-        const entries = await fsPromises.readdir(currentPath, { withFileTypes: true })
+        const entries = fs.readdirSync(currentPath, { withFileTypes: true })
 
         for (const entry of entries) {
           const fullPath = path.join(currentPath, entry.name)
 
           if (entry.isDirectory()) {
             // Recursively scan subdirectories
-            await scanDir(fullPath)
+            scanDir(fullPath)
           } else if (entry.isFile()) {
             // Check if file should be included
             const result = this.fileFilter.shouldIncludeFile(fullPath, this.context.rootPath)
@@ -1073,7 +1073,7 @@ Selected Paths: ${this.context.selectedPaths.join(', ')}`
       }
     }
 
-    await scanDir(dirPath)
+    scanDir(dirPath)
     return filteredFiles
   }
 
@@ -1109,7 +1109,7 @@ Selected Paths: ${this.context.selectedPaths.join(', ')}`
     this.stopWatching() // Clear existing watchers
 
     this.context.selectedPaths.forEach((selectedPath) => {
-      if (fs.existsSync(selectedPath)) {
+      if (fileExistsSync(selectedPath)) {
         const watcher = fs.watch(selectedPath, { recursive: true }, (eventType, filename) => {
           if (filename) {
             advancedUI.logFunctionCall('workspaceindexrefresh')
@@ -1242,7 +1242,7 @@ Selected Paths: ${this.context.selectedPaths.join(', ')}`
         hash = cached.hash
         this.context.cacheStats!.hits++
       } else {
-        content = fs.readFileSync(filePath, 'utf8')
+        content = readTextSync(filePath)
         hash = createHash('md5').update(content).digest('hex')
 
         // Cache content

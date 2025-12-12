@@ -217,7 +217,7 @@ export const FileInfoSchema = z.object({
   accessed: z.date().optional(),
   extension: z.string(),
   isReadable: z.boolean().optional(),
-  content: z.string(),
+  content: z.string().optional(),
   language: z.string().optional(),
 })
 

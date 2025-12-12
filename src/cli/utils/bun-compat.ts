@@ -110,6 +110,47 @@ export async function readBuffer(path: string): Promise<ArrayBuffer> {
   return await bunFile(path).arrayBuffer()
 }
 
+/**
+ * Synchronous text file read using Bun
+ * For constructor/sync contexts where async isn't possible
+ */
+export function readTextSync(filePath: string): string {
+  const result = Bun.spawnSync(['cat', filePath])
+  if (result.exitCode !== 0) {
+    throw new Error(`Failed to read file: ${filePath}`)
+  }
+  return result.stdout.toString()
+}
+
+/**
+ * Synchronous JSON file read
+ */
+export function readJsonSync<T = unknown>(filePath: string): T {
+  const text = readTextSync(filePath)
+  return JSON.parse(text)
+}
+
+/**
+ * Synchronous file write using Bun
+ * Note: Bun.write returns a promise but executes synchronously in practice
+ */
+export function writeTextSync(filePath: string, content: string): void {
+  const result = Bun.spawnSync(['sh', '-c', `cat > "${filePath}"`], {
+    stdin: new TextEncoder().encode(content),
+  })
+  if (result.exitCode !== 0) {
+    throw new Error(`Failed to write file: ${filePath}`)
+  }
+}
+
+/**
+ * Synchronous JSON file write
+ */
+export function writeJsonSync(filePath: string, data: unknown, spaces = 2): void {
+  const json = JSON.stringify(data, null, spaces)
+  writeTextSync(filePath, json)
+}
+
 // ============================================================================
 // CRYPTO HELPERS
 // ============================================================================

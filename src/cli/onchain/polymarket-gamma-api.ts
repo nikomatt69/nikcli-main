@@ -350,14 +350,19 @@ export class PolymarketGammaAPI extends EventEmitter {
     const url = `${this.apiUrl}${path}`
 
     try {
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 30000)
+
       const response = await fetch(url, {
         method,
         headers: {
           'Content-Type': 'application/json',
           Accept: 'application/json',
         },
-        timeout: 30000,
+        signal: controller.signal,
       })
+
+      clearTimeout(timeoutId)
 
       if (!response.ok) {
         const error = await response.json().catch(() => ({ message: response.statusText }))

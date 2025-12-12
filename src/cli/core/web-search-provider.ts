@@ -4,6 +4,7 @@ import { createOpenAI, openai } from '@ai-sdk/openai'
 import { tool } from 'ai'
 import chalk from 'chalk'
 import { z } from 'zod'
+import { webSearch } from '@exalabs/ai-sdk'
 import { modelProvider } from '../ai/model-provider'
 import { configManager } from './config-manager'
 
@@ -190,6 +191,100 @@ export class WebSearchProvider {
     return null
   }
 
+  /**
+   * Get Exa API key from config manager or environment variable
+   */
+  private getExaApiKey(): string | null {
+    try {
+      // Try config manager first
+      const apiKey = configManager.getApiKey('exa')
+      if (apiKey) return apiKey
+
+      // Fallback to environment variable
+      return process.env.EXA_API_KEY || null
+    } catch {
+      return null
+    }
+  }
+
+  /**
+   * Check if Exa is available (API key configured)
+   */
+  private isExaAvailable(): boolean {
+    return !!this.getExaApiKey()
+  }
+
+  /**
+   * Search using Exa AI SDK tool as fallback
+   */
+  private async searchWithExa(query: string, maxResults: number): Promise<WebSearchResult[]> {
+    try {
+      const apiKey = this.getExaApiKey()
+      if (!apiKey) {
+        return []
+      }
+
+      // Ensure EXA_API_KEY is set in environment for the tool to work
+      // The @exalabs/ai-sdk tool reads from process.env.EXA_API_KEY
+      const originalApiKey = process.env.EXA_API_KEY
+      if (!process.env.EXA_API_KEY) {
+        process.env.EXA_API_KEY = apiKey
+      }
+
+      try {
+        // Create Exa webSearch tool with configuration
+        const exaSearchTool = webSearch({
+          numResults: maxResults,
+          type: 'neural', // Use neural search for better results
+        })
+
+        // Execute the tool directly - the tool's execute method accepts { query: string }
+        const result = await exaSearchTool.execute({ query })
+
+        // Transform Exa results to WebSearchResult format
+        const results: WebSearchResult[] = []
+
+        // Handle different possible result structures
+        let items: any[] = []
+
+        if (Array.isArray(result)) {
+          items = result
+        } else if (result && typeof result === 'object') {
+          // Try common property names
+          items = result.results || result.items || result.data || []
+
+          // If result itself looks like a single item, wrap it
+          if (result.url || result.title) {
+            items = [result]
+          }
+        }
+
+        items.forEach((item: any, index: number) => {
+          if (item && (item.url || item.link)) {
+            results.push({
+              title: item.title || item.name || `Result ${index + 1}`,
+              url: item.url || item.link || '',
+              snippet: item.text || item.snippet || item.description || item.excerpt || '',
+              relevance: 1 - index * 0.1,
+            })
+          }
+        })
+
+        return results
+      } finally {
+        // Restore original API key if we set it
+        if (originalApiKey === undefined) {
+          delete process.env.EXA_API_KEY
+        } else if (originalApiKey !== process.env.EXA_API_KEY) {
+          process.env.EXA_API_KEY = originalApiKey
+        }
+      }
+    } catch (error: any) {
+      console.warn(chalk.yellow(`Exa search failed: ${error.message}`))
+      return []
+    }
+  }
+
   // General web search using curl and search engines
   private async searchGeneral(query: string, maxResults: number): Promise<WebSearchResult[]> {
     try {
@@ -216,7 +311,18 @@ export class WebSearchProvider {
 
       return results
     } catch (_error) {
-      console.warn('General search failed, using fallback')
+      console.warn(chalk.yellow('DuckDuckGo search failed, trying Exa fallback...'))
+
+      // Try Exa as fallback if available
+      if (this.isExaAvailable()) {
+        const exaResults = await this.searchWithExa(query, maxResults)
+        if (exaResults.length > 0) {
+          console.log(chalk.green(`✓ Exa fallback returned ${exaResults.length} results`))
+          return exaResults
+        }
+      }
+
+      // Final fallback to manual search links
       return this.getFallbackResults(query, maxResults)
     }
   }

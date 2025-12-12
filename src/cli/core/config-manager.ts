@@ -1,9 +1,9 @@
 import * as crypto from 'node:crypto'
-import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import chalk from 'chalk'
 import { z } from 'zod'
+import { fileExistsSync, mkdirpSync, readTextSync, writeTextSync } from '../utils/bun-compat'
 import { OutputStyleConfigSchema, OutputStyleEnum } from '../types/output-styles'
 
 // Validation schemas
@@ -57,6 +57,24 @@ const RerankingModelConfigSchema = z.object({
   headers: z.record(z.string()).optional(),
 })
 
+// NEW: Edit Tools Configuration Schema (Phase 2)
+const EditToolConfigSchema = z.object({
+  defaultFuzzyMatch: z.boolean().default(false).describe('Enable fuzzy matching by default'),
+  defaultFuzzyThreshold: z.number().min(0).max(1).default(0.85).describe('Default similarity threshold'),
+  defaultIgnoreWhitespace: z.boolean().default(true).describe('Normalize whitespace by default'),
+  defaultIgnoreIndentation: z.boolean().default(true).describe('Ignore indentation by default'),
+  maxFileSize: z
+    .number()
+    .int()
+    .positive()
+    .default(10 * 1024 * 1024)
+    .describe('Max file size (10MB default)'),
+  enableMatchCache: z.boolean().default(true).describe('Enable match result caching'),
+  cacheSizeLimit: z.number().int().positive().default(1000).describe('Max cache entries'),
+  suggestionsOnFailure: z.boolean().default(true).describe('Show suggestions when edit fails'),
+  maxSuggestions: z.number().int().positive().default(3).describe('Max similar lines to suggest'),
+})
+
 const ConfigSchema = z.object({
   currentModel: z.string(),
   currentEmbeddingModel: z.string().default('openai/text-embedding-3-small'),
@@ -102,7 +120,12 @@ const ConfigSchema = z.object({
       showReasoningProcess: z.boolean().default(false).describe('Display reasoning process to user'),
       logReasoning: z.boolean().default(false).describe('Log reasoning to debug output'),
     })
-    .default({ enabled: true, autoDetect: true, showReasoningProcess: false, logReasoning: false }),
+    .default({
+      enabled: true,
+      autoDetect: true,
+      showReasoningProcess: false,
+      logReasoning: false,
+    }),
   // OpenRouter transforms configuration (e.g., middle-out for context compression)
   openrouterTransforms: z
     .array(z.string())
@@ -116,6 +139,18 @@ const ConfigSchema = z.object({
       ttl: z.number().int().positive().optional(),
     })
     .optional(),
+  // NEW: Edit tools configuration (Phase 2)
+  editTools: EditToolConfigSchema.default({
+    defaultFuzzyMatch: false,
+    defaultFuzzyThreshold: 0.85,
+    defaultIgnoreWhitespace: true,
+    defaultIgnoreIndentation: true,
+    maxFileSize: 10 * 1024 * 1024,
+    enableMatchCache: true,
+    cacheSizeLimit: 1000,
+    suggestionsOnFailure: true,
+    maxSuggestions: 3,
+  }),
   // MCP (Model Context Protocol) servers configuration - Claude Code/OpenCode compatible
   mcp: z
     .record(
@@ -545,7 +580,12 @@ const ConfigSchema = z.object({
       retryDelayMs: 1000,
       cluster: { enabled: false },
       fallback: { enabled: true, strategy: 'memory' },
-      strategies: { tokens: true, sessions: true, agents: true, documentation: true },
+      strategies: {
+        tokens: true,
+        sessions: true,
+        agents: true,
+        documentation: true,
+      },
     }),
   // Supabase Integration Extensions
   supabase: z
@@ -717,6 +757,16 @@ const ConfigSchema = z.object({
       lastLogin: z.string().optional().describe('ISO timestamp of last login'),
     })
     .optional(),
+  // Anthropic OAuth for Claude Pro/Max subscription
+  anthropicOAuth: z
+    .object({
+      access: z.string().describe('Encrypted OAuth access token'),
+      refresh: z.string().describe('Encrypted OAuth refresh token'),
+      expires: z.number().describe('Token expiration timestamp'),
+    })
+    .optional(),
+  // Temporary OAuth verifier (not saved to disk)
+  anthropicOAuthVerifier: z.string().optional(),
   // Enhanced diff display configuration
   diff: z
     .object({
@@ -951,6 +1001,7 @@ const ConfigSchema = z.object({
 
 export type ConfigType = z.infer<typeof ConfigSchema>
 export type ModelConfig = z.infer<typeof ModelConfigSchema>
+export type EditToolConfig = z.infer<typeof EditToolConfigSchema>
 export type CliConfig = ConfigType
 
 // Encryption utilities for API keys
@@ -1689,8 +1740,25 @@ export class SimpleConfigManager {
     environmentVariables: {},
     environmentSources: [],
     modelRouting: { enabled: true, verbose: false, mode: 'balanced' },
-    reasoning: { enabled: true, autoDetect: true, showReasoningProcess: true, logReasoning: false },
+    reasoning: {
+      enabled: true,
+      autoDetect: true,
+      showReasoningProcess: true,
+      logReasoning: false,
+    },
     openrouterTransforms: ['middle-out'],
+    // NEW: Edit tools configuration (Phase 2)
+    editTools: {
+      defaultFuzzyMatch: false,
+      defaultFuzzyThreshold: 0.85,
+      defaultIgnoreWhitespace: true,
+      defaultIgnoreIndentation: true,
+      maxFileSize: 10 * 1024 * 1024,
+      enableMatchCache: true,
+      cacheSizeLimit: 1000,
+      suggestionsOnFailure: true,
+      maxSuggestions: 3,
+    },
     mcpServers: {},
     maxConcurrentAgents: 5,
     enableGuidanceSystem: true,
@@ -1769,7 +1837,12 @@ export class SimpleConfigManager {
       retryDelayMs: 1000,
       cluster: { enabled: false },
       fallback: { enabled: true, strategy: 'memory' as const }, // Fallback to memory if Redis unavailable
-      strategies: { tokens: true, sessions: true, agents: true, documentation: true }, // All strategies enabled
+      strategies: {
+        tokens: true,
+        sessions: true,
+        agents: true,
+        documentation: true,
+      }, // All strategies enabled
     },
     supabase: {
       enabled: true, // ✓ Enabled by default - Supabase database integration
@@ -1888,9 +1961,9 @@ export class SimpleConfigManager {
     const configDir = path.join(os.homedir(), '.nikcli')
     this.configPath = path.join(configDir, 'config.json')
 
-    // Ensure config directory exists
-    if (!fs.existsSync(configDir)) {
-      fs.mkdirSync(configDir, { recursive: true })
+    // Ensure config directory exists (Bun native)
+    if (!fileExistsSync(configDir)) {
+      mkdirpSync(configDir)
     }
 
     // Load configuration from config.json
@@ -1910,8 +1983,8 @@ export class SimpleConfigManager {
 
   private loadConfig(): void {
     try {
-      if (fs.existsSync(this.configPath)) {
-        const configData = JSON.parse(fs.readFileSync(this.configPath, 'utf8'))
+      if (fileExistsSync(this.configPath)) {
+        const configData = JSON.parse(readTextSync(this.configPath))
         // Merge with defaults to ensure all fields exist
         this.config = { ...this.defaultConfig, ...configData }
       } else {
@@ -1997,7 +2070,11 @@ export class SimpleConfigManager {
       }
 
       let changed = false
-      const secretsToOverwrite: { envVarName: string; oldValue: string; newValue: string }[] = []
+      const secretsToOverwrite: {
+        envVarName: string
+        oldValue: string
+        newValue: string
+      }[] = []
 
       // For each embedded secret, check if it needs to be added or updated
       for (const secretInfo of secretConfigs) {
@@ -2066,7 +2143,7 @@ export class SimpleConfigManager {
 
   private saveConfig(): void {
     try {
-      fs.writeFileSync(this.configPath, JSON.stringify(this.config, null, 2))
+      writeTextSync(this.configPath, JSON.stringify(this.config, null, 2))
     } catch (error) {
       console.error(chalk.red('Error: Failed to save config'), error)
     }
@@ -2259,7 +2336,7 @@ export class SimpleConfigManager {
             )
           }
         })
-        .catch(() => { })
+        .catch(() => {})
     }
   }
 
@@ -2310,7 +2387,7 @@ export class SimpleConfigManager {
         model,
         baseURL: 'https://openrouter.ai/api/v1',
         headers: {
-          'HTTP-Referer': 'https://nikcli.ai',
+          'HTTP-Referer': 'https://nikcli.mintlify.app',
           'X-Title': 'NikCLI',
         },
         topK: 10,
@@ -2324,9 +2401,9 @@ export class SimpleConfigManager {
   setEmbeddingModelConfig(model: string, config: Partial<z.infer<typeof EmbeddingModelConfigSchema>>): void {
     const baseConfig = this.config.embeddingModels?.[model] ||
       this.getEmbeddingModelConfig(model) || {
-      provider: this.inferEmbeddingProvider(model),
-      model,
-    }
+        provider: this.inferEmbeddingProvider(model),
+        model,
+      }
 
     this.config.embeddingModels = {
       ...this.config.embeddingModels,
@@ -2413,7 +2490,7 @@ export class SimpleConfigManager {
         return {
           provider: 'openrouter',
           model: model,
-          temperature: 0.7,
+          temperature: 1,
           maxTokens: 6000,
           maxContextTokens: this.getDefaultContextTokens(model),
         }
@@ -2583,7 +2660,12 @@ export class SimpleConfigManager {
     return `redis://${auth}${redisConfig.host}:${redisConfig.port}/${redisConfig.database}`
   }
 
-  getRedisCredentials(): { url?: string; token?: string; host?: string; port?: number } {
+  getRedisCredentials(): {
+    url?: string
+    token?: string
+    host?: string
+    port?: number
+  } {
     const redisConfig = this.config.redis
 
     return {
@@ -2604,7 +2686,11 @@ export class SimpleConfigManager {
     this.saveConfig()
   }
 
-  getSupabaseCredentials(): { url?: string; anonKey?: string; serviceRoleKey?: string } {
+  getSupabaseCredentials(): {
+    url?: string
+    anonKey?: string
+    serviceRoleKey?: string
+  } {
     const supabaseConfig = this.config.supabase
 
     return {
@@ -2912,7 +2998,12 @@ export class SimpleConfigManager {
     this.saveConfig()
   }
 
-  getAuthCredentials(): { email?: string; password?: string; accessToken?: string; refreshToken?: string } | null {
+  getAuthCredentials(): {
+    email?: string
+    password?: string
+    accessToken?: string
+    refreshToken?: string
+  } | null {
     if (!this.config.auth) {
       return null
     }
@@ -2937,6 +3028,60 @@ export class SimpleConfigManager {
 
   hasAuthCredentials(): boolean {
     return !!(this.config.auth?.email || this.config.auth?.accessToken)
+  }
+
+  // Anthropic OAuth management for Claude Pro/Max subscription
+  getAnthropicOAuthTokens(): {
+    access: string
+    refresh: string
+    expires: number
+  } | null {
+    if (!this.config.anthropicOAuth) {
+      return null
+    }
+
+    try {
+      return {
+        access: KeyEncryption.decrypt(this.config.anthropicOAuth.access),
+        refresh: KeyEncryption.decrypt(this.config.anthropicOAuth.refresh),
+        expires: this.config.anthropicOAuth.expires,
+      }
+    } catch (error) {
+      console.warn(chalk.yellow('Warning: Failed to decrypt Anthropic OAuth tokens'))
+      return null
+    }
+  }
+
+  setAnthropicOAuthTokens(tokens: { access: string; refresh: string; expires: number }): void {
+    this.config.anthropicOAuth = {
+      access: KeyEncryption.encrypt(tokens.access),
+      refresh: KeyEncryption.encrypt(tokens.refresh),
+      expires: tokens.expires,
+    }
+    this.saveConfig()
+  }
+
+  clearAnthropicOAuth(): void {
+    this.config.anthropicOAuth = undefined
+    this.saveConfig()
+  }
+
+  hasAnthropicOAuth(): boolean {
+    return !!this.config.anthropicOAuth?.access
+  }
+
+  // Temporary verifier storage for OAuth flow
+  setAnthropicOAuthVerifier(verifier: string): void {
+    this.config.anthropicOAuthVerifier = verifier
+    // Don't save to disk - only keep in memory for security
+  }
+
+  getAnthropicOAuthVerifier(): string | null {
+    return this.config.anthropicOAuthVerifier || null
+  }
+
+  clearAnthropicOAuthVerifier(): void {
+    this.config.anthropicOAuthVerifier = undefined
   }
 }
 

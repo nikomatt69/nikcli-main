@@ -457,7 +457,10 @@ class UpstashVectorStore extends VectorStore {
         console.log(chalk.gray('🔗 Connecting to Upstash Redis (vector store)'))
         try {
           await this.redis.ping()
-        } catch (_e) {}
+        } catch {
+          // Redis ping failed but connection may still work for operations
+          console.log(chalk.yellow('⚠︎ Redis ping failed, continuing anyway'))
+        }
         console.log(chalk.green('✓ Upstash Redis connected'))
         return true
       }
@@ -595,7 +598,9 @@ class UpstashVectorStore extends VectorStore {
             { id },
             { headers: { Authorization: `Bearer ${this.vectorToken}` } }
           )
-        } catch (_e) {}
+        } catch {
+          // Delete operation is best-effort, continue even if it fails
+        }
         return true
       }
 

@@ -1136,13 +1136,13 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       if (userTier === 'free') {
         const panel = boxen(
           chalk.red('✖ /ads commands require Pro subscription\n\n') +
-            chalk.gray('Free users:\n') +
-            chalk.gray('  • Ads are always displayed\n') +
-            chalk.gray('  • No opt-out available\n\n') +
-            chalk.gray('Pro users:\n') +
-            chalk.gray('  • Can hide ads with /ads off\n') +
-            chalk.gray('  • Can create/manage ad campaigns\n') +
-            chalk.gray('  • Can access all /ads commands'),
+          chalk.gray('Free users:\n') +
+          chalk.gray('  • Ads are always displayed\n') +
+          chalk.gray('  • No opt-out available\n\n') +
+          chalk.gray('Pro users:\n') +
+          chalk.gray('  • Can hide ads with /ads off\n') +
+          chalk.gray('  • Can create/manage ad campaigns\n') +
+          chalk.gray('  • Can access all /ads commands'),
           {
             title: 'Pro Feature Required',
             padding: 1,
@@ -1173,10 +1173,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
           const panel = boxen(
             chalk.green(`📊 Ad Status\n\n`) +
-              chalk.gray(`Total Impressions: ${chalk.cyan(stats.impressions.toString())}\n`) +
-              chalk.gray(`Ads Hidden: ${chalk.cyan(adsHidden)}\n`) +
-              chalk.gray(`Ads Enabled: ${chalk.cyan(config.ads.enabled ? 'Yes' : 'No')}\n`) +
-              chalk.gray(`Frequency: Every ${chalk.cyan(config.ads.frequencyMinutes.toString())} minutes`),
+            chalk.gray(`Total Impressions: ${chalk.cyan(stats.impressions.toString())}\n`) +
+            chalk.gray(`Ads Hidden: ${chalk.cyan(adsHidden)}\n`) +
+            chalk.gray(`Ads Enabled: ${chalk.cyan(config.ads.enabled ? 'Yes' : 'No')}\n`) +
+            chalk.gray(`Frequency: Every ${chalk.cyan(config.ads.frequencyMinutes.toString())} minutes`),
             {
               title: '🎯 Advertising Status',
               padding: 1,
@@ -1374,9 +1374,9 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
                 answers.targetAudience === 'all'
                   ? ['all']
                   : answers.targetAudience
-                      .split(',')
-                      .map((s: string) => s.trim())
-                      .filter((s: string) => s.length > 0),
+                    .split(',')
+                    .map((s: string) => s.trim())
+                    .filter((s: string) => s.length > 0),
               budgetImpressions: Math.floor(answers.budgetImpressions),
               durationDays: Math.floor(answers.durationDays),
             }
@@ -1430,11 +1430,11 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           } else if (checkoutSession && sanitizedAnswers) {
             const successPanel = boxen(
               chalk.green('✓ Campaign Created Successfully!\n\n') +
-                chalk.gray(`Campaign ID: ${chalk.cyan(checkoutSession.campaignId)}\n`) +
-                chalk.gray(`Total Cost: ${chalk.yellow(`$${checkoutSession.totalCost.toFixed(2)}`)}\n`) +
-                chalk.gray(`Impressions: ${chalk.cyan(checkoutSession.impressions.toString())}\n`) +
-                chalk.gray(`Duration: ${chalk.cyan(sanitizedAnswers.durationDays.toString())} days\n\n`) +
-                chalk.blue(`🔗 Payment Link:\n${checkoutSession.stripeSessionId}`),
+              chalk.gray(`Campaign ID: ${chalk.cyan(checkoutSession.campaignId)}\n`) +
+              chalk.gray(`Total Cost: ${chalk.yellow(`$${checkoutSession.totalCost.toFixed(2)}`)}\n`) +
+              chalk.gray(`Impressions: ${chalk.cyan(checkoutSession.impressions.toString())}\n`) +
+              chalk.gray(`Duration: ${chalk.cyan(sanitizedAnswers.durationDays.toString())} days\n\n`) +
+              chalk.blue(`🔗 Payment Link:\n${checkoutSession.stripeSessionId}`),
               {
                 title: '💳 Ready to Checkout',
                 padding: 1,
@@ -2136,7 +2136,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     lines.push(chalk.green('Vector Store'))
     lines.push(
       `  Status: ${ragStats.vectorDBAvailable ? chalk.green('available') : chalk.yellow('unavailable')}` +
-        (vectorStats?.provider ? ` (${vectorStats.provider})` : '')
+      (vectorStats?.provider ? ` (${vectorStats.provider})` : '')
     )
     if (vectorStats) {
       lines.push(`  Indexed docs: ${vectorStats.indexedDocuments ?? vectorStats.documentsCount ?? 0}`)
@@ -2147,8 +2147,8 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     lines.push(chalk.green('Caches'))
     lines.push(
       `  Embeddings: ${ragStats?.caches?.embeddings?.entries ?? 0} entries | ` +
-        `hit ${ragStats?.caches?.embeddings?.hits ?? 0} / miss ${ragStats?.caches?.embeddings?.misses ?? 0} | ` +
-        `rate ${ragStats?.caches?.embeddings?.hitRate ?? '0%'}`
+      `hit ${ragStats?.caches?.embeddings?.hits ?? 0} / miss ${ragStats?.caches?.embeddings?.misses ?? 0} | ` +
+      `rate ${ragStats?.caches?.embeddings?.hitRate ?? '0%'}`
     )
     lines.push(
       `  Analysis: ${ragStats?.caches?.analysis?.entries ?? 0} entries | rate ${ragStats?.caches?.analysis?.hitRate ?? '0%'}`
@@ -2221,7 +2221,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
             console.log(chalk.red('Usage: /router mode <conservative|balanced|aggressive>'))
             break
           }
-          ;(cfg.modelRouting as any).mode = mode as any
+          ; (cfg.modelRouting as any).mode = mode as any
           configManager.setAll(cfg as any)
           this.cliInstance.printPanel(
             boxen(`Routing mode set to ${mode}`, {
@@ -2760,9 +2760,9 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       this.cliInstance.printPanel(
         boxen(
           `${chalk.green('Environment variables imported successfully')}` +
-            `\n${chalk.gray('File:')} ${chalk.cyan(resolvedPath)}` +
-            `\n${chalk.gray('Total:')} ${total}  ${chalk.gray('Added:')} ${added}  ${chalk.gray('Updated:')} ${updated}  ${chalk.gray('Skipped:')} ${skipped}` +
-            `\n${chalk.gray('Available immediately and persisted to ~/.nikcli/config.json')}`,
+          `\n${chalk.gray('File:')} ${chalk.cyan(resolvedPath)}` +
+          `\n${chalk.gray('Total:')} ${total}  ${chalk.gray('Added:')} ${added}  ${chalk.gray('Updated:')} ${updated}  ${chalk.gray('Skipped:')} ${skipped}` +
+          `\n${chalk.gray('Available immediately and persisted to ~/.nikcli/config.json')}`,
           {
             title: '✓ Env Saved',
             padding: 1,
@@ -3233,10 +3233,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
             this.printPanel(
               boxen(
                 'Dashboard is loading...\n\nBasic System Info:\n' +
-                  `Platform: ${process.platform}\n` +
-                  `Architecture: ${process.arch}\n` +
-                  `Node Version: ${process.version}\n` +
-                  `Uptime: ${this.formatUptime(process.uptime())}`,
+                `Platform: ${process.platform}\n` +
+                `Architecture: ${process.arch}\n` +
+                `Node Version: ${process.version}\n` +
+                `Uptime: ${this.formatUptime(process.uptime())}`,
                 {
                   title: '📊 Dashboard Loading',
                   padding: 1,
@@ -3262,9 +3262,9 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           this.printPanel(
             boxen(
               `Dashboard Error: ${error.message}\n\nBasic Info:\n` +
-                `Platform: ${process.platform}\n` +
-                `Node: ${process.version}\n` +
-                `Memory: ${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB`,
+              `Platform: ${process.platform}\n` +
+              `Node: ${process.version}\n` +
+              `Memory: ${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB`,
               {
                 title: '✖ Dashboard Error',
                 padding: 1,
@@ -3475,7 +3475,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       try {
         gitInfo.branch = execSync('git rev-parse --abbrev-ref HEAD', { cwd, encoding: 'utf8' }).trim()
-      } catch (e) {}
+      } catch (e) { }
 
       try {
         const statusOutput = execSync('git status --porcelain', { cwd, encoding: 'utf8' })
@@ -3484,15 +3484,15 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           .split('\n')
           .filter((l: string) => l).length
         gitInfo.status = gitInfo.uncommittedFiles > 0 ? 'dirty' : 'clean'
-      } catch (e) {}
+      } catch (e) { }
 
       try {
         gitInfo.commits = parseInt(execSync('git rev-list --count HEAD', { cwd, encoding: 'utf8' }).trim())
-      } catch (e) {}
+      } catch (e) { }
 
       try {
         gitInfo.lastCommit = execSync('git log -1 --pretty=%B', { cwd, encoding: 'utf8' }).trim().split('\n')[0]
-      } catch (e) {}
+      } catch (e) { }
     } catch (e) {
       // Git not available or not a git repo, keep defaults
     }
@@ -3568,7 +3568,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           sessionStats.avgTokens = stats.averageTokensPerMessage || 0
           sessionStats.totalCost = stats.costPerMessage || 0
         }
-      } catch (e) {}
+      } catch (e) { }
 
       return {
         current: currentModel.name || 'Unknown',
@@ -3741,7 +3741,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           sessionData.tokens.input = session.totalInputTokens || 0
           sessionData.tokens.output = session.totalOutputTokens || 0
         }
-      } catch (e) {}
+      } catch (e) { }
 
       return sessionData
     } catch (error) {
@@ -3776,7 +3776,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         const recentLogs = execSync(npmLogCmd, { encoding: 'utf8' }).trim().split('\n').filter(Boolean)
         logs.errors += recentLogs.length
         logs.recent.push(...recentLogs.map((log: string) => `📁 ${log}`))
-      } catch (e) {}
+      } catch (e) { }
 
       // Check for TypeScript compilation errors
       try {
@@ -3791,7 +3791,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           logs.recent.push(...errorLines.slice(0, 3).map((line: string) => `🔴 ${line.trim()}`))
           logs.lastError = errorLines.find((line: string) => line.includes('error')) || ''
         }
-      } catch (e) {}
+      } catch (e) { }
 
       // Check for ESLint warnings/errors
       try {
@@ -3806,7 +3806,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         if (errorCount > 0 || warningCount > 0) {
           logs.recent.push(`🔍 ESLint: ${errorCount} errors, ${warningCount} warnings`)
         }
-      } catch (e) {}
+      } catch (e) { }
 
       // Check for Git issues
       try {
@@ -3816,7 +3816,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           logs.errors += conflictFiles.length
           logs.recent.push(`🔀 Git conflicts: ${conflictFiles.length} files`)
         }
-      } catch (e) {}
+      } catch (e) { }
 
       // Check Node.js process warnings
       const processWarnings = process.listenerCount('warning')
@@ -3832,7 +3832,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           logs.warnings += 1
           logs.recent.push('📦 package.json: Missing main/exports field')
         }
-      } catch (e) {}
+      } catch (e) { }
 
       // Memory usage warnings
       const memUsage = process.memoryUsage()
@@ -4645,9 +4645,9 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           console.log(chalk.gray('─'.repeat(60)))
           console.log(result.answer.trim())
           console.log(chalk.gray('\nSources:'))
-          ;(result.sources || []).forEach((s: any, idx: number) => {
-            console.log(` [#${idx + 1}] ${chalk.cyan(s.title)} - ${chalk.gray(s.url)}`)
-          })
+            ; (result.sources || []).forEach((s: any, idx: number) => {
+              console.log(` [#${idx + 1}] ${chalk.cyan(s.title)} - ${chalk.gray(s.url)}`)
+            })
           console.log(chalk.gray('─'.repeat(60)))
         } else {
           const items = result?.results || []
@@ -5710,7 +5710,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
     // Also set the global currentMode for NikCLI prompt
     if ((global as any).__nikCLI) {
-      ;(global as any).__nikCLI.currentMode = 'vm'
+      ; (global as any).__nikCLI.currentMode = 'vm'
     }
 
     console.log(chalk.blue.bold('🐳 Entering VM Chat Mode'))
@@ -6907,10 +6907,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
                     priority: t.priority as any,
                     progress: t.progress,
                   }))
-                  ;(advancedUI as any).showTodoDashboard?.(items, 'Plan Todos')
+                    ; (advancedUI as any).showTodoDashboard?.(items, 'Plan Todos')
                   return { shouldExit: false, shouldUpdatePrompt: false }
                 }
-              } catch {}
+              } catch { }
               console.log(chalk.yellow('No active plans found. Create one with /plan create <goal>'))
               return { shouldExit: false, shouldUpdatePrompt: false }
             }
@@ -7017,10 +7017,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
                   priority: t.priority,
                   progress: t.progress,
                 }))
-                ;(advancedUI as any).showTodoDashboard?.(items, 'Plan Todos')
+                  ; (advancedUI as any).showTodoDashboard?.(items, 'Plan Todos')
                 return { shouldExit: false, shouldUpdatePrompt: false }
               }
-            } catch {}
+            } catch { }
             console.log(chalk.gray('No todo lists found'))
             return { shouldExit: false, shouldUpdatePrompt: false }
           }
@@ -7055,8 +7055,8 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
                   priority: (t as any).priority,
                   progress: (t as any).progress,
                 }))
-                ;(advancedUI as any).showTodoDashboard?.(todoItems, latestPlan.title || 'Plan Todos')
-              } catch {}
+                  ; (advancedUI as any).showTodoDashboard?.(todoItems, latestPlan.title || 'Plan Todos')
+              } catch { }
               enhancedPlanning.showPlanStatus(latestPlan.id)
             } else {
               // Fallback to session todos
@@ -7072,7 +7072,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
                     priority: t.priority,
                     progress: t.progress,
                   }))
-                  ;(advancedUI as any).showTodoDashboard?.(items, 'Plan Todos')
+                    ; (advancedUI as any).showTodoDashboard?.(items, 'Plan Todos')
                 } else {
                   console.log(chalk.yellow('No todo lists found'))
                 }
@@ -7092,8 +7092,8 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
                   priority: (t as any).priority,
                   progress: (t as any).progress,
                 }))
-                ;(advancedUI as any).showTodoDashboard?.(todoItems, target.title || 'Plan Todos')
-              } catch {}
+                  ; (advancedUI as any).showTodoDashboard?.(todoItems, target.title || 'Plan Todos')
+              } catch { }
             }
             enhancedPlanning.showPlanStatus(planId)
           }
@@ -7136,7 +7136,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     try {
       // Hide the Todos HUD panel (structured UI)
       advancedUI.hidePanel('todos')
-    } catch {}
+    } catch { }
 
     try {
       // Clear session todos from the TodoStore for current session
@@ -7149,19 +7149,19 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         globalAny.__nikCLI?.context?.session?.id ||
         `${Date.now()}`
       todoStore.setTodos(String(sessionId), [])
-    } catch {}
+    } catch { }
 
     // Clear inline HUD in renderPromptArea
     try {
       const nik: any = this.cliInstance
       if (nik?.clearPlanHud) nik.clearPlanHud()
-    } catch {}
+    } catch { }
 
     console.log(chalk.green('🧹 HUD Todos cleared'))
     try {
       const nik = (global as any).__nikCLI
       nik?.renderPromptAfterOutput?.()
-    } catch {}
+    } catch { }
     return { shouldExit: false, shouldUpdatePrompt: false }
   }
 
@@ -7178,7 +7178,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     try {
       const nik = (global as any).__nikCLI
       nik?.renderPromptAfterOutput?.()
-    } catch {}
+    } catch { }
     return { shouldExit: false, shouldUpdatePrompt: false }
   }
 
@@ -7188,7 +7188,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       // Toggle visibility on for inline HUD
       const nik: any = this.cliInstance
       if (nik?.showPlanHud) nik.showPlanHud()
-    } catch {}
+    } catch { }
     try {
       // Prefer latest active plan todos if available
       const plans = enhancedPlanning.getActivePlans?.() || []
@@ -7200,10 +7200,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           priority: (t as any).priority,
           progress: (t as any).progress,
         }))
-        ;(advancedUI as any).showTodoDashboard?.(todoItems, latestPlan.title || 'Plan Todos')
+          ; (advancedUI as any).showTodoDashboard?.(todoItems, latestPlan.title || 'Plan Todos')
         shown = true
       }
-    } catch {}
+    } catch { }
 
     if (!shown) {
       try {
@@ -7225,10 +7225,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
             priority: t.priority,
             progress: t.progress,
           }))
-          ;(advancedUI as any).showTodoDashboard?.(items, 'Plan Todos')
+            ; (advancedUI as any).showTodoDashboard?.(items, 'Plan Todos')
           shown = true
         }
-      } catch {}
+      } catch { }
     }
 
     if (!shown) {
@@ -7240,7 +7240,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     try {
       const nik = (global as any).__nikCLI
       nik?.renderPromptAfterOutput?.()
-    } catch {}
+    } catch { }
     return { shouldExit: false, shouldUpdatePrompt: false }
   }
 
@@ -7259,7 +7259,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     try {
       const nik = (global as any).__nikCLI
       nik?.renderPromptAfterOutput?.()
-    } catch {}
+    } catch { }
     return { shouldExit: false, shouldUpdatePrompt: false }
   }
 
@@ -7278,7 +7278,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     try {
       const nik = (global as any).__nikCLI
       nik?.renderPromptAfterOutput?.()
-    } catch {}
+    } catch { }
     return { shouldExit: false, shouldUpdatePrompt: false }
   }
 
@@ -7379,7 +7379,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
     // Also set the global currentMode for NikCLI prompt
     if ((global as any).__nikCLI) {
-      ;(global as any).__nikCLI.currentMode = 'default'
+      ; (global as any).__nikCLI.currentMode = 'default'
     }
 
     console.log(chalk.green('💬 Switched to Default Chat Mode'))
@@ -8622,7 +8622,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     } catch (error: any) {
       const panel = boxen(
         `Failed to execute GOAT command: ${error.message}` +
-          '\n\nTips:\n- Ensure GOAT_EVM_PRIVATE_KEY is set\n- Run /goat init first\n- Use /goat status to check setup',
+        '\n\nTips:\n- Ensure GOAT_EVM_PRIVATE_KEY is set\n- Run /goat init first\n- Use /goat status to check setup',
         { title: 'GOAT Error', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'red' }
       )
       this.cliInstance.printPanel(panel)
@@ -9663,7 +9663,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     } catch (error: any) {
       const panel = boxen(
         `Failed to execute web3 command: ${error.message}` +
-          '\n\nTips:\n- Ensure CDP_API_KEY_ID and CDP_API_KEY_SECRET are set\n- Run /web3 init first',
+        '\n\nTips:\n- Ensure CDP_API_KEY_ID and CDP_API_KEY_SECRET are set\n- Run /web3 init first',
         { title: 'Web3 Error', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'red' }
       )
       this.cliInstance.printPanel(panel)
@@ -10043,7 +10043,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     } catch (error: any) {
       const panel = boxen(
         `Failed to execute NikDrive command: ${error.message}` +
-          '\n\nTips:\n- Ensure API key is configured: /set-key nikdrive <KEY>\n- Run /nikdrive status to check connection',
+        '\n\nTips:\n- Ensure API key is configured: /set-key nikdrive <KEY>\n- Run /nikdrive status to check connection',
         { title: 'NikDrive Error', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'red' }
       )
       this.cliInstance.printPanel(panel)
@@ -11915,12 +11915,12 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       this.printPanel(
         boxen(
           chalk.bold('📬 Notification Settings\n\n') +
-            `${chalk.cyan('Global:')} ${statusIcon(config.enabled)}\n\n` +
-            `${chalk.cyan('Providers:')}\n` +
-            `  Slack:   ${statusIcon(config.providers.slack?.enabled ?? false)}\n` +
-            `  Discord: ${statusIcon(config.providers.discord?.enabled ?? false)}\n` +
-            `  Linear:  ${statusIcon(config.providers.linear?.enabled ?? false)}\n\n` +
-            chalk.gray('Usage: /notify [slack|discord|linear|all] [on|off]'),
+          `${chalk.cyan('Global:')} ${statusIcon(config.enabled)}\n\n` +
+          `${chalk.cyan('Providers:')}\n` +
+          `  Slack:   ${statusIcon(config.providers.slack?.enabled ?? false)}\n` +
+          `  Discord: ${statusIcon(config.providers.discord?.enabled ?? false)}\n` +
+          `  Linear:  ${statusIcon(config.providers.linear?.enabled ?? false)}\n\n` +
+          chalk.gray('Usage: /notify [slack|discord|linear|all] [on|off]'),
           {
             title: 'Notifications',
             padding: 1,
@@ -11980,8 +11980,8 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       this.printPanel(
         boxen(
           `${chalk.green('✓')} Notifications ${actionText}\n\n` +
-            chalk.gray(`Provider: ${providerName}\n`) +
-            chalk.gray('Changes applied for this session'),
+          chalk.gray(`Provider: ${providerName}\n`) +
+          chalk.gray('Changes applied for this session'),
           {
             title: 'Updated',
             padding: 1,
@@ -12070,7 +12070,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       const isDefault = style === defaultStyle
       const isModelCurrent = style === modelStyle
 
-      const indicators = []
+      const indicators: string[] = []
       if (isDefault) indicators.push()
       if (isModelCurrent) indicators.push()
 
@@ -12927,9 +12927,9 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       this.printPanel(
         boxen(
           chalk.green('✓ BrowseGPT Session Created') +
-            '\n\n' +
-            chalk.white(`Session ID: ${chalk.cyan(id)}\n\n`) +
-            chalk.gray('Use this session ID with other /browse-* commands'),
+          '\n\n' +
+          chalk.white(`Session ID: ${chalk.cyan(id)}\n\n`) +
+          chalk.gray('Use this session ID with other /browse-* commands'),
           {
             padding: 1,
             margin: 1,
@@ -12967,18 +12967,18 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       this.printPanel(
         boxen(
           chalk.blue('🔍 Search Results') +
-            '\n\n' +
-            chalk.white(`Query: ${chalk.cyan(query)}\n`) +
-            chalk.white(`Found: ${chalk.green(results.results.length)} results\n\n`) +
-            results.results
-              .slice(0, 3)
-              .map(
-                (result, index) =>
-                  `${chalk.cyan(`${index + 1}.`)} ${result.title}\n` +
-                  `   ${chalk.gray(result.url)}\n` +
-                  `   ${chalk.dim(result.snippet.slice(0, 80))}...`
-              )
-              .join('\n\n'),
+          '\n\n' +
+          chalk.white(`Query: ${chalk.cyan(query)}\n`) +
+          chalk.white(`Found: ${chalk.green(results.results.length)} results\n\n`) +
+          results.results
+            .slice(0, 3)
+            .map(
+              (result, index) =>
+                `${chalk.cyan(`${index + 1}.`)} ${result.title}\n` +
+                `   ${chalk.gray(result.url)}\n` +
+                `   ${chalk.dim(result.snippet.slice(0, 80))}...`
+            )
+            .join('\n\n'),
           {
             padding: 1,
             margin: 1,
@@ -13011,11 +13011,11 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       this.printPanel(
         boxen(
           chalk.green('📄 Page Content Extracted') +
-            '\n\n' +
-            chalk.white(`Title: ${chalk.cyan(content.title)}\n`) +
-            chalk.white(`URL: ${chalk.gray(content.url)}\n`) +
-            chalk.white(`Content: ${chalk.yellow(content.text.length)} characters\n\n`) +
-            (content.summary ? `${chalk.bold('AI Summary:')}\n${content.summary}` : ''),
+          '\n\n' +
+          chalk.white(`Title: ${chalk.cyan(content.title)}\n`) +
+          chalk.white(`URL: ${chalk.gray(content.url)}\n`) +
+          chalk.white(`Content: ${chalk.yellow(content.text.length)} characters\n\n`) +
+          (content.summary ? `${chalk.bold('AI Summary:')}\n${content.summary}` : ''),
           {
             padding: 1,
             margin: 1,
@@ -13072,17 +13072,17 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       this.printPanel(
         boxen(
           chalk.blue('🌐 Active Browsing Sessions') +
-            '\n\n' +
-            sessions
-              .map(
-                (session) =>
-                  `${chalk.cyan(session.id)}\n` +
-                  `  Browser: ${chalk.gray(session.browserId.slice(0, 12))}...\n` +
-                  `  Created: ${chalk.yellow(session.created.toLocaleString())}\n` +
-                  `  History: ${chalk.green(session.historyCount)} items\n` +
-                  `  Status: ${session.active ? chalk.green('Active') : chalk.red('Inactive')}`
-              )
-              .join('\n\n'),
+          '\n\n' +
+          sessions
+            .map(
+              (session) =>
+                `${chalk.cyan(session.id)}\n` +
+                `  Browser: ${chalk.gray(session.browserId.slice(0, 12))}...\n` +
+                `  Created: ${chalk.yellow(session.created.toLocaleString())}\n` +
+                `  History: ${chalk.green(session.historyCount)} items\n` +
+                `  Status: ${session.active ? chalk.green('Active') : chalk.red('Inactive')}`
+            )
+            .join('\n\n'),
           {
             padding: 1,
             margin: 1,
@@ -13117,12 +13117,12 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       this.printPanel(
         boxen(
           chalk.blue(`📊 Session Info: ${sessionId}`) +
-            '\n\n' +
-            chalk.white(`Browser ID: ${chalk.gray(info.browserId)}\n`) +
-            chalk.white(`Created: ${chalk.yellow(info.created.toLocaleString())}\n`) +
-            chalk.white(`Last Activity: ${chalk.yellow(info.lastActivity.toLocaleString())}\n`) +
-            chalk.white(`History Items: ${chalk.green(info.historyCount)}\n`) +
-            chalk.white(`Status: ${info.active ? chalk.green('Active') : chalk.red('Inactive')}`),
+          '\n\n' +
+          chalk.white(`Browser ID: ${chalk.gray(info.browserId)}\n`) +
+          chalk.white(`Created: ${chalk.yellow(info.created.toLocaleString())}\n`) +
+          chalk.white(`Last Activity: ${chalk.yellow(info.lastActivity.toLocaleString())}\n`) +
+          chalk.white(`History Items: ${chalk.green(info.historyCount)}\n`) +
+          chalk.white(`Status: ${info.active ? chalk.green('Active') : chalk.red('Inactive')}`),
           {
             padding: 1,
             margin: 1,
@@ -13175,8 +13175,8 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       this.printPanel(
         boxen(
           chalk.green(`🧹 Cleanup Complete`) +
-            '\n\n' +
-            chalk.white(`Cleaned up ${chalk.yellow(cleaned)} inactive sessions`),
+          '\n\n' +
+          chalk.white(`Cleaned up ${chalk.yellow(cleaned)} inactive sessions`),
           {
             padding: 1,
             margin: 1,
@@ -13227,12 +13227,12 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       this.printPanel(
         boxen(
           chalk.blue('⚡ Quick Browse Results') +
-            '\n\n' +
-            chalk.white(`Query: ${chalk.cyan(query)}\n`) +
-            chalk.white(`Visited: ${chalk.yellow(content.title)}\n`) +
-            chalk.white(`URL: ${chalk.gray(firstResult.url)}\n\n`) +
-            chalk.bold('AI Analysis:\n') +
-            chalk.white(chatResponse),
+          '\n\n' +
+          chalk.white(`Query: ${chalk.cyan(query)}\n`) +
+          chalk.white(`Visited: ${chalk.yellow(content.title)}\n`) +
+          chalk.white(`URL: ${chalk.gray(firstResult.url)}\n\n`) +
+          chalk.bold('AI Analysis:\n') +
+          chalk.white(chatResponse),
           {
             padding: 1,
             margin: 1,
@@ -13291,10 +13291,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       // Display summary
       const summaryBox = boxen(
         (result.success ? chalk.green('✓ Command executed successfully') : chalk.red('✖ Command failed')) +
-          '\n' +
-          chalk.gray(`Exit Code: ${result.exitCode}\n`) +
-          chalk.gray(`Duration: ${(result.duration / 1000).toFixed(2)}s\n`) +
-          chalk.gray(`Sandbox: ${result.sandboxDir}`),
+        '\n' +
+        chalk.gray(`Exit Code: ${result.exitCode}\n`) +
+        chalk.gray(`Duration: ${(result.duration / 1000).toFixed(2)}s\n`) +
+        chalk.gray(`Sandbox: ${result.sandboxDir}`),
         {
           title: `🏝️  Sandbox Result (${session.id})`,
           padding: 1,
@@ -13386,9 +13386,9 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       const summaryBox = boxen(
         (result.success ? chalk.green('✓ Script executed successfully') : chalk.red('✖ Script failed')) +
-          '\n' +
-          chalk.gray(`Exit Code: ${result.exitCode}\n`) +
-          chalk.gray(`Duration: ${(result.duration / 1000).toFixed(2)}s`),
+        '\n' +
+        chalk.gray(`Exit Code: ${result.exitCode}\n`) +
+        chalk.gray(`Duration: ${(result.duration / 1000).toFixed(2)}s`),
         {
           title: `🏝️  Script Result (${session.id})`,
           padding: 1,
@@ -13562,28 +13562,28 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       const panel = boxen(
         chalk.cyan.bold(`👤 User Profile\n\n`) +
-          chalk.gray(`Email: ${chalk.cyan(profile.email || 'N/A')}\n`) +
-          chalk.gray(`Username: ${chalk.cyan(profile.username || 'N/A')}\n`) +
-          chalk.gray(`Tier: ${chalk.cyan(profile.subscription_tier.toUpperCase())}\n`) +
-          chalk.gray(`Member Since: ${chalk.cyan(new Date(currentUser.created_at).toLocaleDateString())}\n\n`) +
-          chalk.cyan.bold(`⚙️ Preferences\n\n`) +
-          chalk.gray(`Theme: ${chalk.cyan(profile.preferences.theme)}\n`) +
-          chalk.gray(
-            `Notifications: ${profile.preferences.notifications ? chalk.green('✓ Enabled') : chalk.red('✗ Disabled')}\n`
-          ) +
-          chalk.gray(
-            `Analytics: ${profile.preferences.analytics ? chalk.green('✓ Enabled') : chalk.red('✗ Disabled')}\n\n`
-          ) +
-          chalk.cyan.bold(`📊 Usage & Quotas\n\n`) +
-          chalk.gray(`Sessions: `) +
-          sessionColor(`${profile.usage.sessionsThisMonth}/${profile.quotas.sessionsPerMonth}`) +
-          chalk.gray(` (${sessionColor(sessionPercent + '%')})\n`) +
-          chalk.gray(`Tokens: `) +
-          tokenColor(`${profile.usage.tokensThisMonth}/${profile.quotas.tokensPerMonth}`) +
-          chalk.gray(` (${tokenColor(tokenPercent + '%')})\n`) +
-          chalk.gray(`API Calls/Hour: `) +
-          apiColor(`${profile.usage.apiCallsThisHour}/${profile.quotas.apiCallsPerHour}`) +
-          chalk.gray(` (${apiColor(apiPercent + '%')})\n`),
+        chalk.gray(`Email: ${chalk.cyan(profile.email || 'N/A')}\n`) +
+        chalk.gray(`Username: ${chalk.cyan(profile.username || 'N/A')}\n`) +
+        chalk.gray(`Tier: ${chalk.cyan(profile.subscription_tier.toUpperCase())}\n`) +
+        chalk.gray(`Member Since: ${chalk.cyan(new Date(currentUser.created_at).toLocaleDateString())}\n\n`) +
+        chalk.cyan.bold(`⚙️ Preferences\n\n`) +
+        chalk.gray(`Theme: ${chalk.cyan(profile.preferences.theme)}\n`) +
+        chalk.gray(
+          `Notifications: ${profile.preferences.notifications ? chalk.green('✓ Enabled') : chalk.red('✗ Disabled')}\n`
+        ) +
+        chalk.gray(
+          `Analytics: ${profile.preferences.analytics ? chalk.green('✓ Enabled') : chalk.red('✗ Disabled')}\n\n`
+        ) +
+        chalk.cyan.bold(`📊 Usage & Quotas\n\n`) +
+        chalk.gray(`Sessions: `) +
+        sessionColor(`${profile.usage.sessionsThisMonth}/${profile.quotas.sessionsPerMonth}`) +
+        chalk.gray(` (${sessionColor(sessionPercent + '%')})\n`) +
+        chalk.gray(`Tokens: `) +
+        tokenColor(`${profile.usage.tokensThisMonth}/${profile.quotas.tokensPerMonth}`) +
+        chalk.gray(` (${tokenColor(tokenPercent + '%')})\n`) +
+        chalk.gray(`API Calls/Hour: `) +
+        apiColor(`${profile.usage.apiCallsThisHour}/${profile.quotas.apiCallsPerHour}`) +
+        chalk.gray(` (${apiColor(apiPercent + '%')})\n`),
         {
           title: '📋 User Dashboard',
           padding: 1,
@@ -13768,15 +13768,15 @@ export async function handleBrowserCommand(args: string[]): Promise<void> {
       console.log(
         boxen(
           `${chalk.red('⚠︎  Browser Mode Unavailable')}\n\n` +
-            `Docker is required but not available.\n\n` +
-            `${chalk.yellow('Requirements:')}\n` +
-            `• Docker installed and running\n` +
-            `• Sufficient memory (2GB+ recommended)\n` +
-            `• Available ports for noVNC (6080+)\n\n` +
-            `${chalk.blue('Install Docker:')}\n` +
-            `• macOS: brew install --cask docker\n` +
-            `• Linux: apt install docker.io\n` +
-            `• Windows: Docker Desktop`,
+          `Docker is required but not available.\n\n` +
+          `${chalk.yellow('Requirements:')}\n` +
+          `• Docker installed and running\n` +
+          `• Sufficient memory (2GB+ recommended)\n` +
+          `• Available ports for noVNC (6080+)\n\n` +
+          `${chalk.blue('Install Docker:')}\n` +
+          `• macOS: brew install --cask docker\n` +
+          `• Linux: apt install docker.io\n` +
+          `• Windows: Docker Desktop`,
           {
             padding: 1,
             margin: 1,
@@ -13804,19 +13804,19 @@ export async function handleBrowserCommand(args: string[]): Promise<void> {
       console.log(
         boxen(
           `${chalk.green('✓ Browser Mode Active!')}\n\n` +
-            `${chalk.blue('🖥️  noVNC Viewer:')} ${chalk.cyan(result.noVncUrl || 'Starting...')}\n` +
-            `${chalk.blue('🌐 Session:')} ${result.session?.sessionId.slice(0, 12) || 'Unknown'}\n` +
-            `${chalk.blue('🐳 Container:')} ${result.container?.name || 'Unknown'}\n\n` +
-            `${chalk.yellow('💬 Chat with the browser:')}\n` +
-            `• "go to google.com"\n` +
-            `• "click on search button"\n` +
-            `• "type hello world"\n` +
-            `• "take a screenshot"\n` +
-            `• "scroll down"\n\n` +
-            `${chalk.gray('Commands:')}\n` +
-            `• ${chalk.cyan('/browser-status')} - Show browser status\n` +
-            `• ${chalk.cyan('/browser-screenshot')} - Take screenshot\n` +
-            `• ${chalk.cyan('/browser-exit')} - Exit browser mode`,
+          `${chalk.blue('🖥️  noVNC Viewer:')} ${chalk.cyan(result.noVncUrl || 'Starting...')}\n` +
+          `${chalk.blue('🌐 Session:')} ${result.session?.sessionId.slice(0, 12) || 'Unknown'}\n` +
+          `${chalk.blue('🐳 Container:')} ${result.container?.name || 'Unknown'}\n\n` +
+          `${chalk.yellow('💬 Chat with the browser:')}\n` +
+          `• "go to google.com"\n` +
+          `• "click on search button"\n` +
+          `• "type hello world"\n` +
+          `• "take a screenshot"\n` +
+          `• "scroll down"\n\n` +
+          `${chalk.gray('Commands:')}\n` +
+          `• ${chalk.cyan('/browser-status')} - Show browser status\n` +
+          `• ${chalk.cyan('/browser-screenshot')} - Take screenshot\n` +
+          `• ${chalk.cyan('/browser-exit')} - Exit browser mode`,
           {
             padding: 1,
             margin: 1,
@@ -13829,12 +13829,12 @@ export async function handleBrowserCommand(args: string[]): Promise<void> {
       console.log(
         boxen(
           `${chalk.red('✖ Browser Mode Failed')}\n\n` +
-            `${chalk.white('Error:')} ${result.error || 'Unknown error'}\n\n` +
-            `${chalk.yellow('Common Issues:')}\n` +
-            `• Docker not running\n` +
-            `• Insufficient memory\n` +
-            `• Port conflicts\n` +
-            `• Missing Docker permissions`,
+          `${chalk.white('Error:')} ${result.error || 'Unknown error'}\n\n` +
+          `${chalk.yellow('Common Issues:')}\n` +
+          `• Docker not running\n` +
+          `• Insufficient memory\n` +
+          `• Port conflicts\n` +
+          `• Missing Docker permissions`,
           {
             padding: 1,
             margin: 1,
@@ -13860,11 +13860,11 @@ export async function handleBrowserStatus(): Promise<void> {
       console.log(
         boxen(
           `${chalk.yellow('🌐 Browser Mode Status')}\n\n` +
-            `${chalk.gray('Status:')} ${chalk.red('Inactive')}\n\n` +
-            `${chalk.blue('Start browser mode:')}\n` +
-            `${chalk.cyan('/browser')} [url] - Start browser session\n\n` +
-            `${chalk.gray('Example:')}\n` +
-            `${chalk.dim('/browser https://google.com')}`,
+          `${chalk.gray('Status:')} ${chalk.red('Inactive')}\n\n` +
+          `${chalk.blue('Start browser mode:')}\n` +
+          `${chalk.cyan('/browser')} [url] - Start browser session\n\n` +
+          `${chalk.gray('Example:')}\n` +
+          `${chalk.dim('/browser https://google.com')}`,
           {
             padding: 1,
             margin: 1,
@@ -13882,24 +13882,24 @@ export async function handleBrowserStatus(): Promise<void> {
     console.log(
       boxen(
         `${chalk.green('🌐 Browser Mode Status')}\n\n` +
-          `${chalk.blue('Status:')} ${chalk.green('Active')}\n` +
-          `${chalk.blue('Mode:')} ${status.mode}\n\n` +
-          `${chalk.cyan('Session Info:')}\n` +
-          `• ID: ${session.id.slice(0, 12)}...\n` +
-          `• Status: ${session.status}\n` +
-          `• Messages: ${session.messageCount}\n` +
-          `• Created: ${session.createdAt.toLocaleTimeString()}\n` +
-          `• Last Activity: ${session.lastActivity.toLocaleTimeString()}\n\n` +
-          `${chalk.cyan('Current Page:')}\n` +
-          `• URL: ${session.currentUrl}\n` +
-          `• Title: ${session.title || 'No title'}\n\n` +
-          `${chalk.cyan('Container Info:')}\n` +
-          `• Name: ${container.name}\n` +
-          `• Status: ${container.status}\n` +
-          `• noVNC: ${container.noVncUrl}\n` +
-          `• Port: ${container.displayPort}\n\n` +
-          `${chalk.cyan('Capabilities:')}\n` +
-          `${status.capabilities.map((cap) => `• ${cap}`).join('\n')}`,
+        `${chalk.blue('Status:')} ${chalk.green('Active')}\n` +
+        `${chalk.blue('Mode:')} ${status.mode}\n\n` +
+        `${chalk.cyan('Session Info:')}\n` +
+        `• ID: ${session.id.slice(0, 12)}...\n` +
+        `• Status: ${session.status}\n` +
+        `• Messages: ${session.messageCount}\n` +
+        `• Created: ${session.createdAt.toLocaleTimeString()}\n` +
+        `• Last Activity: ${session.lastActivity.toLocaleTimeString()}\n\n` +
+        `${chalk.cyan('Current Page:')}\n` +
+        `• URL: ${session.currentUrl}\n` +
+        `• Title: ${session.title || 'No title'}\n\n` +
+        `${chalk.cyan('Container Info:')}\n` +
+        `• Name: ${container.name}\n` +
+        `• Status: ${container.status}\n` +
+        `• noVNC: ${container.noVncUrl}\n` +
+        `• Port: ${container.displayPort}\n\n` +
+        `${chalk.cyan('Capabilities:')}\n` +
+        `${status.capabilities.map((cap) => `• ${cap}`).join('\n')}`,
         {
           padding: 1,
           margin: 1,
@@ -13932,10 +13932,10 @@ export async function handleBrowserExit(): Promise<void> {
     console.log(
       boxen(
         `${chalk.green('✓ Browser Mode Exited')}\n\n` +
-          `• Session ended successfully\n` +
-          `• Container stopped and removed\n` +
-          `• Resources cleaned up\n\n` +
-          `${chalk.gray('Start again with:')} ${chalk.cyan('/browser')} [url]`,
+        `• Session ended successfully\n` +
+        `• Container stopped and removed\n` +
+        `• Resources cleaned up\n\n` +
+        `${chalk.gray('Start again with:')} ${chalk.cyan('/browser')} [url]`,
         {
           padding: 1,
           margin: 1,
@@ -13969,12 +13969,12 @@ export async function handleBrowserScreenshot(): Promise<void> {
       console.log(
         boxen(
           `${chalk.green('📸 Screenshot Captured')}\n\n` +
-            `• Page: ${status.session?.currentUrl || 'Unknown'}\n` +
-            `• Title: ${status.session?.title || 'No title'}\n` +
-            `• Time: ${new Date().toLocaleTimeString()}\n` +
-            `• Type: Full page\n\n` +
-            `${chalk.gray('Screenshot data:')} ${screenshot.length} chars\n` +
-            `${chalk.blue('🖥️  View in browser:')} ${status.container?.noVncUrl || 'N/A'}`,
+          `• Page: ${status.session?.currentUrl || 'Unknown'}\n` +
+          `• Title: ${status.session?.title || 'No title'}\n` +
+          `• Time: ${new Date().toLocaleTimeString()}\n` +
+          `• Type: Full page\n\n` +
+          `${chalk.gray('Screenshot data:')} ${screenshot.length} chars\n` +
+          `${chalk.blue('🖥️  View in browser:')} ${status.container?.noVncUrl || 'N/A'}`,
           {
             padding: 1,
             margin: 1,
@@ -14001,17 +14001,17 @@ export async function handleBrowserInfo(): Promise<void> {
   console.log(
     boxen(
       `${chalk.blue.bold('🌐 Browser Mode Information')}\n\n` +
-        `${chalk.cyan('Description:')}\n${info.description}\n\n` +
-        `${chalk.cyan('Status:')} ${available ? chalk.green('Available') : chalk.red('Unavailable')}\n\n` +
-        `${chalk.cyan('Features:')}\n${info.features.map((f) => `• ${f}`).join('\n')}\n\n` +
-        `${chalk.cyan('Requirements:')}\n${info.requirements.map((r) => `• ${r}`).join('\n')}\n\n` +
-        `${chalk.cyan('Capabilities:')}\n${info.capabilities.map((c) => `• ${c}`).join('\n')}\n\n` +
-        `${chalk.cyan('Commands:')}\n` +
-        `• ${chalk.green('/browser')} [url] - Start browser mode\n` +
-        `• ${chalk.green('/browser-status')} - Show status\n` +
-        `• ${chalk.green('/browser-screenshot')} - Take screenshot\n` +
-        `• ${chalk.green('/browser-exit')} - Exit mode\n` +
-        `• ${chalk.green('/browser-info')} - Show this info`,
+      `${chalk.cyan('Description:')}\n${info.description}\n\n` +
+      `${chalk.cyan('Status:')} ${available ? chalk.green('Available') : chalk.red('Unavailable')}\n\n` +
+      `${chalk.cyan('Features:')}\n${info.features.map((f) => `• ${f}`).join('\n')}\n\n` +
+      `${chalk.cyan('Requirements:')}\n${info.requirements.map((r) => `• ${r}`).join('\n')}\n\n` +
+      `${chalk.cyan('Capabilities:')}\n${info.capabilities.map((c) => `• ${c}`).join('\n')}\n\n` +
+      `${chalk.cyan('Commands:')}\n` +
+      `• ${chalk.green('/browser')} [url] - Start browser mode\n` +
+      `• ${chalk.green('/browser-status')} - Show status\n` +
+      `• ${chalk.green('/browser-screenshot')} - Take screenshot\n` +
+      `• ${chalk.green('/browser-exit')} - Exit mode\n` +
+      `• ${chalk.green('/browser-info')} - Show this info`,
       {
         padding: 1,
         margin: 1,
@@ -14171,7 +14171,7 @@ export async function handleGoatSDKCommand(args: string[]): Promise<void> {
     console.log(
       boxen(
         `Failed to execute GOAT command: ${error.message}` +
-          '\n\nTips:\n- Ensure GOAT_EVM_PRIVATE_KEY is set\n- Run /goat init first\n- Use /goat status to check setup',
+        '\n\nTips:\n- Ensure GOAT_EVM_PRIVATE_KEY is set\n- Run /goat init first\n- Use /goat status to check setup',
         { title: 'GOAT Error', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'red' }
       )
     )

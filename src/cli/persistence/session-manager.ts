@@ -1,5 +1,5 @@
-import { promises as fs } from 'node:fs'
-import path from 'node:path'
+import { join } from 'node:path'
+import { bunFile, bunWrite, fileExists, mkdirp } from '../utils/bun-compat'
 
 /**
  * Represents a single chat message.
@@ -23,47 +23,72 @@ export class SessionManager {
   private baseDir: string
 
   constructor(dir?: string) {
-    this.baseDir = dir || path.join(process.cwd(), 'sessions')
+    this.baseDir = dir || join(process.cwd(), 'sessions')
   }
 
   private getSessionPath(id: string): string {
-    return path.join(this.baseDir, `${id}.json`)
+    return join(this.baseDir, `${id}.json`)
   }
 
   async loadSession(id: string): Promise<SessionData | null> {
     try {
-      const raw = await fs.readFile(this.getSessionPath(id), 'utf-8')
+      const sessionPath = this.getSessionPath(id)
+      const exists = await fileExists(sessionPath)
+      if (!exists) return null
+
+      const file = bunFile(sessionPath)
+      const raw = await file.text()
       return JSON.parse(raw)
-    } catch (e: any) {
+    } catch (error: unknown) {
+      const e = error as { code?: string }
       if (e.code === 'ENOENT') return null
-      throw e
+      throw error
     }
   }
 
   async saveSession(session: SessionData): Promise<void> {
-    await fs.mkdir(this.baseDir, { recursive: true })
+    await mkdirp(this.baseDir)
     session.updatedAt = new Date().toISOString()
-    await fs.writeFile(this.getSessionPath(session.id), JSON.stringify(session, null, 2), 'utf-8')
+    const content = JSON.stringify(session, null, 2)
+    await bunWrite(this.getSessionPath(session.id), content)
   }
 
   async listSessions(): Promise<SessionData[]> {
     try {
-      const files = await fs.readdir(this.baseDir)
+      const dirExists = await fileExists(this.baseDir)
+      if (!dirExists) return []
+
+      const glob = new Bun.Glob('*.json')
       const sessions: SessionData[] = []
-      for (const file of files) {
-        if (file.endsWith('.json')) {
-          const raw = await fs.readFile(path.join(this.baseDir, file), 'utf-8')
+
+      for await (const file of glob.scan({ cwd: this.baseDir, absolute: false })) {
+        try {
+          const filePath = join(this.baseDir, file)
+          const bunFileHandle = bunFile(filePath)
+          const raw = await bunFileHandle.text()
           sessions.push(JSON.parse(raw))
+        } catch {
+          // Skip invalid JSON files
         }
       }
-      return sessions
-    } catch (e: any) {
+
+      return sessions.sort((a, b) =>
+        new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+      )
+    } catch (error: unknown) {
+      const e = error as { code?: string }
       if (e.code === 'ENOENT') return []
-      throw e
+      throw error
     }
   }
 
   async deleteSession(id: string): Promise<void> {
-    await fs.unlink(this.getSessionPath(id))
+    const sessionPath = this.getSessionPath(id)
+    const exists = await fileExists(sessionPath)
+    if (exists) {
+      await Bun.write(sessionPath, '') // Clear content
+      const { unlink } = await import('node:fs/promises')
+      await unlink(sessionPath)
+    }
   }
 }

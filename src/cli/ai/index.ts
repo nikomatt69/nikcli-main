@@ -9,7 +9,7 @@ export type {
 } from './adaptive-model-router'
 export { adaptiveModelRouter } from './adaptive-model-router'
 export { advancedAIProvider } from './advanced-ai-provider'
-export { clearAICache, createAICacheMiddleware, getAICacheStats } from './ai-cache-middleware'
+
 export type { ComplexityEstimate, LightweightInferenceEngine, ToolScore } from './lightweight-inference-layer'
 // Lightweight inference exports
 export {

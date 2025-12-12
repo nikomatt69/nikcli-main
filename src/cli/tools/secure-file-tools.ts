@@ -5,7 +5,12 @@ import chalk from 'chalk'
 import inquirer from 'inquirer'
 import { inputQueue } from '../core/input-queue'
 import { advancedUI } from '../ui/advanced-cli-ui'
-import { checkPath, type PathCheckResult } from '../utils/path-resolver'
+import {
+  checkPath,
+  sanitizePath as centralizedSanitizePath,
+  isPathSafe,
+  type PathCheckResult,
+} from '../utils/path-resolver'
 
 // Global batch approval state
 const batchApprovalState = {
@@ -15,22 +20,10 @@ const batchApprovalState = {
 
 /**
  * Utility to sanitize and validate file paths to prevent directory traversal attacks
+ * @deprecated Use sanitizePath from '../utils/path-resolver' directly
  */
 export function sanitizePath(filePath: string, workingDirectory: string = process.cwd()): string {
-  // Normalize the path to resolve any '..' or '.' segments
-  const normalizedPath = path.normalize(filePath)
-
-  // Resolve to absolute path
-  const absolutePath = path.resolve(workingDirectory, normalizedPath)
-
-  // Ensure the resolved path is within the working directory
-  const workingDirAbsolute = path.resolve(workingDirectory)
-
-  if (!absolutePath.startsWith(workingDirAbsolute)) {
-    throw new Error(`Path traversal detected: ${filePath} resolves outside working directory`)
-  }
-
-  return absolutePath
+  return centralizedSanitizePath(filePath, workingDirectory)
 }
 
 /**

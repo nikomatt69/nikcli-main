@@ -14,6 +14,13 @@ export interface MultiEditOperation {
   oldString: string
   newString: string
   replaceAll?: boolean
+  // NEW: Passthrough fuzzy matching options (Phase 2)
+  fuzzyMatch?: boolean
+  fuzzyThreshold?: number
+  ignoreWhitespace?: boolean
+  ignoreIndentation?: boolean
+  requireUnique?: boolean
+  contextLines?: number
 }
 
 export interface MultiEditParams {
@@ -101,6 +108,13 @@ export class MultiEditTool extends BaseTool {
             createBackup: params.createBackup,
             validateSyntax: params.validateSyntax,
             previewOnly: params.previewOnly ?? params.dryRun,
+            // NEW: Passthrough fuzzy matching options (Phase 2)
+            fuzzyMatch: operation.fuzzyMatch,
+            fuzzyThreshold: operation.fuzzyThreshold,
+            ignoreWhitespace: operation.ignoreWhitespace,
+            ignoreIndentation: operation.ignoreIndentation,
+            requireUnique: operation.requireUnique,
+            contextLines: operation.contextLines,
           }
 
           const editResult = await this.editTool.execute(editParams)

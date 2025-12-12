@@ -1185,8 +1185,25 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
         break
       }
       case 'anthropic': {
-        const anthropicProvider = createAnthropic({ apiKey })
-        baseModel = anthropicProvider(config.model)
+        const oauthTokens = simpleConfigManager.getAnthropicOAuthTokens()
+
+        if (oauthTokens) {
+          // Use OAuth with custom fetch for Claude Pro/Max subscription
+          const { createOAuthFetch } = require('../auth/anthropic-oauth')
+          const anthropicProvider = createAnthropic({
+            apiKey: 'oauth', // Placeholder, actual auth via fetch
+            fetch: createOAuthFetch(
+              () => Promise.resolve(simpleConfigManager.getAnthropicOAuthTokens()),
+              (tokens: { access: string; refresh: string; expires: number }) =>
+                simpleConfigManager.setAnthropicOAuthTokens(tokens)
+            ),
+          })
+          baseModel = anthropicProvider(config.model)
+        } else {
+          // Fallback to API key
+          const anthropicProvider = createAnthropic({ apiKey })
+          baseModel = anthropicProvider(config.model)
+        }
         break
       }
       case 'google': {

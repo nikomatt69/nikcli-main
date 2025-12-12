@@ -6,11 +6,14 @@ import { advancedUI } from '../ui/advanced-cli-ui'
 import { diffManager } from '../ui/diff-manager'
 import { DiffViewer, type FileDiff } from '../ui/diff-viewer'
 import { CliUI } from '../utils/cli-ui'
+import { SmartMatcher } from '../utils/smart-matcher'
+import { EditValidator } from '../utils/edit-validator'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
 
 /**
  * Enhanced EditTool - Editor avanzato con diff, patch e validation
  * Basato su esempi con logica di sostituzione precisa e backup automatico
+ * Integrato con smart matching per fuzzy search e whitespace handling
  */
 
 export interface EditToolParams {
@@ -21,6 +24,12 @@ export interface EditToolParams {
   createBackup?: boolean
   validateSyntax?: boolean
   previewOnly?: boolean
+  fuzzyMatch?: boolean
+  fuzzyThreshold?: number
+  ignoreWhitespace?: boolean
+  ignoreIndentation?: boolean
+  requireUnique?: boolean
+  contextLines?: number
 }
 
 export interface EditResult {
@@ -164,6 +173,9 @@ export class EditTool extends BaseTool {
     params: EditToolParams,
     fileExists: boolean
   ): Promise<EditResult> {
+    const matcher = new SmartMatcher()
+    const validator = new EditValidator()
+
     let newContent: string
     let replacementsMade = 0
     const changes: EditChange[] = []
@@ -180,51 +192,136 @@ export class EditTool extends BaseTool {
         context: { beforeLines: [], afterLines: [] },
       })
     } else {
+      // Pre-edit validation
+      const validation = validator.validateEdit(originalContent, params.oldString, params.newString, params)
+
+      if (!validation.valid) {
+        // Show validation errors and suggestions
+        for (const error of validation.errors) {
+          advancedUI.logError(`❌ ${error.type}: ${error.message}`)
+        }
+
+        if (validation.suggestions.length > 0) {
+          advancedUI.logInfo('\n💡 Suggestions:')
+          for (const suggestion of validation.suggestions) {
+            advancedUI.logInfo(`  • ${suggestion}`)
+          }
+        }
+
+        throw new Error(`Edit validation failed: ${validation.errors.map(e => e.message).join(', ')}`)
+      }
+
       // Sostituzione in file esistente
       const lines = originalContent.split('\n')
       const newLines: string[] = []
+      let processedFirst = false
 
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i]
+      // Prepare matching options
+      const matchOptions = {
+        fuzzyThreshold: params.fuzzyThreshold ?? 0.85,
+        ignoreWhitespace: params.ignoreWhitespace ?? (params.fuzzyMatch ? true : false),
+        ignoreIndentation: params.ignoreIndentation ?? (params.fuzzyMatch ? true : false),
+        requireUnique: params.requireUnique ?? true,
+        contextLines: params.contextLines ?? 2,
+      }
 
-        if (params.replaceAll) {
-          // Sostituisci tutte le occorrenze nella linea
-          if (line.includes(params.oldString)) {
-            const newLine = line.replace(new RegExp(this.escapeRegex(params.oldString), 'g'), params.newString)
-            const occurrences = (line.match(new RegExp(this.escapeRegex(params.oldString), 'g')) || []).length
+      // Use smart matching if enabled
+      if (params.fuzzyMatch) {
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i]
+          const matchResult = matcher.findBestMatch(line, params.oldString, matchOptions)
 
-            newLines.push(newLine)
-            replacementsMade += occurrences
+          if (matchResult.found && matchResult.confidence >= matchOptions.fuzzyThreshold) {
+            if (params.replaceAll || !processedFirst) {
+              // Use actual matched content for replacement
+              const actualOld = matchResult.actualContent || params.oldString
+              const newLine = line.replace(actualOld, params.newString)
+              newLines.push(newLine)
+              replacementsMade++
+              processedFirst = true
 
-            changes.push({
-              lineNumber: i + 1,
-              before: line,
-              after: newLine,
-              context: this.getLineContext(lines, i, 2),
-            })
+              // Log confidence if < 95%
+              if (matchResult.confidence < 0.95) {
+                advancedUI.logWarning(
+                  `⚠︎ Line ${i + 1}: fuzzy match (${Math.round(matchResult.confidence * 100)}% confidence)`
+                )
+              }
+
+              changes.push({
+                lineNumber: i + 1,
+                before: line,
+                after: newLine,
+                context: this.getLineContext(lines, i, 2),
+              })
+            } else {
+              newLines.push(line)
+            }
           } else {
             newLines.push(line)
           }
-        } else {
-          // Sostituisci solo prima occorrenza
-          if (line.includes(params.oldString) && replacementsMade === 0) {
-            const newLine = line.replace(params.oldString, params.newString)
-            newLines.push(newLine)
-            replacementsMade = 1
+        }
+      } else {
+        // Original exact matching logic
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i]
 
-            changes.push({
-              lineNumber: i + 1,
-              before: line,
-              after: newLine,
-              context: this.getLineContext(lines, i, 2),
-            })
+          if (params.replaceAll) {
+            // Sostituisci tutte le occorrenze nella linea
+            if (line.includes(params.oldString)) {
+              const newLine = line.replace(new RegExp(this.escapeRegex(params.oldString), 'g'), params.newString)
+              const occurrences = (line.match(new RegExp(this.escapeRegex(params.oldString), 'g')) || []).length
+
+              newLines.push(newLine)
+              replacementsMade += occurrences
+
+              changes.push({
+                lineNumber: i + 1,
+                before: line,
+                after: newLine,
+                context: this.getLineContext(lines, i, 2),
+              })
+            } else {
+              newLines.push(line)
+            }
           } else {
-            newLines.push(line)
+            // Sostituisci solo prima occorrenza
+            if (line.includes(params.oldString) && replacementsMade === 0) {
+              const newLine = line.replace(params.oldString, params.newString)
+              newLines.push(newLine)
+              replacementsMade = 1
+
+              changes.push({
+                lineNumber: i + 1,
+                before: line,
+                after: newLine,
+                context: this.getLineContext(lines, i, 2),
+              })
+            } else {
+              newLines.push(line)
+            }
           }
         }
       }
 
       newContent = newLines.join('\n')
+
+      // Show suggestions if no replacements were made
+      if (replacementsMade === 0 && params.oldString !== '') {
+        const suggestions = matcher.findSimilarLines(originalContent, params.oldString, {
+          maxResults: 3,
+          threshold: 0.6,
+        })
+
+        if (suggestions.length > 0) {
+          advancedUI.logWarning('⚠︎ Pattern not found. Similar matches:')
+          for (const sugg of suggestions) {
+            advancedUI.logInfo(`  Line ${sugg.lineNumber}: "${sugg.content}" (${Math.round(sugg.similarity * 100)}% similar)`)
+          }
+          advancedUI.logInfo('\nConsider using fuzzyMatch: true or adjusting the search pattern.')
+        } else {
+          advancedUI.logWarning('⚠︎ No replacements made - pattern not found')
+        }
+      }
     }
 
     // Genera e mostra diff

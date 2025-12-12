@@ -3,6 +3,8 @@ import { advancedUI } from '../ui/advanced-cli-ui'
 import { diffManager } from '../ui/diff-manager'
 import { DiffViewer, type FileDiff } from '../ui/diff-viewer'
 import { CliUI } from '../utils/cli-ui'
+import { SmartMatcher } from '../utils/smart-matcher'
+import { EditValidator } from '../utils/edit-validator'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
 import { sanitizePath, validateIsFile } from './secure-file-tools'
 
@@ -520,6 +522,12 @@ export interface ReplaceOptions {
   previewLines?: number
   validators?: ReplacementValidator[]
   createBackup?: boolean
+  // NEW: Fuzzy matching options (Phase 2)
+  fuzzyMatch?: boolean
+  fuzzyThreshold?: number
+  ignoreWhitespace?: boolean
+  ignoreIndentation?: boolean
+  smartContext?: boolean
 }
 
 export interface ContextOptions {

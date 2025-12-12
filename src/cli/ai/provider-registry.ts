@@ -343,3 +343,181 @@ export const MODEL_ALIASES: Record<string, { provider: string; model: string }> 
 export function resolveModelAlias(alias: string): { provider: string; model: string } | null {
   return MODEL_ALIASES[alias] || null
 }
+
+/**
+ * Enhanced model selector with capability-based selection
+ * Merged from enhanced-provider-registry.ts
+ */
+export class EnhancedModelSelector {
+  private static reasoningEnabledModels = new Set([
+    'openrouter:claude-sonnet-4.5',
+    'openrouter:claude-opus-4.5',
+    'openrouter:gpt-5.1',
+    'anthropic:sonnet-4.5',
+    'anthropic:opus-4.5',
+    'openai:gpt-5.1',
+  ])
+
+  private static visionCapableModels = new Set([
+    'openrouter:gpt-5.1',
+    'openrouter:claude-opus-4.5',
+    'openrouter:gemini-3-pro',
+    'google:3-pro',
+    'anthropic:opus-4.5',
+  ])
+
+  private static fastModels = new Set([
+    'openrouter:claude-haiku-4.5',
+    'openrouter:grok-4.1-fast',
+    'anthropic:haiku-4.5',
+    'openai:gpt-5.1-chat',
+    'google:2.5-flash',
+  ])
+
+  private static powerfulModels = new Set([
+    'openrouter:gpt-5.1',
+    'openrouter:claude-opus-4.5',
+    'openrouter:deepseek-v3.2-speciale',
+    'anthropic:opus-4.5',
+    'google:3-pro',
+  ])
+
+  /**
+   * Select optimal model based on requirements
+   */
+  static selectOptimalModel(requirements: {
+    reasoning?: boolean
+    vision?: boolean
+    speed?: 'fast' | 'balanced' | 'powerful'
+  } = {}): string {
+    const { reasoning = false, vision = false, speed = 'balanced' } = requirements
+
+    let candidates: Set<string>
+
+    switch (speed) {
+      case 'fast':
+        candidates = EnhancedModelSelector.fastModels
+        break
+      case 'powerful':
+        candidates = EnhancedModelSelector.powerfulModels
+        break
+      default:
+        candidates = new Set([...EnhancedModelSelector.fastModels, ...EnhancedModelSelector.powerfulModels])
+    }
+
+    if (reasoning) {
+      candidates = new Set([...candidates].filter(id => EnhancedModelSelector.reasoningEnabledModels.has(id)))
+    }
+
+    if (vision) {
+      candidates = new Set([...candidates].filter(id => EnhancedModelSelector.visionCapableModels.has(id)))
+    }
+
+    const selected = [...candidates][0]
+    return selected || 'openrouter:balanced'
+  }
+
+  /**
+   * Get model capabilities
+   */
+  static getModelCapabilities(modelId: string): {
+    supportsReasoning: boolean
+    supportsVision: boolean
+    contextLength: number
+    estimatedCost: 'low' | 'medium' | 'high'
+    speed: 'fast' | 'medium' | 'slow'
+  } {
+    const [provider, model] = modelId.split(':')
+
+    const capabilities: {
+      supportsReasoning: boolean
+      supportsVision: boolean
+      contextLength: number
+      estimatedCost: 'low' | 'medium' | 'high'
+      speed: 'fast' | 'medium' | 'slow'
+    } = {
+      supportsReasoning: EnhancedModelSelector.reasoningEnabledModels.has(modelId),
+      supportsVision: EnhancedModelSelector.visionCapableModels.has(modelId),
+      contextLength: 128000,
+      estimatedCost: 'medium',
+      speed: 'medium',
+    }
+
+    switch (provider) {
+      case 'openrouter':
+        if (model?.includes('claude-haiku')) {
+          capabilities.contextLength = 200000
+          capabilities.speed = 'fast'
+          capabilities.estimatedCost = 'low'
+        } else if (model?.includes('claude-opus')) {
+          capabilities.contextLength = 200000
+          capabilities.speed = 'slow'
+          capabilities.estimatedCost = 'high'
+        } else if (model?.includes('gpt-5.1')) {
+          capabilities.contextLength = 400000
+          capabilities.speed = 'medium'
+        }
+        break
+      case 'anthropic':
+        if (model?.includes('haiku')) {
+          capabilities.contextLength = 200000
+          capabilities.speed = 'fast'
+          capabilities.estimatedCost = 'low'
+        } else if (model?.includes('opus')) {
+          capabilities.contextLength = 200000
+          capabilities.speed = 'slow'
+          capabilities.estimatedCost = 'high'
+        }
+        break
+      case 'google':
+        capabilities.contextLength = 1050000
+        if (model?.includes('flash')) {
+          capabilities.speed = 'fast'
+          capabilities.estimatedCost = 'low'
+        }
+        break
+    }
+
+    return capabilities
+  }
+}
+
+/**
+ * Provider utilities for common operations
+ */
+export const providerUtils = {
+  /**
+   * Get language model with automatic fallback
+   */
+  getLanguageModelSafe: (provider: string, model: string) => {
+    try {
+      return providerRegistry.languageModel(`${provider}:${model}`)
+    } catch {
+      return providerRegistry.languageModel('openrouter:balanced')
+    }
+  },
+
+  /**
+   * Check if provider is available (has API key configured)
+   */
+  isProviderAvailable: (provider: string): boolean => {
+    const envVars: Record<string, string | undefined> = {
+      anthropic: process.env.ANTHROPIC_API_KEY,
+      openai: process.env.OPENAI_API_KEY,
+      google: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
+      openrouter: process.env.OPENROUTER_API_KEY,
+      groq: process.env.GROQ_API_KEY,
+      cerebras: process.env.CEREBRAS_API_KEY,
+      vercel: process.env.V0_API_KEY,
+    }
+    return !!envVars[provider]
+  },
+
+  /**
+   * Get list of available providers
+   */
+  getAvailableProviders: (): string[] => {
+    const allProviders = ['openrouter', 'anthropic', 'openai', 'google', 'cerebras', 'groq', 'vercel', 'ollama', 'llamacpp', 'lmstudio']
+    return allProviders.filter(p => providerUtils.isProviderAvailable(p))
+  },
+}

@@ -454,8 +454,8 @@ class OnboardingModule {
         OnboardingModule.apiKeyStatus = 'ollama'
         return true
       }
-    } catch (_) {
-      // ignore config errors
+    } catch {
+      // Config errors are expected when model not configured - continue with setup
     }
 
     const setupBox = boxen(
@@ -548,8 +548,8 @@ class OnboardingModule {
           ollamaOk = false
         }
       }
-    } catch (_) {
-      // ignore config errors
+    } catch {
+      // Config errors are expected when model not configured - skip ollama check
     }
 
     const allPassed = runtimeOk && ollamaOk

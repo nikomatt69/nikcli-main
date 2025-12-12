@@ -196,9 +196,27 @@ export class PolymarketCTF extends EventEmitter {
         },
       ]
 
+      // Convert to CTFPosition format for storage
+      const ctfPositions: CTFPosition[] = [
+        {
+          positionId: yesCollection.collectionId,
+          balance: collateralAmount,
+          collectionId: yesCollection.collectionId,
+          indexSet: 1,
+          outcome: 'YES',
+        },
+        {
+          positionId: noCollection.collectionId,
+          balance: collateralAmount,
+          collectionId: noCollection.collectionId,
+          indexSet: 2,
+          outcome: 'NO',
+        },
+      ]
+
       // Store user positions
       const key = `${userAddress}:${conditionId}`
-      this.userPositions.set(key, positions as CTFPosition[])
+      this.userPositions.set(key, ctfPositions)
 
       console.log(`✓ Split complete: created YES and NO positions`)
       this.emit('splitCompleted', {

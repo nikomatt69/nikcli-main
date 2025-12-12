@@ -576,7 +576,12 @@ export class CacheService extends EventEmitter {
         errors: this.stats.errors,
       }
       await this.redis.set('stats:cache', payload, 3600, { type: 'stats' })
-    } catch (_e) {}
+    } catch (error: unknown) {
+      // Stats persistence is non-critical, log but don't throw
+      if (process.env.DEBUG) {
+        console.debug('[CacheService] Failed to persist stats:', error instanceof Error ? error.message : error)
+      }
+    }
   }
 
   /**
