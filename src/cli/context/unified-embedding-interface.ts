@@ -8,7 +8,7 @@ import { configManager } from '../core/config-manager'
 import { AiSdkEmbeddingProvider, aiSdkEmbeddingProvider } from './ai-sdk-embedding-provider'
 
 export interface EmbeddingConfig {
-  provider: 'openai' | 'google' | 'anthropic' | 'openrouter'
+  provider: 'openai' | 'google' | 'anthropic' | 'openrouter' | 'local'
   model: string
   dimensions: number
   maxTokens: number

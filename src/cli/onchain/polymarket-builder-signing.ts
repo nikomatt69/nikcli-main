@@ -217,7 +217,9 @@ export class PolymarketBuilderSigningService extends EventEmitter {
     // Maintain log size
     if (this.attributionLog.size > this.maxLogSize) {
       const firstKey = this.attributionLog.keys().next().value
-      this.attributionLog.delete(firstKey)
+      if (firstKey !== undefined) {
+        this.attributionLog.delete(firstKey)
+      }
     }
   }
 

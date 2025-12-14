@@ -38,7 +38,7 @@ export class PasteHandler {
     this.config = {
       minLengthThreshold: 500,
       minLineThreshold: 10,
-      rapidInputThreshold: 500,
+      rapidInputThreshold: 100,
       maxDisplayLines: 1,
       ...config,
     }
@@ -150,9 +150,9 @@ export class PasteHandler {
 
     // Solo indicatore collassato come Claude Code
     if (lineCount > 1) {
-      return chalk.magentaBright(`[Pasted text #${pasteId}]`)
+      return chalk.gray(`[Pasted text #${pasteId} +${lineCount} lines]`)
     } else {
-      return chalk.magentaBright(`[Pasted text #${pasteId}]`)
+      return chalk.gray(`[Pasted text #${pasteId}]`)
     }
   }
 

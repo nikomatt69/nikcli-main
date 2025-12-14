@@ -84,6 +84,7 @@
     "@goat-sdk/plugin-erc20": "^0.2.14",
     "@goat-sdk/plugin-polymarket": "^0.3.14",
     "@goat-sdk/wallet-viem": "^0.3.0",
+    "@huggingface/transformers": "^3.8.1",
     "@mozilla/readability": "^0.6.0",
     "@nicomatt69/streamtty": "0.0.1",
     "@octokit/rest": "^20.1.2",

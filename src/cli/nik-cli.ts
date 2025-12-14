@@ -3059,6 +3059,7 @@ export class NikCLI {
   /**
    * Handle consolidated paste content (from bracketed paste mode)
    * Stores content and shows indicator - waits for Enter to submit
+   * Preserves existing text in the input line and appends pasted content
    */
   private async handleConsolidatedPaste(content: string): Promise<void> {
     const trimmed = content.trim()
@@ -3076,7 +3077,7 @@ export class NikCLI {
     this.pendingPasteContent = pasteResult.originalText
     this.pendingPasteId = pasteResult.pasteId || null
 
-    // Show Claude Code-style collapsed indicator in the prompt line
+    // Show existing text + indicator in the prompt line
     if (this.rl) {
       // Write the indicator as the current line content (user sees this before pressing Enter)
       this.rl.write(pasteResult.displayText)
@@ -16311,8 +16312,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         this.configManager.setAnthropicOAuthTokens(tokens)
 
         // Set Anthropic as the active provider since OAuth is now configured
-        const currentConfig = this.configManager.getApiKey('anthropicKey')
-        if (currentConfig !== 'anthropic') {
+        const currentConfig = this.configManager.getApiKey('currentModelConfig')
+        if (currentConfig == 'anthropic') {
           this.configManager.getCurrentModel()
           this.printPanel(
             boxen(

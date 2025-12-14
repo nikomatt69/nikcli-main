@@ -2,12 +2,14 @@ import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import { createOpenAI } from '@ai-sdk/openai'
 import { embed } from 'ai'
 import chalk from 'chalk'
+import { homedir } from 'node:os'
+import { join } from 'node:path'
 import { configManager } from '../core/config-manager'
 import { redisProvider } from '../providers/redis/redis-provider'
 import { advancedUI } from '../ui/advanced-cli-ui'
 
 export interface EmbeddingConfig {
-  provider: 'openai' | 'google' | 'anthropic' | 'openrouter'
+  provider: 'openai' | 'google' | 'anthropic' | 'openrouter' | 'local'
   model: string
   batchSize: number
   maxTokens: number
