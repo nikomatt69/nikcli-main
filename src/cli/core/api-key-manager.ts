@@ -14,6 +14,7 @@ export type AIProvider =
   | 'perplexity'
   | 'openrouter'
   | 'xai'
+  | 'opencode'
   | 'ollama'
   | 'azure'
 
@@ -133,6 +134,7 @@ export class APIKeyManager {
       perplexity: ['PERPLEXITY_API_KEY'],
       openrouter: ['OPENROUTER_API_KEY'],
       xai: ['XAI_API_KEY'],
+      opencode: ['OPENCODE_API_KEY', 'OPENAI_COMPATIBLE_API_KEY'],
       ollama: ['OLLAMA_API_KEY'],
       azure: ['AZURE_OPENAI_API_KEY'],
     }
@@ -175,6 +177,7 @@ export class APIKeyManager {
       'perplexity',
       'openrouter',
       'xai',
+      'opencode',
       'ollama',
       'azure',
     ]
@@ -225,7 +228,7 @@ export class APIKeyManager {
   printStatus(): void {
     console.log(chalk.bold('\n🔑 API Key Configuration Status\n'))
 
-    const providers: AIProvider[] = ['anthropic', 'openai', 'google', 'mistral', 'perplexity', 'openrouter', 'xai']
+    const providers: AIProvider[] = ['anthropic', 'openai', 'google', 'mistral', 'perplexity', 'openrouter', 'xai', 'opencode']
 
     for (const provider of providers) {
       const source = this.getAPIKeySource(provider)

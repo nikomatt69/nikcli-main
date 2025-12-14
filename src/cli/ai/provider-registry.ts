@@ -476,6 +476,19 @@ export class EnhancedModelSelector {
           capabilities.estimatedCost = 'low'
         }
         break
+      case 'opencode':
+        capabilities.contextLength = 128000
+        capabilities.speed = 'medium'
+        capabilities.estimatedCost = 'medium'
+        if (model?.includes('grok-code')) {
+          capabilities.speed = 'fast'
+          capabilities.estimatedCost = 'low'
+        } else if (model?.includes('big-pickle')) {
+          capabilities.contextLength = 128000
+          capabilities.speed = 'medium'
+          capabilities.estimatedCost = 'medium'
+        }
+        break
     }
 
     return capabilities
@@ -506,6 +519,7 @@ export const providerUtils = {
       openai: process.env.OPENAI_API_KEY,
       google: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
       openrouter: process.env.OPENROUTER_API_KEY,
+      opencode: process.env.OPENCODE_API_KEY,
       groq: process.env.GROQ_API_KEY,
       cerebras: process.env.CEREBRAS_API_KEY,
       vercel: process.env.V0_API_KEY,
@@ -517,7 +531,7 @@ export const providerUtils = {
    * Get list of available providers
    */
   getAvailableProviders: (): string[] => {
-    const allProviders = ['openrouter', 'anthropic', 'openai', 'google', 'cerebras', 'groq', 'vercel', 'ollama', 'llamacpp', 'lmstudio']
+    const allProviders = ['openrouter', 'anthropic', 'openai', 'google', 'cerebras', 'groq', 'vercel', 'ollama', 'llamacpp', 'lmstudio', 'opencode']
     return allProviders.filter(p => providerUtils.isProviderAvailable(p))
   },
 }

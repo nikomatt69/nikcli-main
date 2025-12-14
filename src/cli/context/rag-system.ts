@@ -265,7 +265,7 @@ export class UnifiedRAGSystem {
   private embeddingsCache: CacheProvider
   private analysisCache: CacheProvider
   private fileHashCache: CacheProvider
-  private readonly CACHE_TTL = 300000 // 5 minutes
+  private readonly CACHE_TTL = 7 * 24 * 60 * 60 * 1000 // 7 days for project analysis persistence
 
   // Performance monitoring
   private searchMetrics = {
@@ -444,6 +444,140 @@ export class UnifiedRAGSystem {
   }
 
   /**
+   * Generate hash for project files to detect changes
+   */
+  private async getProjectFilesHash(projectPath: string): Promise<string> {
+    const crypto = await import('node:crypto')
+    
+    try {
+      // Get all relevant files in the project
+      const files = await this.getAllProjectFiles(projectPath)
+      const fileHashes: string[] = []
+      
+      for (const filePath of files) {
+        try {
+          const stat = statSync(filePath)
+          const cacheKey = `file-hash-${filePath}`
+          
+          // Check cache first
+          const cachedHash = await this.fileHashCache.get<string>(cacheKey)
+          let fileHash: string
+          
+          if (cachedHash) {
+            // Verify file hasn't changed by checking modification time
+            const cachedData = await this.fileHashCache.get<{ hash: string; mtime: number }>(`${cacheKey}-data`)
+            if (cachedData && cachedData.mtime === stat.mtime.getTime()) {
+              fileHash = cachedData.hash
+            } else {
+              // File changed, recalculate hash
+              const content = await readFile(filePath, 'utf-8')
+              fileHash = crypto.createHash('md5').update(content).digest('hex')
+              await this.fileHashCache.set(cacheKey, fileHash)
+              await this.fileHashCache.set(`${cacheKey}-data`, { 
+                hash: fileHash, 
+                mtime: stat.mtime.getTime() 
+              })
+            }
+          } else {
+            // No cache entry, calculate hash
+            const content = await readFile(filePath, 'utf-8')
+            fileHash = crypto.createHash('md5').update(content).digest('hex')
+            await this.fileHashCache.set(cacheKey, fileHash)
+            await this.fileHashCache.set(`${cacheKey}-data`, { 
+              hash: fileHash, 
+              mtime: stat.mtime.getTime() 
+            })
+          }
+          
+          fileHashes.push(`${filePath}:${fileHash}`)
+        } catch (error) {
+          // Skip files that can't be read (binary, permissions, etc.)
+          continue
+        }
+      }
+      
+      // Create final project hash from all file hashes
+      const projectHash = crypto.createHash('md5').update(fileHashes.join('|')).digest('hex')
+      return projectHash
+      
+    } catch (error) {
+      // Fallback to simple path+time hash
+      return crypto.createHash('md5').update(`${projectPath}:${Date.now()}`).digest('hex')
+    }
+  }
+
+  /**
+   * Check if project needs re-indexing based on file changes
+   */
+  private async checkIfProjectNeedsReindexing(projectPath: string): Promise<boolean> {
+    try {
+      const currentHash = await this.getProjectFilesHash(projectPath)
+      const cacheKey = `project-hash-${projectPath}`
+      const cachedHash = await this.fileHashCache.get<string>(cacheKey)
+      
+      if (cachedHash && cachedHash === currentHash) {
+        return false // No changes detected
+      }
+      
+      // Hash changed or no cache entry, update cache and return true
+      await this.fileHashCache.set(cacheKey, currentHash)
+      return true
+      
+    } catch (error) {
+      // On error, assume re-indexing is needed
+      return true
+    }
+  }
+
+  /**
+   * Get all relevant project files for hashing
+   */
+  private async getAllProjectFiles(projectPath: string): Promise<string[]> {
+    const { glob } = await import('glob')
+    
+    const patterns = [
+      `${projectPath}/**/*.{ts,tsx,js,jsx,py,java,cpp,c,h,hpp,go,rs,php,rb,swift,kt,scala,cs}`,
+      `${projectPath}/**/*.{md,txt,json,yaml,yml,toml,ini,cfg}`,
+      `${projectPath}/**/package.json`,
+      `${projectPath}/**/tsconfig.json`,
+      `${projectPath}/**/*.config.{js,ts,json}`
+    ]
+    
+    try {
+      const allFiles: string[] = []
+      for (const pattern of patterns) {
+        const files = await glob(pattern, { 
+          ignore: [
+            '**/node_modules/**',
+            '**/dist/**',
+            '**/build/**',
+            '**/.git/**',
+            '**/coverage/**',
+            '**/target/**',
+            '**/__pycache__/**',
+            '**/*.min.js',
+            '**/*.bundle.js'
+          ]
+        })
+        allFiles.push(...files)
+      }
+      
+      // Remove duplicates and filter out non-files
+      const uniqueFiles = [...new Set(allFiles)]
+      return uniqueFiles.filter(file => {
+        try {
+          return statSync(file).isFile()
+        } catch {
+          return false
+        }
+      })
+      
+    } catch (error) {
+      return []
+    }
+  }
+
+  /**
    * Unified project analysis combining workspace and vector approaches
    */
   async analyzeProject(projectPath: string): Promise<RAGAnalysisResult> {
@@ -453,10 +587,15 @@ export class UnifiedRAGSystem {
     advancedUI.logFunctionCall('unifiedraganalysis')
     advancedUI.logFunctionUpdate('info', 'Starting unified RAG analysis...', 'ℹ')
 
-    // Check cache
-    const cacheKey = `analysis - ${projectPath}`
+    // Check if re-indexing is needed
+    const needsReindexing = await this.checkIfProjectNeedsReindexing(projectPath)
+    
+    // Check cache with project hash for better invalidation
+    const projectHash = await this.getProjectFilesHash(projectPath)
+    const cacheKey = `analysis - ${projectPath} - ${projectHash}`
     const cached = await this.analysisCache.get<RAGAnalysisResult>(cacheKey)
-    if (cached) {
+    if (cached && !needsReindexing) {
+      advancedUI.logFunctionUpdate('info', `Using cached RAG analysis for project (hash: ${projectHash.substring(0, 8)}...)`, '💾')
       return cached
     }
 
@@ -738,13 +877,30 @@ export class UnifiedRAGSystem {
       let indexedCount = 0
       let documentsToIndex: VectorDocument[] = []
 
+      let skippedFiles = 0
+      let processedFiles = 0
+
       for (const filePath of filesToIndex) {
         try {
           const relativePath = relative(projectPath, filePath)
+          const fileStats = statSync(filePath)
+          const fileHash = `${filePath}:${fileStats.mtime.getTime()}`
+          
+          // Check if file is already indexed and hasn't changed
+          const cacheKey = `indexed-file-${fileHash}`
+          const isAlreadyIndexed = await this.fileHashCache.get<boolean>(cacheKey)
+          
+          if (isAlreadyIndexed) {
+            skippedFiles++
+            continue
+          }
+
           const content = await readFile(filePath, 'utf-8')
 
           // Skip empty files
           if (content.trim().length === 0) continue
+
+          processedFiles++
 
           // Estimate cost before processing
           const estimatedCost = estimateCost([content])
@@ -753,7 +909,6 @@ export class UnifiedRAGSystem {
           }
 
           // Get file metadata from workspace context or create default
-          const fileStats = statSync(filePath)
           const fileInfo = workspaceContext.files.get(relativePath) || {
             path: relativePath,
             language: this.detectLanguageFromPath(filePath),
@@ -863,11 +1018,33 @@ export class UnifiedRAGSystem {
 
         const successRate = (successfulBatches / Math.ceil(documentsToIndex.length / batchSize)) * 100
 
+        // Mark processed files as indexed
+        for (const filePath of filesToIndex) {
+          try {
+            const fileStats = statSync(filePath)
+            const fileHash = `${filePath}:${fileStats.mtime.getTime()}`
+            const cacheKey = `indexed-file-${fileHash}`
+            await this.fileHashCache.set(cacheKey, true)
+          } catch (error) {
+            // Ignore errors in marking files as indexed
+          }
+        }
+
+        // Show improved statistics
+        const totalFiles = filesToIndex.length
+        const cacheHitRate = totalFiles > 0 ? ((skippedFiles / totalFiles) * 100).toFixed(1) : '0'
+        
         advancedUI.logFunctionCall('unifiedraganalysis')
-        advancedUI.logFunctionUpdate('success', `Indexing complete!`)
+        advancedUI.logFunctionUpdate('success', 
+          `Indexing complete! Processed ${processedFiles} new/changed files, skipped ${skippedFiles} cached files (${cacheHitRate}% cache hit rate)`
+        )
+      } else {
+        advancedUI.logFunctionUpdate('info', 
+          `All ${skippedFiles} files already indexed and up-to-date (100% cache hit rate)`
+        )
       }
 
-      return { success: true, cost: totalCost, indexedFiles: indexedCount }
+      return { success: true, cost: totalCost, indexedFiles: processedFiles }
     } catch (error) {
       advancedUI.logFunctionCall('unifiedraganalysis')
       advancedUI.logFunctionUpdate('error', `Vector store indexing failed: ${error} `)

@@ -267,11 +267,7 @@ export class PasteHandler {
   /**
    * Get statistics about stored paste content
    */
-  getStats(): {
-    totalPastes: number
-    storedContent: number
-    oldestTimestamp?: Date
-  } {
+  getStats(): { totalPastes: number; storedContent: number; oldestTimestamp?: Date } {
     const entries = Array.from(this.pastedContentMap.values())
     return {
       totalPastes: this.pasteCounter,
@@ -307,11 +303,7 @@ export class PasteHandler {
         // Paste timeout - treat buffer as complete content
         const content = this.rawPasteBuffer + input
         this.cancelPaste()
-        return {
-          isPasteComplete: true,
-          pastedContent: content,
-          passthrough: null,
-        }
+        return { isPasteComplete: true, pastedContent: content, passthrough: null }
       }
     }
 
@@ -323,11 +315,7 @@ export class PasteHandler {
       input = input.slice(0, -partialMatch[0].length)
       // If input is empty after removing partial, wait for next chunk
       if (!input) {
-        return {
-          isPasteComplete: false,
-          pastedContent: null,
-          passthrough: null,
-        }
+        return { isPasteComplete: false, pastedContent: null, passthrough: null }
       }
     }
 
@@ -337,11 +325,7 @@ export class PasteHandler {
 
     // CASE 1: Not in paste mode, no start marker found
     if (!this.isPasteMode && startIdx === -1) {
-      return {
-        isPasteComplete: false,
-        pastedContent: null,
-        passthrough: input,
-      }
+      return { isPasteComplete: false, pastedContent: null, passthrough: input }
     }
 
     // CASE 2: Not in paste mode, found start marker
@@ -415,19 +399,17 @@ export class PasteHandler {
    * Preserves actual text content while removing terminal formatting
    */
   private sanitizeContent(content: string): string {
-    return (
-      content
-        // Remove standard ANSI escape codes (colors, formatting)
-        .replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '')
-        // Remove OSC sequences (Operating System Command)
-        .replace(/\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)/g, '')
-        // Remove DCS, PM, APC sequences
-        .replace(/\x1b[PX^_][^\x1b]*\x1b\\/g, '')
-        // Remove single-character escape sequences
-        .replace(/\x1b[NOc]/g, '')
-        // Remove any remaining bare escape characters (safety net)
-        .replace(/\x1b(?!\[)/g, '')
-    )
+    return content
+      // Remove standard ANSI escape codes (colors, formatting)
+      .replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '')
+      // Remove OSC sequences (Operating System Command)
+      .replace(/\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)/g, '')
+      // Remove DCS, PM, APC sequences
+      .replace(/\x1b[PX^_][^\x1b]*\x1b\\/g, '')
+      // Remove single-character escape sequences
+      .replace(/\x1b[NOc]/g, '')
+      // Remove any remaining bare escape characters (safety net)
+      .replace(/\x1b(?!\[)/g, '')
   }
 
   /**

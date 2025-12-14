@@ -287,6 +287,8 @@ export class NikCLI {
   private cognitiveMode: boolean = true
   private pasteHandler: PasteHandler
   private _pendingPasteContent?: string
+  private prepasteLineContent: string = '' // Contenuto della riga prima del paste
+  private lastInputLines: number = 1 // Numero di righe dell'input per re-render dinamico
   private orchestrationLevel: number = 8
   // Timer used to re-render the prompt after console output in chat mode
   private promptRenderTimer: NodeJS.Timeout | null = null
@@ -2615,6 +2617,22 @@ export class NikCLI {
 
       // Save listener reference for cleanup
       this.keypressListener = (chunk, key) => {
+        // Re-render dinamico se il numero di righe dell'input cambia
+        setImmediate(() => {
+          if (this.rl && this.isChatMode && !this.assistantProcessing) {
+            const currentText = this.rl.line || ''
+            const termWidth = process.stdout.columns || 120
+            const promptSymbolLen = 4 // "█❯ "
+            const textLen = currentText.length + promptSymbolLen
+            const newInputLines = Math.max(1, Math.ceil(textLen / Math.max(1, termWidth - 2)))
+
+            if (newInputLines !== this.lastInputLines) {
+              this.lastInputLines = newInputLines
+              void this.renderPromptArea()
+            }
+          }
+        })
+
         if (key && key.name === 'escape') {
           // Stop ongoing AI operation spinner
           if (this.activeSpinner) {
@@ -3041,9 +3059,11 @@ export class NikCLI {
       pendingData = ''
 
       if (result.isPasteComplete && result.pastedContent) {
-        // Paste completed - handle as consolidated input
+        // Paste completed - handle as consolidated input con contenuto pre-paste
+        const existingContent = self.prepasteLineContent
+        self.prepasteLineContent = ''
         setImmediate(() => {
-          self.handleConsolidatedPaste(result.pastedContent!)
+          self.handleConsolidatedPaste(result.pastedContent!, existingContent)
         })
       }
 
@@ -3055,20 +3075,19 @@ export class NikCLI {
   // Buffer for pending paste content (waits for Enter to submit)
   private pendingPasteContent: string | null = null
   private pendingPasteId: number | null = null
+  private justPasted: boolean = false // Flag per bloccare invio automatico dopo paste
 
   /**
    * Handle consolidated paste content (from bracketed paste mode)
    * Stores content and shows indicator - waits for Enter to submit
    * Preserves existing text in the input line and appends pasted content
    */
-  private async handleConsolidatedPaste(content: string): Promise<void> {
+  private async handleConsolidatedPaste(content: string, existingContent: string = ''): Promise<void> {
     const trimmed = content.trim()
     if (!trimmed) return
 
     // Clear any partial readline input that may have accumulated
-    if (this.rl) {
-      this.rl.write('', { ctrl: true, name: 'u' }) // Clear current line
-    }
+
 
     // Process through paste handler for display formatting
     const pasteResult = this.pasteHandler.processPastedText(trimmed)
@@ -3077,10 +3096,11 @@ export class NikCLI {
     this.pendingPasteContent = pasteResult.originalText
     this.pendingPasteId = pasteResult.pasteId || null
 
-    // Show existing text + indicator in the prompt line
-    if (this.rl) {
+    // Clear the line (which now contains existing + pasted text visible)
+    // Then rewrite ONLY: pre-paste content + indicator
+    if (this?.rl) {
       // Write the indicator as the current line content (user sees this before pressing Enter)
-      this.rl.write(pasteResult.displayText)
+      this.rl?.write(pasteResult.displayText + existingContent)
     }
 
     // Do NOT process yet - wait for Enter key (handled by 'line' event)
@@ -13514,7 +13534,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     // Input prompt management (same as renderPromptArea)
     // Il simbolo ❯ è già renderizzato nell'area prompt sopra
     if (this.rl) {
-      this.rl.setPrompt('>') // Prompt vuoto - il simbolo è già renderizzato
+      this.rl.setPrompt('❯ ') // Unificato con render prompt area
 
       // Posiziona cursor solo quando può accettare input
       const isReadlineListening = this.rl.listenerCount('line') > 0
@@ -14053,7 +14073,14 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
 
     const terminalHeight = process.stdout.rows || 24
     const hudExtraLines = planHudLines.length > 0 ? planHudLines.length + 2 : 0
-    const reservedLines = 8 + hudExtraLines + slashMenuHeight // +2 per righe separator sopra e sotto input
+
+    // Calcolare quante righe occupa il testo input (wrapping dinamico)
+    const currentInputText = this.rl?.line || ''
+    const promptSymbolLength = 4 // "█❯ " = 4 caratteri
+    const inputTextLength = this._stripAnsi(currentInputText).length + promptSymbolLength
+    const inputLines = Math.max(1, Math.ceil(inputTextLength / Math.max(1, terminalWidth - 2)))
+
+    const reservedLines = 8 + hudExtraLines + slashMenuHeight + (inputLines - 1) // +inputLines per righe extra
     const spacingLines = reservedLines + 1
     terminalOutputManager.setPromptHeight(reservedLines)
     // Reserve logical space for the HUD without emitting blank lines (prevents overlap without flicker)
@@ -14178,10 +14205,25 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       // 2.5: Empty line SOPRA il prompt input
       promptLines.push(bgColor(`${verticalBar}${emptyPadding}`))
 
-      // 3. ZONA 1: Empty line for input with prompt symbol + extra space
+      // 3. ZONA 1: Input line(s) with prompt symbol - dinamico multi-riga
       const promptSymbol = chalk.greenBright('❯ ') + ' ' // Spazio extra dopo >
-      const inputPadding = ' '.repeat(Math.max(0, terminalWidth - 2 - this._stripAnsi(promptSymbol).length))
-      promptLines.push(bgColor(`${verticalBar}${promptSymbol}${inputPadding}`))
+      const promptSymbolLen = this._stripAnsi(promptSymbol).length
+      const maxLineWidth = terminalWidth - 2 - promptSymbolLen
+      const inputDisplay = currentInputText || ''
+
+      // Prima riga con simbolo
+      const firstLineContent = inputDisplay.slice(0, maxLineWidth)
+      const inputPadding = ' '.repeat(Math.max(0, maxLineWidth - firstLineContent.length))
+      promptLines.push(bgColor(`${verticalBar}${promptSymbol}${firstLineContent}${inputPadding}`))
+
+      // Righe successive (se wrapping)
+      let remaining = inputDisplay.slice(maxLineWidth)
+      while (remaining.length > 0) {
+        const lineContent = remaining.slice(0, terminalWidth - 2)
+        const linePadding = ' '.repeat(Math.max(0, terminalWidth - 2 - lineContent.length))
+        promptLines.push(bgColor(`${verticalBar} ${lineContent}${linePadding}`))
+        remaining = remaining.slice(terminalWidth - 2)
+      }
 
       // 3b. ZONA 1.5: Empty separator line below input
       promptLines.push(bgColor(`${verticalBar}${emptyPadding}`))
@@ -14232,7 +14274,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       // Con fixed prompt, readline deve avere prompt vuoto
       // Il simbolo ❯ è già renderizzato da FixedPromptManager
       if (this.rl) {
-        this.rl.setPrompt('') // Prompt vuoto - il simbolo è già nel fixed area
+        this.rl.setPrompt('❯ ') // Unificato con render prompt area
 
         // Posiziona cursor nel prompt area SOLO quando:
         // 1. Non sta processando (assistantProcessing = false)
@@ -14276,10 +14318,25 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       // 2.5: ZONA 0.5 - Empty line SOPRA il prompt input
       process.stdout.write(bgColor(`${verticalBar}${emptyPadding}`) + '\n')
 
-      // 3. ZONA 1: Input line with prompt symbol + extra space
+      // 3. ZONA 1: Input line(s) with prompt symbol - dinamico multi-riga
       const promptSymbol = chalk.greenBright('❯ ') + ' '
-      const inputPadding = ' '.repeat(Math.max(0, terminalWidth - 2 - this._stripAnsi(promptSymbol).length))
-      process.stdout.write(bgColor(`${verticalBar}${promptSymbol}${inputPadding}`) + '\n')
+      const promptSymbolLen = this._stripAnsi(promptSymbol).length
+      const maxLineWidth = terminalWidth - 2 - promptSymbolLen
+      const inputDisplay = currentInputText || ''
+
+      // Prima riga con simbolo
+      const firstLineContent = inputDisplay.slice(0, maxLineWidth)
+      const inputPadding = ' '.repeat(Math.max(0, maxLineWidth - firstLineContent.length))
+      process.stdout.write(bgColor(`${verticalBar}${promptSymbol}${firstLineContent}${inputPadding}`) + '\n')
+
+      // Righe successive (se wrapping)
+      let remaining = inputDisplay.slice(maxLineWidth)
+      while (remaining.length > 0) {
+        const lineContent = remaining.slice(0, terminalWidth - 2)
+        const linePadding = ' '.repeat(Math.max(0, terminalWidth - 2 - lineContent.length))
+        process.stdout.write(bgColor(`${verticalBar} ${lineContent}${linePadding}`) + '\n')
+        remaining = remaining.slice(terminalWidth - 2)
+      }
 
       // 3b. ZONA 1.5: Empty separator line below input
       process.stdout.write(bgColor(`${verticalBar}${emptyPadding}`) + '\n')
@@ -14329,8 +14386,8 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
 
     if (this.rl && !terminalOutputManager.isFixedPromptEnabled()) {
       // Only in NORMAL MODE (not fixed prompt)
-      // Il simbolo ❯ è già renderizzato sopra, quindi prompt vuoto (same as fixed/legacy)
-      this.rl.setPrompt('> ')
+      // Il simbolo ❯ è unificato con render prompt area
+      this.rl.setPrompt('❯ ')
 
       // Posiziona cursor solo quando può accettare input (same as legacy)
       const isReadlineListening = this.rl.listenerCount('line') > 0
@@ -24495,25 +24552,25 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           name: 'email',
           message: 'Email',
           default: savedAuth.email || savedAuth.user || '',
-          validate: (value: string) => (value && value.includes('@') ? true : 'Inserisci un indirizzo email valido'),
+          validate: (value: string) => (value && value.includes('@') ? true : 'Invaild Email'),
         },
         {
           type: 'password',
           name: 'password',
           message: 'Password',
           mask: '*',
-          validate: (value: string) => (value && value.length > 3 ? true : 'Password troppo corta'),
+          validate: (value: string) => (value && value.length > 3 ? true : 'Wrong Password'),
         },
         {
           type: 'confirm',
           name: 'remember',
-          message: 'Ricorda la sessione su questo dispositivo?',
+          message: 'Remember Session ?',
           default: true,
         },
       ])
     } catch (error: any) {
       if (error?.isTtyError) {
-        console.log(chalk.red('Il login interattivo richiede un terminale interattivo.'))
+        console.log(chalk.red('You need terminal interactive support.'))
       }
       answers = null
     } finally {
@@ -24560,9 +24617,9 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         const displayName = result.profile?.email || result.profile?.username || email
         await this.printPanel(
           boxen(
-            `${chalk.green('✓ Login completato')}\n${chalk.white(displayName)}\n${chalk.gray('Sessione salvata (Ctrl+W per riaprire)')}`,
+            `${chalk.green('✓ Login')}\n${chalk.white(displayName)}\n${chalk.gray('Session Saved (Ctrl+W for Change Account)')}`,
             {
-              title: 'Autenticazione',
+              title: 'Autentication',
               padding: 1,
               margin: 1,
               borderStyle: 'round',
@@ -24573,8 +24630,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         )
       } else {
         await this.printPanel(
-          boxen(chalk.red('Credenziali non valide, riprova.'), {
-            title: 'Autenticazione',
+          boxen(chalk.red('Invalid Credentials, retry.'), {
+            title: 'Autentication',
             padding: 1,
             margin: 1,
             borderStyle: 'round',
@@ -24585,8 +24642,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       }
     } catch (error: any) {
       await this.printPanel(
-        boxen(chalk.red(`Errore di login: ${error.message || error}`), {
-          title: 'Autenticazione',
+        boxen(chalk.red(`Login Error: ${error.message || error}`), {
+          title: 'Autentication',
           padding: 1,
           margin: 1,
           borderStyle: 'round',

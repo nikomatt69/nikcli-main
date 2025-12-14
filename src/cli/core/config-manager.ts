@@ -21,6 +21,7 @@ const ModelConfigSchema = z.object({
     'llamacpp',
     'lmstudio',
     'openai-compatible',
+    'opencode'
   ]),
   model: z.string(),
   temperature: z.number().min(0).max(2).optional(),
@@ -78,7 +79,7 @@ const EditToolConfigSchema = z.object({
 const ConfigSchema = z.object({
   currentModel: z.string(),
   currentEmbeddingModel: z.string().default('openai/text-embedding-3-small'),
-  temperature: z.number().min(0).max(2).default(0.7),
+  temperature: z.number().min(0).max(2).default(1),
   maxTokens: z.number().min(1).max(6000).default(6000),
   chatHistory: z.boolean().default(true),
   maxHistoryLength: z.number().min(1).max(1000).default(100),
@@ -1597,6 +1598,11 @@ export class SimpleConfigManager {
       model: 'qwen/qwen3-coder-plus',
       maxContextTokens: 128000,
     },
+    'kwaipilot/kat-coder-pro:free': {
+      provider: 'openrouter',
+      model: 'kwaipilot/kat-coder-pro:free',
+      maxContextTokens: 200000,
+    },
     '@preset/nikcli': {
       provider: 'openrouter',
       model: '@preset/nikcli',
@@ -1616,6 +1622,21 @@ export class SimpleConfigManager {
       provider: 'openrouter',
       model: '@preset/nikcli-free',
       maxContextTokens: 200000,
+    },
+    // OpenCode provider models
+    'opencode/grok-code': {
+      provider: 'opencode',
+      model: 'opencode/grok-code',
+      baseURL: 'https://opencode.ai/zen/v1',
+      maxContextTokens: 128000,
+      name: 'opencode-grok',
+    },
+    'opencode/big-pickle': {
+      provider: 'opencode',
+      model: 'opencode/big-pickle',
+      baseURL: 'https://opencode.ai/zen/v1',
+      maxContextTokens: 128000,
+      name: 'opencode-big-pickle',
     },
   }
 
@@ -2215,6 +2236,9 @@ export class SimpleConfigManager {
         case 'openai-compatible':
           // Generic OpenAI-compatible endpoint; allow multiple env fallbacks
           return process.env.OPENAI_COMPATIBLE_API_KEY || process.env.SAM3_API_KEY
+        case 'opencode':
+          // OpenCode specific API key
+          return process.env.OPENCODE_API_KEY || process.env.OPENAI_COMPATIBLE_API_KEY
         case 'cerebras':
           return process.env.CEREBRAS_API_KEY
         case 'groq':
@@ -2336,7 +2360,7 @@ export class SimpleConfigManager {
             )
           }
         })
-        .catch(() => {})
+        .catch(() => { })
     }
   }
 
@@ -2401,9 +2425,9 @@ export class SimpleConfigManager {
   setEmbeddingModelConfig(model: string, config: Partial<z.infer<typeof EmbeddingModelConfigSchema>>): void {
     const baseConfig = this.config.embeddingModels?.[model] ||
       this.getEmbeddingModelConfig(model) || {
-        provider: this.inferEmbeddingProvider(model),
-        model,
-      }
+      provider: this.inferEmbeddingProvider(model),
+      model,
+    }
 
     this.config.embeddingModels = {
       ...this.config.embeddingModels,

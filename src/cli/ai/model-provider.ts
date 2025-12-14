@@ -412,6 +412,23 @@ export class ModelProvider {
         })
         return compatProvider(config.model)
       }
+      case 'opencode': {
+        // OpenCode is an OpenAI-compatible provider with dedicated API key management
+        const apiKey = configManager.getApiKey('opencode') || process.env.OPENCODE_API_KEY || process.env.OPENAI_COMPATIBLE_API_KEY
+        if (!apiKey) {
+          throw new Error(
+            `API key not found for model: ${currentModelName} (OpenCode). Set OPENCODE_API_KEY environment variable or use /set-key opencode to configure.`
+          )
+        }
+        const baseURL = (config as any).baseURL || process.env.OPENCODE_BASE_URL || 'https://opencode.ai/zen/v1'
+        const compatProvider = createOpenAICompatible({
+          name: 'opencode',
+          apiKey,
+          baseURL,
+          headers: (config as any).headers,
+        })
+        return compatProvider(config.model)
+      }
       default:
         throw new Error(`Unsupported provider: ${config.provider}`)
     }

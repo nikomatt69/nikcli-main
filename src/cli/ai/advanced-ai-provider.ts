@@ -47,6 +47,8 @@ import { compactAnalysis, safeStringifyContext } from '../utils/analysis-utils'
 import { bunExec } from '../utils/bun-compat'
 import { CliUI } from '../utils/cli-ui'
 import { adaptiveModelRouter, type ModelScope } from './adaptive-model-router'
+import { openRouterRegistry } from './openrouter-model-registry'
+import { ReasoningDetector } from './reasoning-detector'
 import { workflowPatterns } from './workflow-patterns'
 
 const cognitiveColor = chalk.hex('#3a3a3a')
@@ -2878,29 +2880,78 @@ The tool automatically handles chunking, token limits, and provides continuation
         streamOpts.toolChoice = cfg.toolChoice
       }
 
+      // Check if reasoning should be enabled
+      const reasoningEnabled = this.shouldEnableReasoning()
+      
       // OpenRouter and Anthropic models REQUIRE maxTokens
       if (provider !== 'openai') {
         if (provider === 'openrouter') {
           // All OpenRouter models require maxTokens parameter
           streamOpts.maxTokens = params.maxTokens
 
-          // Add reasoning support for OpenRouter
-          if (!streamOpts.experimental_providerMetadata) {
-            streamOpts.experimental_providerMetadata = {}
+          // Add reasoning metadata for OpenRouter using ReasoningDetector
+          if (reasoningEnabled) {
+            const providerMetadata = ReasoningDetector.getReasoningProviderMetadata(
+              provider,
+              model,
+              { enabled: true, effort: 'medium' }
+            )
+
+            if (Object.keys(providerMetadata).length > 0) {
+              streamOpts.experimental_providerMetadata = {
+                ...streamOpts.experimental_providerMetadata,
+                ...providerMetadata,
+              }
+            }
+
+            // Add transforms for context compression if supported
+            try {
+              const modelCaps = await openRouterRegistry.getCapabilities(model)
+              if (modelCaps.supportedParameters && modelCaps.supportedParameters.includes('transforms')) {
+                if (!streamOpts.experimental_providerMetadata.openrouter) {
+                  streamOpts.experimental_providerMetadata.openrouter = {}
+                }
+                streamOpts.experimental_providerMetadata.openrouter.transforms = ['middle-out']
+              }
+            } catch {
+              // Silently fail if we can't get capabilities
+            }
           }
-          if (!streamOpts.experimental_providerMetadata.openrouter) {
-            streamOpts.experimental_providerMetadata.openrouter = {}
-          }
-          streamOpts.experimental_providerMetadata.openrouter.reasoning = {
-            effort: 'medium',
-            exclude: false,
-            enabled: true,
-          }
-          // Add transforms for context compression
-          streamOpts.experimental_providerMetadata.openrouter.transforms = ['middle-out']
         } else if (provider === 'anthropic') {
           if (this.getCurrentModelInfo().config.maxTokens) {
             streamOpts.maxTokens = params.maxTokens
+          }
+
+          // Add reasoning metadata for Anthropic using ReasoningDetector
+          if (reasoningEnabled) {
+            const providerMetadata = ReasoningDetector.getReasoningProviderMetadata(
+              provider,
+              model,
+              { enabled: true, budgetTokens: 10000 }
+            )
+
+            if (Object.keys(providerMetadata).length > 0) {
+              streamOpts.experimental_providerMetadata = {
+                ...streamOpts.experimental_providerMetadata,
+                ...providerMetadata,
+              }
+            }
+          }
+        } else {
+          // Add reasoning metadata for other providers using ReasoningDetector
+          if (reasoningEnabled) {
+            const providerMetadata = ReasoningDetector.getReasoningProviderMetadata(
+              provider,
+              model,
+              { enabled: true, effort: 'medium' }
+            )
+
+            if (Object.keys(providerMetadata).length > 0) {
+              streamOpts.experimental_providerMetadata = {
+                ...streamOpts.experimental_providerMetadata,
+                ...providerMetadata,
+              }
+            }
           }
         }
       }
@@ -3964,29 +4015,85 @@ Requirements:
         prompt: this.progressiveTokenManager.emergencyTruncate(codeGenPrompt, 120000),
       }
       const provider = this.getCurrentModelInfo().config.provider
+      // Check if reasoning should be enabled
+      const reasoningEnabled = this.shouldEnableReasoning()
+      
       if (provider !== 'openai') {
         if (provider === 'openrouter') {
           // All OpenRouter models require maxTokens
           genOpts.maxTokens = Math.min(params.maxTokens, 2000)
 
-          // Add reasoning support for OpenRouter
-          if (!genOpts.experimental_providerMetadata) {
-            genOpts.experimental_providerMetadata = {}
+          // Add reasoning metadata for OpenRouter using ReasoningDetector
+          if (reasoningEnabled) {
+            const providerMetadata = ReasoningDetector.getReasoningProviderMetadata(
+              provider,
+              model,
+              { enabled: true, effort: 'medium' }
+            )
+
+            if (Object.keys(providerMetadata).length > 0) {
+              genOpts.experimental_providerMetadata = {
+                ...genOpts.experimental_providerMetadata,
+                ...providerMetadata,
+              }
+            }
+
+            // Add transforms for context compression if supported
+            try {
+              const modelCaps = await openRouterRegistry.getCapabilities(model)
+              if (modelCaps.supportedParameters && modelCaps.supportedParameters.includes('transforms')) {
+                if (!genOpts.experimental_providerMetadata.openrouter) {
+                  genOpts.experimental_providerMetadata.openrouter = {}
+                }
+                genOpts.experimental_providerMetadata.openrouter.transforms = ['middle-out']
+              }
+            } catch {
+              // Silently fail if we can't get capabilities
+            }
           }
-          if (!genOpts.experimental_providerMetadata.openrouter) {
-            genOpts.experimental_providerMetadata.openrouter = {}
-          }
-          genOpts.experimental_providerMetadata.openrouter.reasoning = {
-            effort: 'medium',
-            exclude: false,
-            enabled: true,
-          }
-          genOpts.experimental_providerMetadata.openrouter.transforms = ['middle-out']
         } else if (provider === 'anthropic') {
           genOpts.maxTokens = Math.min(params.maxTokens, 2000)
+
+          // Add reasoning metadata for Anthropic using ReasoningDetector
+          if (reasoningEnabled) {
+            const providerMetadata = ReasoningDetector.getReasoningProviderMetadata(
+              provider,
+              model,
+              { enabled: true, budgetTokens: 5000 }
+            )
+
+            if (Object.keys(providerMetadata).length > 0) {
+              genOpts.experimental_providerMetadata = {
+                ...genOpts.experimental_providerMetadata,
+                ...providerMetadata,
+              }
+            }
+          }
+        } else {
+          // Add reasoning metadata for other providers using ReasoningDetector
+          if (reasoningEnabled) {
+            const providerMetadata = ReasoningDetector.getReasoningProviderMetadata(
+              provider,
+              model,
+              { enabled: true, effort: 'medium' }
+            )
+
+            if (Object.keys(providerMetadata).length > 0) {
+              genOpts.experimental_providerMetadata = {
+                ...genOpts.experimental_providerMetadata,
+                ...providerMetadata,
+              }
+            }
+          }
         }
       }
       const result = await generateText(genOpts)
+
+      // Extract reasoning if available
+      let reasoningData = {}
+      if (reasoningEnabled) {
+        reasoningData = ReasoningDetector.extractReasoning(result, provider)
+      }
 
       return {
         type,
@@ -3995,6 +4102,7 @@ Requirements:
         code: result.text,
         generated: new Date(),
         context: params,
+        ...reasoningData,
       }
     } catch (error: any) {
       return { error: `Code generation failed: ${error.message}` }
@@ -4196,6 +4304,25 @@ Requirements:
         })
         return compatProvider(configData.model)
       }
+      case 'opencode': {
+        // OpenCode provider with dedicated API key management
+        const baseURL = (configData as any).baseURL || process.env.OPENCODE_BASE_URL || 'https://opencode.ai/zen/v1'
+        let apiKey = configManager.getApiKey('opencode') || process.env.OPENCODE_API_KEY || process.env.OPENAI_COMPATIBLE_API_KEY
+        if (!apiKey) {
+          const current = configManager.get('currentModel')
+          if (current && current !== model) apiKey = configManager.getApiKey(current)
+        }
+        if (!apiKey) {
+          throw new Error(`No API key found for OpenCode provider (model ${model}). Set OPENCODE_API_KEY environment variable or use /set-key opencode`)
+        }
+        const compatProvider = createOpenAICompatible({
+          name: 'opencode',
+          apiKey,
+          baseURL,
+          headers: (configData as any).headers,
+        })
+        return compatProvider(configData.model)
+      }
       default:
         throw new Error(`Unsupported provider: ${configData.provider}`)
     }
@@ -4281,6 +4408,15 @@ Requirements:
           return { maxTokens: 3000, temperature: 0.8 } // Anthropic models - reduced
         }
         return { maxTokens: 8000, temperature: 1 } // Default - reduced
+
+      case 'opencode':
+        // OpenCode models - optimized for code generation
+        if (configData.model.includes('grok-code')) {
+          return { maxTokens: 4000, temperature: 0.2 } // Lower temp for code consistency
+        } else if (configData.model.includes('big-pickle')) {
+          return { maxTokens: 6000, temperature: 0.3 } // Slightly higher for complex reasoning
+        }
+        return { maxTokens: 4000, temperature: 0.3 } // Default OpenCode settings
 
       default:
         return { maxTokens: 8000, temperature: 1 } // Further reduced for cost efficiency
@@ -5488,6 +5624,80 @@ Use this cognitive understanding to provide more targeted and effective response
     this.totalTokensUsed += tokens
     this.estimatedCost += cost
     this.requestCount += 1
+  }
+
+  /**
+   * Check if reasoning should be enabled for current model
+   * Uses dynamic detection for OpenRouter models
+   */
+  private shouldEnableReasoning(): boolean {
+    const config = configManager.getCurrentModel() as any
+    if (!config) return false
+
+    // Check model's explicit reasoning setting
+    if (config.enableReasoning !== undefined) {
+      return config.enableReasoning
+    }
+
+    // Auto-detect based on model capabilities (sync version)
+    return ReasoningDetector.shouldEnableReasoning(config.provider, config.model)
+  }
+
+  /**
+   * Async version - uses OpenRouter API for dynamic capability detection
+   */
+  private async shouldEnableReasoningAsync(): Promise<boolean> {
+    const config = configManager.getCurrentModel() as any
+    if (!config) return false
+
+    if (config.enableReasoning !== undefined) {
+      return config.enableReasoning
+    }
+
+    // For OpenRouter, fetch actual model capabilities
+    if (config.provider === 'openrouter') {
+      return ReasoningDetector.shouldEnableReasoningAsync(config.provider, config.model)
+    }
+
+    return ReasoningDetector.shouldEnableReasoning(config.provider, config.model)
+  }
+
+  /**
+   * Log reasoning status if enabled
+   * Uses async version for OpenRouter to get actual capabilities
+   */
+  private async logReasoningStatusAsync(enabled: boolean): Promise<void> {
+    const config = configManager.getCurrentModel() as any
+    if (!config) return
+
+    try {
+      let summary: string
+      if (config.provider === 'openrouter') {
+        summary = await ReasoningDetector.getModelReasoningSummaryAsync(config.provider, config.model)
+      } else {
+        summary = ReasoningDetector.getModelReasoningSummary(config.provider, config.model)
+      }
+      const msg = `[Reasoning] ${config.model}: ${summary} - ${enabled ? 'ENABLED' : 'DISABLED'}`
+      console.log(darkGrayColor(msg))
+    } catch {
+      // Silent fail for logging
+    }
+  }
+
+  /**
+   * Sync version for backwards compatibility
+   */
+  private logReasoningStatus(enabled: boolean): void {
+    const config = configManager.getCurrentModel() as any
+    if (!config) return
+
+    try {
+      const summary = ReasoningDetector.getModelReasoningSummary(config.provider, config.model)
+      const msg = `[Reasoning] ${config.model}: ${summary} - ${enabled ? 'ENABLED' : 'DISABLED'}`
+      console.log(darkGrayColor(msg))
+    } catch {
+      // Silent fail for logging
+    }
   }
 
   /**

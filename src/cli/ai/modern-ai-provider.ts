@@ -1291,6 +1291,25 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
         baseModel = compatProvider(config.model)
         break
       }
+      case 'opencode': {
+        // OpenCode provider with dedicated API key management
+        const opencodeApiKey = simpleConfigManager.getApiKey('opencode') ||
+          simpleConfigManager.getApiKey(model) ||
+          process.env.OPENCODE_API_KEY ||
+          process.env.OPENAI_COMPATIBLE_API_KEY
+        if (!opencodeApiKey) {
+          throw new Error(`No API key found for OpenCode provider. Set OPENCODE_API_KEY environment variable or use /set-key opencode`)
+        }
+        const baseURL = (config as any).baseURL || process.env.OPENCODE_BASE_URL || 'https://opencode.ai/zen/v1'
+        const compatProvider = createOpenAICompatible({
+          name: 'opencode',
+          apiKey: opencodeApiKey,
+          baseURL,
+          headers: (config as any).headers,
+        })
+        baseModel = compatProvider(config.model)
+        break
+      }
       default:
         throw new Error(`Unsupported provider: ${config.provider}`)
     }
@@ -1419,7 +1438,7 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
         },
       }
 
-      // OpenRouter-specific parameters support - dynamic based on model capabilities
+      // Provider-specific parameters support - dynamic based on model capabilities
       const cfg = simpleConfigManager?.getCurrentModel() as any
 
       // Override toolChoice from config if specified
@@ -1432,6 +1451,23 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
       const parallelToolCalls = cfg?.parallelToolCalls ?? true
       if (!parallelToolCalls) {
         streamOptions.experimental_toolCallStreaming = false
+      }
+
+      // Add reasoning metadata for ALL providers using ReasoningDetector
+      // AI SDK v4 compatible - uses correct parameter names per provider
+      if (reasoningEnabled && cfg?.provider) {
+        const providerMetadata = ReasoningDetector.getReasoningProviderMetadata(
+          cfg.provider,
+          cfg.model,
+          { enabled: true, effort: 'medium', budgetTokens: 10000 }
+        )
+
+        if (Object.keys(providerMetadata).length > 0) {
+          streamOptions.experimental_providerMetadata = {
+            ...streamOptions.experimental_providerMetadata,
+            ...providerMetadata,
+          }
+        }
       }
 
       if (cfg?.provider === 'openrouter') {
@@ -1685,7 +1721,7 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
         },
       }
 
-      // OpenRouter-specific parameters support - dynamic based on model capabilities
+      // Provider-specific parameters support - dynamic based on model capabilities
       const cfg = simpleConfigManager?.getCurrentModel() as any
 
       // Override toolChoice from config if specified
@@ -1699,6 +1735,23 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
       if (!parallelToolCalls) {
         // When disabled, tools are called sequentially (useful for dependent operations)
         generateOptions.experimental_toolCallStreaming = false
+      }
+
+      // Add reasoning metadata for ALL providers using ReasoningDetector
+      // AI SDK v4 compatible - uses correct parameter names per provider
+      if (reasoningEnabled && cfg?.provider) {
+        const providerMetadata = ReasoningDetector.getReasoningProviderMetadata(
+          cfg.provider,
+          cfg.model,
+          { enabled: true, effort: 'medium', budgetTokens: 10000 }
+        )
+
+        if (Object.keys(providerMetadata).length > 0) {
+          generateOptions.experimental_providerMetadata = {
+            ...generateOptions.experimental_providerMetadata,
+            ...providerMetadata,
+          }
+        }
       }
 
       if (cfg?.provider === 'openrouter') {

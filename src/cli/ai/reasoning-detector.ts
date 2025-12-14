@@ -42,6 +42,59 @@ export interface ReasoningMiddlewareConfig {
 }
 
 /**
+ * AI SDK v4 Provider-specific reasoning configuration types
+ * Based on official documentation from ai-sdk.dev
+ */
+
+/** Anthropic thinking configuration (AI SDK v4) */
+export interface AnthropicThinkingConfig {
+  type: 'enabled' | 'disabled'
+  budgetTokens?: number // camelCase per AI SDK v4
+}
+
+/** Google Gemini thinking configuration (AI SDK v4) */
+export interface GoogleThinkingConfig {
+  thinkingBudget?: number // Gemini 2.5: token budget (0=off, -1=dynamic)
+  thinkingLevel?: 'low' | 'high' // Gemini 3: thinking intensity
+  includeThoughts?: boolean // Include thoughts in response
+}
+
+/** OpenAI reasoning configuration (AI SDK v4) */
+export interface OpenAIReasoningConfig {
+  reasoningEffort?: 'low' | 'medium' | 'high' | 'none' | 'xhigh'
+  reasoningSummary?: 'auto' | 'detailed'
+  serviceTier?: 'auto' | 'flex' | 'priority' | 'default'
+}
+
+/** OpenRouter reasoning configuration */
+export interface OpenRouterReasoningConfig {
+  include_reasoning?: boolean
+  reasoning?: {
+    effort?: 'minimal' | 'low' | 'medium' | 'high' | 'xhigh'
+    max_tokens?: number // min 1024, max 32000
+    enabled?: boolean // for DeepSeek
+    exclude?: boolean
+  }
+}
+
+/** xAI (Grok) reasoning configuration */
+export interface XAIReasoningConfig {
+  reasoningEffort?: 'low' | 'medium' | 'high'
+}
+
+/** Reasoning effort levels */
+export type ReasoningEffort = 'minimal' | 'low' | 'medium' | 'high' | 'xhigh'
+
+/** Options for building provider metadata */
+export interface ReasoningMetadataOptions {
+  enabled?: boolean
+  effort?: ReasoningEffort
+  budgetTokens?: number
+  includeThoughts?: boolean
+  reasoningSummary?: 'auto' | 'detailed'
+}
+
+/**
  * Provider-specific reasoning configuration
  * Defines how each provider handles reasoning fields in responses
  */
@@ -52,6 +105,12 @@ export const PROVIDER_REASONING_CONFIG = {
     supportsMiddleware: true,
     defaultTagName: 'thinking',
     providerMetadataKey: 'anthropic',
+    // AI SDK v4 parameters
+    supportsNativeReasoning: true,
+    thinkingParam: 'thinking',
+    budgetParam: 'budgetTokens', // camelCase per AI SDK v4!
+    typeValues: ['enabled', 'disabled'] as const,
+    defaultBudgetTokens: 10000,
   },
   openai: {
     reasoningField: 'reasoning',
@@ -59,6 +118,18 @@ export const PROVIDER_REASONING_CONFIG = {
     supportsMiddleware: true,
     defaultTagName: 'thinking',
     providerMetadataKey: 'openai',
+    // AI SDK v4 parameters
+    supportsNativeReasoning: true,
+    reasoningEffortParam: 'reasoningEffort',
+    reasoningEffortValues: ['low', 'medium', 'high', 'none', 'xhigh'] as const,
+    reasoningSummaryParam: 'reasoningSummary',
+    reasoningSummaryValues: ['auto', 'detailed'] as const,
+    serviceTierParam: 'serviceTier',
+    serviceTierValues: ['auto', 'flex', 'priority', 'default'] as const,
+    // Model-specific restrictions
+    noneOnlyModels: ['gpt-5.1'], // 'none' effort only for GPT-5.1
+    xhighOnlyModels: ['gpt-5.1-codex-max'], // 'xhigh' only for Codex-Max
+    reasoningModels: ['o1', 'o1-mini', 'o3', 'o3-mini', 'o4-mini'], // models that support reasoning
   },
   google: {
     reasoningField: 'thinking',
@@ -66,6 +137,27 @@ export const PROVIDER_REASONING_CONFIG = {
     supportsMiddleware: true,
     defaultTagName: 'thinking',
     providerMetadataKey: 'google',
+    // AI SDK v4 parameters
+    supportsNativeReasoning: true,
+    thinkingConfigParam: 'thinkingConfig',
+    // Gemini 2.5 parameters
+    gemini25BudgetParam: 'thinkingBudget', // number: 0=off, -1=dynamic
+    // Gemini 3 parameters (NEW)
+    gemini3LevelParam: 'thinkingLevel', // 'low' | 'high'
+    gemini3LevelValues: ['low', 'high'] as const,
+    includeThoughtsParam: 'includeThoughts',
+    defaultThinkingBudget: 8192,
+  },
+  xai: {
+    reasoningField: 'reasoning',
+    reasoningTextField: 'reasoningText',
+    supportsMiddleware: true,
+    defaultTagName: 'thinking',
+    providerMetadataKey: 'xai',
+    // AI SDK v4 parameters
+    supportsNativeReasoning: true,
+    reasoningEffortParam: 'reasoningEffort',
+    reasoningEffortValues: ['low', 'medium', 'high'] as const,
   },
   vercel: {
     reasoningField: 'reasoning',
@@ -73,6 +165,7 @@ export const PROVIDER_REASONING_CONFIG = {
     supportsMiddleware: true,
     defaultTagName: 'thinking',
     providerMetadataKey: 'vercel',
+    supportsNativeReasoning: false,
   },
   gateway: {
     reasoningField: 'reasoning',
@@ -80,6 +173,7 @@ export const PROVIDER_REASONING_CONFIG = {
     supportsMiddleware: true,
     defaultTagName: 'thinking',
     providerMetadataKey: 'gateway',
+    supportsNativeReasoning: false,
   },
   openrouter: {
     reasoningField: 'reasoning',
@@ -87,8 +181,15 @@ export const PROVIDER_REASONING_CONFIG = {
     supportsMiddleware: true,
     defaultTagName: 'thinking',
     providerMetadataKey: 'openrouter',
+    // AI SDK v4 / OpenRouter parameters
+    supportsNativeReasoning: true,
     usesReasoningParameter: true,
-    reasoningParameterName: 'include_reasoning',
+    includeReasoningParam: 'include_reasoning',
+    reasoningObjectParam: 'reasoning',
+    effortValues: ['minimal', 'low', 'medium', 'high', 'xhigh'] as const,
+    effortRatios: { minimal: 0.1, low: 0.2, medium: 0.5, high: 0.8, xhigh: 0.95 } as const,
+    maxTokensMin: 1024,
+    maxTokensMax: 32000,
   },
   ollama: {
     reasoningField: 'reasoning',
@@ -96,6 +197,7 @@ export const PROVIDER_REASONING_CONFIG = {
     supportsMiddleware: true,
     defaultTagName: 'thinking',
     providerMetadataKey: 'ollama',
+    supportsNativeReasoning: false, // Solo tag extraction
   },
   cerebras: {
     reasoningField: 'reasoning',
@@ -103,6 +205,7 @@ export const PROVIDER_REASONING_CONFIG = {
     supportsMiddleware: true,
     defaultTagName: 'thinking',
     providerMetadataKey: 'cerebras',
+    supportsNativeReasoning: false,
   },
   groq: {
     reasoningField: 'reasoning',
@@ -110,6 +213,7 @@ export const PROVIDER_REASONING_CONFIG = {
     supportsMiddleware: true,
     defaultTagName: 'thinking',
     providerMetadataKey: 'groq',
+    supportsNativeReasoning: false,
   },
   llamacpp: {
     reasoningField: 'reasoning',
@@ -117,6 +221,7 @@ export const PROVIDER_REASONING_CONFIG = {
     supportsMiddleware: true,
     defaultTagName: 'thinking',
     providerMetadataKey: 'llamacpp',
+    supportsNativeReasoning: false,
   },
   lmstudio: {
     reasoningField: 'reasoning',
@@ -124,6 +229,7 @@ export const PROVIDER_REASONING_CONFIG = {
     supportsMiddleware: true,
     defaultTagName: 'thinking',
     providerMetadataKey: 'lmstudio',
+    supportsNativeReasoning: false,
   },
   'openai-compatible': {
     reasoningField: 'reasoning',
@@ -131,6 +237,7 @@ export const PROVIDER_REASONING_CONFIG = {
     supportsMiddleware: true,
     defaultTagName: 'thinking',
     providerMetadataKey: 'openai-compatible',
+    supportsNativeReasoning: false,
   },
 } as const
 
@@ -431,66 +538,139 @@ export class ReasoningDetector {
 
   /**
    * Get provider metadata for enabling reasoning in API requests
-   * For OpenRouter, dynamically builds metadata based on model capabilities
+   * AI SDK v4 compatible - uses correct parameter names for each provider
+   * @param provider - Provider name
+   * @param modelId - Model identifier (needed for Gemini 2.5 vs 3 detection)
+   * @param options - Reasoning options
    */
-  static getReasoningProviderMetadata(provider: string, enabled = true): Record<string, any> {
-    const config = ReasoningDetector.getProviderReasoningConfig(provider)
+  static getReasoningProviderMetadata(
+    provider: string,
+    modelId = '',
+    options: ReasoningMetadataOptions = {}
+  ): Record<string, any> {
+    const {
+      enabled = true,
+      effort = 'medium',
+      budgetTokens = 10000,
+      includeThoughts = true,
+      reasoningSummary = 'auto',
+    } = options
 
-    if (provider === 'openrouter') {
-      return {
-        openrouter: {
-          include_reasoning: enabled,
-          transforms: enabled ? ['middle-out'] : undefined,
-        },
+    switch (provider) {
+      case 'anthropic':
+        // AI SDK v4: uses budgetTokens (camelCase), NOT budget_tokens
+        return {
+          anthropic: {
+            thinking: enabled
+              ? { type: 'enabled' as const, budgetTokens }
+              : { type: 'disabled' as const },
+          },
+        }
+
+      case 'openai':
+        // AI SDK v4: reasoningEffort for o1/o3/o4 models
+        return {
+          openai: {
+            reasoningEffort: enabled ? effort : undefined,
+            reasoningSummary: enabled ? reasoningSummary : undefined,
+          },
+        }
+
+      case 'google': {
+        // AI SDK v4: Different config for Gemini 2.5 vs Gemini 3
+        const isGemini3 = modelId.includes('gemini-3')
+        if (isGemini3) {
+          // Gemini 3: uses thinkingLevel ('low' | 'high')
+          return {
+            google: {
+              thinkingConfig: {
+                thinkingLevel: effort === 'low' ? 'low' : 'high',
+                includeThoughts,
+              },
+            },
+          }
+        }
+        // Gemini 2.5: uses thinkingBudget (number)
+        return {
+          google: {
+            thinkingConfig: {
+              thinkingBudget: enabled ? budgetTokens : 0,
+              includeThoughts,
+            },
+          },
+        }
       }
-    }
 
-    if (provider === 'anthropic') {
-      return {
-        anthropic: {
-          thinking: enabled ? { type: 'enabled', budget_tokens: 10000 } : undefined,
-        },
-      }
-    }
+      case 'xai':
+        // AI SDK v4: reasoningEffort for Grok models
+        return {
+          xai: {
+            reasoningEffort: enabled ? effort : undefined,
+          },
+        }
 
-    if (provider === 'google') {
-      return {
-        google: {
-          thinkingConfig: enabled ? { thinkingBudget: 10000 } : undefined,
-        },
-      }
-    }
+      case 'openrouter':
+        // OpenRouter: include_reasoning + reasoning object
+        return {
+          openrouter: {
+            include_reasoning: enabled,
+            reasoning: enabled
+              ? {
+                  effort: effort as 'minimal' | 'low' | 'medium' | 'high' | 'xhigh',
+                  enabled: true,
+                }
+              : undefined,
+          },
+        }
 
-    return {
-      [config.providerMetadataKey]: {
-        reasoning: enabled,
-      },
+      default:
+        // Generic fallback for providers without native reasoning
+        return {}
     }
   }
 
   /**
    * Async version - builds metadata based on actual model capabilities
+   * Fetches OpenRouter model capabilities dynamically from API
    */
   static async getReasoningProviderMetadataAsync(
     provider: string,
     modelId: string,
-    options: {
-      enabled?: boolean
-      effort?: 'low' | 'medium' | 'high'
-    } = {}
+    options: ReasoningMetadataOptions = {}
   ): Promise<Record<string, any>> {
     const { enabled = true, effort = 'medium' } = options
 
     if (provider === 'openrouter') {
-      // Use registry to build metadata based on actual model capabilities
-      return openRouterRegistry.buildProviderMetadata(modelId, {
-        enableReasoning: enabled,
-        reasoningEffort: effort,
-        includeReasoning: enabled,
-      })
+      // For OpenRouter, fetch actual model capabilities from API
+      try {
+        const caps = await openRouterRegistry.getCapabilities(modelId)
+
+        // Build metadata based on what the model actually supports
+        const metadata: Record<string, any> = {
+          openrouter: {},
+        }
+
+        if (enabled && (caps.supportsReasoning || caps.supportsIncludeReasoning)) {
+          if (caps.supportsIncludeReasoning) {
+            metadata.openrouter.include_reasoning = true
+          }
+          if (caps.supportsReasoningEffort) {
+            metadata.openrouter.reasoning = {
+              effort: effort as 'minimal' | 'low' | 'medium' | 'high' | 'xhigh',
+              enabled: true,
+            }
+          }
+        }
+
+        return metadata
+      } catch {
+        // Fallback to default OpenRouter config on error
+        return ReasoningDetector.getReasoningProviderMetadata(provider, modelId, options)
+      }
     }
 
-    return ReasoningDetector.getReasoningProviderMetadata(provider, enabled)
+    // For all other providers, use the sync method with model detection
+    return ReasoningDetector.getReasoningProviderMetadata(provider, modelId, options)
   }
 
   /**

@@ -30,7 +30,7 @@ export interface JobStats {
 }
 
 export interface CreateJobOptions {
-  provider?: 'anthropic' | 'openai' | 'google' | 'mistral' | 'openrouter' | 'xai' | 'ollama' | string
+  provider?: 'anthropic' | 'openai' | 'google' | 'mistral' | 'openrouter' | 'xai' | 'opencode' | 'ollama' | string
   model?: string
   apiKey?: string
 }
