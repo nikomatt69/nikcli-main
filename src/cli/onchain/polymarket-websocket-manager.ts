@@ -90,10 +90,75 @@ export class PolymarketWebSocketManager extends EventEmitter {
   private isManuallyClosing: boolean = false
   private reconnectTimeout: NodeJS.Timeout | null = null
   private pingInterval: NodeJS.Timeout | null = null
+  // 🔒 FIXED: Track all timers for cleanup
+  private activeTimers = new Set<NodeJS.Timeout>()
 
   constructor(wsUrl: string = 'wss://ws-subscriptions-clob.polymarket.com/ws/') {
     super()
     this.wsUrl = wsUrl
+
+    // Setup graceful shutdown handlers
+    process.on('SIGTERM', () => this.cleanup())
+    process.on('SIGINT', () => this.cleanup())
+  }
+
+  /**
+   * Safe setTimeout that tracks timers for cleanup
+   */
+  private safeTimeout(callback: () => void, delay: number): NodeJS.Timeout {
+    const timer = setTimeout(() => {
+      this.activeTimers.delete(timer)
+      callback()
+    }, delay)
+    this.activeTimers.add(timer)
+    return timer
+  }
+
+  /**
+   * Safe setInterval that tracks intervals for cleanup
+   */
+  private safeInterval(callback: () => void, interval: number): NodeJS.Timeout {
+    const timer = setInterval(callback, interval)
+    this.activeTimers.add(timer)
+    return timer
+  }
+
+  /**
+   * Clear all active timers to prevent memory leaks
+   */
+  private clearAllTimers(): void {
+    this.activeTimers.forEach((timer) => {
+      try {
+        clearTimeout(timer)
+        clearInterval(timer)
+      } catch { }
+    })
+    this.activeTimers.clear()
+  }
+
+  /**
+   * Cleanup method for graceful shutdown
+   */
+  cleanup(): void {
+    this.isManuallyClosing = true
+
+    this.clearAllTimers()
+
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout)
+      this.activeTimers.delete(this.reconnectTimeout)
+      this.reconnectTimeout = null
+    }
+
+    this.stopPingInterval()
+
+    if (this.ws) {
+      this.ws.close()
+      this.ws = null
+    }
+
+    this.subscriptions.clear()
+    this.messageHandlers.clear()
   }
 
   /**
@@ -151,6 +216,7 @@ export class PolymarketWebSocketManager extends EventEmitter {
 
     if (this.reconnectTimeout) {
       clearTimeout(this.reconnectTimeout)
+      this.activeTimers.delete(this.reconnectTimeout)
       this.reconnectTimeout = null
     }
 
@@ -217,7 +283,7 @@ export class PolymarketWebSocketManager extends EventEmitter {
       this.isManuallyClosing = false
 
       // Reconnect after delay
-      setTimeout(() => {
+      this.safeTimeout(() => {
         this.connect().then(() => {
           // Re-subscribe to all remaining
           this.subscriptions.forEach((id) => {
@@ -288,7 +354,7 @@ export class PolymarketWebSocketManager extends EventEmitter {
       `🔄 Reconnecting in ${delay.toFixed(0)}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`
     )
 
-    this.reconnectTimeout = setTimeout(() => {
+    this.reconnectTimeout = this.safeTimeout(() => {
       this.isManuallyClosing = false
       this.connect()
         .then(() => {
@@ -309,7 +375,7 @@ export class PolymarketWebSocketManager extends EventEmitter {
    */
   private startPingInterval(): void {
     // Ping every 30 seconds
-    this.pingInterval = setInterval(() => {
+    this.pingInterval = this.safeInterval(() => {
       if (this.ws && this.ws.readyState === WebSocket.OPEN) {
         try {
           this.ws.send(JSON.stringify({ type: 'ping' }))
@@ -326,6 +392,7 @@ export class PolymarketWebSocketManager extends EventEmitter {
   private stopPingInterval(): void {
     if (this.pingInterval) {
       clearInterval(this.pingInterval)
+      this.activeTimers.delete(this.pingInterval)
       this.pingInterval = null
     }
   }

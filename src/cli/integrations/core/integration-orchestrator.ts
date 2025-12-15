@@ -237,7 +237,7 @@ export class IntegrationOrchestrator {
         }
       } catch (error) {
         console.error(`Error executing workflow ${workflow.id}:`, error)
-        await this.handleWorkflowError(workflow, error, event)
+        await this.handleWorkflowError(workflow, error as any, event)
       }
     }
   }
@@ -255,7 +255,7 @@ export class IntegrationOrchestrator {
         }
       } catch (error) {
         console.error(`Error executing workflow ${workflow.id}:`, error)
-        await this.handleWorkflowError(workflow, error, event)
+        await this.handleWorkflowError(workflow, error as any, event)
       }
     }
   }
@@ -361,7 +361,7 @@ export class IntegrationOrchestrator {
         }
       } catch (error) {
         console.error(`Error executing action ${action.operation}:`, error)
-        actionResults.push({ action, error: error.message })
+        actionResults.push({ action, error: error as any })
 
         // Stop workflow execution on critical errors
         if (action.operation.includes('critical')) {

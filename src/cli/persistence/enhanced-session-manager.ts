@@ -3,6 +3,7 @@ import { promises as fs } from 'node:fs'
 import path from 'node:path'
 import chalk from 'chalk'
 import { v4 as uuidv4 } from 'uuid'
+import { Mutex } from 'async-mutex'
 import { simpleConfigManager } from '../core/config-manager'
 import { enhancedSupabaseProvider, type SupabaseSession } from '../providers/supabase/enhanced-supabase-provider'
 import { cacheService } from '../services/cache-service'
@@ -63,6 +64,9 @@ export class EnhancedSessionManager extends EventEmitter {
   private isMobileSession = false
   private sessionType: 'ssh' | 'local' | 'web' = 'local'
   private screenDimensions = { width: 80, height: 24 }
+  // 🔒 FIXED: Mutex for thread-safe operations
+  private globalMutex = new Mutex()
+  private sessionMutexes = new Map<string, Mutex>()
 
   constructor(dir?: string) {
     super()
@@ -73,6 +77,29 @@ export class EnhancedSessionManager extends EventEmitter {
 
     this.detectEnvironment()
     this.setupEventHandlers()
+
+    // Setup graceful shutdown handlers
+    process.on('SIGTERM', () => this.cleanup())
+    process.on('SIGINT', () => this.cleanup())
+  }
+
+  /**
+   * Get or create a mutex for a specific session
+   */
+  private getSessionMutex(sessionId: string): Mutex {
+    let mutex = this.sessionMutexes.get(sessionId)
+    if (!mutex) {
+      mutex = new Mutex()
+      this.sessionMutexes.set(sessionId, mutex)
+    }
+    return mutex
+  }
+
+  /**
+   * Cleanup method for graceful shutdown
+   */
+  cleanup(): void {
+    this.sessionMutexes.clear()
   }
 
   /**
@@ -261,6 +288,8 @@ export class EnhancedSessionManager extends EventEmitter {
     options?: { preferLocal?: boolean; skipCache?: boolean }
   ): Promise<EnhancedSessionData | null> {
     const { preferLocal = false, skipCache = false } = options || {}
+    const mutex = this.getSessionMutex(id)
+    const release = await mutex.acquire()
 
     try {
       // 1. Try cache first (unless skipped)
@@ -317,6 +346,8 @@ export class EnhancedSessionManager extends EventEmitter {
     } catch (error: any) {
       console.log(chalk.red(`✖ Failed to load session ${id}: ${error.message}`))
       return null
+    } finally {
+      release()
     }
   }
 
@@ -417,9 +448,15 @@ export class EnhancedSessionManager extends EventEmitter {
    * Save session locally
    */
   private async saveSessionLocally(session: EnhancedSessionData): Promise<void> {
-    await fs.mkdir(this.baseDir, { recursive: true })
-    const sessionPath = this.getSessionPath(session.id)
-    await fs.writeFile(sessionPath, JSON.stringify(session, null, 2), 'utf-8')
+    const mutex = this.getSessionMutex(session.id)
+    const release = await mutex.acquire()
+    try {
+      await fs.mkdir(this.baseDir, { recursive: true })
+      const sessionPath = this.getSessionPath(session.id)
+      await fs.writeFile(sessionPath, JSON.stringify(session, null, 2), 'utf-8')
+    } finally {
+      release()
+    }
   }
 
   /**

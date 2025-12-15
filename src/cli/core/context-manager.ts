@@ -169,7 +169,7 @@ export class ContextManager {
     }
 
     if (removedCount > 0) {
-      console.log(chalk.yellow(`⚠︎ Trimmed ${removedCount} oldest message metrics to cap at ${this.MAX_METRICS_SIZE}`))
+      advancedUI.logFunctionUpdate('warning', `⚠︎ Trimmed ${removedCount} oldest message metrics to cap at ${this.MAX_METRICS_SIZE}`)
     }
   }
   /**
@@ -231,7 +231,7 @@ export class ContextManager {
     const activeStrategy = { ...this.defaultStrategy, ...strategy }
     const optimizationSteps: string[] = []
 
-    console.log(chalk.blue('⚡︎ Starting advanced context optimization...'))
+    advancedUI.logInfo(chalk.blue('⚡︎ Starting advanced context optimization...'))
 
     // Check cache first with TTL validation
     const cacheKey = this.generateContextCacheKey(messages, activeStrategy)
@@ -243,7 +243,7 @@ export class ContextManager {
       this.performanceMetrics.cacheHits++
       // Track access frequency for smart eviction
       this.contextCacheAccessCount.set(cacheKey, (this.contextCacheAccessCount.get(cacheKey) || 0) + 1)
-      console.log(chalk.green('✓ Using cached optimization result'))
+      advancedUI.logSuccess('✓ Using cached optimization result')
       return cached
     } else if (cached) {
       // Expired cache entry - remove it
@@ -280,7 +280,7 @@ export class ContextManager {
         smartContext = ragResult.smartContext
         optimizedMessages = ragResult.enhancedMessages
         this.performanceMetrics.ragIntegrations++
-        console.log(chalk.cyan(`🔗 RAG integrated: ${ragResult.smartContext.sources.length} context sources`))
+        advancedUI.logInfo(chalk.cyan(`🔗 RAG integrated: ${ragResult.smartContext.sources.length} context sources`))
       }
     }
 
@@ -311,10 +311,10 @@ export class ContextManager {
     const optimizationTime = Date.now() - startTime
     this.updatePerformanceMetrics(optimizationTime)
 
-    console.log(chalk.green(`✓ Advanced optimization completed in ${optimizationTime}ms`))
-    console.log(chalk.gray(`   ${messages.length} → ${optimizedMessages.length} messages`))
-    console.log(chalk.gray(`   ${initialMetrics.estimatedTokens} → ${finalMetrics.estimatedTokens} tokens`))
-    console.log(chalk.gray(`   Semantic preservation: ${Math.round(semanticPreservation * 100)}%`))
+    advancedUI.logSuccess(`✓ Advanced optimization completed in ${optimizationTime}ms`)
+    advancedUI.logInfo(chalk.gray(`   ${messages.length} → ${optimizedMessages.length} messages`))
+    advancedUI.logInfo(chalk.gray(`   ${initialMetrics.estimatedTokens} → ${finalMetrics.estimatedTokens} tokens`))
+    advancedUI.logInfo(chalk.gray(`   Semantic preservation: ${Math.round(semanticPreservation * 100)}%`))
 
     const result: ContextOptimizationResult = {
       optimizedMessages,
@@ -347,7 +347,7 @@ export class ContextManager {
    */
   optimizeContext(messages: CoreMessage[]): { optimizedMessages: CoreMessage[]; metrics: ContextMetrics } {
     // For sync compatibility, use a simplified version without RAG integration
-    console.log(chalk.blue('⚡︎ Using legacy context optimization (consider upgrading to optimizeContextAdvanced)'))
+    advancedUI.logInfo(chalk.blue('⚡︎ Using legacy context optimization (consider upgrading to optimizeContextAdvanced)'))
 
     this.checkMetricsSize()
     if (messages.length === 0) {
@@ -395,7 +395,7 @@ export class ContextManager {
       }
     }
 
-    console.log(chalk.yellow(`⚠︎ Context optimization needed: ${totalTokens} tokens > ${this.activeMaxTokens} limit`))
+    advancedUI.logFunctionUpdate('warning', `⚠︎ Context optimization needed: ${totalTokens} tokens > ${this.activeMaxTokens} limit`)
 
     // Use enhanced compression but synchronously
     const optimized = this.compressContextIntelligent(messages)
@@ -409,10 +409,8 @@ export class ContextManager {
       compressionRatio: optimizedTokens / Math.max(1, totalTokens),
     })
 
-    console.log(
-      chalk.green(
+    advancedUI.logSuccess(
         `✓ Context optimized: ${messages.length} → ${optimized.length} messages, ${totalTokens} → ${optimizedTokens} tokens`
-      )
     )
 
     return {
@@ -453,7 +451,7 @@ export class ContextManager {
         smartContext,
       }
     } catch (_error) {
-      console.log(chalk.yellow('⚠︎ RAG integration failed, continuing without'))
+      advancedUI.logInfo(chalk.yellow('⚠︎ RAG integration failed, continuing without'))
       return { enhancedMessages: messages }
     }
   }
@@ -527,7 +525,7 @@ export class ContextManager {
         optimized = grouped
       }
     } catch (error: any) {
-      console.warn(chalk.yellow(`⚠︎ Semantic compression failed: ${error.message}`))
+      advancedUI.logFunctionUpdate('warning', `⚠︎ Semantic compression failed: ${error.message}`)
       steps.push('Semantic compression skipped (timeout or error)')
     }
 
@@ -651,7 +649,7 @@ export class ContextManager {
   private groupSimilarMessages(messages: CoreMessage[], depth = 0): CoreMessage[] {
     // Prevent infinite recursion
     if (depth > this.MAX_RECURSION_DEPTH) {
-      console.warn(chalk.yellow(`⚠︎ Max recursion depth reached in groupSimilarMessages`))
+      advancedUI.logFunctionUpdate('warning', `⚠︎ Max recursion depth reached in groupSimilarMessages`)
       return messages
     }
 
@@ -667,7 +665,7 @@ export class ContextManager {
 
       // Detect cycles
       if (visited.has(currentHash)) {
-        console.warn(chalk.yellow(`⚠︎ Circular reference detected in message grouping`))
+        advancedUI.logFunctionUpdate('warning', `⚠︎ Circular reference detected in message grouping`)
         continue
       }
       visited.add(currentHash)
@@ -684,7 +682,7 @@ export class ContextManager {
 
         // Skip if we've seen this message before (circular reference)
         if (visited.has(candidateHash)) {
-          console.warn(chalk.yellow(`⚠︎ Circular reference detected, skipping message`))
+          advancedUI.logFunctionUpdate('warning', `⚠︎ Circular reference detected, skipping message`)
           continue
         }
 
@@ -811,15 +809,13 @@ export class ContextManager {
       this.workspaceCache = summary
       this.lastWorkspaceAnalysis = now
 
-      console.log(
-        chalk.green(
-          `✓ Workspace analyzed: ${summary.totalFiles} files, ${Object.keys(summary.languages).length} languages`
-        )
+      advancedUI.logSuccess(
+        `✓ Workspace analyzed: ${summary.totalFiles} files, ${Object.keys(summary.languages).length} languages`
       )
 
       return summary
     } catch (_error) {
-      console.log(chalk.yellow('⚠︎ Workspace analysis failed, using minimal summary'))
+      advancedUI.logInfo(chalk.yellow('⚠︎ Workspace analysis failed, using minimal summary'))
       return {
         totalFiles: 0,
         totalDirs: 0,
@@ -944,12 +940,12 @@ export class ContextManager {
     this.contextCacheAccessCount.clear()
     this.workspaceCache = null
     this.lastWorkspaceAnalysis = 0
-    console.log(chalk.green('✓ All context manager caches cleared'))
+    advancedUI.logSuccess('✓ All context manager caches cleared')
   }
 
   setOptimizationStrategy(strategy: Partial<OptimizationStrategy>): void {
     this.defaultStrategy = { ...this.defaultStrategy, ...strategy }
-    console.log(chalk.blue(' Context optimization strategy updated'))
+    advancedUI.logInfo(' Context optimization strategy updated')
   }
 
   /**

@@ -1,4 +1,5 @@
 import chalk from 'chalk'
+import { advancedUI } from '../ui/advanced-cli-ui'
 import { type BatchSession, type CommandOptions, type CommandResult, SecureCommandTool } from './secure-command-tool'
 import { ListDirectoryTool, ReadFileTool, ReplaceInFileTool, sanitizePath, WriteFileTool } from './secure-file-tools'
 
@@ -79,8 +80,8 @@ export class SecureToolsRegistry {
     this.grepTool = new GrepTool(this.workingDirectory)
     this.figmaTool = new FigmaTool()
 
-    console.log(chalk.green('🔒 Secure Tools Registry initialized'))
-    console.log(chalk.gray(`📁 Working directory: ${this.workingDirectory}`))
+    advancedUI.logSuccess('🔒 Secure Tools Registry initialized')
+    advancedUI.logInfo(chalk.gray(`📁 Working directory: ${this.workingDirectory}`))
   }
 
   /**
@@ -207,7 +208,7 @@ export class SecureToolsRegistry {
     const startTime = Date.now()
 
     try {
-      console.log(chalk.blue(`🔧 Executing tool: ${toolName}`))
+      advancedUI.logInfo(chalk.blue(`🔧 Executing tool: ${toolName}`))
 
       const data = await operation()
       const executionTime = Date.now() - startTime
@@ -221,7 +222,7 @@ export class SecureToolsRegistry {
       }
 
       this.executionHistory.push(result)
-      console.log(chalk.green(`✓ Tool completed: ${toolName} (${executionTime}ms)`))
+      advancedUI.logSuccess(`✓ Tool completed: ${toolName} (${executionTime}ms)`)
 
       return result
     } catch (error: any) {
@@ -236,7 +237,7 @@ export class SecureToolsRegistry {
       }
 
       this.executionHistory.push(result)
-      console.log(chalk.red(`✖ Tool failed: ${toolName} - ${error.message}`))
+      advancedUI.logError(`✖ Tool failed: ${toolName} - ${error.message}`)
 
       throw error
     }
@@ -640,15 +641,15 @@ export class SecureToolsRegistry {
   printSecuritySummary(): void {
     const stats = this.getSecurityStats()
 
-    console.log(chalk.blue.bold('\n🔒 Security Summary'))
-    console.log(chalk.gray('─'.repeat(50)))
-    console.log(chalk.white(`Total Operations: ${stats.totalOperations}`))
-    console.log(chalk.green(`Safe Operations: ${stats.safeOperations}`))
-    console.log(chalk.yellow(`Confirmed Operations: ${stats.confirmedOperations}`))
-    console.log(chalk.red(`Dangerous Operations: ${stats.dangerousOperations}`))
-    console.log(chalk.red(`Failed Operations: ${stats.failedOperations}`))
-    console.log(chalk.blue(`Path Validation Rate: ${(stats.pathValidationRate * 100).toFixed(1)}%`))
-    console.log(chalk.blue(`User Confirmation Rate: ${(stats.userConfirmationRate * 100).toFixed(1)}%`))
+    advancedUI.logInfo(chalk.blue.bold('\n🔒 Security Summary'))
+    advancedUI.logInfo(chalk.gray('─'.repeat(50)))
+    advancedUI.logInfo(chalk.white(`Total Operations: ${stats.totalOperations}`))
+    advancedUI.logInfo(chalk.green(`Safe Operations: ${stats.safeOperations}`))
+    advancedUI.logInfo(chalk.yellow(`Confirmed Operations: ${stats.confirmedOperations}`))
+    advancedUI.logInfo(chalk.red(`Dangerous Operations: ${stats.dangerousOperations}`))
+    advancedUI.logInfo(chalk.red(`Failed Operations: ${stats.failedOperations}`))
+    advancedUI.logInfo(chalk.blue(`Path Validation Rate: ${(stats.pathValidationRate * 100).toFixed(1)}%`))
+    advancedUI.logInfo(chalk.blue(`User Confirmation Rate: ${(stats.userConfirmationRate * 100).toFixed(1)}%`))
   }
 
   // ==================== FIGMA DESIGN TOOLS ====================

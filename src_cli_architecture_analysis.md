@@ -1,6 +1,0 @@
-I'll help you create a comprehensive architectural overview document for the src/cli directory. Let me start by analyzing the directory structure and then generate the documentation.
-[TOOL_CALL]
-{tool => "generateTasksWithAI", args => {
-  --prompt "Analyze the complete src/cli directory structure and create a comprehensive architectural overview document. Include all subdirectories, their purposes, key files, and how they relate to each other in the NikCLI system.\n\nLanguage: typescript\nFramework: Next.js\nProject Context: {}\n\nRequirements:\n- Follow typescript best practices\n- Use Next.js patterns if applicable\n- Include proper types for TypeScript\n- Add comments for complex logic\n- Ensure code is production-ready\n\nTask breakdown needed:\n1. Explore and analyze the src/cli directory structure\n2. Identify all subdirectories and their purposes\n3. Analyze key files and their relationships\n4. Understand how components interact in the NikCLI system\n5. Create comprehensive architectural overview document"
-}}
-[/TOOL_CALL]

@@ -69,6 +69,29 @@ export class CacheService extends EventEmitter {
   private redisFailureCount = 0
   private redisLastFailureAt = 0
   private redisOpenUntil = 0
+  // 🔒 FIXED: Track all timers for cleanup
+  private activeIntervals = new Set<NodeJS.Timeout>()
+
+  /**
+   * Safe setInterval that tracks intervals for cleanup
+   */
+  private safeInterval(callback: () => void, interval: number): NodeJS.Timeout {
+    const timer = setInterval(callback, interval)
+    this.activeIntervals.add(timer)
+    return timer
+  }
+
+  /**
+   * Clear all active intervals to prevent memory leaks
+   */
+  private clearAllIntervals(): void {
+    this.activeIntervals.forEach((interval) => {
+      try {
+        clearInterval(interval)
+      } catch { }
+    })
+    this.activeIntervals.clear()
+  }
 
   constructor(options?: CacheServiceOptions) {
     super()
@@ -92,9 +115,20 @@ export class CacheService extends EventEmitter {
 
     this.setupEventHandlers()
     // Persist stats periodically (best-effort)
-    setInterval(() => {
+    this.safeInterval(() => {
       void this.persistStats().catch(() => {})
     }, 60000)
+
+    // Setup graceful shutdown handlers
+    process.on('SIGTERM', () => this.cleanup())
+    process.on('SIGINT', () => this.cleanup())
+  }
+
+  /**
+   * Cleanup method for graceful shutdown
+   */
+  cleanup(): void {
+    this.clearAllIntervals()
   }
 
   /**

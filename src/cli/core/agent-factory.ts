@@ -12,6 +12,7 @@ import { agentStream } from './agent-stream'
 import { agentTodoManager } from './agent-todo-manager'
 import { blueprintStorage } from './blueprint-storage'
 import { configManager } from './config-manager'
+import { advancedUI } from '../ui/advanced-cli-ui'
 
 // ====================== ⚡︎ ZOD VALIDATION SCHEMAS ======================
 
@@ -708,7 +709,7 @@ export class AgentFactory extends EventEmitter {
     setInterval(
       () => {
         this.autoCleanupInactiveAgents().catch((error) => {
-          console.log(chalk.yellow(`⚠︎ Auto-cleanup failed: ${error.message}`))
+          advancedUI.logFunctionUpdate('warning', `⚠︎ Auto-cleanup failed: ${error.message}`)
         })
       },
       5 * 60 * 1000
@@ -731,9 +732,9 @@ export class AgentFactory extends EventEmitter {
       }
 
       this.isInitialized = true
-      console.log(chalk.gray(`🏭 Agent Factory initialized with ${this.blueprints.size} blueprints`))
+      advancedUI.logInfo(chalk.gray(`🏭 Agent Factory initialized with ${this.blueprints.size} blueprints`))
     } catch (error: any) {
-      console.error(chalk.red(`✖ Failed to initialize Agent Factory: ${error.message}`))
+      advancedUI.logError(`✖ Failed to initialize Agent Factory: ${error.message}`)
       throw error
     }
   }
@@ -859,10 +860,10 @@ export class AgentFactory extends EventEmitter {
     const _agentType = isVMAgent ? 'vm' : requirements.agentType || 'standard'
 
     if (isVMAgent) {
-      console.log(chalk.blue(`🐳 Creating VM agent blueprint for: ${requirements.specialization}`))
+      advancedUI.logInfo(chalk.blue(`🐳 Creating VM agent blueprint for: ${requirements.specialization}`))
       return this.createVMAgentBlueprint(requirements)
     } else {
-      console.log(chalk.blue(`🧬 Creating standard agent blueprint for: ${requirements.specialization}`))
+      advancedUI.logInfo(chalk.blue(`🧬 Creating standard agent blueprint for: ${requirements.specialization}`))
     }
 
     // Verify model configuration and API key before proceeding
@@ -877,9 +878,9 @@ export class AgentFactory extends EventEmitter {
         )
       }
 
-      console.log(chalk.gray(`Using model: ${modelInfo.name} (${modelInfo.config.provider})`))
+      advancedUI.logInfo(chalk.gray(`Using model: ${modelInfo.name} (${modelInfo.config.provider})`))
     } catch (error: any) {
-      console.log(chalk.red(`✖ Model configuration error: ${error.message}`))
+      advancedUI.logError(`✖ Model configuration error: ${error.message}`)
       throw error
     }
 
@@ -915,17 +916,17 @@ Context Scope: ${requirements.contextScope || 'project'}`,
     ]
 
     try {
-      console.log(chalk.gray('Generating AI blueprint...'))
+      advancedUI.logInfo(chalk.gray('Generating AI blueprint...'))
       const response = await modelProvider.generateResponse({ messages })
 
-      console.log(chalk.gray('Parsing AI response...'))
+      advancedUI.logInfo(chalk.gray('Parsing AI response...'))
       const jsonText = extractJsonFromMarkdown(response)
 
       let aiBlueprint
       try {
         aiBlueprint = JSON.parse(jsonText)
       } catch (_parseError) {
-        console.log(chalk.yellow('⚠︎ Failed to parse AI response, using fallback blueprint'))
+        advancedUI.logFunctionUpdate('warning', '⚠︎ Failed to parse AI response, using fallback blueprint')
         // Create fallback blueprint when AI response is not valid JSON
         aiBlueprint = this.createFallbackBlueprint(requirements.specialization)
       }
@@ -977,11 +978,11 @@ Context Scope: ${requirements.contextScope || 'project'}`,
       this.blueprints.set(blueprint.id, blueprint)
       await blueprintStorage.saveBlueprint(blueprint)
 
-      console.log(chalk.green(`✓ Agent blueprint created: ${blueprint.name}`))
-      console.log(chalk.gray(`   Blueprint ID: ${blueprint.id}`))
-      console.log(chalk.gray(`   Capabilities: ${blueprint.capabilities.join(', ')}`))
-      console.log(chalk.gray(`   Autonomy: ${blueprint.autonomyLevel}`))
-      console.log(
+      advancedUI.logSuccess(`✓ Agent blueprint created: ${blueprint.name}`)
+      advancedUI.logInfo(chalk.gray(`   Blueprint ID: ${blueprint.id}`))
+      advancedUI.logInfo(chalk.gray(`   Capabilities: ${blueprint.capabilities.join(', ')}`))
+      advancedUI.logInfo(chalk.gray(`   Autonomy: ${blueprint.autonomyLevel}`))
+      advancedUI.logInfo(
         chalk.gray(
           `   Personality: Proactive(${blueprint.personality.proactive}) Analytical(${blueprint.personality.analytical})`
         )
@@ -989,10 +990,10 @@ Context Scope: ${requirements.contextScope || 'project'}`,
 
       return blueprint
     } catch (error: any) {
-      console.log(chalk.red(`✖ Failed to create agent blueprint: ${error.message}`))
+      advancedUI.logError(`✖ Failed to create agent blueprint: ${error.message}`)
 
       // Try to create a fallback blueprint if the main process fails
-      console.log(chalk.yellow('⚡︎ Creating fallback blueprint...'))
+      advancedUI.logInfo(chalk.yellow('⚡︎ Creating fallback blueprint...'))
       try {
         const fallbackBlueprint = this.createFallbackBlueprint(requirements.specialization)
 
@@ -1025,13 +1026,13 @@ Context Scope: ${requirements.contextScope || 'project'}`,
         this.blueprints.set(validatedBlueprint.id, validatedBlueprint)
         await blueprintStorage.saveBlueprint(validatedBlueprint)
 
-        console.log(chalk.green(`✓ Fallback agent blueprint created: ${validatedBlueprint.name}`))
-        console.log(chalk.gray(`   Blueprint ID: ${validatedBlueprint.id}`))
-        console.log(chalk.gray(`   Capabilities: ${validatedBlueprint.capabilities.join(', ')}`))
+        advancedUI.logSuccess(`✓ Fallback agent blueprint created: ${validatedBlueprint.name}`)
+        advancedUI.logInfo(chalk.gray(`   Blueprint ID: ${validatedBlueprint.id}`))
+        advancedUI.logInfo(chalk.gray(`   Capabilities: ${validatedBlueprint.capabilities.join(', ')}`))
 
         return validatedBlueprint
       } catch (fallbackError: any) {
-        console.log(chalk.red(`✖ Fallback blueprint creation also failed: ${fallbackError.message}`))
+        advancedUI.logError(`✖ Fallback blueprint creation also failed: ${fallbackError.message}`)
         // Create a minimal valid blueprint as last resort
         const minimalBlueprint: AgentBlueprint = {
           id: nanoid(),
@@ -1059,7 +1060,7 @@ Context Scope: ${requirements.contextScope || 'project'}`,
         this.blueprints.set(minimalBlueprint.id, minimalBlueprint)
         await blueprintStorage.saveBlueprint(minimalBlueprint)
 
-        console.log(chalk.yellow(`⚠︎ Created minimal blueprint as last resort: ${minimalBlueprint.name}`))
+        advancedUI.logFunctionUpdate('warning', `⚠︎ Created minimal blueprint as last resort: ${minimalBlueprint.name}`)
         return minimalBlueprint
       }
     }
@@ -1075,7 +1076,7 @@ Context Scope: ${requirements.contextScope || 'project'}`,
     personality?: Partial<AgentBlueprint['personality']>
     vmConfig?: VMContainerConfig
   }): Promise<AgentBlueprint> {
-    console.log(chalk.blue(`🐳 Creating VM agent blueprint for: ${requirements.specialization}`))
+    advancedUI.logInfo(chalk.blue(`🐳 Creating VM agent blueprint for: ${requirements.specialization}`))
 
     // Create VM-specific capabilities
     const vmCapabilities = [
@@ -1188,11 +1189,11 @@ Execute tasks step-by-step and verify results before proceeding.`
 
     this.blueprints.set(blueprint.id, blueprint)
 
-    console.log(chalk.green(`✓ VM agent blueprint created: ${blueprint.id}`))
-    console.log(chalk.gray(`   Type: 🐳 VM Agent`))
-    console.log(chalk.gray(`   Capabilities: ${blueprint.capabilities.join(', ')}`))
-    console.log(chalk.gray(`   Container Image: ${blueprint.vmConfig?.containerImage}`))
-    console.log(chalk.gray(`   Autonomy: ${blueprint.autonomyLevel}`))
+    advancedUI.logSuccess(`✓ VM agent blueprint created: ${blueprint.id}`)
+    advancedUI.logInfo(chalk.gray(`   Type: 🐳 VM Agent`))
+    advancedUI.logInfo(chalk.gray(`   Capabilities: ${blueprint.capabilities.join(', ')}`))
+    advancedUI.logInfo(chalk.gray(`   Container Image: ${blueprint.vmConfig?.containerImage}`))
+    advancedUI.logInfo(chalk.gray(`   Autonomy: ${blueprint.autonomyLevel}`))
 
     return blueprint
   }
@@ -1225,7 +1226,7 @@ Execute tasks step-by-step and verify results before proceeding.`
       throw new Error(errorMessage)
     }
 
-    console.log(chalk.blue(`🚀 Launching agent: ${blueprint.name}`))
+    advancedUI.logInfo(chalk.blue(`🚀 Launching agent: ${blueprint.name}`))
 
     // Check if an agent with this name is already launched and verify it's still active
     const existing = this.instances.get(blueprint.name)
@@ -1234,17 +1235,17 @@ Execute tasks step-by-step and verify results before proceeding.`
       const isHealthy = await this.checkAgentHealth(existing)
 
       if (isHealthy) {
-        console.log(chalk.yellow(`⚠︎ Agent ${blueprint.name} already launched; returning existing instance`))
+        advancedUI.logFunctionUpdate('warning', `⚠︎ Agent ${blueprint.name} already launched; returning existing instance`)
 
         // If a task is provided, execute it on the existing agent
         if (task) {
-          console.log(chalk.blue(`🎯 Executing task on existing agent: ${task}`))
+          advancedUI.logInfo(chalk.blue(`🎯 Executing task on existing agent: ${task}`))
           try {
             await existing.run(task)
           } catch (error: any) {
-            console.log(chalk.red(`✖ Task execution failed: ${error.message}`))
+            advancedUI.logError(`✖ Task execution failed: ${error.message}`)
             // If task execution fails, consider the agent unhealthy and remove it
-            console.log(chalk.yellow(`🧹 Removing unhealthy agent instance`))
+            advancedUI.logInfo(chalk.yellow(`🧹 Removing unhealthy agent instance`))
             this.instances.delete(blueprint.name)
             await this.cleanupAgent(existing)
           }
@@ -1253,7 +1254,7 @@ Execute tasks step-by-step and verify results before proceeding.`
         return existing
       } else {
         // Agent is no longer healthy, remove and recreate
-        console.log(chalk.yellow(`⚡︎ Existing agent ${blueprint.name} is unhealthy, recreating...`))
+        advancedUI.logInfo(chalk.yellow(`⚡︎ Existing agent ${blueprint.name} is unhealthy, recreating...`))
         this.instances.delete(blueprint.name)
         await this.cleanupAgent(existing)
       }
@@ -1264,15 +1265,15 @@ Execute tasks step-by-step and verify results before proceeding.`
     try {
       await agent.initialize()
       this.instances.set(blueprint.name, agent)
-      console.log(chalk.green(`✓ Agent ${blueprint.name} launched successfully`))
+      advancedUI.logSuccess(`✓ Agent ${blueprint.name} launched successfully`)
 
       // If a task is provided, execute it immediately
       if (task) {
-        console.log(chalk.blue(`🎯 Executing initial task: ${task}`))
+        advancedUI.logInfo(chalk.blue(`🎯 Executing initial task: ${task}`))
         try {
           await agent.run(task)
         } catch (error: any) {
-          console.log(chalk.red(`✖ Task execution failed: ${error.message}`))
+          advancedUI.logError(`✖ Task execution failed: ${error.message}`)
           // Don't remove the agent just because the first task failed
           // The agent might still be functional for other tasks
         }
@@ -1281,7 +1282,7 @@ Execute tasks step-by-step and verify results before proceeding.`
       return agent
     } catch (initError: any) {
       // If initialization fails, ensure we don't leave a broken agent in the registry
-      console.log(chalk.red(`✖ Agent initialization failed: ${initError.message}`))
+      advancedUI.logError(`✖ Agent initialization failed: ${initError.message}`)
       this.instances.delete(blueprint.name)
       await this.cleanupAgent(agent)
       throw initError

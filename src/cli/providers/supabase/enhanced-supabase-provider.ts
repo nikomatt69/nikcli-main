@@ -2,6 +2,7 @@ import { EventEmitter } from 'node:events'
 import { createClient, type RealtimeChannel, type SupabaseClient } from '@supabase/supabase-js'
 import chalk from 'chalk'
 import { type ConfigType, simpleConfigManager } from '../../core/config-manager'
+import { advancedUI } from '../../ui/advanced-cli-ui'
 
 export interface SupabaseSession {
   id: string
@@ -110,7 +111,7 @@ export class EnhancedSupabaseProvider extends EventEmitter {
           : undefined,
       })
 
-      console.log(chalk.blue('🔗 Connecting to Supabase...'))
+      advancedUI.logInfo(chalk.blue('🔗 Connecting to Supabase...'))
 
       // Test connection
       const { error } = await this.client.from(this.config.tables.sessions).select('id').limit(1)
@@ -120,7 +121,7 @@ export class EnhancedSupabaseProvider extends EventEmitter {
       }
 
       this.isConnected = true
-      console.log(chalk.green('✓ Supabase connected successfully'))
+      advancedUI.logInfo(chalk.green('✓ Supabase connected successfully'))
       this.emit('connected')
 
       // Setup real-time if enabled
@@ -128,7 +129,7 @@ export class EnhancedSupabaseProvider extends EventEmitter {
         this.setupRealtime()
       }
     } catch (error: any) {
-      console.log(chalk.red(`✖ Supabase connection failed: ${error.message}`))
+      advancedUI.logInfo(chalk.red(`✖ Supabase connection failed: ${error.message}`))
       this.isConnected = false
 
       // Handle the error without throwing to prevent unhandled promise rejection
@@ -136,7 +137,7 @@ export class EnhancedSupabaseProvider extends EventEmitter {
         this.emit('error', error)
       } catch (_emitError) {
         // Silent failure if no error listeners
-        console.log(chalk.yellow('⚠︎ No error listeners registered for Supabase provider'))
+        advancedUI.logInfo(chalk.yellow('⚠︎ No error listeners registered for Supabase provider'))
       }
 
       // Don't throw the error to prevent unhandled rejections
@@ -186,7 +187,7 @@ export class EnhancedSupabaseProvider extends EventEmitter {
 
     this.realtimeChannels.set('blueprints', blueprintChannel)
 
-    console.log(chalk.blue('📡 Supabase real-time subscriptions active'))
+    advancedUI.logInfo(chalk.blue('📡 Supabase real-time subscriptions active'))
   }
 
   // ===== SESSION OPERATIONS =====
@@ -212,7 +213,7 @@ export class EnhancedSupabaseProvider extends EventEmitter {
 
       return data
     } catch (error: any) {
-      console.log(chalk.red(`✖ Session upsert failed: ${error.message}`))
+      advancedUI.logInfo(chalk.red(`✖ Session upsert failed: ${error.message}`))
       throw error
     }
   }
@@ -239,7 +240,7 @@ export class EnhancedSupabaseProvider extends EventEmitter {
 
       return data
     } catch (error: any) {
-      console.log(chalk.red(`✖ Session get failed: ${error.message}`))
+      advancedUI.logInfo(chalk.red(`✖ Session get failed: ${error.message}`))
       throw error
     }
   }
@@ -288,7 +289,7 @@ export class EnhancedSupabaseProvider extends EventEmitter {
 
       return data || []
     } catch (error: any) {
-      console.log(chalk.red(`✖ Sessions list failed: ${error.message}`))
+      advancedUI.logInfo(chalk.red(`✖ Sessions list failed: ${error.message}`))
       throw error
     }
   }
@@ -308,7 +309,7 @@ export class EnhancedSupabaseProvider extends EventEmitter {
 
       return true
     } catch (error: any) {
-      console.log(chalk.red(`✖ Session delete failed: ${error.message}`))
+      advancedUI.logInfo(chalk.red(`✖ Session delete failed: ${error.message}`))
       return false
     }
   }
@@ -340,7 +341,7 @@ export class EnhancedSupabaseProvider extends EventEmitter {
 
       return data
     } catch (error: any) {
-      console.log(chalk.red(`✖ Blueprint upsert failed: ${error.message}`))
+      advancedUI.logInfo(chalk.red(`✖ Blueprint upsert failed: ${error.message}`))
       throw error
     }
   }
@@ -375,7 +376,7 @@ export class EnhancedSupabaseProvider extends EventEmitter {
 
       return data
     } catch (error: any) {
-      console.log(chalk.red(`✖ Blueprint get failed: ${error.message}`))
+      advancedUI.logInfo(chalk.red(`✖ Blueprint get failed: ${error.message}`))
       throw error
     }
   }
@@ -424,7 +425,7 @@ export class EnhancedSupabaseProvider extends EventEmitter {
 
       return data || []
     } catch (error: any) {
-      console.log(chalk.red(`✖ Blueprint search failed: ${error.message}`))
+      advancedUI.logInfo(chalk.red(`✖ Blueprint search failed: ${error.message}`))
       throw error
     }
   }
@@ -475,7 +476,7 @@ export class EnhancedSupabaseProvider extends EventEmitter {
 
       return data || []
     } catch (error: any) {
-      console.log(chalk.red(`✖ Document vector search failed: ${error.message}`))
+      advancedUI.logInfo(chalk.red(`✖ Document vector search failed: ${error.message}`))
       throw error
     }
   }
@@ -520,7 +521,7 @@ export class EnhancedSupabaseProvider extends EventEmitter {
 
       return data.user as any
     } catch (error: any) {
-      console.log(chalk.red(`✖ Sign in failed: ${error.message}`))
+      advancedUI.logInfo(chalk.red(`✖ Sign in failed: ${error.message}`))
       throw error
     }
   }
@@ -546,7 +547,7 @@ export class EnhancedSupabaseProvider extends EventEmitter {
 
       return data.user as any
     } catch (error: any) {
-      console.log(chalk.red(`✖ Sign up failed: ${error.message}`))
+      advancedUI.logInfo(chalk.red(`✖ Sign up failed: ${error.message}`))
       throw error
     }
   }
@@ -584,7 +585,7 @@ export class EnhancedSupabaseProvider extends EventEmitter {
     try {
       await this.client.auth.signOut()
     } catch (error: any) {
-      console.log(chalk.red(`✖ Sign out failed: ${error.message}`))
+      advancedUI.logInfo(chalk.red(`✖ Sign out failed: ${error.message}`))
     }
   }
 
@@ -733,7 +734,7 @@ export class EnhancedSupabaseProvider extends EventEmitter {
     this.client = null
     this.isConnected = false
 
-    console.log(chalk.yellow('🔌 Supabase disconnected'))
+    advancedUI.logInfo(chalk.yellow('🔌 Supabase disconnected'))
     this.emit('disconnected')
   }
 
@@ -776,10 +777,10 @@ export class EnhancedSupabaseProvider extends EventEmitter {
       })
 
       if (error) {
-        console.log(chalk.yellow(`⚠︎ Failed to record toolchain execution: ${error.message}`))
+        advancedUI.logInfo(chalk.yellow(`⚠︎ Failed to record toolchain execution: ${error.message}`))
       }
     } catch (error: any) {
-      console.log(chalk.yellow(`⚠︎ Toolchain execution recording failed: ${error.message}`))
+      advancedUI.logInfo(chalk.yellow(`⚠︎ Toolchain execution recording failed: ${error.message}`))
     }
   }
 
@@ -799,13 +800,13 @@ export class EnhancedSupabaseProvider extends EventEmitter {
         .order('created_at', { ascending: true })
 
       if (error) {
-        console.log(chalk.yellow(`⚠︎ Failed to get session executions: ${error.message}`))
+        advancedUI.logInfo(chalk.yellow(`⚠︎ Failed to get session executions: ${error.message}`))
         return []
       }
 
       return data || []
     } catch (error: any) {
-      console.log(chalk.yellow(`⚠︎ Session executions query failed: ${error.message}`))
+      advancedUI.logInfo(chalk.yellow(`⚠︎ Session executions query failed: ${error.message}`))
       return []
     }
   }
@@ -826,13 +827,13 @@ export class EnhancedSupabaseProvider extends EventEmitter {
         .order('created_at', { ascending: false })
 
       if (error) {
-        console.log(chalk.yellow(`⚠︎ Failed to get toolchain executions: ${error.message}`))
+        advancedUI.logInfo(chalk.yellow(`⚠︎ Failed to get toolchain executions: ${error.message}`))
         return []
       }
 
       return data || []
     } catch (error: any) {
-      console.log(chalk.yellow(`⚠︎ Toolchain executions query failed: ${error.message}`))
+      advancedUI.logInfo(chalk.yellow(`⚠︎ Toolchain executions query failed: ${error.message}`))
       return []
     }
   }
@@ -857,13 +858,13 @@ export class EnhancedSupabaseProvider extends EventEmitter {
 
       if (error) {
         if (error.code === 'PGRST116') return null
-        console.log(chalk.yellow(`⚠︎ Failed to get latest model: ${error.message}`))
+        advancedUI.logInfo(chalk.yellow(`⚠︎ Failed to get latest model: ${error.message}`))
         return null
       }
 
       return data
     } catch (error: any) {
-      console.log(chalk.yellow(`⚠︎ Latest model query failed: ${error.message}`))
+      advancedUI.logInfo(chalk.yellow(`⚠︎ Latest model query failed: ${error.message}`))
       return null
     }
   }
@@ -885,10 +886,10 @@ export class EnhancedSupabaseProvider extends EventEmitter {
       })
 
       if (error) {
-        console.log(chalk.yellow(`⚠︎ Failed to cache inference: ${error.message}`))
+        advancedUI.logInfo(chalk.yellow(`⚠︎ Failed to cache inference: ${error.message}`))
       }
     } catch (error: any) {
-      console.log(chalk.yellow(`⚠︎ Inference caching failed: ${error.message}`))
+      advancedUI.logInfo(chalk.yellow(`⚠︎ Inference caching failed: ${error.message}`))
     }
   }
 
@@ -992,10 +993,10 @@ export class EnhancedSupabaseProvider extends EventEmitter {
       })
 
       if (error) {
-        console.log(chalk.yellow(`⚠︎ Failed to record benchmark: ${error.message}`))
+        advancedUI.logInfo(chalk.yellow(`⚠︎ Failed to record benchmark: ${error.message}`))
       }
     } catch (error: any) {
-      console.log(chalk.yellow(`⚠︎ Benchmark recording failed: ${error.message}`))
+      advancedUI.logInfo(chalk.yellow(`⚠︎ Benchmark recording failed: ${error.message}`))
     }
   }
 
@@ -1015,10 +1016,10 @@ export class EnhancedSupabaseProvider extends EventEmitter {
       })
 
       if (error) {
-        console.log(chalk.yellow(`⚠︎ Failed to record batch metrics: ${error.message}`))
+        advancedUI.logInfo(chalk.yellow(`⚠︎ Failed to record batch metrics: ${error.message}`))
       }
     } catch (error: any) {
-      console.log(chalk.yellow(`⚠︎ Batch metrics recording failed: ${error.message}`))
+      advancedUI.logInfo(chalk.yellow(`⚠︎ Batch metrics recording failed: ${error.message}`))
     }
   }
 }

@@ -125,12 +125,12 @@ export class EnterpriseIntegration {
     const status = this.getSystemStatus()
 
     advancedUI.logInfo('🏢 Enterprise Systems Status:')
-    console.log(
+    advancedUI.logInfo(
       `   🚩 Feature Flags: ${status.featureFlags.stats.total} total, ${status.featureFlags.stats.enabled} enabled`
     )
-    console.log(`   🔧 Tool Registry: ${status.toolRegistry.totalTools} tools loaded`)
-    console.log(`   ⚡︎ Prompt Registry: ${status.promptRegistry.totalPrompts} prompts available`)
-    console.log(`   ✓ All systems operational`)
+    advancedUI.logInfo(`   🔧 Tool Registry: ${status.toolRegistry.totalTools} tools loaded`)
+    advancedUI.logInfo(`   ⚡︎ Prompt Registry: ${status.promptRegistry.totalPrompts} prompts available`)
+    advancedUI.logInfo(`   ✓ All systems operational`)
   }
 
   async cleanup(): Promise<void> {

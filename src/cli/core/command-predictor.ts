@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import chalk from 'chalk'
 import { z } from 'zod'
 import { type ChatMessage, modelProvider } from '../ai/model-provider'
+import { advancedUI } from '../ui/advanced-cli-ui'
 
 // 📊 Command Prediction Schemas
 const CommandEntry = z.object({
@@ -397,7 +398,7 @@ export class CommandPredictor {
 
       return aiPredictions
     } catch (error) {
-      console.warn(chalk.yellow(`[Command Predictor AI] Error: ${error}`))
+      advancedUI.logFunctionUpdate('warning', chalk.yellow(`[Command Predictor AI] Error: ${error}`))
       return []
     }
   }
@@ -489,7 +490,7 @@ Provide 2-4 most relevant predictions, ranked by confidence.`
         }))
         .filter((pred: PredictionResult) => pred.command.trim() !== '')
     } catch (error) {
-      console.warn(chalk.yellow(`[Command Predictor AI] Parse error: ${error}`))
+      advancedUI.logFunctionUpdate('warning', chalk.yellow(`[Command Predictor AI] Parse error: ${error}`))
       return []
     }
   }
@@ -673,7 +674,7 @@ Provide 2-4 most relevant predictions, ranked by confidence.`
         this.commandHistory = parsed.map((entry: any) => CommandEntry.parse(entry))
       }
     } catch (error) {
-      console.warn(chalk.yellow('Failed to load command history:', error))
+      advancedUI.logFunctionUpdate('warning', chalk.yellow(`Failed to load command history: ${error}`))
       this.commandHistory = []
     }
   }
@@ -686,7 +687,7 @@ Provide 2-4 most relevant predictions, ranked by confidence.`
       }
       writeFileSync(this.historyFile, JSON.stringify(this.commandHistory, null, 2))
     } catch (error) {
-      console.warn(chalk.yellow('Failed to save command history:', error))
+      advancedUI.logFunctionUpdate('warning', chalk.yellow(`Failed to save command history: ${error}`))
     }
   }
 
@@ -698,7 +699,7 @@ Provide 2-4 most relevant predictions, ranked by confidence.`
         this.commandPatterns = parsed.map((pattern: any) => CommandPattern.parse(pattern))
       }
     } catch (error) {
-      console.warn(chalk.yellow('Failed to load command patterns:', error))
+      advancedUI.logFunctionUpdate('warning', chalk.yellow(`Failed to load command patterns: ${error}`))
       this.commandPatterns = []
     }
   }
@@ -711,7 +712,7 @@ Provide 2-4 most relevant predictions, ranked by confidence.`
       }
       writeFileSync(this.patternsFile, JSON.stringify(this.commandPatterns, null, 2))
     } catch (error) {
-      console.warn(chalk.yellow('Failed to save command patterns:', error))
+      advancedUI.logFunctionUpdate('warning', chalk.yellow(`Failed to save command patterns: ${error}`))
     }
   }
 

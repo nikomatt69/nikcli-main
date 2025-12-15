@@ -23,10 +23,57 @@ export class VMWebSocketServer extends EventEmitter implements VMEventEmitter {
   private connections: Map<string, VMConnection> = new Map()
   private isRunning: boolean = false
   private heartbeatInterval?: NodeJS.Timeout
+  private pendingTimeouts = new WeakMap<WebSocket, NodeJS.Timeout>()
 
   constructor(config?: Partial<VMWebSocketConfig>) {
     super()
     this.config = { ...DEFAULT_VM_WEBSOCKET_CONFIG, ...config }
+
+    this.setupGracefulShutdown()
+  }
+
+  private setupGracefulShutdown(): void {
+    process.on('SIGTERM', () => this.cleanup())
+    process.on('SIGINT', () => this.cleanup())
+    process.on('unhandledRejection', (reason) => {
+      console.error(chalk.red('Unhandled rejection in VMWebSocketServer:'), reason)
+      this.cleanup()
+    })
+    process.on('uncaughtException', (error) => {
+      console.error(chalk.red('Uncaught exception in VMWebSocketServer:'), error)
+      this.cleanup()
+    })
+  }
+
+  private async cleanup(): Promise<void> {
+    if (!this.isRunning) return
+
+    console.log(chalk.yellow('🧹 Cleaning up VM WebSocket Server...'))
+
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval)
+      this.heartbeatInterval = undefined
+    }
+
+    for (const [containerId, connection] of this.connections) {
+      try {
+        if (connection.ws.readyState === WebSocket.OPEN) {
+          connection.ws.close(1001, 'Server cleanup')
+        }
+      } catch (error) {
+        console.error(chalk.red(`Error closing connection ${containerId}:`), error)
+      }
+    }
+    this.connections.clear()
+
+    if (this.wss) {
+      await new Promise<void>((resolve) => {
+        this.wss?.close(() => resolve())
+      })
+    }
+
+    this.isRunning = false
+    console.log(chalk.green('✅ VM WebSocket Server cleanup complete'))
   }
 
   /**
@@ -37,14 +84,45 @@ export class VMWebSocketServer extends EventEmitter implements VMEventEmitter {
       throw new Error('WebSocket server already running')
     }
 
+    const startServer = async (port: number, attempt: number = 0): Promise<void> => {
+      if (attempt > 10) {
+        throw new Error('Failed to find free port for VM WebSocket Server after 10 attempts')
+      }
+
+      try {
+        await new Promise<void>((resolve, reject) => {
+          const server = new WebSocketServer({
+            port,
+            host: this.config.host,
+            path: this.config.path,
+          })
+
+          server.on('listening', () => {
+            this.wss = server
+            this.config.port = port
+            resolve()
+          })
+
+          server.on('error', (err: any) => {
+            if (err.code === 'EADDRINUSE') {
+              server.close()
+              resolve(startServer(port + 1, attempt + 1))
+            } else {
+              reject(err)
+            }
+          })
+        })
+      } catch (error) {
+        throw error
+      }
+    }
+
     try {
-      this.wss = new WebSocketServer({
-        port: this.config.port,
-        host: this.config.host,
-        path: this.config.path,
-        // Note: maxBackpressure, maxCompressedSize, maxPayloadLength are ws-specific options
-        // They may not be supported in all WebSocket implementations
-      })
+      await startServer(this.config.port)
+
+      if (!this.wss) {
+        throw new Error('WebSocket server failed to initialize')
+      }
 
       this.wss.on('connection', this.handleConnection.bind(this))
       this.wss.on('error', this.handleServerError.bind(this))
@@ -53,10 +131,15 @@ export class VMWebSocketServer extends EventEmitter implements VMEventEmitter {
       this.setupHeartbeat()
 
       this.isRunning = true
+      console.log(chalk.green(`✓ VM WebSocket Server listening on port ${this.config.port}`))
     } catch (error: any) {
       console.error(chalk.red(`✖ Failed to start VM WebSocket Server: ${error.message}`))
       throw error
     }
+  }
+
+  getConfig(): VMWebSocketConfig {
+    return { ...this.config }
   }
 
   /**
@@ -222,15 +305,15 @@ export class VMWebSocketServer extends EventEmitter implements VMEventEmitter {
     ws.on('error', (error: any) => this.handleConnectionError(ws, error))
     ws.on('pong', () => this.handlePong(ws))
 
-    // Wait for session initialization
+    // Wait for session initialization with WeakMap tracking
     const initTimeout = setTimeout(() => {
+      this.pendingTimeouts.delete(ws)
       if (ws.readyState === WebSocket.OPEN) {
         ws.close(4000, 'Session initialization timeout')
       }
-    }, 10000) // 10 second timeout
+    }, 10000)
 
-    // Store temporary connection until initialized
-    ;(ws as any)._initTimeout = initTimeout
+    this.pendingTimeouts.set(ws, initTimeout)
   }
 
   private async handleMessage(ws: WebSocket, data: any): Promise<void> {
@@ -271,10 +354,11 @@ export class VMWebSocketServer extends EventEmitter implements VMEventEmitter {
   private async handleSessionInit(ws: WebSocket, message: VMSessionInit): Promise<void> {
     const { containerId, sessionId } = message
 
-    // Clear initialization timeout
-    if ((ws as any)._initTimeout) {
-      clearTimeout((ws as any)._initTimeout)
-      delete (ws as any)._initTimeout
+    // Clear initialization timeout from WeakMap
+    const initTimeout = this.pendingTimeouts.get(ws)
+    if (initTimeout) {
+      clearTimeout(initTimeout)
+      this.pendingTimeouts.delete(ws)
     }
 
     // Check if container already connected
@@ -306,6 +390,12 @@ export class VMWebSocketServer extends EventEmitter implements VMEventEmitter {
       this.connections.delete(connection.containerId)
       this.emit('disconnected', connection.containerId)
       console.log(chalk.yellow(`🔌 Container ${connection.containerId} disconnected (${code}): ${reason}`))
+    }
+
+    const initTimeout = this.pendingTimeouts.get(ws)
+    if (initTimeout) {
+      clearTimeout(initTimeout)
+      this.pendingTimeouts.delete(ws)
     }
   }
 

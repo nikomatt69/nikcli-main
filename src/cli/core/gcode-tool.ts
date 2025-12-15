@@ -1,3 +1,5 @@
+import { advancedUI } from '../ui/advanced-cli-ui'
+
 /**
  * Enum-like type for supported CAD types.
  * Restricts input to valid 2D/3D formats for GCode generation.
@@ -112,7 +114,7 @@ const aiProvider: AIProvider = {
   async generate(prompt: string, options = { model: 'gpt-4', maxTokens: 2000 }): Promise<string> {
     // Simulated AI call; replace with actual aiProvider.generate() in NikCLI.
     // For demo: Returns mock GCode based on prompt.
-    console.log(`AI Prompt: ${prompt}`) // Logging for traceability
+    advancedUI.logInfo(`AI Prompt: ${prompt}`) // Logging for traceability
     // Real impl: await actualAI.generate(prompt, options);
     return `G1 X${options.maxTokens} ; Mock GCode from AI for prompt: ${prompt.substring(0, 50)}...`
   },
@@ -163,7 +165,7 @@ const generateGCodeTool: Tool = {
       return gcode.trim() // Clean output
     } catch (error) {
       // Production error handling: Log and throw with context
-      console.error('GCode generation failed:', error)
+      advancedUI.logError(`GCode generation failed: ${error}`)
       throw new Error(`Failed to generate GCode: ${(error as Error).message}`)
     }
   },

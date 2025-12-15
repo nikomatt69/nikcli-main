@@ -17,6 +17,7 @@ import { advancedUI } from './advanced-cli-ui'
 export class VMStatusIndicator extends EventEmitter {
   private static instance: VMStatusIndicator
   private activeAgents: Map<string, VMAgentStatus> = new Map()
+  private agentLogDeduplication: Map<string, Map<string, number>> = new Map() // agentId -> messageKey -> timestamp
   private displayMode: StatusDisplayMode = 'compact'
   private updateInterval: NodeJS.Timeout | null = null
 
@@ -62,6 +63,7 @@ export class VMStatusIndicator extends EventEmitter {
       }
 
       this.activeAgents.set(agentOrId, agentStatus)
+      this.agentLogDeduplication.set(agentOrId, new Map())
       this.emit('agent_registered', agentStatus)
       return
     }
@@ -86,6 +88,7 @@ export class VMStatusIndicator extends EventEmitter {
     }
 
     this.activeAgents.set(agent.id, agentStatus)
+    this.agentLogDeduplication.set(agent.id, new Map())
 
     advancedUI.logSuccess(`📊 VM agent ${agent.id} registered for status tracking`)
     this.emit('agent:registered', { agentId: agent.id })
@@ -97,6 +100,7 @@ export class VMStatusIndicator extends EventEmitter {
   unregisterAgent(agentId: string): void {
     if (this.activeAgents.has(agentId)) {
       this.activeAgents.delete(agentId)
+      this.agentLogDeduplication.delete(agentId)
 
       advancedUI.logInfo(`📊 VM agent ${agentId} unregistered from status tracking`)
       this.emit('agent:unregistered', { agentId })
@@ -122,6 +126,20 @@ export class VMStatusIndicator extends EventEmitter {
   addAgentLog(agentId: string, log: AgentLogEntry): void {
     const status = this.activeAgents.get(agentId)
     if (status) {
+      const TIME_WINDOW = 5000 // 5 seconds
+      const deduplicationMap = this.agentLogDeduplication.get(agentId)
+
+      if (deduplicationMap) {
+        const messageKey = log.message.slice(0, 100) // Deduplicate based on first 100 chars
+        const lastTimestamp = deduplicationMap.get(messageKey)
+        const currentTime = log.timestamp.getTime()
+
+        if (lastTimestamp && currentTime - lastTimestamp < TIME_WINDOW) {
+          return // Duplicate found within the time window, so we skip it.
+        }
+        deduplicationMap.set(messageKey, currentTime)
+      }
+
       status.logs.push(log)
 
       // Maintain log buffer size

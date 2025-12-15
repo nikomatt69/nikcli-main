@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { advancedUI } from '../ui/advanced-cli-ui'
 
 export interface AnalyticsEvent {
   timestamp: Date
@@ -189,7 +190,7 @@ export class AnalyticsManager {
       }
       writeFileSync(this.analyticsFile, JSON.stringify(data, null, 2))
     } catch (error) {
-      console.warn('Failed to save analytics:', error)
+      advancedUI.logFunctionUpdate('warning', `Failed to save analytics: ${error}`)
     }
   }
 
@@ -204,7 +205,7 @@ export class AnalyticsManager {
         }))
       }
     } catch (error) {
-      console.warn('Failed to load analytics:', error)
+      advancedUI.logFunctionUpdate('warning', `Failed to load analytics: ${error}`)
     }
   }
 

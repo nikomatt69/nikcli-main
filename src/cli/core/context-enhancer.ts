@@ -173,7 +173,7 @@ export class ContextEnhancer {
     }
 
     const compressionRatio = currentTokens / smartContext.totalTokens
-    console.log(
+    advancedUI.logInfo(
       chalk.green(
         `✓ Context optimized: ${smartContext.totalTokens} → ${currentTokens} tokens (${Math.round(compressionRatio * 100)}%)`
       )

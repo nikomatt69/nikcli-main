@@ -283,6 +283,7 @@ export class BashTool extends BaseTool {
       let stderr = ''
       let timedOut = false
       let killed = false
+      let forceKillTimeout: NodeJS.Timeout | null = null
 
       // Prepara environment
       const env = {
@@ -298,14 +299,25 @@ export class BashTool extends BaseTool {
         stdio: ['ignore', 'pipe', 'pipe'],
       })
 
+      // Cleanup function per garantire che tutti i timeout vengano cancellati
+      const cleanup = () => {
+        if (timeoutHandle) {
+          clearTimeout(timeoutHandle)
+        }
+        if (forceKillTimeout) {
+          clearTimeout(forceKillTimeout)
+          forceKillTimeout = null
+        }
+      }
+
       // Setup timeout
       const timeoutHandle = setTimeout(() => {
         timedOut = true
         killed = true
         child.kill('SIGTERM')
 
-        // Force kill dopo 5 secondi
-        setTimeout(() => {
+        // Force kill dopo 5 secondi - SALVATO IN VARIABILE per cleanup
+        forceKillTimeout = setTimeout(() => {
           if (!child.killed) {
             child.kill('SIGKILL')
           }
@@ -321,6 +333,7 @@ export class BashTool extends BaseTool {
           if (stdout.length > MAX_OUTPUT_LENGTH) {
             stdout = stdout.substring(0, MAX_OUTPUT_LENGTH) + '\n... [output truncated]'
             child.kill('SIGTERM')
+            cleanup()
           }
         })
       }
@@ -337,7 +350,7 @@ export class BashTool extends BaseTool {
 
       // Gestione completamento
       child.on('close', (exitCode: number | null) => {
-        clearTimeout(timeoutHandle)
+        cleanup()
 
         const executionTime = Date.now() - startTime
 
@@ -362,7 +375,7 @@ export class BashTool extends BaseTool {
 
       // Gestione errori
       child.on('error', (error: Error) => {
-        clearTimeout(timeoutHandle)
+        cleanup()
         reject(new Error(`Failed to execute command: ${error.message}`))
       })
 

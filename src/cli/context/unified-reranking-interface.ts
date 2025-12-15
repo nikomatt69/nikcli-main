@@ -4,6 +4,7 @@ import { readFile, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import chalk from 'chalk'
+import { advancedUI } from '../ui/advanced-cli-ui' // Added
 import { type CacheProvider, globalCacheManager } from '../core/cache-provider'
 import { configManager } from '../core/config-manager'
 import { createOpenRouterRerankingProvider, type OpenRouterRerankingProvider } from './openrouter-reranking-provider'
@@ -248,11 +249,11 @@ export class UnifiedRerankingInterface {
 
     // Clear cache if model changed
     if (oldConfig.model !== this.config.model) {
-      console.log(chalk.blue('🔧 Reranking model changed, clearing cache'))
+      advancedUI.logInfo(chalk.blue('🔧 Reranking model changed, clearing cache'))
       this.clearCache()
     }
 
-    console.log(chalk.green('✓ Reranking configuration updated'))
+    advancedUI.logInfo(chalk.green('✓ Reranking configuration updated'))
     this.logConfig()
   }
 
@@ -277,14 +278,14 @@ export class UnifiedRerankingInterface {
       this.clearPersistentCache()
     }
     this.cacheProvider.clear()
-    console.log(chalk.green('✓ Reranking cache cleared'))
+    advancedUI.logInfo(chalk.green('✓ Reranking cache cleared'))
   }
 
   /**
    * Optimize cache and performance
    */
   async optimizeCache(): Promise<void> {
-    console.log(chalk.blue('🔧 Optimizing reranking cache...'))
+    advancedUI.logInfo(chalk.blue('🔧 Optimizing reranking cache...'))
 
     // Remove old entries if cache is too large
     if (this.rerankingCache.size > this.MAX_MEMORY_CACHE) {
@@ -295,7 +296,7 @@ export class UnifiedRerankingInterface {
       this.rerankingCache.clear()
       toKeep.forEach(([key, value]) => this.rerankingCache.set(key, value))
 
-      console.log(chalk.green(`✓ Cache optimized: kept ${toKeep.length}/${entries.length} entries`))
+      advancedUI.logInfo(chalk.green(`✓ Cache optimized: kept ${toKeep.length}/${entries.length} entries`))
     }
 
     // Save to persistent cache
@@ -313,43 +314,43 @@ export class UnifiedRerankingInterface {
   logStatus(): void {
     const stats = this.getStats()
 
-    console.log(chalk.blue.bold('\n⚡︎ Unified Reranking Interface Status'))
-    console.log(chalk.gray('═'.repeat(50)))
+    advancedUI.logInfo(chalk.blue.bold('\n⚡︎ Unified Reranking Interface Status'))
+    advancedUI.logInfo(chalk.gray('═'.repeat(50)))
 
     this.logConfig()
 
-    console.log(chalk.cyan('\nPerformance:'))
-    console.log(`  Total Rerankings: ${stats.totalRerankings.toLocaleString()}`)
-    console.log(`  Total Queries: ${stats.totalQueries.toLocaleString()}`)
-    console.log(`  Cache Hit Rate: ${(stats.cacheHitRate * 100).toFixed(1)}%`)
-    console.log(`  Average Latency: ${Math.round(stats.averageLatency)}ms`)
-    console.log(`  Total Cost: $${stats.totalCost.toFixed(6)}`)
-    console.log(`  Avg Documents/Query: ${stats.averageDocumentsPerQuery.toFixed(1)}`)
+    advancedUI.logInfo(chalk.cyan('\nPerformance:'))
+    advancedUI.logInfo(`  Total Rerankings: ${stats.totalRerankings.toLocaleString()}`)
+    advancedUI.logInfo(`  Total Queries: ${stats.totalQueries.toLocaleString()}`)
+    advancedUI.logInfo(`  Cache Hit Rate: ${(stats.cacheHitRate * 100).toFixed(1)}%`)
+    advancedUI.logInfo(`  Average Latency: ${Math.round(stats.averageLatency)}ms`)
+    advancedUI.logInfo(`  Total Cost: $${stats.totalCost.toFixed(6)}`)
+    advancedUI.logInfo(`  Avg Documents/Query: ${stats.averageDocumentsPerQuery.toFixed(1)}`)
 
     if (Object.keys(stats.byModel).length > 0) {
-      console.log(chalk.cyan('\nBy Model:'))
+      advancedUI.logInfo(chalk.cyan('\nBy Model:'))
       Object.entries(stats.byModel).forEach(([model, modelStats]) => {
-        console.log(
+        advancedUI.logInfo(
           `  ${model}: ${modelStats.count} rerankings, $${modelStats.cost.toFixed(6)}, ${Math.round(modelStats.averageLatency)}ms avg`
         )
       })
     }
 
-    console.log(chalk.cyan('\nCache:'))
-    console.log(`  Memory Cache: ${this.rerankingCache.size.toLocaleString()} entries`)
-    console.log(`  Persistent Cache: ${this.config.persistenceEnabled ? 'enabled' : 'disabled'}`)
-    console.log(`  Last Optimization: ${stats.lastOptimization.toLocaleTimeString()}`)
+    advancedUI.logInfo(chalk.cyan('\nCache:'))
+    advancedUI.logInfo(`  Memory Cache: ${this.rerankingCache.size.toLocaleString()} entries`)
+    advancedUI.logInfo(`  Persistent Cache: ${this.config.persistenceEnabled ? 'enabled' : 'disabled'}`)
+    advancedUI.logInfo(`  Last Optimization: ${stats.lastOptimization.toLocaleTimeString()}`)
   }
 
   // Private methods
   private logConfig(): void {
-    console.log(chalk.cyan('\nConfiguration:'))
-    console.log(`  Provider: ${this.config.provider}`)
-    console.log(`  Model: ${this.config.model}`)
-    console.log(`  Top K: ${this.config.topK}`)
-    console.log(`  Max Documents: ${this.config.maxDocuments}`)
-    console.log(`  Caching: ${this.config.cacheEnabled ? 'enabled' : 'disabled'}`)
-    console.log(`  Persistence: ${this.config.persistenceEnabled ? 'enabled' : 'disabled'}`)
+    advancedUI.logInfo(chalk.cyan('\nConfiguration:'))
+    advancedUI.logInfo(`  Provider: ${this.config.provider}`)
+    advancedUI.logInfo(`  Model: ${this.config.model}`)
+    advancedUI.logInfo(`  Top K: ${this.config.topK}`)
+    advancedUI.logInfo(`  Max Documents: ${this.config.maxDocuments}`)
+    advancedUI.logInfo(`  Caching: ${this.config.cacheEnabled ? 'enabled' : 'disabled'}`)
+    advancedUI.logInfo(`  Persistence: ${this.config.persistenceEnabled ? 'enabled' : 'disabled'}`)
   }
 
   private generateCacheKey(query: string, documents: RerankingDocument[]): string {
@@ -463,9 +464,9 @@ export class UnifiedRerankingInterface {
       }
 
       await this.loadPersistentCache()
-      console.log(chalk.gray(`✓ Persistent reranking cache initialized`))
+      advancedUI.logInfo(chalk.gray(`✓ Persistent reranking cache initialized`))
     } catch (error) {
-      console.warn(chalk.yellow(`⚠︎ Failed to initialize persistent cache: ${error}`))
+      advancedUI.logInfo(chalk.yellow(`⚠︎ Failed to initialize persistent cache: ${error}`))
     }
   }
 
@@ -488,10 +489,10 @@ export class UnifiedRerankingInterface {
           this.stats.lastOptimization = new Date(this.stats.lastOptimization)
         }
 
-        console.log(chalk.gray(`📦 Loaded ${this.rerankingCache.size} rerankings from persistent cache`))
+        advancedUI.logInfo(chalk.gray(`📦 Loaded ${this.rerankingCache.size} rerankings from persistent cache`))
       }
     } catch (error) {
-      console.warn(chalk.yellow(`⚠︎ Failed to load persistent cache: ${error}`))
+      advancedUI.logInfo(chalk.yellow(`⚠︎ Failed to load persistent cache: ${error}`))
     }
   }
 
@@ -506,9 +507,9 @@ export class UnifiedRerankingInterface {
       }
 
       await writeFile(cacheFile, JSON.stringify(data, null, 2))
-      console.log(chalk.gray(`💾 Saved ${this.rerankingCache.size} rerankings to persistent cache`))
+      advancedUI.logInfo(chalk.gray(`💾 Saved ${this.rerankingCache.size} rerankings to persistent cache`))
     } catch (error) {
-      console.warn(chalk.yellow(`⚠︎ Failed to save persistent cache: ${error}`))
+      advancedUI.logInfo(chalk.yellow(`⚠︎ Failed to save persistent cache: ${error}`))
     }
   }
 
@@ -523,7 +524,7 @@ export class UnifiedRerankingInterface {
         )
       }
     } catch (error) {
-      console.warn(chalk.yellow(`⚠︎ Failed to clear persistent cache: ${error}`))
+      advancedUI.logInfo(chalk.yellow(`⚠︎ Failed to clear persistent cache: ${error}`))
     }
   }
 }

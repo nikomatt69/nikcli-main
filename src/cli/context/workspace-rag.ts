@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto'
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import path, { extname, join, relative, resolve } from 'node:path'
 import chalk from 'chalk'
+import { advancedUI } from '../ui/advanced-cli-ui'
 
 export interface FileEmbedding {
   path: string
@@ -103,7 +104,7 @@ export class WorkspaceRAG {
       try {
         const pkg = JSON.parse(readFileSync(packageJsonPath, 'utf-8'))
         return pkg.name || 'unnamed-project'
-      } catch {}
+      } catch { }
     }
     return require('node:path').basename(path)
   }
@@ -111,7 +112,7 @@ export class WorkspaceRAG {
   // Analisi completa del workspace con RAG
   async analyzeWorkspace(): Promise<WorkspaceContext> {
     if (!process.env.NIKCLI_QUIET_STARTUP) {
-      console.log(chalk.blue('⚡︎ Building workspace context with RAG...'))
+      advancedUI.logInfo(chalk.blue('⚡︎ Building workspace context with RAG...'))
     }
 
     // 1. Scan all files

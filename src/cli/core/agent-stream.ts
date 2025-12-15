@@ -124,7 +124,7 @@ export class AgentStreamManager extends EventEmitter {
 
     // Log data if present
     if (event.data && typeof event.data === 'object') {
-      console.log(chalk.gray(`    ${JSON.stringify(event.data, null, 2)}`))
+      advancedUI.logInfo(chalk.gray(`    ${JSON.stringify(event.data, null, 2)}`))
     }
   }
 
@@ -292,12 +292,12 @@ export class AgentStreamManager extends EventEmitter {
     const activeAgents = this.getActiveAgents()
 
     if (activeAgents.length === 0) {
-      console.log(chalk.yellow('📊 No active agents'))
+      advancedUI.logInfo(chalk.yellow('📊 No active agents'))
       return
     }
 
-    console.log(chalk.blue.bold('\n📺 Live Agent Dashboard'))
-    console.log(chalk.gray('═'.repeat(60)))
+    advancedUI.logInfo(chalk.blue.bold('\n📺 Live Agent Dashboard'))
+    advancedUI.logInfo(chalk.gray('═'.repeat(60)))
 
     activeAgents.forEach((agentId) => {
       const recentEvents = this.getAgentStream(agentId, 3)
@@ -305,18 +305,18 @@ export class AgentStreamManager extends EventEmitter {
       const completedActions = actions.filter((a) => a.status === 'completed').length
       const failedActions = actions.filter((a) => a.status === 'failed').length
 
-      console.log(chalk.cyan.bold(`\n🔌 Agent: ${agentId}`))
-      console.log(chalk.gray('─'.repeat(30)))
-      console.log(`📊 Actions: ${completedActions} completed, ${failedActions} failed`)
-      console.log(
+      advancedUI.logInfo(chalk.cyan.bold(`\n🔌 Agent: ${agentId}`))
+      advancedUI.logInfo(chalk.gray('─'.repeat(30)))
+      advancedUI.logInfo(`📊 Actions: ${completedActions} completed, ${failedActions} failed`)
+      advancedUI.logInfo(
         `🕐 Last Activity: ${recentEvents[recentEvents.length - 1]?.timestamp.toLocaleTimeString() || 'None'}`
       )
 
-      console.log(chalk.yellow('Recent Events:'))
+      advancedUI.logInfo(chalk.yellow('Recent Events:'))
       recentEvents.forEach((event) => {
         const icon =
           event.type === 'result' ? '✓' : event.type === 'error' ? '✖' : event.type === 'executing' ? '⚡' : '•'
-        console.log(`  ${icon} ${event.message}`)
+        advancedUI.logInfo(`  ${icon} ${event.message}`)
       })
     })
   }
@@ -355,7 +355,7 @@ export class AgentStreamManager extends EventEmitter {
     const fileName = filename || `agent-${agentId}-stream-${Date.now()}.json`
     require('node:fs').writeFileSync(fileName, JSON.stringify(exportData, null, 2))
 
-    console.log(chalk.green(`📄 Stream exported to ${fileName}`))
+    advancedUI.logInfo(chalk.green(`📄 Stream exported to ${fileName}`))
     return fileName
   }
 

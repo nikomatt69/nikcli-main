@@ -1,5 +1,6 @@
 import path, { join } from 'node:path'
 import { bunFile, bunWrite, copyFile, mkdirp, removeFile, bunGlob } from '../utils/bun-compat'
+import { Mutex } from 'async-mutex'
 import { ContextAwareRAGSystem } from '../context/context-aware-rag'
 import { lspManager } from '../lsp/lsp-manager'
 import {
@@ -20,6 +21,31 @@ import { CliUI } from '../utils/cli-ui'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
 
 /**
+ * File Lock Manager for coordinating concurrent file operations
+ */
+class FileLockManager {
+  private static locks = new Map<string, Mutex>()
+
+  static getLock(filePath: string): Mutex {
+    const normalized = path.resolve(filePath)
+    if (!this.locks.has(normalized)) {
+      this.locks.set(normalized, new Mutex())
+    }
+    return this.locks.get(normalized)!
+  }
+
+  static async withLock<T>(filePath: string, operation: () => Promise<T>): Promise<T> {
+    const lock = this.getLock(filePath)
+    return lock.runExclusive(operation)
+  }
+
+  static clearLock(filePath: string): void {
+    const normalized = path.resolve(filePath)
+    this.locks.delete(normalized)
+  }
+}
+
+/**
  * Production-ready Write File Tool
  * Safely writes files with backup, validation, and rollback capabilities
  */
@@ -34,185 +60,187 @@ export class WriteFileTool extends BaseTool {
   }
 
   async execute(filePath: string, content: string, options: WriteFileOptions = {}): Promise<ToolExecutionResult> {
-    const startTime = Date.now()
-    let backupPath: string | undefined
+    const resolved = this.pathResolver.resolve(filePath)
+    const sanitizedPath = resolved.absolutePath
 
-    try {
-      // Zod validation for input parameters
-      const validatedOptions = WriteFileOptionsSchema.parse(options)
+    // Use FileLockManager to prevent race conditions
+    return FileLockManager.withLock(sanitizedPath, async () => {
+      const startTime = Date.now()
+      let backupPath: string | undefined
 
-      if (typeof filePath !== 'string' || filePath.trim().length === 0) {
-        throw new Error('filePath must be a non-empty string')
-      }
+      try {
+        // Zod validation for input parameters
+        const validatedOptions = WriteFileOptionsSchema.parse(options)
 
-      if (typeof content !== 'string') {
-        throw new Error('content must be a string')
-      }
+        if (typeof filePath !== 'string' || filePath.trim().length === 0) {
+          throw new Error('filePath must be a non-empty string')
+        }
 
-      // Use PathResolver for consistent path handling
-      const resolved = this.pathResolver.resolve(filePath)
-      const sanitizedPath = resolved.absolutePath
+        if (typeof content !== 'string') {
+          throw new Error('content must be a string')
+        }
 
-      // Check 1: User specified directory intent (trailing slash)
-      if (resolved.isDirectoryIntent && !resolved.exists) {
-        throw new Error(`Cannot write to directory: ${filePath} (trailing slash detected - use a filename)`)
-      }
+        // Check 1: User specified directory intent (trailing slash)
+        if (resolved.isDirectoryIntent && !resolved.exists) {
+          throw new Error(`Cannot write to directory: ${filePath} (trailing slash detected - use a filename)`)
+        }
 
-      // Check 2: Path exists and is a directory
-      if (resolved.existsAsDirectory) {
-        throw new Error(`Path is an existing directory: ${filePath} (cannot overwrite with file)`)
-      }
+        // Check 2: Path exists and is a directory
+        if (resolved.existsAsDirectory) {
+          throw new Error(`Path is an existing directory: ${filePath} (cannot overwrite with file)`)
+        }
 
-      // Validate content if validators are provided
-      if (options.validators) {
-        for (const validator of options.validators) {
-          const validation = await validator(content, sanitizedPath)
-          if (!validation.isValid) {
-            throw new Error(`Content validation failed: ${validation.errors.join(', ')}`)
+        // Validate content if validators are provided
+        if (options.validators) {
+          for (const validator of options.validators) {
+            const validation = await validator(content, sanitizedPath)
+            if (!validation.isValid) {
+              throw new Error(`Content validation failed: ${validation.errors.join(', ')}`)
+            }
           }
         }
-      }
 
-      // LSP + Context Analysis
-      await this.performLSPContextAnalysis(sanitizedPath, content)
+        // LSP + Context Analysis
+        await this.performLSPContextAnalysis(sanitizedPath, content)
 
-      // Read existing content for diff display
-      let existingContent = ''
-      let isNewFile = false
-      try {
-        existingContent = await bunFile(sanitizedPath).text()
-      } catch (_error) {
-        // File doesn't exist, it's a new file
-        isNewFile = true
-      }
-
-      // Create backup if file exists and backup is enabled
-      if (options.createBackup !== false) {
-        backupPath = await this.createBackup(sanitizedPath)
-      }
-
-      // Ensure directory exists
-      const dir = path.dirname(sanitizedPath)
-      await mkdirp(dir)
-
-      // Apply content transformations
-      let processedContent = content
-      if (options.transformers) {
-        for (const transformer of options.transformers) {
-          processedContent = await transformer(processedContent, sanitizedPath)
-        }
-      }
-
-      // Show diff before writing (unless disabled)
-      if (options.showDiff !== false && !isNewFile && existingContent !== processedContent) {
-        const fileDiff: FileDiff = {
-          filePath: sanitizedPath,
-          originalContent: existingContent,
-          newContent: processedContent,
-          isNew: false,
-          isDeleted: false,
-        }
-
-        console.log('\n')
-        DiffViewer.showFileDiff(fileDiff, { compact: true })
-
-        // Also add to diff manager for approval system
-        diffManager.addFileDiff(sanitizedPath, existingContent, processedContent)
-      } else if (isNewFile) {
-        const fileDiff: FileDiff = {
-          filePath: sanitizedPath,
-          originalContent: '',
-          newContent: processedContent,
-          isNew: true,
-          isDeleted: false,
-        }
-
-        console.log('\n')
-        DiffViewer.showFileDiff(fileDiff, { compact: true })
-      }
-
-      // Write file with specified encoding
-      const encoding = options.encoding || 'utf8'
-      await bunWrite(sanitizedPath, processedContent)
-
-      // Verify write if requested
-      if (options.verifyWrite) {
-        const verification = await this.verifyWrite(sanitizedPath, processedContent, encoding)
-        if (!verification.success) {
-          throw new Error(`Write verification failed: ${verification.error}`)
-        }
-      }
-
-      const duration = Date.now() - startTime
-      const writeFileResult: WriteFileResult = {
-        success: true,
-        filePath: sanitizedPath,
-        bytesWritten: Buffer.byteLength(processedContent, encoding as BufferEncoding),
-        backupPath,
-        duration,
-        metadata: {
-          encoding,
-          lines: processedContent.split('\n').length,
-          created: !backupPath, // New file if no backup was created
-          mode: validatedOptions.mode || 0o644,
-        },
-      }
-
-      // Zod validation for result
-      const validatedResult = WriteFileResultSchema.parse(writeFileResult)
-
-      // Show relative path in logs for cleaner output
-      const relativePath = sanitizedPath.replace(this.workingDirectory, '').replace(/^\//, '') || sanitizedPath
-      advancedUI.logSuccess(`File written: ${relativePath} (${writeFileResult.bytesWritten} bytes)`)
-      return {
-        success: true,
-        data: validatedResult,
-        metadata: {
-          executionTime: duration,
-          toolName: this.name,
-          parameters: { filePath, contentLength: content.length, options },
-        },
-      }
-    } catch (error: any) {
-      // Rollback if backup exists
-      if (backupPath && options.autoRollback !== false) {
+        // Read existing content for diff display
+        let existingContent = ''
+        let isNewFile = false
         try {
-          await this.rollback(filePath, backupPath)
-          advancedUI.logInfo('Rolled back to backup due to error')
-        } catch (rollbackError: any) {
-          advancedUI.logWarning(`Rollback failed: ${rollbackError.message}`)
+          existingContent = await bunFile(sanitizedPath).text()
+        } catch (_error) {
+          // File doesn't exist, it's a new file
+          isNewFile = true
+        }
+
+        // Create backup if file exists and backup is enabled
+        if (options.createBackup !== false) {
+          backupPath = await this.createBackup(sanitizedPath)
+        }
+
+        // Ensure directory exists
+        const dir = path.dirname(sanitizedPath)
+        await mkdirp(dir)
+
+        // Apply content transformations
+        let processedContent = content
+        if (options.transformers) {
+          for (const transformer of options.transformers) {
+            processedContent = await transformer(processedContent, sanitizedPath)
+          }
+        }
+
+        // Show diff before writing (unless disabled)
+        if (options.showDiff !== false && !isNewFile && existingContent !== processedContent) {
+          const fileDiff: FileDiff = {
+            filePath: sanitizedPath,
+            originalContent: existingContent,
+            newContent: processedContent,
+            isNew: false,
+            isDeleted: false,
+          }
+
+          console.log('\n')
+          DiffViewer.showFileDiff(fileDiff, { compact: true })
+
+          // Also add to diff manager for approval system
+          diffManager.addFileDiff(sanitizedPath, existingContent, processedContent)
+        } else if (isNewFile) {
+          const fileDiff: FileDiff = {
+            filePath: sanitizedPath,
+            originalContent: '',
+            newContent: processedContent,
+            isNew: true,
+            isDeleted: false,
+          }
+
+          console.log('\n')
+          DiffViewer.showFileDiff(fileDiff, { compact: true })
+        }
+
+        // Write file with specified encoding
+        const encoding = options.encoding || 'utf8'
+        await bunWrite(sanitizedPath, processedContent)
+
+        // Verify write if requested
+        if (options.verifyWrite) {
+          const verification = await this.verifyWrite(sanitizedPath, processedContent, encoding)
+          if (!verification.success) {
+            throw new Error(`Write verification failed: ${verification.error}`)
+          }
+        }
+
+        const duration = Date.now() - startTime
+        const writeFileResult: WriteFileResult = {
+          success: true,
+          filePath: sanitizedPath,
+          bytesWritten: Buffer.byteLength(processedContent, encoding as BufferEncoding),
+          backupPath,
+          duration,
+          metadata: {
+            encoding,
+            lines: processedContent.split('\n').length,
+            created: !backupPath, // New file if no backup was created
+            mode: validatedOptions.mode || 0o644,
+          },
+        }
+
+        // Zod validation for result
+        const validatedResult = WriteFileResultSchema.parse(writeFileResult)
+
+        // Show relative path in logs for cleaner output
+        const relativePath = sanitizedPath.replace(this.workingDirectory, '').replace(/^\//, '') || sanitizedPath
+        advancedUI.logSuccess(`File written: ${relativePath} (${writeFileResult.bytesWritten} bytes)`)
+        return {
+          success: true,
+          data: validatedResult,
+          metadata: {
+            executionTime: duration,
+            toolName: this.name,
+            parameters: { filePath, contentLength: content.length, options },
+          },
+        }
+      } catch (error: any) {
+        // Rollback if backup exists
+        if (backupPath && options.autoRollback !== false) {
+          try {
+            await this.rollback(filePath, backupPath)
+            advancedUI.logInfo('Rolled back to backup due to error')
+          } catch (rollbackError: any) {
+            advancedUI.logWarning(`Rollback failed: ${rollbackError.message}`)
+          }
+        }
+
+        const duration = Date.now() - startTime
+        const errorResult: WriteFileResult = {
+          success: false,
+          filePath,
+          bytesWritten: 0,
+          backupPath,
+          duration,
+          error: error.message,
+          metadata: {
+            encoding: options.encoding || 'utf8',
+            lines: 0,
+            created: false,
+            mode: options.mode || 0o644,
+          },
+        }
+
+        const relativePath = filePath.replace(this.workingDirectory, '').replace(/^\//, '') || filePath
+        CliUI.logError(`Failed to write file ${relativePath}: ${error.message}`)
+        return {
+          success: false,
+          data: errorResult,
+          error: error.message,
+          metadata: {
+            executionTime: duration,
+            toolName: this.name,
+            parameters: { filePath, contentLength: content.length, options },
+          },
         }
       }
-
-      const duration = Date.now() - startTime
-      const errorResult: WriteFileResult = {
-        success: false,
-        filePath,
-        bytesWritten: 0,
-        backupPath,
-        duration,
-        error: error.message,
-        metadata: {
-          encoding: options.encoding || 'utf8',
-          lines: 0,
-          created: false,
-          mode: options.mode || 0o644,
-        },
-      }
-
-      const relativePath = filePath.replace(this.workingDirectory, '').replace(/^\//, '') || filePath
-      CliUI.logError(`Failed to write file ${relativePath}: ${error.message}`)
-      return {
-        success: false,
-        data: errorResult,
-        error: error.message,
-        metadata: {
-          executionTime: duration,
-          toolName: this.name,
-          parameters: { filePath, contentLength: content.length, options },
-        },
-      }
-    }
+    })
   }
 
   /**
@@ -287,30 +315,34 @@ export class WriteFileTool extends BaseTool {
    * Append content to an existing file
    */
   async append(filePath: string, content: string, options: AppendOptions = {}): Promise<WriteFileResult> {
-    try {
-      const resolved = this.pathResolver.resolve(filePath)
+    const resolved = this.pathResolver.resolve(filePath)
+    const sanitizedPath = resolved.absolutePath
 
-      // Read existing content if file exists
-      let existingContent = ''
+    // Use FileLockManager to prevent race conditions
+    return FileLockManager.withLock(sanitizedPath, async () => {
       try {
-        existingContent = await bunFile(resolved.absolutePath).text()
-      } catch {
-        // File doesn't exist, will be created
+        // Read existing content if file exists
+        let existingContent = ''
+        try {
+          existingContent = await bunFile(sanitizedPath).text()
+        } catch {
+          // File doesn't exist, will be created
+        }
+
+        // Prepare new content
+        const separator = options.separator || '\n'
+        const newContent = existingContent + (existingContent ? separator : '') + content
+
+        const toolResult = await this.execute(filePath, newContent, {
+          encoding: options.encoding,
+          createBackup: options.createBackup,
+          verifyWrite: options.verifyWrite,
+        })
+        return toolResult.data as WriteFileResult
+      } catch (error: any) {
+        throw new Error(`Failed to append to file: ${error.message}`)
       }
-
-      // Prepare new content
-      const separator = options.separator || '\n'
-      const newContent = existingContent + (existingContent ? separator : '') + content
-
-      const toolResult = await this.execute(filePath, newContent, {
-        encoding: options.encoding,
-        createBackup: options.createBackup,
-        verifyWrite: options.verifyWrite,
-      })
-      return toolResult.data as WriteFileResult
-    } catch (error: any) {
-      throw new Error(`Failed to append to file: ${error.message}`)
-    }
+    })
   }
 
   /**

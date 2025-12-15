@@ -3,6 +3,7 @@
 import { EventEmitter } from 'node:events'
 import { Redis as UpstashRedis } from '@upstash/redis'
 import IORedis from 'ioredis'
+import { Mutex } from 'async-mutex'
 import type { QueueStats } from '../types'
 
 export interface QueueConfig {
@@ -37,6 +38,7 @@ export class JobQueue extends EventEmitter {
   private upstashRedis?: UpstashRedis
   private localQueue: QueuedJobData[] = []
   private processing = new Set<string>()
+  private processingMutex = new Mutex()
   private maxConcurrentJobs: number
   private processorInterval?: NodeJS.Timeout
 
@@ -65,6 +67,37 @@ export class JobQueue extends EventEmitter {
       this.upstashRedis = undefined
       this.config.type = 'local'
     }
+  }
+
+  /**
+   * Atomically add job to processing set
+   */
+  private async addToProcessing(jobId: string): Promise<boolean> {
+    return this.processingMutex.runExclusive(async () => {
+      if (this.processing.has(jobId)) {
+        return false
+      }
+      this.processing.add(jobId)
+      return true
+    })
+  }
+
+  /**
+   * Atomically remove job from processing set
+   */
+  private async removeFromProcessing(jobId: string): Promise<void> {
+    await this.processingMutex.runExclusive(async () => {
+      this.processing.delete(jobId)
+    })
+  }
+
+  /**
+   * Atomically check if processing size is under limit
+   */
+  private async canProcessJob(): Promise<boolean> {
+    return this.processingMutex.runExclusive(async () => {
+      return this.processing.size < this.maxConcurrentJobs
+    })
   }
 
   /**
@@ -322,11 +355,15 @@ export class JobQueue extends EventEmitter {
       // Schedule for later
       setTimeout(() => {
         this.insertJobSorted(queueData)
-        this.processNextLocal()
+        this.processNextLocal().catch(error => {
+          console.error('Failed to process delayed job:', error)
+        })
       }, queueData.delay)
     } else {
       this.insertJobSorted(queueData)
-      this.processNextLocal()
+      this.processNextLocal().catch(error => {
+        console.error('Failed to process local job:', error)
+      })
     }
   }
 
@@ -394,7 +431,7 @@ export class JobQueue extends EventEmitter {
    * Process Redis jobs with proper locking
    */
   private async processRedisJobs(): Promise<void> {
-    if (this.processing.size >= this.maxConcurrentJobs) {
+    if (!(await this.canProcessJob())) {
       return
     }
 
@@ -423,7 +460,14 @@ export class JobQueue extends EventEmitter {
       return
     }
 
-    this.processing.add(queueData.jobId)
+    // Add to processing set atomically
+    const added = await this.addToProcessing(queueData.jobId)
+    if (!added) {
+      // Job already being processed
+      await this.releaseJobLock(queueData.jobId)
+      return
+    }
+
     this.emit('job:processing', queueData.jobId)
 
     try {
@@ -460,15 +504,21 @@ export class JobQueue extends EventEmitter {
   /**
    * Process next local job
    */
-  private processNextLocal(): void {
-    if (this.processing.size >= this.maxConcurrentJobs) {
+  private async processNextLocal(): Promise<void> {
+    if (!(await this.canProcessJob())) {
       return
     }
 
     const queueData = this.localQueue.shift()
     if (!queueData) return
 
-    this.processing.add(queueData.jobId)
+    // Add to processing set atomically
+    const added = await this.addToProcessing(queueData.jobId)
+    if (!added) {
+      // Job already being processed
+      return
+    }
+
     this.emit('job:processing', queueData.jobId)
     this.emit('job:ready', queueData.jobId)
   }
@@ -477,7 +527,7 @@ export class JobQueue extends EventEmitter {
    * Mark job as completed
    */
   async completeJob(jobId: string): Promise<void> {
-    this.processing.delete(jobId)
+    await this.removeFromProcessing(jobId)
 
     if (this.config.type === 'redis' && (this.redis || this.upstashRedis)) {
       await this.releaseJobLock(jobId)
@@ -489,7 +539,7 @@ export class JobQueue extends EventEmitter {
 
     // Process next job
     if (this.config.type === 'local') {
-      this.processNextLocal()
+      await this.processNextLocal()
     }
   }
 
@@ -497,7 +547,7 @@ export class JobQueue extends EventEmitter {
    * Mark job as failed
    */
   async failJob(jobId: string, error: string): Promise<void> {
-    this.processing.delete(jobId)
+    await this.removeFromProcessing(jobId)
 
     if (this.config.type === 'redis' && (this.redis || this.upstashRedis)) {
       await this.releaseJobLock(jobId)
@@ -509,7 +559,7 @@ export class JobQueue extends EventEmitter {
 
     // Process next job
     if (this.config.type === 'local') {
-      this.processNextLocal()
+      await this.processNextLocal()
     }
   }
 
@@ -528,7 +578,7 @@ export class JobQueue extends EventEmitter {
     queueData.attempts++
     queueData.delay = retryDelay * 2 ** (queueData.attempts - 1) // Exponential backoff
 
-    this.processing.delete(queueData.jobId)
+    await this.removeFromProcessing(queueData.jobId)
     await this.addJob(queueData.jobId, queueData.priority, queueData.delay)
   }
 
@@ -536,6 +586,8 @@ export class JobQueue extends EventEmitter {
    * Get queue statistics
    */
   async getStats(): Promise<QueueStats> {
+    const activeCount = await this.processingMutex.runExclusive(async () => this.processing.size)
+
     if (this.config.type === 'redis' && (this.redis || this.upstashRedis)) {
       const waiting = await this.redisZcard('background-jobs:waiting')
       const delayed = await this.redisZcard('background-jobs:delayed')
@@ -544,7 +596,7 @@ export class JobQueue extends EventEmitter {
 
       return {
         waiting: waiting + delayed,
-        active: this.processing.size,
+        active: activeCount,
         completed,
         failed,
         delayed,
@@ -552,7 +604,7 @@ export class JobQueue extends EventEmitter {
     } else {
       return {
         waiting: this.localQueue.length,
-        active: this.processing.size,
+        active: activeCount,
         completed: 0,
         failed: 0,
         delayed: 0,
@@ -595,7 +647,11 @@ export class JobQueue extends EventEmitter {
       this.localQueue.length = 0
     }
 
-    this.processing.clear()
+    // Clear processing set atomically
+    await this.processingMutex.runExclusive(async () => {
+      this.processing.clear()
+    })
+
     this.emit('queue:cleared')
   }
 

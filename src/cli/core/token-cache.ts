@@ -3,6 +3,7 @@ import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
 import chalk from 'chalk'
 import { LRUCache } from 'lru-cache'
+import { Mutex } from 'async-mutex'
 import { QuietCacheLogger } from './performance-optimizer'
 import { tokenTelemetry } from './token-telemetry'
 
@@ -43,6 +44,10 @@ export class TokenCacheManager {
   private similarityThreshold: number = 0.92
   private maxCacheAge: number = 3 * 24 * 60 * 60 * 1000 // 3 days
 
+  // Mutex per proteggere operazioni concorrenti
+  private cacheMutex = new Mutex()
+  private wordIndexMutex = new Mutex()
+
   // Semantic indexing: maps words -> list of cache entry keys that contain those words
   // Allows O(1) candidate retrieval instead of O(n) full scan
   private wordIndex: Map<string, Set<string>> = new Map()
@@ -55,35 +60,46 @@ export class TokenCacheManager {
       max: this.maxCacheSize,
       ttl: this.maxCacheAge,
     })
-    this.loadCache()
+    // Non-blocking load, init completata async
+    this.initialize().catch(error => {
+      console.error(chalk.red('Failed to initialize token cache:'), error)
+    })
+  }
+
+  private async initialize(): Promise<void> {
+    await this.loadCache()
   }
 
   /**
    * Build semantic index from signature words (called on load/add)
    * Maps words -> cache entry keys for fast candidate retrieval
    */
-  private updateWordIndex(key: string, entry: CacheEntry): void {
-    for (const word of entry.signatureWords) {
-      if (!this.wordIndex.has(word)) {
-        this.wordIndex.set(word, new Set())
+  private async updateWordIndex(key: string, entry: CacheEntry): Promise<void> {
+    await this.wordIndexMutex.runExclusive(() => {
+      for (const word of entry.signatureWords) {
+        if (!this.wordIndex.has(word)) {
+          this.wordIndex.set(word, new Set())
+        }
+        this.wordIndex.get(word)!.add(key)
       }
-      this.wordIndex.get(word)!.add(key)
-    }
+    })
   }
 
   /**
    * Remove entry from word index (called on eviction)
    */
-  private removeFromWordIndex(key: string, entry: CacheEntry): void {
-    for (const word of entry.signatureWords) {
-      const set = this.wordIndex.get(word)
-      if (set) {
-        set.delete(key)
-        if (set.size === 0) {
-          this.wordIndex.delete(word)
+  private async removeFromWordIndex(key: string, entry: CacheEntry): Promise<void> {
+    await this.wordIndexMutex.runExclusive(() => {
+      for (const word of entry.signatureWords) {
+        const set = this.wordIndex.get(word)
+        if (set) {
+          set.delete(key)
+          if (set.size === 0) {
+            this.wordIndex.delete(word)
+          }
         }
       }
-    }
+    })
   }
 
   /**
@@ -295,7 +311,7 @@ export class TokenCacheManager {
     this.cache.set(exactKey, entry, { ttl: this.maxCacheAge })
 
     // Update semantic word index for fast lookup
-    this.updateWordIndex(exactKey, entry)
+    await this.updateWordIndex(exactKey, entry)
 
     // Cleanup old entries if cache is too large
     await this.cleanupExpired()
@@ -329,41 +345,45 @@ export class TokenCacheManager {
    * Load cache from disk and rebuild semantic index
    */
   private async loadCache(): Promise<void> {
-    try {
-      // Ensure cache directory exists
-      await fs.mkdir(path.dirname(this.cacheFile), { recursive: true })
+    await this.cacheMutex.runExclusive(async () => {
+      try {
+        // Ensure cache directory exists
+        await fs.mkdir(path.dirname(this.cacheFile), { recursive: true })
 
-      const data = await fs.readFile(this.cacheFile, 'utf8')
-      const parsed = JSON.parse(data)
+        const data = await fs.readFile(this.cacheFile, 'utf8')
+        const parsed = JSON.parse(data)
 
-      // Reinsert into LRU with adjusted TTL based on age
-      parsed.forEach((entry: any) => {
-        entry.timestamp = new Date(entry.timestamp)
-        const age = Date.now() - new Date(entry.timestamp).getTime()
-        const remainingTtl = Math.max(0, this.maxCacheAge - age)
-        this.cache.set(entry.key, entry, { ttl: remainingTtl || 1 })
-        // Rebuild semantic index
-        this.updateWordIndex(entry.key, entry)
-      })
+        // Reinsert into LRU with adjusted TTL based on age
+        for (const entry of parsed) {
+          entry.timestamp = new Date(entry.timestamp)
+          const age = Date.now() - new Date(entry.timestamp).getTime()
+          const remainingTtl = Math.max(0, this.maxCacheAge - age)
+          this.cache.set(entry.key, entry, { ttl: remainingTtl || 1 })
+          // Rebuild semantic index (await per il mutex)
+          await this.updateWordIndex(entry.key, entry)
+        }
 
-      // Silent load
-    } catch (_error) {
-      // Cache file doesn't exist or is corrupted, start fresh
-      // Silent start with empty cache
-    }
+        // Silent load
+      } catch (_error) {
+        // Cache file doesn't exist or is corrupted, start fresh
+        // Silent start with empty cache
+      }
+    })
   }
 
   /**
    * Save cache to disk
    */
   async saveCache(): Promise<void> {
-    try {
-      const data = Array.from(this.cache.values())
-      await fs.writeFile(this.cacheFile, JSON.stringify(data, null, 2))
-      // Silent save
-    } catch (error: any) {
-      console.log(chalk.red(`✖ Failed to save cache: ${error.message}`))
-    }
+    await this.cacheMutex.runExclusive(async () => {
+      try {
+        const data = Array.from(this.cache.values())
+        await fs.writeFile(this.cacheFile, JSON.stringify(data, null, 2))
+        // Silent save
+      } catch (error: any) {
+        console.log(chalk.red(`✖ Failed to save cache: ${error.message}`))
+      }
+    })
   }
 
   /**
@@ -410,7 +430,7 @@ export class TokenCacheManager {
     for (const [key, entry] of this.cache.entries()) {
       const age = now - new Date(entry.timestamp).getTime()
       if (age > this.maxCacheAge) {
-        this.removeFromWordIndex(key, entry)
+        await this.removeFromWordIndex(key, entry)
         this.cache.delete(key)
       }
     }

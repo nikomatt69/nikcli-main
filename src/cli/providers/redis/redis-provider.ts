@@ -2,7 +2,10 @@ import { EventEmitter } from 'node:events'
 import { Redis as UpstashRedis } from '@upstash/redis'
 import chalk from 'chalk'
 import IORedis from 'ioredis'
+import { Mutex } from 'async-mutex'
 import { type ConfigType, simpleConfigManager } from '../../core/config-manager'
+import { advancedUI } from '../../ui/advanced-cli-ui'
+
 
 export interface RedisProviderOptions {
   url?: string
@@ -62,67 +65,90 @@ export class RedisProvider extends EventEmitter {
   private lastHealthCheck?: RedisHealth
   private mode: 'local' | 'upstash' = 'local'
 
+  // Race condition protection
+  private connectionMutex = new Mutex()
+  private connectionPromise?: Promise<void>
+
   constructor(options?: RedisProviderOptions) {
     super()
     this.config = { ...simpleConfigManager.getRedisConfig(), ...options }
 
     if (this.config.enabled) {
-      this.connect()
+      this.connect().catch(error => {
+        advancedUI.logError(chalk.red(`Failed to connect to Redis: ${error.message}`))
+      })
       this.startHealthChecks()
     }
   }
 
   /**
-   * Connect to Redis (local or Upstash)
+   * Connect to Redis (local or Upstash) with race condition protection
    * Priority: Local Redis (host/port) > Upstash (url/token)
    */
   private async connect(): Promise<void> {
-    try {
-      // Check for local Redis configuration first (priority)
-      if (this.config.host && this.config.port) {
-        this.mode = 'local'
-        const redisOptions = {
-          host: this.config.host,
-          port: this.config.port,
-          password: this.config.password || undefined,
-          db: this.config.database || 0,
-          enableAutoPipelining: true,
-          retryStrategy: (times: number) => {
-            if (times > this.config.maxRetries) {
-              return null
-            }
-            return this.config.retryDelayMs * times
-          },
-          lazyConnect: true,
+    // Guard against concurrent connections
+    if (this.connectionPromise) {
+      return this.connectionPromise
+    }
+
+    this.connectionPromise = this.connectionMutex.runExclusive(async () => {
+      // Double-check after acquiring lock
+      if (this.isConnected) {
+        return
+      }
+
+      try {
+        // Check for local Redis configuration first (priority)
+        if (this.config.host && this.config.port) {
+          this.mode = 'local'
+          const redisOptions = {
+            host: this.config.host,
+            port: this.config.port,
+            password: this.config.password || undefined,
+            db: this.config.database || 0,
+            enableAutoPipelining: true,
+            retryStrategy: (times: number) => {
+              if (times > this.config.maxRetries) {
+                return null
+              }
+              return this.config.retryDelayMs * times
+            },
+            lazyConnect: true,
+          }
+
+          this.ioredisClient = new IORedis(redisOptions)
+          advancedUI.logInfo(chalk.blue(`🔗 Connecting to local Redis at ${this.config.host}:${this.config.port}...`))
+
+          // Setup event listeners for ioredis
+          this.ioredisClient.on('error', (err) => {
+            advancedUI.logInfo(chalk.yellow(`⚠︎ Redis connection error: ${err.message}`))
+          })
+        }
+        // Fallback to Upstash configuration
+        else if (this.config.url && this.config.token) {
+          this.mode = 'upstash'
+          this.upstashClient = new UpstashRedis({
+            url: this.config.url,
+            token: this.config.token,
+          })
+          advancedUI.logInfo(chalk.blue(`🔗 Connecting to Upstash Redis...`))
+        } else {
+          throw new Error(
+            'Redis configuration missing. Please provide host/port for local Redis or url/token for Upstash Redis.'
+          )
         }
 
-        this.ioredisClient = new IORedis(redisOptions)
-        console.log(chalk.blue(`🔗 Connecting to local Redis at ${this.config.host}:${this.config.port}...`))
-
-        // Setup event listeners for ioredis
-        this.ioredisClient.on('error', (err) => {
-          console.log(chalk.yellow(`⚠︎ Redis connection error: ${err.message}`))
-        })
+        // Test connection with a simple ping
+        await this.testConnection()
+      } catch (error: any) {
+        this.handleConnectionError(error)
+        throw error
+      } finally {
+        this.connectionPromise = undefined
       }
-      // Fallback to Upstash configuration
-      else if (this.config.url && this.config.token) {
-        this.mode = 'upstash'
-        this.upstashClient = new UpstashRedis({
-          url: this.config.url,
-          token: this.config.token,
-        })
-        console.log(chalk.blue(`🔗 Connecting to Upstash Redis...`))
-      } else {
-        throw new Error(
-          'Redis configuration missing. Please provide host/port for local Redis or url/token for Upstash Redis.'
-        )
-      }
+    })
 
-      // Test connection with a simple ping
-      await this.testConnection()
-    } catch (error: any) {
-      this.handleConnectionError(error)
-    }
+    return this.connectionPromise
   }
 
   /**
@@ -136,13 +162,13 @@ export class RedisProvider extends EventEmitter {
         }
         await this.ioredisClient.connect()
         await this.ioredisClient.ping()
-        console.log(chalk.green(`✓ Local Redis (${this.config.host}:${this.config.port}) connected successfully`))
+        advancedUI.logInfo(chalk.green(`✓ Local Redis (${this.config.host}:${this.config.port}) connected successfully`))
       } else {
         if (!this.upstashClient) {
           throw new Error('Upstash Redis client not initialized')
         }
         await this.upstashClient.ping()
-        console.log(chalk.green(`✓ Upstash Redis connected successfully`))
+        advancedUI.logInfo(chalk.green(`✓ Upstash Redis connected successfully`))
       }
 
       this.isConnected = true
@@ -162,27 +188,27 @@ export class RedisProvider extends EventEmitter {
     this.isConnected = false
     this.connectionAttempts++
 
-    console.log(chalk.red(`✖ Redis connection failed (attempt ${this.connectionAttempts}): ${error.message}`))
+    advancedUI.logInfo(chalk.red(`✖ Redis connection failed (attempt ${this.connectionAttempts}): ${error.message}`))
 
     // Provide context-specific troubleshooting info
     if (this.config.host && this.config.port) {
       // Local Redis troubleshooting
-      console.log(chalk.yellow(`💡 Local Redis troubleshooting tips:`))
-      console.log(chalk.gray(`   • Check if Redis is running: redis-cli ping`))
-      console.log(chalk.gray(`   • Verify Redis is listening on ${this.config.host}:${this.config.port}`))
-      console.log(chalk.gray(`   • Start Redis: redis-server (or 'brew services start redis' on macOS)`))
-      console.log(chalk.gray(`   • Check Redis config: redis-cli config get bind`))
+      advancedUI.logInfo(chalk.yellow(`💡 Local Redis troubleshooting tips:`))
+      advancedUI.logInfo(chalk.gray(`   • Check if Redis is running: redis-cli ping`))
+      advancedUI.logInfo(chalk.gray(`   • Verify Redis is listening on ${this.config.host}:${this.config.port}`))
+      advancedUI.logInfo(chalk.gray(`   • Start Redis: redis-server (or 'brew services start redis' on macOS)`))
+      advancedUI.logInfo(chalk.gray(`   • Check Redis config: redis-cli config get bind`))
     } else if (error.message.includes('fetch failed')) {
       // Upstash Redis troubleshooting
-      console.log(chalk.yellow(`💡 Upstash Redis troubleshooting tips:`))
-      console.log(chalk.gray(`   • Check if your Upstash Redis instance is active`))
-      console.log(chalk.gray(`   • Verify URL format: https://your-endpoint.upstash.io`))
-      console.log(chalk.gray(`   • Ensure token is correct (check Upstash dashboard)`))
-      console.log(chalk.gray(`   • Try: /set-key-redis to reconfigure`))
+      advancedUI.logInfo(chalk.yellow(`💡 Upstash Redis troubleshooting tips:`))
+      advancedUI.logInfo(chalk.gray(`   • Check if your Upstash Redis instance is active`))
+      advancedUI.logInfo(chalk.gray(`   • Verify URL format: https://your-endpoint.upstash.io`))
+      advancedUI.logInfo(chalk.gray(`   • Ensure token is correct (check Upstash dashboard)`))
+      advancedUI.logInfo(chalk.gray(`   • Try: /set-key-redis to reconfigure`))
     }
 
     if (this.connectionAttempts >= this.config.maxRetries) {
-      console.log(
+      advancedUI.logInfo(
         chalk.red(`💀 Redis connection failed after ${this.config.maxRetries} attempts. Fallback will be used.`)
       )
       this.emit('connection_failed', error)
@@ -212,7 +238,7 @@ export class RedisProvider extends EventEmitter {
           this.lastHealthCheck = health
           this.emit('health_check', health)
         } catch (error) {
-          console.log(chalk.yellow(`⚠︎ Health check failed: ${(error as Error).message}`))
+          advancedUI.logInfo(chalk.yellow(`⚠︎ Health check failed: ${(error as Error).message}`))
         }
       }
     }, intervalMs)
@@ -304,7 +330,7 @@ export class RedisProvider extends EventEmitter {
 
       return true
     } catch (error) {
-      console.log(chalk.red(`✖ Redis SET failed for key ${key}: ${(error as Error).message}`))
+      advancedUI.logInfo(chalk.red(`✖ Redis SET failed for key ${key}: ${(error as Error).message}`))
       throw error
     }
   }
@@ -338,8 +364,8 @@ export class RedisProvider extends EventEmitter {
         entry = JSON.parse(serializedValue)
       } catch (parseError) {
         // Corrupted data detected - auto-clean and return null
-        console.log(chalk.yellow(`⚠︎ Corrupted cache data for key ${key}, auto-cleaning...`))
-        await this.del(key).catch(() => {}) // Silent cleanup failure
+        advancedUI.logInfo(chalk.yellow(`⚠︎ Corrupted cache data for key ${key}, auto-cleaning...`))
+        await this.del(key).catch(() => { }) // Silent cleanup failure
         return null
       }
 
@@ -354,7 +380,7 @@ export class RedisProvider extends EventEmitter {
 
       return entry
     } catch (error) {
-      console.log(chalk.red(`✖ Redis GET failed for key ${key}: ${(error as Error).message}`))
+      advancedUI.logInfo(chalk.red(`✖ Redis GET failed for key ${key}: ${(error as Error).message}`))
       throw error
     }
   }
@@ -381,7 +407,7 @@ export class RedisProvider extends EventEmitter {
 
       return result > 0
     } catch (error) {
-      console.log(chalk.red(`✖ Redis DEL failed for key ${key}: ${(error as Error).message}`))
+      advancedUI.logInfo(chalk.red(`✖ Redis DEL failed for key ${key}: ${(error as Error).message}`))
       throw error
     }
   }
@@ -408,7 +434,7 @@ export class RedisProvider extends EventEmitter {
 
       return result > 0
     } catch (error) {
-      console.log(chalk.red(`✖ Redis EXISTS failed for key ${key}: ${(error as Error).message}`))
+      advancedUI.logInfo(chalk.red(`✖ Redis EXISTS failed for key ${key}: ${(error as Error).message}`))
       throw error
     }
   }
@@ -439,7 +465,7 @@ export class RedisProvider extends EventEmitter {
       }
       return result
     } catch (error) {
-      console.log(chalk.red(`✖ Redis KEYS failed for pattern ${pattern}: ${(error as Error).message}`))
+      advancedUI.logInfo(chalk.red(`✖ Redis KEYS failed for pattern ${pattern}: ${(error as Error).message}`))
       throw error
     }
   }
@@ -496,7 +522,7 @@ export class RedisProvider extends EventEmitter {
         throw new Error('No Redis client available')
       }
     } catch (error) {
-      console.log(chalk.red(`✖ Redis FLUSH failed: ${(error as Error).message}`))
+      advancedUI.logInfo(chalk.red(`✖ Redis FLUSH failed: ${(error as Error).message}`))
       throw error
     }
   }
@@ -531,11 +557,11 @@ export class RedisProvider extends EventEmitter {
     if (this.mode === 'local' && this.ioredisClient) {
       await this.ioredisClient.quit()
       this.ioredisClient = null
-      console.log(chalk.yellow('🔌 Local Redis disconnected'))
+      advancedUI.logInfo(chalk.yellow('🔌 Local Redis disconnected'))
     } else if (this.mode === 'upstash' && this.upstashClient) {
       // Upstash Redis is HTTP-based, so no persistent connection to close
       this.upstashClient = null
-      console.log(chalk.yellow('🔌 Upstash Redis disconnected'))
+      advancedUI.logInfo(chalk.yellow('🔌 Upstash Redis disconnected'))
     }
 
     this.isConnected = false
@@ -634,7 +660,7 @@ export class RedisProvider extends EventEmitter {
 
       return true
     } catch (error) {
-      console.log(chalk.yellow(`⚠︎ Vector cache failed for ${provider}:${model}: ${(error as Error).message}`))
+      advancedUI.logInfo(chalk.yellow(`⚠︎ Vector cache failed for ${provider}:${model}: ${(error as Error).message}`))
       return false
     }
   }
@@ -669,7 +695,7 @@ export class RedisProvider extends EventEmitter {
         vectorEntry = JSON.parse(serializedValue as string)
       } catch (parseError) {
         // Corrupted vector cache data - auto-clean and return null
-        await this.del(cacheKey).catch(() => {})
+        await this.del(cacheKey).catch(() => { })
         return null
       }
 
@@ -677,7 +703,7 @@ export class RedisProvider extends EventEmitter {
       const crypto = require('node:crypto')
       const textHash = crypto.createHash('sha256').update(text).digest('hex')
       if (vectorEntry.textHash !== textHash) {
-        console.log(chalk.yellow('⚠︎ Vector cache hash mismatch, invalidating entry'))
+        advancedUI.logInfo(chalk.yellow('⚠︎ Vector cache hash mismatch, invalidating entry'))
         await this.del(cacheKey)
         return null
       }
@@ -691,7 +717,7 @@ export class RedisProvider extends EventEmitter {
 
       return vectorEntry
     } catch (error) {
-      console.log(chalk.yellow(`⚠︎ Vector cache retrieval failed: ${(error as Error).message}`))
+      advancedUI.logInfo(chalk.yellow(`⚠︎ Vector cache retrieval failed: ${(error as Error).message}`))
       return null
     }
   }
@@ -759,7 +785,7 @@ export class RedisProvider extends EventEmitter {
         // Additional stats could be implemented with more Redis operations
       }
     } catch (error) {
-      console.log(chalk.yellow(`⚠︎ Vector cache stats failed: ${(error as Error).message}`))
+      advancedUI.logInfo(chalk.yellow(`⚠︎ Vector cache stats failed: ${(error as Error).message}`))
       return { totalKeys: 0 }
     }
   }
@@ -780,13 +806,13 @@ export class RedisProvider extends EventEmitter {
         keys = await this.ioredisClient.keys(pattern)
         if (keys.length > 0) {
           await this.ioredisClient.del(...keys)
-          console.log(chalk.green(`✓ Cleared ${keys.length} vector cache entries`))
+          advancedUI.logInfo(chalk.green(`✓ Cleared ${keys.length} vector cache entries`))
         }
       } else if (this.mode === 'upstash' && this.upstashClient) {
         keys = await this.upstashClient.keys(pattern)
         if (keys.length > 0) {
           await this.upstashClient.del(...keys)
-          console.log(chalk.green(`✓ Cleared ${keys.length} vector cache entries`))
+          advancedUI.logInfo(chalk.green(`✓ Cleared ${keys.length} vector cache entries`))
         }
       } else {
         return false
@@ -794,7 +820,7 @@ export class RedisProvider extends EventEmitter {
 
       return true
     } catch (error) {
-      console.log(chalk.red(`✖ Vector cache clear failed: ${(error as Error).message}`))
+      advancedUI.logInfo(chalk.red(`✖ Vector cache clear failed: ${(error as Error).message}`))
       return false
     }
   }
@@ -802,3 +828,4 @@ export class RedisProvider extends EventEmitter {
 
 // Singleton instance
 export const redisProvider = new RedisProvider()
+

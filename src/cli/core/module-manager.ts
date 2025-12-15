@@ -3,6 +3,7 @@ import { advancedAIProvider } from '../ai/advanced-ai-provider'
 import { middlewareManager } from '../middleware'
 import type { ExecutionPolicyManager } from '../policies/execution-policy'
 import { diffManager } from '../ui/diff-manager'
+import { advancedUI } from '../ui/advanced-cli-ui'
 import { simpleConfigManager as configManager } from './config-manager'
 
 export interface ModuleContext {
@@ -238,14 +239,14 @@ export class ModuleManager {
   async executeCommand(command: string, args: string[]): Promise<boolean> {
     const module = this.modules.get(command)
     if (!module) {
-      console.log(chalk.red(`Unknown command: ${command}`))
-      console.log(chalk.gray('Type /help for available commands'))
+      advancedUI.logError(`Unknown command: ${command}`)
+      advancedUI.logInfo(chalk.gray('Type /help for available commands'))
       return false
     }
 
     if (module.requiresArgs && args.length === 0) {
-      console.log(chalk.red(`Command '${command}' requires arguments`))
-      console.log(chalk.gray(`Description: ${module.description}`))
+      advancedUI.logError(`Command '${command}' requires arguments`)
+      advancedUI.logInfo(chalk.gray(`Description: ${module.description}`))
       return false
     }
 
@@ -253,7 +254,7 @@ export class ModuleManager {
       await module.handler(args, this.context)
       return true
     } catch (error: any) {
-      console.log(chalk.red(`Error executing ${command}: ${error.message}`))
+      advancedUI.logError(`Error executing ${command}: ${error.message}`)
       return false
     }
   }
@@ -281,8 +282,8 @@ export class ModuleManager {
 
   // Command Handlers
   private async handleHelp(_args: string[], _context: ModuleContext): Promise<void> {
-    console.log(chalk.cyan.bold('\\n🔌 Autonomous Claude Assistant - Command Reference'))
-    console.log(chalk.gray('═'.repeat(60)))
+    advancedUI.logInfo(chalk.cyan.bold('\\n🔌 Autonomous Claude Assistant - Command Reference'))
+    advancedUI.logInfo(chalk.gray('═'.repeat(60)))
 
     const categories = {
       system: '🔧 System Commands',
@@ -295,37 +296,37 @@ export class ModuleManager {
     for (const [category, title] of Object.entries(categories)) {
       const commands = this.getCommands().filter((c) => c.category === category)
       if (commands.length > 0) {
-        console.log(chalk.white.bold(`\\n${title}:`))
+        advancedUI.logInfo(chalk.white.bold(`\\n${title}:`))
         commands.forEach((cmd) => {
-          console.log(`${chalk.green(`/${cmd.name}`).padEnd(20)} ${cmd.description}`)
+          advancedUI.logInfo(`${chalk.green(`/${cmd.name}`).padEnd(20)} ${cmd.description}`)
         })
       }
     }
 
-    console.log(chalk.white.bold('\\n🔌 Specialized Agents:'))
-    console.log(`${chalk.blue('@ai-analysis')} <task>     AI code analysis and review`)
-    console.log(`${chalk.blue('@code-review')} <task>     Code review and suggestions`)
-    console.log(`${chalk.blue('@backend-expert')} <task>   Backend development specialist`)
-    console.log(`${chalk.blue('@frontend-expert')} <task>  Frontend/UI development expert`)
-    console.log(`${chalk.blue('@react-expert')} <task>    React and Next.js specialist`)
-    console.log(`${chalk.blue('@devops-expert')} <task>   DevOps and infrastructure expert`)
-    console.log(`${chalk.blue('@system-admin')} <task>    System administration tasks`)
-    console.log(`${chalk.blue('@autonomous-coder')} <task> Full autonomous coding agent`)
+    advancedUI.logInfo(chalk.white.bold('\\n🔌 Specialized Agents:'))
+    advancedUI.logInfo(`${chalk.blue('@ai-analysis')} <task>     AI code analysis and review`)
+    advancedUI.logInfo(`${chalk.blue('@code-review')} <task>     Code review and suggestions`)
+    advancedUI.logInfo(`${chalk.blue('@backend-expert')} <task>   Backend development specialist`)
+    advancedUI.logInfo(`${chalk.blue('@frontend-expert')} <task>  Frontend/UI development expert`)
+    advancedUI.logInfo(`${chalk.blue('@react-expert')} <task>    React and Next.js specialist`)
+    advancedUI.logInfo(`${chalk.blue('@devops-expert')} <task>   DevOps and infrastructure expert`)
+    advancedUI.logInfo(`${chalk.blue('@system-admin')} <task>    System administration tasks`)
+    advancedUI.logInfo(`${chalk.blue('@autonomous-coder')} <task> Full autonomous coding agent`)
 
-    console.log(chalk.white.bold('\\n💬 Natural Language Examples:'))
-    console.log(chalk.dim('• "Create a React todo app with TypeScript and tests"'))
-    console.log(chalk.dim('• "Fix all ESLint errors in this project"'))
-    console.log(chalk.dim('• "Add authentication with JWT to this API"'))
-    console.log(chalk.dim('• "Set up Docker and CI/CD for deployment"'))
-    console.log(chalk.dim('• "Optimize this component for performance"'))
+    advancedUI.logInfo(chalk.white.bold('\\n💬 Natural Language Examples:'))
+    advancedUI.logInfo(chalk.dim('• "Create a React todo app with TypeScript and tests"'))
+    advancedUI.logInfo(chalk.dim('• "Fix all ESLint errors in this project"'))
+    advancedUI.logInfo(chalk.dim('• "Add authentication with JWT to this API"'))
+    advancedUI.logInfo(chalk.dim('• "Set up Docker and CI/CD for deployment"'))
+    advancedUI.logInfo(chalk.dim('• "Optimize this component for performance"'))
 
-    console.log(chalk.gray(`\\n${'─'.repeat(60)}`))
-    console.log(chalk.yellow('💡 Tip: Use TAB for auto-completion, / for command menu, Shift+Tab to cycle modes'))
+    advancedUI.logInfo(chalk.gray(`\\n${'─'.repeat(60)}`))
+    advancedUI.logInfo(chalk.yellow('💡 Tip: Use TAB for auto-completion, / for command menu, Shift+Tab to cycle modes'))
   }
 
   private async handleAgents(_args: string[], _context: ModuleContext): Promise<void> {
-    console.log(chalk.cyan.bold('\\n🔌 Available Specialized Agents'))
-    console.log(chalk.gray('─'.repeat(50)))
+    advancedUI.logInfo(chalk.cyan.bold('\\n🔌 Available Specialized Agents'))
+    advancedUI.logInfo(chalk.gray('─'.repeat(50)))
 
     // This would be dynamically populated from agent registry
     const agents = [
@@ -340,11 +341,11 @@ export class ModuleManager {
     ]
 
     agents.forEach((agent) => {
-      console.log(`${chalk.green('•')} ${chalk.bold(agent.name)}`)
-      console.log(`  ${chalk.gray(agent.desc)}`)
+      advancedUI.logInfo(`${chalk.green('•')} ${chalk.bold(agent.name)}`)
+      advancedUI.logInfo(`  ${chalk.gray(agent.desc)}`)
     })
 
-    console.log(chalk.dim('\\nUsage: @<agent-name> <task>'))
+    advancedUI.logInfo(chalk.dim('\\nUsage: @<agent-name> <task>'))
   }
 
   private async handleModel(args: string[], _context: ModuleContext): Promise<void> {
@@ -352,22 +353,22 @@ export class ModuleManager {
       try {
         advancedAIProvider.setModel(args[0])
         configManager.setCurrentModel(args[0])
-        console.log(chalk.green(`✓ Switched to: ${args[0]}`))
+        advancedUI.logSuccess(`✓ Switched to: ${args[0]}`)
       } catch (error: any) {
-        console.log(chalk.red(`Error: ${error.message}`))
+        advancedUI.logError(`Error: ${error.message}`)
       }
     } else {
       const modelInfo = advancedAIProvider.getCurrentModelInfo()
-      console.log(chalk.blue(`⚡︎ Current model: ${modelInfo.name}`))
+      advancedUI.logInfo(`⚡︎ Current model: ${modelInfo.name}`)
     }
   }
 
   private async handleClear(_args: string[], context: ModuleContext): Promise<void> {
-    console.clear()
+    advancedUI.clear()
     context.session.messages = context.session.messages.filter((m: any) => m.role === 'system')
     context.session.executionHistory = []
     advancedAIProvider.clearExecutionContext()
-    console.log(chalk.green('✓ Session cleared'))
+    advancedUI.logSuccess('✓ Session cleared')
   }
 
   private async handleChangeDirectory(args: string[], context: ModuleContext): Promise<void> {
@@ -378,20 +379,20 @@ export class ModuleManager {
       const resolvedPath = path.resolve(context.workingDirectory, newDir)
 
       if (!fs.existsSync(resolvedPath)) {
-        console.log(chalk.red(`Directory not found: ${newDir}`))
+        advancedUI.logError(`Directory not found: ${newDir}`)
         return
       }
 
       context.workingDirectory = resolvedPath
       advancedAIProvider.setWorkingDirectory(resolvedPath)
-      console.log(chalk.green(`✓ Changed to: ${resolvedPath}`))
+      advancedUI.logSuccess(`✓ Changed to: ${resolvedPath}`)
     } catch (error: any) {
-      console.log(chalk.red(`Error changing directory: ${error.message}`))
+      advancedUI.logError(`Error changing directory: ${error.message}`)
     }
   }
 
   private async handlePrintDirectory(_args: string[], context: ModuleContext): Promise<void> {
-    console.log(chalk.blue(`📁 Current directory: ${context.workingDirectory}`))
+    advancedUI.logInfo(`📁 Current directory: ${context.workingDirectory}`)
   }
 
   private async handleListFiles(_args: string[], context: ModuleContext): Promise<void> {
@@ -399,65 +400,65 @@ export class ModuleManager {
       const fs = require('node:fs')
       const files = fs.readdirSync(context.workingDirectory, { withFileTypes: true })
 
-      console.log(chalk.blue(`\\n📁 ${context.workingDirectory}:`))
-      console.log(chalk.gray('─'.repeat(50)))
+      advancedUI.logInfo(`\\n📁 ${context.workingDirectory}:`)
+      advancedUI.logInfo(chalk.gray('─'.repeat(50)))
 
       files.slice(0, 20).forEach((file: any) => {
         const icon = file.isDirectory() ? '📁' : '📄'
         const name = file.isDirectory() ? chalk.blue(file.name) : file.name
-        console.log(`${icon} ${name}`)
+        advancedUI.logInfo(`${icon} ${name}`)
       })
 
       if (files.length > 20) {
-        console.log(chalk.dim(`... and ${files.length - 20} more items`))
+        advancedUI.logInfo(chalk.dim(`... and ${files.length - 20} more items`))
       }
     } catch (error: any) {
-      console.log(chalk.red(`Error listing directory: ${error.message}`))
+      advancedUI.logError(`Error listing directory: ${error.message}`)
     }
   }
 
   private async handleAnalyze(_args: string[], _context: ModuleContext): Promise<void> {
-    console.log(chalk.blue('🔍 Quick project analysis...'))
+    advancedUI.logInfo('🔍 Quick project analysis...')
     // Implementation for project analysis
-    console.log(chalk.green('Analysis complete!'))
+    advancedUI.logSuccess('Analysis complete!')
   }
 
   private async handleAutoExecution(args: string[], _context: ModuleContext): Promise<void> {
     const task = args.join(' ')
-    console.log(chalk.blue(`\\n🎯 Autonomous Mode: Analyzing and executing task...`))
-    console.log(chalk.gray(`Task: ${task}\\n`))
+    advancedUI.logInfo(`\\n🎯 Autonomous Mode: Analyzing and executing task...`)
+    advancedUI.logInfo(chalk.gray(`Task: ${task}\\n`))
     // Implementation for autonomous execution
   }
 
   private async handleContext(_args: string[], _context: ModuleContext): Promise<void> {
     const execContext = advancedAIProvider.getExecutionContext()
     if (execContext.size === 0) {
-      console.log(chalk.yellow('No execution context available'))
+      advancedUI.logInfo(chalk.yellow('No execution context available'))
       return
     }
 
-    console.log(chalk.cyan.bold('\\n⚡︎ Execution Context'))
-    console.log(chalk.gray('─'.repeat(40)))
+    advancedUI.logInfo(chalk.cyan.bold('\\n⚡︎ Execution Context'))
+    advancedUI.logInfo(chalk.gray('─'.repeat(40)))
 
     for (const [key, value] of execContext) {
-      console.log(`${chalk.blue(key)}: ${chalk.dim(JSON.stringify(value, null, 2).slice(0, 100))}...`)
+      advancedUI.logInfo(`${chalk.blue(key)}: ${chalk.dim(JSON.stringify(value, null, 2).slice(0, 100))}...`)
     }
   }
 
   private async handleHistory(_args: string[], context: ModuleContext): Promise<void> {
     const history = context.session.executionHistory.slice(-20)
     if (history.length === 0) {
-      console.log(chalk.yellow('No execution history'))
+      advancedUI.logInfo(chalk.yellow('No execution history'))
       return
     }
 
-    console.log(chalk.cyan.bold('\\n📜 Recent Execution History'))
-    console.log(chalk.gray('─'.repeat(50)))
+    advancedUI.logInfo(chalk.cyan.bold('\\n📜 Recent Execution History'))
+    advancedUI.logInfo(chalk.gray('─'.repeat(50)))
 
     history.forEach((event: any, _index: number) => {
       const icon =
         event.type === 'tool_call' ? '🔧' : event.type === 'tool_result' ? '✓' : event.type === 'error' ? '✖' : '•'
-      console.log(`${icon} ${chalk.dim(event.type)}: ${event.content?.slice(0, 60) || 'N/A'}`)
+      advancedUI.logInfo(`${icon} ${chalk.dim(event.type)}: ${event.content?.slice(0, 60) || 'N/A'}`)
     })
   }
 
@@ -475,7 +476,7 @@ export class ModuleManager {
     } else if (args[0]) {
       diffManager.acceptDiff(args[0])
     } else {
-      console.log(chalk.red('Usage: /accept <file> or /accept all'))
+      advancedUI.logError('Usage: /accept <file> or /accept all')
     }
   }
 
@@ -483,20 +484,20 @@ export class ModuleManager {
     if (args[0]) {
       diffManager.rejectDiff(args[0])
     } else {
-      console.log(chalk.red('Usage: /reject <file>'))
+      advancedUI.logError('Usage: /reject <file>')
     }
   }
 
   private async handleSecurity(_args: string[], context: ModuleContext): Promise<void> {
     const summary = await context.policyManager.getPolicySummary()
 
-    console.log(chalk.blue.bold('🔒 Security Policy Status'))
-    console.log(chalk.gray('─'.repeat(40)))
-    console.log(`${chalk.green('Current Policy:')} ${summary.currentPolicy.approval}`)
-    console.log(`${chalk.green('Sandbox Mode:')} ${summary.currentPolicy.sandbox}`)
-    console.log(`${chalk.green('Timeout:')} ${summary.currentPolicy.timeoutMs}ms`)
-    console.log(`${chalk.green('Allowed Commands:')} ${summary.allowedCommands}`)
-    console.log(`${chalk.red('Blocked Commands:')} ${summary.deniedCommands}`)
+    advancedUI.logInfo(chalk.blue.bold('🔒 Security Policy Status'))
+    advancedUI.logInfo(chalk.gray('─'.repeat(40)))
+    advancedUI.logInfo(`${chalk.green('Current Policy:')} ${summary.currentPolicy.approval}`)
+    advancedUI.logInfo(`${chalk.green('Sandbox Mode:')} ${summary.currentPolicy.sandbox}`)
+    advancedUI.logInfo(`${chalk.green('Timeout:')} ${summary.currentPolicy.timeoutMs}ms`)
+    advancedUI.logInfo(`${chalk.green('Allowed Commands:')} ${summary.allowedCommands}`)
+    advancedUI.logInfo(`${chalk.red('Blocked Commands:')} ${summary.deniedCommands}`)
   }
 
   private async handlePolicy(args: string[], context: ModuleContext): Promise<void> {
@@ -507,26 +508,26 @@ export class ModuleManager {
           case 'approval':
             if (['never', 'untrusted', 'always'].includes(value)) {
               // Policy update - would need to extend config manager
-              console.log(chalk.green(`✓ Approval policy set to: ${value}`))
-              console.log(chalk.green(`✓ Approval policy set to: ${value}`))
+              advancedUI.logSuccess(`✓ Approval policy set to: ${value}`)
+              advancedUI.logSuccess(`✓ Approval policy set to: ${value}`)
             } else {
-              console.log(chalk.red('Invalid approval policy. Use: never, untrusted, or always'))
+              advancedUI.logError('Invalid approval policy. Use: never, untrusted, or always')
             }
             break
           case 'sandbox':
             if (['read-only', 'workspace-write', 'system-write'].includes(value)) {
               // Sandbox update - would need to extend config manager
-              console.log(chalk.green(`✓ Sandbox mode set to: ${value}`))
-              console.log(chalk.green(`✓ Sandbox mode set to: ${value}`))
+              advancedUI.logSuccess(`✓ Sandbox mode set to: ${value}`)
+              advancedUI.logSuccess(`✓ Sandbox mode set to: ${value}`)
             } else {
-              console.log(chalk.red('Invalid sandbox mode. Use: read-only, workspace-write, or system-write'))
+              advancedUI.logError('Invalid sandbox mode. Use: read-only, workspace-write, or system-write')
             }
             break
           default:
-            console.log(chalk.red(`Unknown setting: ${setting}`))
+            advancedUI.logError(`Unknown setting: ${setting}`)
         }
       } catch (error: any) {
-        console.log(chalk.red(`Error updating policy: ${error.message}`))
+        advancedUI.logError(`Error updating policy: ${error.message}`)
       }
     } else {
       await this.handleSecurity([], context)
@@ -536,9 +537,9 @@ export class ModuleManager {
   private async handlePlanMode(_args: string[], context: ModuleContext): Promise<void> {
     context.planMode = !context.planMode
     if (context.planMode) {
-      console.log(chalk.green('\\n✓ plan mode on ') + chalk.dim('(shift+tab to cycle)'))
+      advancedUI.logInfo(chalk.green('\\n✓ plan mode on ') + chalk.dim('(shift+tab to cycle)'))
     } else {
-      console.log(chalk.yellow('\\n⚠︎ plan mode off'))
+      advancedUI.logInfo(chalk.yellow('\\n⚠︎ plan mode off'))
     }
   }
 
@@ -547,38 +548,38 @@ export class ModuleManager {
     diffManager.setAutoAccept(context.autoAcceptEdits)
 
     if (context.autoAcceptEdits) {
-      console.log(chalk.green('\\n✓ auto-accept edits on ') + chalk.dim('(shift+tab to cycle)'))
+      advancedUI.logInfo(chalk.green('\\n✓ auto-accept edits on ') + chalk.dim('(shift+tab to cycle)'))
     } else {
-      console.log(chalk.yellow('\\n⚠︎ auto-accept edits off'))
+      advancedUI.logInfo(chalk.yellow('\\n⚠︎ auto-accept edits off'))
     }
   }
 
   private async handleAutonomous(args: string[], context: ModuleContext): Promise<void> {
     if (args[0] === 'off') {
       context.autonomous = false
-      console.log(chalk.yellow('⚠︎ Autonomous mode disabled - will ask for confirmation'))
+      advancedUI.logInfo(chalk.yellow('⚠︎ Autonomous mode disabled - will ask for confirmation'))
     } else {
       context.autonomous = true
-      console.log(chalk.green('✓ Autonomous mode enabled - full independence'))
+      advancedUI.logSuccess('✓ Autonomous mode enabled - full independence')
     }
   }
 
   // Middleware Command Handlers
 
   private async handleMiddlewareStatus(_args: string[], _context: ModuleContext): Promise<void> {
-    console.log(chalk.cyan.bold('\\n🔧 Middleware System Status'))
-    console.log(chalk.gray('─'.repeat(60)))
+    advancedUI.logInfo(chalk.cyan.bold('\\n🔧 Middleware System Status'))
+    advancedUI.logInfo(chalk.gray('─'.repeat(60)))
 
     middlewareManager.showStatus()
 
     const history = middlewareManager.getExecutionHistory(5)
     if (history.length > 0) {
-      console.log(chalk.white.bold('\\nRecent Events:'))
+      advancedUI.logInfo(chalk.white.bold('\\nRecent Events:'))
       history.forEach((event) => {
         const icon =
           event.type === 'complete' ? '✓' : event.type === 'error' ? '✖' : event.type === 'start' ? '⚡︎' : '⏭️'
         const duration = event.duration ? ` (${event.duration}ms)` : ''
-        console.log(`  ${icon} ${event.middlewareName}: ${event.type}${duration}`)
+        advancedUI.logInfo(`  ${icon} ${event.middlewareName}: ${event.type}${duration}`)
       })
     }
   }
@@ -586,30 +587,30 @@ export class ModuleManager {
   private async handleMiddlewareEnable(args: string[], _context: ModuleContext): Promise<void> {
     const middlewareName = args[0]
     if (!middlewareName) {
-      console.log(chalk.red('✖ Please specify middleware name'))
+      advancedUI.logError('✖ Please specify middleware name')
       return
     }
 
     const success = middlewareManager.enableMiddleware(middlewareName)
     if (success) {
-      console.log(chalk.green(`✓ Enabled middleware: ${middlewareName}`))
+      advancedUI.logSuccess(`✓ Enabled middleware: ${middlewareName}`)
     } else {
-      console.log(chalk.red(`✖ Middleware not found: ${middlewareName}`))
+      advancedUI.logError(`✖ Middleware not found: ${middlewareName}`)
     }
   }
 
   private async handleMiddlewareDisable(args: string[], _context: ModuleContext): Promise<void> {
     const middlewareName = args[0]
     if (!middlewareName) {
-      console.log(chalk.red('✖ Please specify middleware name'))
+      advancedUI.logError('✖ Please specify middleware name')
       return
     }
 
     const success = middlewareManager.disableMiddleware(middlewareName)
     if (success) {
-      console.log(chalk.yellow(`⚠︎ Disabled middleware: ${middlewareName}`))
+      advancedUI.logInfo(chalk.yellow(`⚠︎ Disabled middleware: ${middlewareName}`))
     } else {
-      console.log(chalk.red(`✖ Middleware not found: ${middlewareName}`))
+      advancedUI.logError(`✖ Middleware not found: ${middlewareName}`)
     }
   }
 
@@ -617,16 +618,16 @@ export class ModuleManager {
     const middlewareName = args[0]
 
     if (!middlewareName) {
-      console.log(chalk.cyan.bold('\\n📋 All Middleware Configurations'))
-      console.log(chalk.gray('─'.repeat(50)))
+      advancedUI.logInfo(chalk.cyan.bold('\\n📋 All Middleware Configurations'))
+      advancedUI.logInfo(chalk.gray('─'.repeat(50)))
 
       const allMiddleware = middlewareManager.getAllMiddleware()
       allMiddleware.forEach((registration) => {
-        console.log(`\\n${chalk.blue(registration.name)}:`)
-        console.log(`  Enabled: ${registration.config.enabled ? chalk.green('Yes') : chalk.red('No')}`)
-        console.log(`  Priority: ${registration.config.priority}`)
+        advancedUI.logInfo(`\\n${chalk.blue(registration.name)}:`)
+        advancedUI.logInfo(`  Enabled: ${registration.config.enabled ? chalk.green('Yes') : chalk.red('No')}`)
+        advancedUI.logInfo(`  Priority: ${registration.config.priority}`)
         if (registration.config.timeout) {
-          console.log(`  Timeout: ${registration.config.timeout}ms`)
+          advancedUI.logInfo(`  Timeout: ${registration.config.timeout}ms`)
         }
       })
       return
@@ -634,27 +635,27 @@ export class ModuleManager {
 
     const middleware = middlewareManager.getMiddleware(middlewareName)
     if (!middleware) {
-      console.log(chalk.red(`✖ Middleware not found: ${middlewareName}`))
+      advancedUI.logError(`✖ Middleware not found: ${middlewareName}`)
       return
     }
 
     const registration = middlewareManager.getAllMiddleware().find((m) => m.name === middlewareName)
     if (registration) {
-      console.log(chalk.cyan.bold(`\\n📋 Configuration for ${middlewareName}`))
-      console.log(chalk.gray('─'.repeat(40)))
-      console.log(JSON.stringify(registration.config, null, 2))
+      advancedUI.logInfo(chalk.cyan.bold(`\\n📋 Configuration for ${middlewareName}`))
+      advancedUI.logInfo(chalk.gray('─'.repeat(40)))
+      advancedUI.logInfo(JSON.stringify(registration.config, null, 2))
     }
   }
 
   private async handleMiddlewareLogs(args: string[], _context: ModuleContext): Promise<void> {
     const limit = parseInt(args[0], 10) || 20
 
-    console.log(chalk.cyan.bold(`\\n📋 Recent Middleware Execution History (${limit} events)`))
-    console.log(chalk.gray('─'.repeat(60)))
+    advancedUI.logInfo(chalk.cyan.bold(`\\n📋 Recent Middleware Execution History (${limit} events)`))
+    advancedUI.logInfo(chalk.gray('─'.repeat(60)))
 
     const history = middlewareManager.getExecutionHistory(limit)
     if (history.length === 0) {
-      console.log(chalk.dim('No middleware execution history available'))
+      advancedUI.logInfo(chalk.dim('No middleware execution history available'))
       return
     }
 
@@ -673,18 +674,18 @@ export class ModuleManager {
       const duration = event.duration ? ` (${event.duration}ms)` : ''
       const time = event.timestamp.toLocaleTimeString()
 
-      console.log(
+      advancedUI.logInfo(
         `${String(index + 1).padStart(2)}. ${icon} [${time}] ${event.middlewareName}: ${event.type}${duration}`
       )
 
       if (event.error) {
-        console.log(`    ${chalk.red('Error:')} ${event.error.message}`)
+        advancedUI.logError(`    ${chalk.red('Error:')} ${event.error.message}`)
       }
     })
   }
 
   private async handleMiddlewareClear(_args: string[], _context: ModuleContext): Promise<void> {
     middlewareManager.clearMetrics()
-    console.log(chalk.green('✓ Middleware metrics and logs cleared'))
+    advancedUI.logSuccess('✓ Middleware metrics and logs cleared')
   }
 }

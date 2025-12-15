@@ -10,7 +10,8 @@ coverage/
 .idea/
 .yarn/
 .pnp.*
-src-tauri-frontend
+
+# Ignore old root-level src-tauri
 src-tauri
 context-interceptor-sdk/
 target

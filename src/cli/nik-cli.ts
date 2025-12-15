@@ -597,7 +597,7 @@ export class NikCLI {
 
   private async initializeTokenCache(): Promise<void> {
     // Clean up expired cache entries on startup
-    setTimeout(async () => {
+    this.safeTimeout(async () => {
       try {
         const removed = await tokenCache.cleanupExpired()
         if (removed > 0) {
@@ -1177,7 +1177,7 @@ export class NikCLI {
       }
 
       // Render prompt after output
-      setTimeout(() => this.renderPromptAfterOutput(), 30)
+      this.safeTimeout(() => this.renderPromptAfterOutput(), 30)
     })
 
     agentService.on('task_progress', (_task, update) => {
@@ -1237,7 +1237,7 @@ export class NikCLI {
         }
       }
       // Add delay before showing prompt to let output be visible
-      setTimeout(() => {
+      this.safeTimeout(() => {
         this.renderPromptAfterOutput()
       }, 500)
     })
@@ -1867,7 +1867,7 @@ export class NikCLI {
         })
 
         // Clean up after a delay
-        setTimeout(() => {
+        this.safeTimeout(() => {
           this.progressTracker.operations.delete(id)
         }, 5000)
       },
@@ -1925,7 +1925,7 @@ export class NikCLI {
 
     // Auto-clear ephemeral logs when the system becomes idle
     if (this.ephemeralLiveUpdates && this.isIdle()) {
-      setTimeout(() => {
+      this.safeTimeout(() => {
         if (this.isIdle()) {
           this.clearLiveUpdates()
           if (this.isInteractiveMode) this.refreshDisplay()
@@ -1955,7 +1955,7 @@ export class NikCLI {
 
     // Auto-clear ephemeral logs when idle
     if (this.ephemeralLiveUpdates && this.isIdle()) {
-      setTimeout(() => {
+      this.safeTimeout(() => {
         if (this.isIdle()) {
           this.clearLiveUpdates()
           if (this.isInteractiveMode) this.refreshDisplay()
@@ -2720,7 +2720,7 @@ export class NikCLI {
           if (currentLine.length === 1 && currentLine === '?') {
             // Clear the ? from the input line
             this.rl?.write('', { ctrl: true, name: 'u' }) // Clear line
-            setTimeout(() => this.showCheatSheet(), 30)
+            this.safeTimeout(() => this.showCheatSheet(), 30)
             return
           }
         }
@@ -3059,7 +3059,7 @@ export class NikCLI {
       pendingData = ''
 
       if (result.isPasteComplete && result.pastedContent) {
-        // Paste completed - handle as consolidated input con contenuto pre-paste
+        // Paste completed - handle as consolidated input with pre-paste content
         const existingContent = self.prepasteLineContent
         self.prepasteLineContent = ''
         setImmediate(() => {
@@ -3075,7 +3075,7 @@ export class NikCLI {
   // Buffer for pending paste content (waits for Enter to submit)
   private pendingPasteContent: string | null = null
   private pendingPasteId: number | null = null
-  private justPasted: boolean = false // Flag per bloccare invio automatico dopo paste
+  private justPasted: boolean = false // Flag to block automatic submission after paste
 
   /**
    * Handle consolidated paste content (from bracketed paste mode)
@@ -3087,7 +3087,9 @@ export class NikCLI {
     if (!trimmed) return
 
     // Clear any partial readline input that may have accumulated
-
+    if (this.rl) {
+      this.rl.write('', { ctrl: true, name: 'u' }) // Clear current line
+    }
 
     // Process through paste handler for display formatting
     const pasteResult = this.pasteHandler.processPastedText(trimmed)
@@ -3100,7 +3102,7 @@ export class NikCLI {
     // Then rewrite ONLY: pre-paste content + indicator
     if (this?.rl) {
       // Write the indicator as the current line content (user sees this before pressing Enter)
-      this.rl?.write(pasteResult.displayText + existingContent)
+      this.rl?.write(existingContent + pasteResult.displayText)
     }
 
     // Do NOT process yet - wait for Enter key (handled by 'line' event)
@@ -3120,41 +3122,25 @@ export class NikCLI {
   }
 
   /**
-   * Process a single input (either normal input or consolidated paste)
+   * Pre-processes raw user input, handling paste detection and token optimization.
+   * @param input The raw input string from the user.
+   * @returns An object containing the original input, the potentially optimized input, and the display text.
    */
-  private async processSingleInput(input: string): Promise<void> {
-    // 📋 PASTE DETECTION: Handle large pasted content like Claude Code
+  private async _preprocessInput(input: string): Promise<{ actualInput: string; optimizedInput: string; displayText: string }> {
     let actualInput = input
     let displayText = input
 
-    // Apply paste detection to consolidated content
+    // Apply paste detection for non-bracketed pastes or consolidated content
     const pasteResult = this.pasteHandler.processPastedText(input)
 
     if (pasteResult.shouldTruncate) {
-      // Extract just the indicator line for display
       const truncatedLine = pasteResult.displayText.split('\n').pop() || '[Pasted text]'
-
-      // Use original content for AI processing
       actualInput = pasteResult.originalText
       displayText = truncatedLine
-
-      // Visual feedback that paste was detected and truncated
       advancedUI.logFunctionUpdate('info', chalk.gray(`${truncatedLine}`))
     }
 
-    // Continue with normal processing flow...
     this.checkAndEnableCompactMode(actualInput)
-
-    // Set user input as active when user sends a message
-    this.userInputActive = true
-    this.renderPromptAfterOutput()
-
-    // Handle bypass logic
-    if (inputQueue.isBypassEnabled()) {
-      this.userInputActive = false
-      this.renderPromptAfterOutput()
-      return
-    }
 
     // Apply token optimization
     let optimizedInput = actualInput
@@ -3174,38 +3160,51 @@ export class NikCLI {
       }
     }
 
-    // Queue logic
-    if (this.assistantProcessing && inputQueue.shouldQueue(actualInput)) {
+    return { actualInput, optimizedInput, displayText }
+  }
+
+  /**
+   * Checks if the input should be queued and, if so, enqueues it.
+   * @param input The input string to potentially queue.
+   * @param displayText The text used for the queue confirmation message.
+   * @returns `true` if the input was queued, `false` otherwise.
+   */
+  private _maybeQueueInput(input: string, displayText: string): boolean {
+    if (this.assistantProcessing && inputQueue.shouldQueue(input)) {
       let priority: 'high' | 'normal' | 'low' = 'normal'
-      if (actualInput.startsWith('/') || actualInput.startsWith('@')) {
+      if (input.startsWith('/') || input.startsWith('@')) {
         priority = 'high'
-      } else if (actualInput.toLowerCase().includes('urgent') || actualInput.toLowerCase().includes('stop')) {
+      } else if (input.toLowerCase().includes('urgent') || input.toLowerCase().includes('stop')) {
         priority = 'high'
-      } else if (actualInput.toLowerCase().includes('later') || actualInput.toLowerCase().includes('low priority')) {
+      } else if (input.toLowerCase().includes('later') || input.toLowerCase().includes('low priority')) {
         priority = 'low'
       }
 
-      const _queueId = inputQueue.enqueue(actualInput, priority, 'user')
+      inputQueue.enqueue(input, priority, 'user')
       advancedUI.logFunctionUpdate(
         'info',
         chalk.cyan(
-          chalk.cyan(
-            `📥 Input queued (${priority} priority): ${displayText.substring(0, 40)}${displayText.length > 40 ? '...' : ''}`
-          )
+          `📥 Input queued (${priority} priority): ${displayText.substring(0, 40)}${displayText.length > 40 ? '...' : ''}`
         )
       )
       this.renderPromptAfterOutput()
-      return
+      return true
     }
+    return false
+  }
 
-    // Processing
+  /**
+   * Executes the user's input by routing it to the appropriate handler.
+   * @param actualInput The original, non-optimized input string.
+   * @param optimizedInput The potentially token-optimized input string.
+   */
+  private async _executeInput(actualInput: string, optimizedInput: string): Promise<void> {
     this.userInputActive = false
     this.assistantProcessing = true
     this.startStatusBar()
     this.renderPromptAfterOutput()
 
     try {
-      // Route commands
       if (actualInput.startsWith('/')) {
         await this.dispatchSlash(actualInput)
       } else {
@@ -3218,6 +3217,29 @@ export class NikCLI {
       this.renderPromptAfterOutput()
       this.processQueuedInputs()
     }
+  }
+
+  /**
+   * Process a single input (either normal input or consolidated paste).
+   * This method now orchestrates the pre-processing, queueing, and execution of input.
+   */
+  private async processSingleInput(input: string): Promise<void> {
+    const { actualInput, optimizedInput, displayText } = await this._preprocessInput(input)
+
+    this.userInputActive = true
+    this.renderPromptAfterOutput()
+
+    if (inputQueue.isBypassEnabled()) {
+      this.userInputActive = false
+      this.renderPromptAfterOutput()
+      return
+    }
+
+    if (this._maybeQueueInput(actualInput, displayText)) {
+      return
+    }
+
+    await this._executeInput(actualInput, optimizedInput)
   }
 
   /**
@@ -3272,7 +3294,7 @@ export class NikCLI {
       this.renderPromptAfterOutput()
 
       // Processa il prossimo input se disponibile
-      setTimeout(() => this.processQueuedInputs(), 100)
+      this.safeTimeout(() => this.processQueuedInputs(), 100)
     }
   }
 
@@ -4749,8 +4771,9 @@ export class NikCLI {
       const vmCommand = this.convertToolToVMCommand(toolName, params, originalInput)
 
       // Add timeout to prevent hanging
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('VM execution timeout after 5 minutes')), 300000)
+      let vmTimeout: NodeJS.Timeout | null = null
+      const timeoutPromise = new Promise<void>((_, reject) => {
+        vmTimeout = this.safeTimeout(() => reject(new Error('VM execution timeout after 5 minutes')), 300000)
       })
 
       // Execute in VM container with streaming output
@@ -4966,8 +4989,9 @@ EOF`
 
     try {
       // Add timeout to prevent hanging
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('VM execution timeout after 5 minutes')), 300000)
+      let vmTimeout: NodeJS.Timeout | null = null
+      const timeoutPromise = new Promise<void>((_, reject) => {
+        vmTimeout = this.safeTimeout(() => reject(new Error('VM execution timeout after 5 minutes')), 300000)
       })
 
       // Execute in VM container with streaming output
@@ -5088,6 +5112,21 @@ EOF`
         console.error('Timer callback error:', error)
       }
     }, delay)
+    this.activeTimers.add(timer)
+    return timer
+  }
+
+  /**
+   * Safe setInterval that tracks intervals for cleanup
+   */
+  private safeInterval(callback: () => void, interval: number): NodeJS.Timeout {
+    const timer = setInterval(() => {
+      try {
+        callback()
+      } catch (error) {
+        console.error('Interval callback error:', error)
+      }
+    }, interval)
     this.activeTimers.add(timer)
     return timer
   }
@@ -5411,7 +5450,7 @@ EOF`
         void this.sendTaskCompletionNotification(plan, todo, agents, true)
 
         // Render prompt after each todo (like plan mode)
-        setTimeout(() => this.renderPromptAfterOutput(), 50)
+        this.safeTimeout(() => this.renderPromptAfterOutput(), 50)
       }
 
       // Generate final collaborative output
@@ -5428,7 +5467,7 @@ EOF`
       this.clearParallelToolchainDisplay()
 
       // Final prompt render after everything is done (like plan mode)
-      setTimeout(() => this.renderPromptAfterOutput(), 150)
+      this.safeTimeout(() => this.renderPromptAfterOutput(), 150)
 
       // Notify plan completion (success)
       void this.sendPlanCompletionNotification(plan, true)
@@ -5443,7 +5482,7 @@ EOF`
       this.clearParallelToolchainDisplay()
 
       // Render prompt after error (like plan mode)
-      setTimeout(() => this.renderPromptAfterOutput(), 100)
+      this.safeTimeout(() => this.renderPromptAfterOutput(), 100)
 
       // Notify plan completion (failed)
       try {
@@ -5666,7 +5705,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     console.log('\n')
 
     // Render prompt after output (like plan mode)
-    setTimeout(() => this.renderPromptAfterOutput(), 100)
+    this.safeTimeout(() => this.renderPromptAfterOutput(), 100)
   }
 
   /**
@@ -6052,7 +6091,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
           }
 
           // Add a small delay to ensure all output is flushed
-          await new Promise((resolve) => setTimeout(resolve, 100))
+          await new Promise<void>((resolve) => this.safeTimeout(() => resolve(), 100))
 
           advancedUI.logFunctionUpdate('success', `Task completed successfully: ${task.title}`)
         } catch (error: any) {
@@ -6213,7 +6252,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       const allSuccessful = this.activePlanForHud.todos.every((t) => t.status === 'completed')
 
       // Add delay to ensure all streaming output is flushed before cleanup
-      setTimeout(() => {
+      this.safeTimeout(() => {
         this.finalizePlanHud(allSuccessful ? 'completed' : 'failed')
       }, 500) // 500ms delay to ensure output is complete
     } else {
@@ -6460,12 +6499,12 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     this.stopAdsTimer()
 
     // Show first ad after 30 seconds
-    const initialDelay = setTimeout(() => {
+    this.safeTimeout(() => {
       void this.showAdsAsStructuredLog()
     }, 30 * 1000)
 
     // Then show ads every 5 minutes
-    this.adsTimer = setInterval(
+    this.adsTimer = this.safeInterval(
       () => {
         void this.showAdsAsStructuredLog()
       },
@@ -6546,13 +6585,13 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
         this.lastGeneratedPlan = undefined // Clear the stored plan
 
         // Restore prompt after plan execution (debounced)
-        setTimeout(() => this.renderPromptAfterOutput(), 50)
+        this.safeTimeout(() => this.renderPromptAfterOutput(), 50)
         return
       } catch (error: any) {
         console.log(chalk.red(`Plan execution failed: ${error?.message || error}`))
 
         // Restore prompt after error (debounced)
-        setTimeout(() => this.renderPromptAfterOutput(), 50)
+        this.safeTimeout(() => this.renderPromptAfterOutput(), 50)
         return
       }
     }
@@ -9110,7 +9149,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
         const executionTime = this.calculateExecutionTime(blueprint.specialization)
 
         // Stream intermediate step
-        setTimeout(() => {
+        this.safeTimeout(() => {
           this.streamAgentSteps(
             blueprint.name,
             'processing',
@@ -9119,14 +9158,14 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
           )
         }, executionTime / 3)
 
-        setTimeout(() => {
+        this.safeTimeout(() => {
           // Simulate specialized work based on agent type
-          const result = this.simulateSpecializedWork(blueprint, task)
+          const result = this.executeTaskWithToolchains(blueprint, task)
 
           // Stream final step
           this.streamAgentSteps(blueprint.name, 'complete', `Analysis completed`, { status: 'finished' })
 
-          agent.logToCollaboration(`Completed specialized analysis: ${result.summary}`)
+          agent.logToCollaboration(`Completed specialized analysis: ${result.finally}`)
           agent.shareData('result', result)
           agent.shareData('status', 'completed')
           agent.shareData('completedAt', new Date().toISOString())
@@ -9134,7 +9173,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
           // Add agent result to main stream
           this.addLiveUpdate({
             type: 'status',
-            content: `**${blueprint.name} Completed:**\n\n${result.summary}\n\n**Components:** ${result.components ? result.components.join(', ') : 'None'}\n\n**Recommendations:** ${result.recommendations ? result.recommendations.join(', ') : 'None'}`,
+            content: `**${blueprint.name} Completed:**\n\n${result.finally}\n\n : 'None'`,
             source: blueprint.name,
           })
 
@@ -9438,7 +9477,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     }
     console.log() // Extra newline for better separation
     process.stdout.write('')
-    await new Promise((resolve) => setTimeout(resolve, 150))
+    await new Promise<void>((resolve) => this.safeTimeout(() => resolve(), 150))
     this.renderPromptAfterOutput()
   }
 
@@ -10302,7 +10341,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       console.error(chalk.red(`✖ Add documentation error: ${error.message}`))
     }
     process.stdout.write('')
-    await new Promise((resolve) => setTimeout(resolve, 150))
+    await new Promise<void>((resolve) => this.safeTimeout(() => resolve(), 150))
     this.renderPromptAfterOutput()
   }
 
@@ -10336,7 +10375,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       console.error(chalk.red(`✖ Stats error: ${error.message}`))
     }
     process.stdout.write('')
-    await new Promise((resolve) => setTimeout(resolve, 150))
+    await new Promise<void>((resolve) => this.safeTimeout(() => resolve(), 150))
     this.renderPromptAfterOutput()
   }
 
@@ -10421,7 +10460,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       console.error(chalk.red(`✖ Tag error: ${error.message}`))
     }
     process.stdout.write('')
-    await new Promise((resolve) => setTimeout(resolve, 150))
+    await new Promise<void>((resolve) => this.safeTimeout(() => resolve(), 150))
     this.renderPromptAfterOutput()
   }
 
@@ -10471,7 +10510,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       console.error(chalk.red(`✖ Sync error: ${error.message}`))
     }
     process.stdout.write('')
-    await new Promise((resolve) => setTimeout(resolve, 150))
+    await new Promise<void>((resolve) => this.safeTimeout(() => resolve(), 150))
     this.renderPromptAfterOutput()
   }
 
@@ -10540,7 +10579,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       console.error(chalk.red(`✖ Load error: ${error.message}`))
     }
     process.stdout.write('')
-    await new Promise((resolve) => setTimeout(resolve, 150))
+    await new Promise<void>((resolve) => this.safeTimeout(() => resolve(), 150))
     this.renderPromptAfterOutput()
   }
 
@@ -10592,7 +10631,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       console.error(chalk.red(`✖ Context error: ${error.message}`))
     }
     process.stdout.write('')
-    await new Promise((resolve) => setTimeout(resolve, 150))
+    await new Promise<void>((resolve) => this.safeTimeout(() => resolve(), 150))
     this.renderPromptAfterOutput()
   }
 
@@ -10628,7 +10667,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       console.error(chalk.red(`✖ Unload error: ${error.message}`))
     }
     process.stdout.write('')
-    await new Promise((resolve) => setTimeout(resolve, 150))
+    await new Promise<void>((resolve) => this.safeTimeout(() => resolve(), 150))
     this.renderPromptAfterOutput()
   }
 
@@ -13088,7 +13127,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       this.isPrintingPanel = false
 
       // Piccola pausa per assicurarsi che il terminale sia pulito
-      setTimeout(() => {
+      this.safeTimeout(() => {
         if (this.rl) {
           this.rl.prompt()
         }
@@ -13690,7 +13729,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       /* ignore */
     }
     // slight delay to avoid racing with panel prints
-    setTimeout(() => this.renderPromptAfterOutput(), 30)
+    this.safeTimeout(() => this.renderPromptAfterOutput(), 30)
   }
 
   // Public hooks for external modules to guard panel output
@@ -13753,7 +13792,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       await fn()
     } finally {
       this.isPrintingPanel = false
-      setTimeout(() => this.renderPromptAfterOutput(), 30)
+      this.safeTimeout(() => this.renderPromptAfterOutput(), 30)
     }
   }
 
@@ -13973,7 +14012,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     if (this.statusBarTimer) return
     this.statusBarStep = 0
     this.lastBarSegments = -1
-    this.statusBarTimer = setInterval(() => {
+    this.statusBarTimer = this.safeInterval(() => {
       if (this.isInquirerActive) return // don't animate during interactive
       if (this.isPrintingPanel) return
 
@@ -14416,7 +14455,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     if (this.promptRenderTimer) {
       return
     }
-    this.promptRenderTimer = setTimeout(() => {
+    this.promptRenderTimer = this.safeTimeout(() => {
       try {
         if (!this.isPrintingPanel && !this.isInquirerActive && !(inputQueue.isBypassEnabled?.() ?? false)) {
           // Add a spacer to ensure prompt is below the latest output without clearing previous lines
@@ -14431,6 +14470,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       } finally {
         if (this.promptRenderTimer) {
           clearTimeout(this.promptRenderTimer)
+          this.activeTimers.delete(this.promptRenderTimer)
           this.promptRenderTimer = null
         }
       }
@@ -15683,7 +15723,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       // Ensure the prompt is rendered on a clean line without overlaps
       try {
         process.stdout.write('\n')
-        await new Promise((resolve) => setTimeout(resolve, 50))
+        await new Promise<void>((resolve) => this.safeTimeout(() => resolve(), 50))
       } catch { }
       this.renderPromptAfterOutput()
     }
@@ -18380,7 +18420,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       await redisProvider.reconnect()
 
       // Wait a moment for connection to establish
-      await new Promise((resolve) => setTimeout(resolve, 2000))
+      await new Promise<void>((resolve) => this.safeTimeout(() => resolve(), 2000))
 
       if (redisProvider.isHealthy()) {
         console.log(chalk.green('✓ Redis connected successfully'))
@@ -18612,7 +18652,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
   }
 
   private async connectSupabase(): Promise<void> {
-    console.log(chalk.blue('📡 Connecting to Supabase...'))
+    this.advancedUI.logInfo(chalk.blue('📡 Connecting to Supabase...'))
 
     try {
       // Dynamic import for enhanced services
@@ -20055,7 +20095,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
    */
   private executeInBackground(_todos: any[], agentId: string): void {
     // Non-blocking execution
-    setTimeout(async () => {
+    this.safeTimeout(async () => {
       try {
         const { agentTodoManager } = await import('./core/agent-todo-manager')
 
@@ -21140,7 +21180,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         inputQueue.disableBypass()
       } catch { }
       process.stdout.write('')
-      await new Promise((resolve) => setTimeout(resolve, 150))
+      await new Promise<void>((resolve) => this.safeTimeout(() => resolve(), 150))
       this.renderPromptAfterOutput()
     }
   }
@@ -21296,7 +21336,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         inputQueue.disableBypass()
       } catch { }
       process.stdout.write('')
-      await new Promise((resolve) => setTimeout(resolve, 150))
+      await new Promise<void>((resolve) => this.safeTimeout(() => resolve(), 150))
       this.renderPromptAfterOutput()
     }
   }
@@ -21442,7 +21482,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         inputQueue.disableBypass()
       } catch { }
       process.stdout.write('')
-      await new Promise((resolve) => setTimeout(resolve, 150))
+      await new Promise<void>((resolve) => this.safeTimeout(() => resolve(), 150))
       this.renderPromptAfterOutput()
     }
   }
@@ -24160,7 +24200,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
   private async monitorAgentCompletion(agent: any, collaborationContext: any): Promise<void> {
     try {
       // Set up monitoring interval to check agent status
-      const monitorInterval = setInterval(() => {
+      const monitorInterval = this.safeInterval(() => {
         const agentLogs = collaborationContext.logs.get(agent.blueprintId) || []
         const latestLog = agentLogs[agentLogs.length - 1]
 
@@ -24182,7 +24222,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           if (allAgentsCompleted) {
             advancedUI.logFunctionCall('mergeagentresults')
             advancedUI.logFunctionUpdate('info', '🔄 All agents completed - initiating merge process...', '🔄')
-            setTimeout(() => {
+            this.safeTimeout(() => {
               this.mergeAgentResults(collaborationContext)
             }, 1000)
           }
@@ -24216,56 +24256,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     return Math.floor(baseTime * multiplier * (0.8 + Math.random() * 0.4)) // Add some randomness
   }
 
-  /**
-   * Simulate specialized work based on agent blueprint and task
-   */
-  private simulateSpecializedWork(blueprint: any, task: string): any {
-    const timestamp = new Date().toLocaleTimeString()
-    const specialization = blueprint.specialization.toLowerCase()
 
-    // Generate specialized results based on agent type
-    const specializationResults: Record<string, any> = {
-      fullstack: {
-        summary: `Full-stack analysis: frontend & backend components identified`,
-        components: ['React components', 'API endpoints', 'Database schema'],
-        recommendations: ['Use TypeScript', 'Implement proper error handling', 'Add testing'],
-      },
-      frontend: {
-        summary: `Frontend analysis: UI/UX components and interactions`,
-        components: ['Components', 'Styling', 'State management'],
-        recommendations: ['Responsive design', 'Accessibility', 'Performance optimization'],
-      },
-      backend: {
-        summary: `Backend analysis: API design and data flow`,
-        components: ['REST endpoints', 'Database queries', 'Business logic'],
-        recommendations: ['Input validation', 'Rate limiting', 'Caching strategy'],
-      },
-      devops: {
-        summary: `DevOps analysis: deployment and infrastructure`,
-        components: ['CI/CD pipeline', 'Infrastructure', 'Monitoring'],
-        recommendations: ['Containerization', 'Auto-scaling', 'Logging strategy'],
-      },
-      security: {
-        summary: `Security analysis: vulnerabilities and protection`,
-        components: ['Authentication', 'Authorization', 'Data protection'],
-        recommendations: ['Input sanitization', 'HTTPS enforcement', 'Security headers'],
-      },
-    }
-
-    const result = specializationResults[specialization] || {
-      summary: `General analysis completed for: ${task}`,
-      components: ['Core functionality', 'Dependencies', 'Configuration'],
-      recommendations: ['Code review', 'Documentation', 'Testing'],
-    }
-
-    return {
-      ...result,
-      timestamp,
-      agentName: blueprint.name,
-      taskAnalyzed: task,
-      confidence: Math.floor(75 + Math.random() * 20), // 75-95% confidence
-    }
-  }
 
   /**
    * Check for collaboration opportunities between agents

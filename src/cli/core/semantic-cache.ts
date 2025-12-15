@@ -12,6 +12,9 @@
 import { ChromaClient } from 'chromadb'
 import { EventEmitter } from 'events'
 import Redis from 'ioredis'
+import { LRUCache } from 'lru-cache'
+import { Mutex } from 'async-mutex'
+import { advancedUI } from '../ui/advanced-cli-ui'
 
 /**
  * Cache entry metadata and statistics
@@ -120,9 +123,12 @@ export class SemanticCache extends EventEmitter {
   private chromadb: ChromaClient
   private config: SemanticCacheConfig
   private statistics: CacheStatistics
-  private localCache: Map<string, CacheEntry>
-  private embeddingCache: Map<string, number[]>
+  private localCache: LRUCache<string, CacheEntry>
+  private embeddingCache: LRUCache<string, number[]>
   private isInitialized: boolean = false
+  private initPromise: Promise<void> | null = null
+  private initMutex = new Mutex()
+  private cacheMutex = new Mutex()
   private collectionName: string = 'nikcli_cache'
 
   /**
@@ -131,8 +137,20 @@ export class SemanticCache extends EventEmitter {
   constructor(config: SemanticCacheConfig) {
     super()
     this.config = this.validateConfig(config)
-    this.localCache = new Map()
-    this.embeddingCache = new Map()
+
+    const cacheConfig = this.config.cache || {}
+    this.localCache = new LRUCache<string, CacheEntry>({
+      max: cacheConfig.maxEntries || 1000,
+      ttl: cacheConfig.defaultTtl ? cacheConfig.defaultTtl * 1000 : undefined,
+      sizeCalculation: (entry) => entry.size || 1,
+    })
+
+    this.embeddingCache = new LRUCache<string, number[]>({
+      max: 500,
+      ttl: 3600 * 1000,
+      sizeCalculation: (embedding) => embedding.length * 8,
+    })
+
     this.statistics = this.initializeStatistics()
     this.redis = this.initializeRedis()
     this.chromadb = this.initializeChromaDB()
@@ -231,34 +249,40 @@ export class SemanticCache extends EventEmitter {
   }
 
   /**
-   * Initialize the cache system
+   * Initialize the cache system with double-checked locking
    */
   async initialize(): Promise<void> {
     if (this.isInitialized) {
       return
     }
 
-    try {
-      // Test Redis connection
-      await this.redis.ping()
-      this.emit('initialized', { component: 'redis' })
-
-      // Initialize ChromaDB collection
-      try {
-        await this.chromadb.getOrCreateCollection({
-          name: this.collectionName,
-        })
-        this.emit('initialized', { component: 'chromadb' })
-      } catch (error) {
-        console.warn('ChromaDB initialization failed, continuing without vector search:', error)
+    return this.initMutex.runExclusive(async () => {
+      if (this.isInitialized) {
+        return
       }
 
-      this.isInitialized = true
-      this.emit('ready')
-    } catch (error) {
-      this.emit('error', error)
-      throw new Error(`Failed to initialize SemanticCache: ${error}`)
-    }
+      try {
+        // Test Redis connection
+        await this.redis.ping()
+        this.emit('initialized', { component: 'redis' })
+
+        // Initialize ChromaDB collection
+        try {
+          await this.chromadb.getOrCreateCollection({
+            name: this.collectionName,
+          })
+          this.emit('initialized', { component: 'chromadb' })
+        } catch (error) {
+          advancedUI.logFunctionUpdate('warning', `ChromaDB initialization failed, continuing without vector search: ${error}`)
+        }
+
+        this.isInitialized = true
+        this.emit('ready')
+      } catch (error) {
+        this.emit('error', error)
+        throw new Error(`Failed to initialize SemanticCache: ${error}`)
+      }
+    })
   }
 
   /**
@@ -272,29 +296,33 @@ export class SemanticCache extends EventEmitter {
    * Clear all cache entries
    */
   async clear(): Promise<void> {
-    this.localCache.clear()
-    this.embeddingCache.clear()
-    await this.redis.flushdb()
+    await this.cacheMutex.runExclusive(async () => {
+      this.localCache.clear()
+      this.embeddingCache.clear()
+      await this.redis.flushdb()
 
-    try {
-      await this.chromadb.deleteCollection({ name: this.collectionName })
-      await this.chromadb.createCollection({ name: this.collectionName })
-    } catch (error) {
-      console.warn('Failed to clear ChromaDB collection:', error)
-    }
+      try {
+        await this.chromadb.deleteCollection({ name: this.collectionName })
+        await this.chromadb.createCollection({ name: this.collectionName })
+      } catch (error) {
+        advancedUI.logFunctionUpdate('warning', `Failed to clear ChromaDB collection: ${error}`)
+      }
 
-    this.statistics = this.initializeStatistics()
-    this.emit('cleared')
+      this.statistics = this.initializeStatistics()
+      this.emit('cleared')
+    })
   }
 
   /**
    * Close connections and cleanup
    */
   async close(): Promise<void> {
-    await this.redis.quit()
-    this.localCache.clear()
-    this.embeddingCache.clear()
-    this.isInitialized = false
-    this.emit('closed')
+    await this.cacheMutex.runExclusive(async () => {
+      await this.redis.quit()
+      this.localCache.clear()
+      this.embeddingCache.clear()
+      this.isInitialized = false
+      this.emit('closed')
+    })
   }
 }

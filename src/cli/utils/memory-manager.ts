@@ -19,10 +19,14 @@ export class MemoryManager<T = any> {
   private readonly maxAge: number
   private readonly maxSize: number
   private cleanupTimer: NodeJS.Timeout | null = null
+  private isDestroyed = false
 
   constructor(options: MemoryManagerOptions = {}) {
     this.maxAge = options.maxAge ?? 24 * 60 * 60 * 1000 // 24 hours
     this.maxSize = options.maxSize ?? 10000
+
+    // Setup graceful shutdown handlers
+    this.setupGracefulShutdown()
 
     // Start automatic cleanup
     const cleanupInterval = options.cleanupInterval ?? 60000 // 1 minute
@@ -30,9 +34,30 @@ export class MemoryManager<T = any> {
   }
 
   /**
+   * Setup graceful shutdown handlers to prevent memory leaks
+   */
+  private setupGracefulShutdown(): void {
+    const cleanup = () => this.destroy()
+
+    process.on('SIGTERM', cleanup)
+    process.on('SIGINT', cleanup)
+    process.on('exit', cleanup)
+  }
+
+  /**
+   * Check if manager is destroyed
+   */
+  private checkDestroyed(): void {
+    if (this.isDestroyed) {
+      throw new Error('MemoryManager has been destroyed')
+    }
+  }
+
+  /**
    * Add or update an object
    */
   add(key: string, object: T): void {
+    this.checkDestroyed()
     this.objects.set(key, {
       object,
       timestamp: Date.now(),
@@ -49,6 +74,7 @@ export class MemoryManager<T = any> {
    * Get an object by key
    */
   get(key: string): T | undefined {
+    this.checkDestroyed()
     const entry = this.objects.get(key)
     if (!entry) return undefined
 
@@ -66,6 +92,7 @@ export class MemoryManager<T = any> {
    * Remove an object
    */
   remove(key: string): boolean {
+    this.checkDestroyed()
     return this.objects.delete(key)
   }
 
@@ -73,6 +100,7 @@ export class MemoryManager<T = any> {
    * Check if key exists and is not expired
    */
   has(key: string): boolean {
+    this.checkDestroyed()
     return this.get(key) !== undefined
   }
 
@@ -80,6 +108,7 @@ export class MemoryManager<T = any> {
    * Perform cleanup based on age and size
    */
   cleanup(): void {
+    this.checkDestroyed()
     const now = Date.now()
     const toDelete: string[] = []
 
@@ -161,7 +190,10 @@ export class MemoryManager<T = any> {
    * Destroy the memory manager
    */
   destroy(): void {
+    if (this.isDestroyed) return
+
     this.stopAutoCleanup()
     this.clear()
+    this.isDestroyed = true
   }
 }

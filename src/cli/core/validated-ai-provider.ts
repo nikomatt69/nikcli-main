@@ -100,7 +100,7 @@ export class ValidatedAIProvider {
               if (!validationResult.isValid) {
                 if (validationResult.fixedContent) {
                   processedContent = validationResult.fixedContent
-                  console.log(chalk.green(`🔧 Auto-fix applicato per ${path}`))
+                  advancedUI.logSuccess(`🔧 Auto-fix applied for ${path}`)
                 } else {
                   return {
                     success: false,

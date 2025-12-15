@@ -4,6 +4,7 @@ import * as os from 'node:os'
 import * as path from 'node:path'
 import chalk from 'chalk'
 import { feedbackSystem } from './feedback-system'
+import { advancedUI } from '../ui/advanced-cli-ui'
 
 export interface ToolExecutionResult {
   success: boolean
@@ -35,7 +36,7 @@ export class IntelligentFeedbackWrapper {
     this.learningFile = path.join(os.homedir(), '.nikcli', 'learning', 'learning-patterns.json')
     // Load patterns asynchronously - don't await in constructor
     this.loadLearningPatterns().catch((error) => {
-      console.debug('Failed to load learning patterns in constructor:', error)
+      advancedUI.logInfo(`Failed to load learning patterns in constructor: ${error}`)
     })
   }
 
@@ -168,8 +169,8 @@ export class IntelligentFeedbackWrapper {
     // Suggerisci soluzioni alternative
     const alternatives = this.suggestAlternatives(execution)
     if (alternatives.length > 0) {
-      console.log(chalk.yellow(`💡 Suggested alternatives for ${toolName}:`))
-      alternatives.forEach((alt) => console.log(chalk.gray(`   - ${alt}`)))
+      advancedUI.logInfo(chalk.yellow(`💡 Suggested alternatives for ${toolName}:`))
+      alternatives.forEach((alt) => advancedUI.logInfo(chalk.gray(`   - ${alt}`)))
     }
   }
 
@@ -497,7 +498,7 @@ export class IntelligentFeedbackWrapper {
       const avgTime = recentExecutions.reduce((sum, e) => sum + e.executionTime, 0) / recentExecutions.length
 
       if (executionTime > avgTime * 2) {
-        console.log(
+        advancedUI.logInfo(
           chalk.yellow(
             `⚠︎ ${toolName} performance degradation detected (${executionTime}ms vs ${avgTime.toFixed(0)}ms avg)`
           )
@@ -553,12 +554,12 @@ export class IntelligentFeedbackWrapper {
         const data = await fs.readFile(this.learningFile, 'utf-8')
         const parsed = JSON.parse(data)
         this.learningPatterns = new Map(Object.entries(parsed))
-        console.debug(`Learning patterns loaded: ${this.learningPatterns.size} patterns`)
+        advancedUI.logInfo(`Learning patterns loaded: ${this.learningPatterns.size} patterns`)
       } else {
-        console.debug('No existing learning patterns found, starting fresh')
+        advancedUI.logInfo('No existing learning patterns found, starting fresh')
       }
     } catch (error) {
-      console.debug('Could not load learning patterns:', error)
+      advancedUI.logInfo('Could not load learning patterns:', error)
     }
   }
 
@@ -572,9 +573,9 @@ export class IntelligentFeedbackWrapper {
 
       const data = Object.fromEntries(this.learningPatterns)
       await fs.writeFile(this.learningFile, JSON.stringify(data, null, 2))
-      console.debug(`Learning patterns saved: ${this.learningPatterns.size} patterns`)
+      advancedUI.logInfo(`Learning patterns saved: ${this.learningPatterns.size} patterns`)
     } catch (error) {
-      console.debug('Failed to save learning patterns:', error)
+      advancedUI.logInfo('Failed to save learning patterns:', error)
     }
   }
 

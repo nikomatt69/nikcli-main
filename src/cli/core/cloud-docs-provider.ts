@@ -6,6 +6,7 @@ import chalk from 'chalk'
 import { structuredLogger } from '../utils/structured-logger'
 import { simpleConfigManager } from './config-manager'
 import type { DocumentationEntry } from './documentation-library'
+import { advancedUI } from '../ui/advanced-cli-ui'
 
 export interface SharedDocEntry {
   id: string
@@ -146,19 +147,19 @@ export class CloudDocsProvider {
       if (cloudDocs && cloudDocs.length > 0) {
         await this.saveSharedIndex(cloudDocs)
         downloaded = cloudDocs.length
-        console.log(chalk.green(`📥 Downloaded ${downloaded} shared documents`))
+        advancedUI.logSuccess(`📥 Downloaded ${downloaded} shared documents`)
       }
 
       // Upload local docs when contribution mode is enabled for community sharing
       if (this.config.contributionMode) {
         await this.uploadLocalDocs()
-        console.log(chalk.gray('📤 Local documentation uploaded to community cloud'))
+        advancedUI.logInfo(chalk.gray('📤 Local documentation uploaded to community cloud'))
       }
 
-      console.log(chalk.green(`✓ Sync completed: ${downloaded} downloaded, ${uploaded} uploaded`))
+      advancedUI.logSuccess(`✓ Sync completed: ${downloaded} downloaded, ${uploaded} uploaded`)
       return { downloaded, uploaded }
     } catch (error: any) {
-      console.error(chalk.red(`✖ Sync failed: ${error.message}`))
+      advancedUI.logError(`✖ Sync failed: ${error.message}`)
       throw error
     }
   }
@@ -173,7 +174,7 @@ export class CloudDocsProvider {
       throw new Error('Cloud docs provider not initialized')
     }
 
-    console.log(chalk.blue(`📤 Publishing: ${doc.title}`))
+    advancedUI.logInfo(chalk.blue(`📤 Publishing: ${doc.title}`))
 
     try {
       const sharedDoc: Partial<SharedDocEntry> = {
@@ -192,10 +193,10 @@ export class CloudDocsProvider {
 
       if (error) throw error
 
-      console.log(chalk.green(`✓ Published: ${data.title}`))
+      advancedUI.logSuccess(`✓ Published: ${data.title}`)
       return data as SharedDocEntry
     } catch (error: any) {
-      console.error(chalk.red(`✖ Publish failed: ${error.message}`))
+      advancedUI.logError(`✖ Publish failed: ${error.message}`)
       throw error
     }
   }
@@ -227,7 +228,7 @@ export class CloudDocsProvider {
 
       return data || []
     } catch (error: any) {
-      console.error(chalk.red(`✖ Search failed: ${error.message}`))
+      advancedUI.logError(`✖ Search failed: ${error.message}`)
       throw error
     }
   }
@@ -253,7 +254,7 @@ export class CloudDocsProvider {
 
       return data || []
     } catch (error: any) {
-      console.error(chalk.red(`✖ Failed to get popular libraries: ${error.message}`))
+      advancedUI.logError(`✖ Failed to get popular libraries: ${error.message}`)
       return []
     }
   }
@@ -268,7 +269,7 @@ export class CloudDocsProvider {
       throw new Error('Cloud docs provider not initialized')
     }
 
-    console.log(chalk.blue(`📦 Installing library: ${libraryName}`))
+    advancedUI.logInfo(chalk.blue(`📦 Installing library: ${libraryName}`))
 
     try {
       // Cerca la libreria per nome
@@ -295,10 +296,10 @@ export class CloudDocsProvider {
         .update({ installs_count: library.installs_count + 1 })
         .eq('id', library.id)
 
-      console.log(chalk.green(`✓ Installed ${docs?.length || 0} documents from '${libraryName}'`))
+      advancedUI.logSuccess(`✓ Installed ${docs?.length || 0} documents from '${libraryName}'`)
       return docs || []
     } catch (error: any) {
-      console.error(chalk.red(`✖ Install failed: ${error.message}`))
+      advancedUI.logError(`✖ Install failed: ${error.message}`)
       throw error
     }
   }
@@ -324,9 +325,9 @@ export class CloudDocsProvider {
       }
 
       await fs.writeFile(this.sharedIndexFile, JSON.stringify(index, null, 2))
-      console.log(chalk.gray(`💾 Cached ${docs.length} shared docs locally`))
+      advancedUI.logInfo(chalk.gray(`💾 Cached ${docs.length} shared docs locally`))
     } catch (error) {
-      console.error('Failed to save shared docs index:', error)
+      advancedUI.logError(`Failed to save shared docs index: ${error}`)
     }
   }
 
@@ -383,7 +384,7 @@ export class CloudDocsProvider {
       const docData = JSON.parse(content)
       // Upload logic would go here - for now just validate structure
       if (docData.library && docData.version && docData.documentation) {
-        console.log(chalk.gray(`📄 Would upload ${docData.library}@${docData.version}`))
+        advancedUI.logInfo(chalk.gray(`📄 Would upload ${docData.library}@${docData.version}`))
       }
     }
   }

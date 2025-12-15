@@ -6,6 +6,7 @@ import chalk from 'chalk'
 import { IDEDiagnosticMcpServer } from '../mcp/ide-diagnostic-server'
 import { completionCache } from './completion-protocol-cache'
 import { simpleConfigManager } from './config-manager'
+import { advancedUI } from '../ui/advanced-cli-ui'
 
 // Claude Code/OpenCode compatible MCP server configuration
 export interface ClaudeCodeMcpServer {
@@ -127,7 +128,7 @@ export class McpClient extends EventEmitter {
   private initializeDefaultServers(): void {
     // No default servers are initialized automatically anymore
     // IDE diagnostic server will be initialized only on demand
-    console.log(chalk.blue('🔧 MCP client ready - servers will be initialized on demand'))
+    advancedUI.logInfo(chalk.blue('🔧 MCP client ready - servers will be initialized on demand'))
   }
 
   /**
@@ -235,7 +236,7 @@ export class McpClient extends EventEmitter {
         })
 
         if (cachedResponse) {
-          console.log(chalk.green(`🎯 MCP Cache Hit: ${serverName}`))
+          advancedUI.logSuccess(`🎯 MCP Cache Hit: ${serverName}`)
           return {
             result: JSON.parse(cachedResponse.completion),
             fromCache: true,
@@ -274,7 +275,7 @@ export class McpClient extends EventEmitter {
         )
       }
 
-      console.log(chalk.blue(`🔮 MCP Call: ${serverName} (${Date.now() - startTime}ms)`))
+      advancedUI.logInfo(chalk.blue(`🔮 MCP Call: ${serverName} (${Date.now() - startTime}ms)`))
 
       return {
         ...response,
@@ -282,7 +283,7 @@ export class McpClient extends EventEmitter {
         executionTime: Date.now() - startTime,
       }
     } catch (error: any) {
-      console.log(chalk.red(`✖ MCP Error: ${serverName} - ${error.message}`))
+      advancedUI.logError(`✖ MCP Error: ${serverName} - ${error.message}`)
 
       // Attempt retry logic
       const retryCount = this.retryAttempts.get(serverName) || 0
@@ -291,7 +292,7 @@ export class McpClient extends EventEmitter {
 
       if (retryCount < maxRetries) {
         this.retryAttempts.set(serverName, retryCount + 1)
-        console.log(chalk.yellow(`⚡︎ Retrying MCP call to ${serverName} (${retryCount + 1}/${maxRetries})`))
+        advancedUI.logInfo(chalk.yellow(`⚡︎ Retrying MCP call to ${serverName} (${retryCount + 1}/${maxRetries})`))
 
         // Exponential backoff
         await new Promise((resolve) => setTimeout(resolve, 2 ** retryCount * 1000))
@@ -836,9 +837,9 @@ export class McpClient extends EventEmitter {
     for (const [serverName, server] of this.defaultServers.entries()) {
       try {
         await server.shutdown()
-        console.log(chalk.gray(`🔧 Default server '${serverName}' shut down`))
+        advancedUI.logInfo(chalk.gray(`🔧 Default server '${serverName}' shut down`))
       } catch (_error) {
-        console.log(chalk.yellow(`Warning: Could not shutdown default server ${serverName}`))
+        advancedUI.logFunctionUpdate('warning', `Could not shutdown default server ${serverName}`)
       }
     }
 
@@ -849,7 +850,7 @@ export class McpClient extends EventEmitter {
           connection.kill()
         }
       } catch (_error) {
-        console.log(chalk.yellow(`Warning: Could not close connection to ${serverName}`))
+        advancedUI.logFunctionUpdate('warning', `Could not close connection to ${serverName}`)
       }
     }
 
@@ -857,7 +858,7 @@ export class McpClient extends EventEmitter {
     this.connectionPools.clear()
     this.defaultServers.clear()
 
-    console.log(chalk.blue('🔮 MCP Client shut down'))
+    advancedUI.logInfo(chalk.blue('🔮 MCP Client shut down'))
   }
 
   /** Dispose alias for unified API */

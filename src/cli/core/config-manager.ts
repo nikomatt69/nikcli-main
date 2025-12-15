@@ -5,6 +5,7 @@ import chalk from 'chalk'
 import { z } from 'zod'
 import { fileExistsSync, mkdirpSync, readTextSync, writeTextSync } from '../utils/bun-compat'
 import { OutputStyleConfigSchema, OutputStyleEnum } from '../types/output-styles'
+import { advancedUI } from '../ui/advanced-cli-ui'
 
 // Validation schemas
 const ModelConfigSchema = z.object({
