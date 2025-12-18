@@ -344,7 +344,7 @@ export class UnifiedRerankingInterface {
 
   // Private methods
   private logConfig(): void {
-    advancedUI.logInfo(chalk.cyan('\nConfiguration:'))
+
     advancedUI.logInfo(`  Provider: ${this.config.provider}`)
     advancedUI.logInfo(`  Model: ${this.config.model}`)
     advancedUI.logInfo(`  Top K: ${this.config.topK}`)

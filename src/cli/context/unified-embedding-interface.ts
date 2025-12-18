@@ -434,7 +434,7 @@ export class UnifiedEmbeddingInterface {
 
   // Private methods
   private logConfig(): void {
-    console.log(chalk.cyan('\nConfiguration:'))
+
     console.log(`  Provider: ${this.config.provider}`)
     console.log(`  Model: ${this.config.model}`)
     console.log(`  Dimensions: ${this.config.dimensions}`)

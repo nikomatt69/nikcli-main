@@ -5,6 +5,8 @@ import { Octokit } from '@octokit/rest'
 import { CommentProcessor } from './comment-processor'
 import { TaskExecutor } from './task-executor'
 import type { GitHubBotConfig, GitHubPullRequest, GitHubWebhookEvent, ProcessingJob } from './types'
+import { logger } from '../utils/logger'
+import { structuredLogger } from '../utils/structured-logger'
 
 /**
  * GitHub Bot Webhook Handler for @nikcli mentions
@@ -32,13 +34,13 @@ export class GitHubWebhookHandler {
     // Initialize Slack if configured
     if (process.env.SLACK_BOT_TOKEN) {
       this.initializeSlackService().catch((err) => {
-        console.error('⚠︎ Failed to initialize Slack service:', err)
+        logger.error('Failed to initialize Slack service', { error: err instanceof Error ? err.message : String(err) })
       })
     }
 
     // Initialize cache service if available
     this.initializeCacheService().catch((err) => {
-      console.error('⚠︎ Failed to initialize cache service:', err)
+      logger.error('Failed to initialize cache service', { error: err instanceof Error ? err.message : String(err) })
     })
   }
 
@@ -51,9 +53,10 @@ export class GitHubWebhookHandler {
         botToken: process.env.SLACK_BOT_TOKEN!,
         webhookUrl: process.env.SLACK_WEBHOOK_URL,
       })
-      console.log('✓ Slack service initialized')
+      logger.info('Slack service initialized')
+      structuredLogger.success('GitHubWebhookHandler', 'Slack service initialized')
     } catch (error) {
-      console.error('✖ Error initializing Slack service:', error)
+      logger.error('Error initializing Slack service', { error: error instanceof Error ? error.message : String(error) })
     }
   }
 
@@ -61,9 +64,10 @@ export class GitHubWebhookHandler {
     try {
       const { cacheService } = await import('../services/cache-service')
       this.cacheService = cacheService
-      console.log('✓ Cache service initialized')
+      logger.info('Cache service initialized')
+      structuredLogger.success('GitHubWebhookHandler', 'Cache service initialized')
     } catch (error) {
-      console.error('✖ Error initializing cache service:', error)
+      logger.error('Error initializing cache service', { error: error instanceof Error ? error.message : String(error) })
     }
   }
 
@@ -76,14 +80,14 @@ export class GitHubWebhookHandler {
       const requestTime = parseInt(timestamp)
       const now = Math.floor(Date.now() / 1000)
       if (Math.abs(now - requestTime) > 300) {
-        console.error('✖ Webhook timestamp too old or from future')
+        logger.warn('Webhook timestamp validation failed', { requestTime, now, difference: Math.abs(now - requestTime) })
         return false
       }
     }
 
     // Validate signature exists
     if (!signature) {
-      console.error('✖ Missing webhook signature')
+      logger.warn('Missing webhook signature')
       return false
     }
 
@@ -110,18 +114,19 @@ export class GitHubWebhookHandler {
 
     // Verify webhook signature with timestamp
     if (!this.verifySignature(payload, signature, timestamp)) {
-      console.error('✖ Invalid webhook signature or timestamp')
+      logger.warn('Invalid webhook signature or timestamp', { event, hasSignature: !!signature, hasTimestamp: !!timestamp })
       res.status(401).json({ error: 'Invalid signature or timestamp' })
       return
     }
 
-    console.log(`📥 Received GitHub webhook: ${event}`)
+    logger.info('Received GitHub webhook', { event })
+    structuredLogger.info('GitHubWebhookHandler', `Received GitHub webhook: ${event}`)
 
     try {
       await this.processWebhookEvent(event, req.body)
       res.status(200).json({ success: true })
     } catch (error) {
-      console.error('✖ Webhook processing error:', error)
+      logger.error('Webhook processing error', { event, error: error instanceof Error ? error.message : String(error) })
       res.status(500).json({ error: 'Internal server error' })
     }
   }
@@ -150,7 +155,7 @@ export class GitHubWebhookHandler {
         break
 
       default:
-        console.log(`ℹ️ Ignoring event: ${event}`)
+        logger.debug('Ignoring webhook event', { event })
     }
   }
 
@@ -162,9 +167,8 @@ export class GitHubWebhookHandler {
     const repository = payload.repository
     const issue = payload.issue
 
-    console.log(`💬 New comment in ${repository.full_name}#${issue.number}`)
-    console.log(`👤 Author: ${comment.user.login}`)
-    console.log(`📝 Comment: ${comment.body.substring(0, 100)}...`)
+    logger.info('New comment received', { repository: repository.full_name, issueNumber: issue.number, author: comment.user.login, commentLength: comment.body.length })
+    structuredLogger.info('GitHubWebhookHandler', `New comment in ${repository.full_name}#${issue.number}`)
 
     // Check if comment mentions @nikcli
     const mention = this.commentProcessor.extractNikCLIMention(comment.body)
@@ -173,23 +177,24 @@ export class GitHubWebhookHandler {
       if (this.commentProcessor.hasNikCLIMention(comment.body)) {
         await this.postUsageHelp(repository.full_name, issue.number)
       } else {
-        console.log('ℹ️ No @nikcli mention found')
+        logger.debug('No @nikcli mention found', { repository: repository.full_name, issueNumber: issue.number })
       }
       return
     }
 
-    console.log('🔌 @nikcli mentioned! Processing request...')
+    logger.info('@nikcli mentioned - processing request', { repository: repository.full_name, issueNumber: issue.number, author: comment.user.login, command: mention.command })
+    structuredLogger.info('GitHubWebhookHandler', '@nikcli mentioned! Processing request...')
 
     // Security validation
     if (!(await this.validateAccess(repository.full_name, comment.user.login))) {
-      console.warn(`✖ Access denied for ${comment.user.login} in ${repository.full_name}`)
+      logger.warn('Access denied', { repository: repository.full_name, author: comment.user.login })
       await this.postSecurityError(repository.full_name, issue.number, comment.id)
       return
     }
 
     // Rate limiting check
     if (this.cacheService && !(await this.checkRateLimit(comment.user.login))) {
-      console.warn(`✖ Rate limit exceeded for ${comment.user.login}`)
+      logger.warn('Rate limit exceeded', { author: comment.user.login, repository: repository.full_name })
       await this.postRateLimitError(repository.full_name, issue.number, comment.id)
       return
     }
@@ -205,9 +210,9 @@ export class GitHubWebhookHandler {
           author: comment.user.login,
           command: `${mention.command} ${mention.args.join(' ')}`.trim(),
         })
-        console.log(`✓ Notified Slack about GitHub mention (thread: ${slackThreadTs})`)
+        logger.info('Notified Slack about GitHub mention', { threadTs: slackThreadTs, repository: repository.full_name })
       } catch (error) {
-        console.error('⚠︎ Failed to notify Slack:', error)
+        logger.error('Failed to notify Slack', { error: error instanceof Error ? error.message : String(error) })
       }
     }
 
@@ -226,7 +231,7 @@ export class GitHubWebhookHandler {
         })
         pullRequest = prData
       } catch (error) {
-        console.error('Failed to fetch PR details:', error)
+        logger.error('Failed to fetch PR details', { repository: repository.full_name, issueNumber: issue.number, error: error instanceof Error ? error.message : String(error) })
       }
     }
 
@@ -263,7 +268,8 @@ export class GitHubWebhookHandler {
     const repository = payload.repository
     const pullRequest = payload.pull_request
 
-    console.log(`💬 New PR review comment in ${repository.full_name}#${pullRequest.number}`)
+    logger.info('New PR review comment received', { repository: repository.full_name, prNumber: pullRequest.number, author: comment.user.login })
+    structuredLogger.info('GitHubWebhookHandler', `New PR review comment in ${repository.full_name}#${pullRequest.number}`)
 
     const mention = this.commentProcessor.extractNikCLIMention(comment.body)
     if (!mention) {
@@ -303,7 +309,8 @@ export class GitHubWebhookHandler {
     const issue = payload.issue
     const repository = payload.repository
 
-    console.log(`🆕 New issue in ${repository.full_name}#${issue.number}`)
+    logger.info('New issue received', { repository: repository.full_name, issueNumber: issue.number, author: issue.user.login })
+    structuredLogger.info('GitHubWebhookHandler', `New issue in ${repository.full_name}#${issue.number}`)
 
     // Check if issue body contains @nikcli
     const mention = this.commentProcessor.extractNikCLIMention(issue.body)
@@ -340,8 +347,8 @@ export class GitHubWebhookHandler {
       job.status = 'processing'
       job.startedAt = new Date()
 
-      console.log(`⚡︎ Processing job: ${job.id}`)
-      console.log(`📋 Task: ${job.mention.command}`)
+      logger.info('Processing job', { jobId: job.id, command: job.mention.command, repository: job.repository })
+      structuredLogger.info('GitHubWebhookHandler', `Processing job: ${job.id}`)
 
       // Update reaction to processing
       if (job.isPRReview) {
@@ -365,7 +372,8 @@ export class GitHubWebhookHandler {
       job.completedAt = new Date()
       job.result = result
 
-      console.log(`✓ Job completed: ${job.id}`)
+      logger.info('Job completed', { jobId: job.id, duration: job.completedAt.getTime() - job.startedAt.getTime() })
+      structuredLogger.success('GitHubWebhookHandler', `Job completed: ${job.id}`)
 
       // Add success reaction
       if (job.isPRReview) {
@@ -384,7 +392,7 @@ export class GitHubWebhookHandler {
         await this.updateStatusComment(job, statusCommentId, 'completed', result.details?.jobId)
       }
     } catch (error) {
-      console.error(`✖ Job failed: ${job.id}`, error)
+      logger.error('Job failed', { jobId: job.id, error: error instanceof Error ? error.message : String(error), stack: error instanceof Error ? error.stack : undefined })
 
       job.status = 'failed'
       job.error = error instanceof Error ? error.message : 'Unknown error'
@@ -420,7 +428,7 @@ export class GitHubWebhookHandler {
 
       return response.data.id
     } catch (error) {
-      console.error('Failed to post status comment:', error)
+      logger.error('Failed to post status comment', { jobId: job.id, status, error: error instanceof Error ? error.message : String(error) })
       return null
     }
   }
@@ -448,7 +456,7 @@ export class GitHubWebhookHandler {
         body: comment,
       })
     } catch (error) {
-      console.error('Failed to update status comment:', error)
+      logger.error('Failed to update status comment', { jobId: job.id, status, error: error instanceof Error ? error.message : String(error) })
     }
   }
 
@@ -495,7 +503,7 @@ export class GitHubWebhookHandler {
         content: reaction as any,
       })
     } catch (error) {
-      console.error('Failed to add reaction:', error)
+      logger.error('Failed to add reaction', { repository, commentId, reaction, error: error instanceof Error ? error.message : String(error) })
     }
   }
 
@@ -512,7 +520,7 @@ export class GitHubWebhookHandler {
         content: reaction as any,
       })
     } catch (error) {
-      console.error('Failed to add reaction to PR review comment:', error)
+      logger.error('Failed to add reaction to PR review comment', { repository, commentId, reaction, error: error instanceof Error ? error.message : String(error) })
     }
   }
 
@@ -532,9 +540,9 @@ export class GitHubWebhookHandler {
         body: comment,
       })
 
-      console.log(`📝 Posted result comment for job: ${job.id}`)
+      logger.info('Posted result comment', { jobId: job.id, repository: job.repository })
     } catch (error) {
-      console.error('Failed to post result comment:', error)
+      logger.error('Failed to post result comment', { jobId: job.id, error: error instanceof Error ? error.message : String(error) })
     }
   }
 
@@ -569,7 +577,7 @@ Please check your request and try again. If the issue persists, please create an
         body: comment,
       })
     } catch (postError) {
-      console.error('Failed to post error comment:', postError)
+      logger.error('Failed to post error comment', { jobId: job.id, error: postError instanceof Error ? postError.message : String(postError) })
     }
   }
 
@@ -587,7 +595,7 @@ Please check your request and try again. If the issue persists, please create an
         body: help,
       })
     } catch (error) {
-      console.error('Failed to post usage help:', error)
+      logger.error('Failed to post usage help', { repository, issueNumber, error: error instanceof Error ? error.message : String(error) })
     }
   }
 
@@ -671,7 +679,7 @@ ${result.files.map((f: string) => `- \`${f}\``).join('\n')}
     })
 
     if (!isAllowed) {
-      console.warn(`✖ Repository ${repo} not in whitelist`)
+      logger.warn('Repository not in whitelist', { repository: repo })
       return false
     }
 
@@ -693,10 +701,10 @@ ${result.files.map((f: string) => `- \`${f}\``).join('\n')}
         org,
         username,
       })
-      console.log(`✓ ${username} is member of ${org}`)
+      logger.info('User is org member', { username, organization: org })
       return true
     } catch (error) {
-      console.warn(`✖ ${username} is not member of ${org}`)
+      logger.warn('User is not org member', { username, organization: org })
       return false
     }
   }
@@ -717,14 +725,14 @@ ${result.files.map((f: string) => `- \`${f}\``).join('\n')}
       const count = await this.cacheService.increment(rateLimitKey, ttl)
 
       if (count > limit) {
-        console.warn(`✖ Rate limit exceeded for ${username}: ${count}/${limit}`)
+        logger.warn('Rate limit exceeded', { username, count, limit })
         return false
       }
 
-      console.log(`✓ Rate limit OK for ${username}: ${count}/${limit}`)
+      logger.debug('Rate limit check passed', { username, count, limit })
       return true
     } catch (error) {
-      console.error('⚠︎ Rate limit check failed:', error)
+      logger.error('Rate limit check failed', { username, error: error instanceof Error ? error.message : String(error) })
       return true // Fail open
     }
   }
@@ -754,7 +762,7 @@ If you believe this is an error, please contact your administrator.`,
         content: '-1',
       })
     } catch (error) {
-      console.error('Error posting security error:', error)
+      logger.error('Error posting security error', { repository: repo, issueNumber, error: error instanceof Error ? error.message : String(error) })
     }
   }
 
@@ -785,7 +793,7 @@ Please try again later.`,
         content: 'confused',
       })
     } catch (error) {
-      console.error('Error posting rate limit error:', error)
+      logger.error('Error posting rate limit error', { repository: repo, issueNumber, error: error instanceof Error ? error.message : String(error) })
     }
   }
 }

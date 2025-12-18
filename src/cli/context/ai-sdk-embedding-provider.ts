@@ -9,7 +9,7 @@ import { redisProvider } from '../providers/redis/redis-provider'
 import { advancedUI } from '../ui/advanced-cli-ui'
 
 export interface EmbeddingConfig {
-  provider: 'openai' | 'google' | 'anthropic' | 'openrouter' | 'local'
+  provider: 'openai' | 'google' | 'anthropic' | 'openrouter' | 'local' | 'minimax'
   model: string
   batchSize: number
   maxTokens: number
@@ -82,6 +82,7 @@ export class AiSdkEmbeddingProvider {
       if (p === 'google') return !!hasGoogle
       if (p === 'openrouter') return !!hasOpenRouter
       if (p === 'anthropic') return false
+      if (p === 'minimax') return false
       return false
     })
 
@@ -97,6 +98,8 @@ export class AiSdkEmbeddingProvider {
       case 'google':
         return 768
       case 'anthropic':
+        return 1536
+      case 'minimax':
         return 1536
       case 'openrouter':
         return this.lastUsedDimensions || 1536
@@ -566,6 +569,9 @@ export class AiSdkEmbeddingProvider {
           // Anthropic doesn't have direct embedding model via AI SDK yet
           // Fallback to simpler approach
           throw new Error('Anthropic embeddings not yet supported via AI SDK')
+        case 'minimax':
+          // MiniMax doesn't have direct embedding model via AI SDK yet
+          throw new Error('MiniMax embeddings not yet supported via AI SDK')
         default:
           throw new Error(`Unsupported provider: ${config.provider}`)
       }

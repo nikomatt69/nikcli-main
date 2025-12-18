@@ -138,10 +138,16 @@ export class SemanticCache extends EventEmitter {
     super()
     this.config = this.validateConfig(config)
 
-    const cacheConfig = this.config.cache || {}
+    const cacheConfig = this.config.cache || {
+      maxEntries: 1000,
+      defaultTtl: 3600,
+      maxSize: 1024 * 1024 * 100,
+      evictionPolicy: 'lru' as const,
+      compressionThreshold: 1024,
+    }
     this.localCache = new LRUCache<string, CacheEntry>({
-      max: cacheConfig.maxEntries || 1000,
-      ttl: cacheConfig.defaultTtl ? cacheConfig.defaultTtl * 1000 : undefined,
+      max: cacheConfig.maxEntries,
+      ttl: cacheConfig.defaultTtl * 1000,
       sizeCalculation: (entry) => entry.size || 1,
     })
 

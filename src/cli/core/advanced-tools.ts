@@ -62,6 +62,14 @@ export class AdvancedTools {
         })
         return openrouterProvider(configData.model)
       }
+      case 'minimax': {
+        const { createAnthropic } = require('@ai-sdk/anthropic')
+        const minimaxProvider = createAnthropic({
+          apiKey: process.env.MINIMAX_API_KEY,
+          baseURL: 'https://api.minimax.io/anthropic/v1',
+        })
+        return minimaxProvider(configData.model)
+      }
       default:
         throw new Error(`Unsupported provider: ${configData.provider}`)
     }

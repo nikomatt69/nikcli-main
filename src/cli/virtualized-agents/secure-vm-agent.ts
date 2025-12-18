@@ -887,6 +887,15 @@ export class SecureVirtualizedAgent extends EventEmitter implements Agent {
             } else if (chunk.type === 'complete') {
               // AI request completed
               this.emitVMCommunication(`AI streaming completed: ${chunk.tokenUsage} tokens`)
+            } else if (chunk.type === 'start' || chunk.type === 'stream-start') {
+              // Handle stream initialization
+              this.emitVMCommunication('AI streaming started')
+            } else if (chunk.type === 'message') {
+              // Handle message chunks
+              if (chunk.content) {
+                this.emitVMCommunication(`AI message: ${chunk.content.slice(0, 30)}...`)
+                yield chunk.content
+              }
             } else if (chunk.type === 'error') {
               // Handle streaming error
               this.emitVMCommunication(`AI streaming error: ${chunk.error}`)

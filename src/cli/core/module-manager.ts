@@ -364,7 +364,7 @@ export class ModuleManager {
   }
 
   private async handleClear(_args: string[], context: ModuleContext): Promise<void> {
-    advancedUI.clear()
+    console.clear()
     context.session.messages = context.session.messages.filter((m: any) => m.role === 'system')
     context.session.executionHistory = []
     advancedAIProvider.clearExecutionContext()

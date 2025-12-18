@@ -559,7 +559,7 @@ export class IntelligentFeedbackWrapper {
         advancedUI.logInfo('No existing learning patterns found, starting fresh')
       }
     } catch (error) {
-      advancedUI.logInfo('Could not load learning patterns:', error)
+      advancedUI.logInfo('Could not load learning patterns:', error as any)
     }
   }
 
@@ -575,7 +575,7 @@ export class IntelligentFeedbackWrapper {
       await fs.writeFile(this.learningFile, JSON.stringify(data, null, 2))
       advancedUI.logInfo(`Learning patterns saved: ${this.learningPatterns.size} patterns`)
     } catch (error) {
-      advancedUI.logInfo('Failed to save learning patterns:', error)
+      advancedUI.logInfo('Failed to save learning patterns:', error as any)
     }
   }
 

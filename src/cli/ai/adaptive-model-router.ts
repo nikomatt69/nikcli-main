@@ -20,16 +20,16 @@ export type RoutingStrategy = 'adaptive' | 'auto' | 'fallback' | 'fixed'
 
 export interface ModelRouteInput {
   provider:
-    | 'openai'
-    | 'anthropic'
-    | 'google'
-    | 'ollama'
-    | 'vercel'
-    | 'gateway'
-    | 'openrouter'
-    | 'groq'
-    | 'cerebras'
-    | 'openai-compatible'
+  | 'openai'
+  | 'anthropic'
+  | 'google'
+  | 'ollama'
+  | 'vercel'
+  | 'gateway'
+  | 'openrouter'
+  | 'groq'
+  | 'cerebras'
+  | 'openai-compatible'
   baseModel: string // model id configured as current for provider
   messages: Array<Pick<ChatMessage, 'role' | 'content'>>
   scope?: ModelScope
@@ -301,46 +301,8 @@ function pickAnthropic(
   _needsVision?: boolean,
   totalEstimatedTokens?: number
 ): string {
-  try {
-    const allModels = simpleConfigManager.getAllModels()
-
-    // Filter Anthropic models
-    const anthropicModels = Object.entries(allModels)
-      .filter(([_, config]: [string, any]) => config.provider === 'anthropic')
-      .map(([_, config]: [string, any]) => config)
-
-    if (anthropicModels.length === 0) return baseModel
-
-    // Classify models by tier
-    const modelsByTier: { light: any[]; medium: any[]; heavy: any[] } = { light: [], medium: [], heavy: [] }
-
-    for (const model of anthropicModels) {
-      const modelTier = classifyAnthropicModel(model.model, model.maxContextTokens)
-      modelsByTier[modelTier].push(model)
-    }
-
-    // Select candidates based on tier
-    let candidates = modelsByTier[tier] || []
-
-    // Fallback to other tiers
-    if (candidates.length === 0) {
-      if (tier === 'light') candidates = modelsByTier.medium.concat(modelsByTier.heavy)
-      if (tier === 'medium') candidates = modelsByTier.heavy.concat(modelsByTier.light)
-      if (tier === 'heavy') candidates = modelsByTier.medium.concat(modelsByTier.light)
-    }
-
-    if (candidates.length === 0) return baseModel
-
-    // Filter by context size if toolchain tokens specified
-    if (totalEstimatedTokens && totalEstimatedTokens > 0) {
-      const withEnoughContext = candidates.filter((m) => (m.maxContextTokens || 200000) >= totalEstimatedTokens * 1.2)
-      if (withEnoughContext.length > 0) candidates = withEnoughContext
-    }
-
-    return candidates[0].model
-  } catch (error) {
-    return baseModel
-  }
+  // NO ROUTING: Always return the baseModel without any routing
+  return baseModel
 }
 
 function classifyAnthropicModel(modelName: string, contextTokens?: number): 'light' | 'medium' | 'heavy' {
@@ -364,46 +326,8 @@ function pickOpenAI(
   _needsVision?: boolean,
   totalEstimatedTokens?: number
 ): string {
-  try {
-    const allModels = simpleConfigManager.getAllModels()
-
-    // Filter OpenAI models
-    const openaiModels = Object.entries(allModels)
-      .filter(([_, config]: [string, any]) => config.provider === 'openai')
-      .map(([_, config]: [string, any]) => config)
-
-    if (openaiModels.length === 0) return baseModel
-
-    // Classify models by tier
-    const modelsByTier: { light: any[]; medium: any[]; heavy: any[] } = { light: [], medium: [], heavy: [] }
-
-    for (const model of openaiModels) {
-      const modelTier = classifyOpenAIModel(model.model, model.maxContextTokens)
-      modelsByTier[modelTier].push(model)
-    }
-
-    // Select candidates based on tier
-    let candidates = modelsByTier[tier] || []
-
-    // Fallback to other tiers
-    if (candidates.length === 0) {
-      if (tier === 'light') candidates = modelsByTier.medium.concat(modelsByTier.heavy)
-      if (tier === 'medium') candidates = modelsByTier.heavy.concat(modelsByTier.light)
-      if (tier === 'heavy') candidates = modelsByTier.medium.concat(modelsByTier.light)
-    }
-
-    if (candidates.length === 0) return baseModel
-
-    // Filter by context size if toolchain tokens specified
-    if (totalEstimatedTokens && totalEstimatedTokens > 0) {
-      const withEnoughContext = candidates.filter((m) => (m.maxContextTokens || 80000) >= totalEstimatedTokens * 1.2)
-      if (withEnoughContext.length > 0) candidates = withEnoughContext
-    }
-
-    return candidates[0].model
-  } catch (error) {
-    return baseModel
-  }
+  // NO ROUTING: Always return the baseModel without any routing
+  return baseModel
 }
 
 function classifyOpenAIModel(modelName: string, contextTokens?: number): 'light' | 'medium' | 'heavy' {
@@ -422,46 +346,8 @@ function classifyOpenAIModel(modelName: string, contextTokens?: number): 'light'
 }
 
 function pickGoogle(baseModel: string, tier: 'light' | 'medium' | 'heavy', totalEstimatedTokens?: number): string {
-  try {
-    const allModels = simpleConfigManager.getAllModels()
-
-    // Filter Google models
-    const googleModels = Object.entries(allModels)
-      .filter(([_, config]: [string, any]) => config.provider === 'google')
-      .map(([_, config]: [string, any]) => config)
-
-    if (googleModels.length === 0) return baseModel
-
-    // Classify models by tier
-    const modelsByTier: { light: any[]; medium: any[]; heavy: any[] } = { light: [], medium: [], heavy: [] }
-
-    for (const model of googleModels) {
-      const modelTier = classifyGoogleModel(model.model, model.maxContextTokens)
-      modelsByTier[modelTier].push(model)
-    }
-
-    // Select candidates based on tier
-    let candidates = modelsByTier[tier] || []
-
-    // Fallback to other tiers
-    if (candidates.length === 0) {
-      if (tier === 'light') candidates = modelsByTier.medium.concat(modelsByTier.heavy)
-      if (tier === 'medium') candidates = modelsByTier.heavy.concat(modelsByTier.light)
-      if (tier === 'heavy') candidates = modelsByTier.medium.concat(modelsByTier.light)
-    }
-
-    if (candidates.length === 0) return baseModel
-
-    // Filter by context size if toolchain tokens specified
-    if (totalEstimatedTokens && totalEstimatedTokens > 0) {
-      const withEnoughContext = candidates.filter((m) => (m.maxContextTokens || 1000000) >= totalEstimatedTokens * 1.2)
-      if (withEnoughContext.length > 0) candidates = withEnoughContext
-    }
-
-    return candidates[0].model
-  } catch (error) {
-    return baseModel
-  }
+  // NO ROUTING: Always return the baseModel without any routing
+  return baseModel
 }
 
 function classifyGoogleModel(modelName: string, contextTokens?: number): 'light' | 'medium' | 'heavy' {
@@ -592,53 +478,8 @@ function pickOpenRouter(
   totalEstimatedTokens?: number,
   modelRegistry?: OpenRouterModelRegistry
 ): string {
-  // Estrae provider prefix (es. 'google/gemini-2.5-flash' → 'google/')
-  const providerMatch = baseModel.match(/^([^/]+\/)/)
-  if (!providerMatch) return baseModel
-
-  const providerPrefix = providerMatch[1]
-
-  // Se non c'è registry, usa baseModel configurato
-  if (!modelRegistry || !modelRegistry[providerPrefix]) {
-    return baseModel
-  }
-
-  const providerModels = modelRegistry[providerPrefix]
-
-  // Selezione tier-based con fallback
-  let candidates = providerModels[tier] || []
-
-  // Se tier richiesto non ha modelli, prova tier superiore/inferiore
-  if (candidates.length === 0) {
-    if (tier === 'light') candidates = providerModels.medium || providerModels.heavy || []
-    if (tier === 'medium') candidates = providerModels.heavy || providerModels.light || []
-    if (tier === 'heavy') candidates = providerModels.medium || providerModels.light || []
-  }
-
-  // Fallback finale al baseModel se non ci sono candidati
-  if (candidates.length === 0) return baseModel
-
-  // Se totalEstimatedTokens specificato, filtra per context size
-  if (totalEstimatedTokens && totalEstimatedTokens > 0) {
-    const modelsWithEnoughContext = candidates.filter((model) => {
-      const limits = universalTokenizer.getModelLimits(model, 'openrouter')
-      return limits.context >= totalEstimatedTokens * 1.2 // 20% buffer
-    })
-    if (modelsWithEnoughContext.length > 0) {
-      candidates = modelsWithEnoughContext
-    }
-  }
-
-  // Filtra per vision se necessario
-  if (needsVision) {
-    const visionCapable = candidates.filter(
-      (m) => m.includes('vision') || m.includes('image') || m.includes('@preset/nikcli')
-    )
-    if (visionCapable.length > 0) candidates = visionCapable
-  }
-
-  // Restituisce primo candidato (preferenza per ordine dichiarato in registry)
-  return candidates[0]
+  // NO ROUTING: Always return the baseModel without any routing
+  return baseModel
 }
 
 function pickGroq(baseModel: string, _tier: 'light' | 'medium' | 'heavy', _needsVision?: boolean): string {

@@ -3086,10 +3086,6 @@ export class NikCLI {
     const trimmed = content.trim()
     if (!trimmed) return
 
-    // Clear any partial readline input that may have accumulated
-    if (this.rl) {
-      this.rl.write('', { ctrl: true, name: 'u' }) // Clear current line
-    }
 
     // Process through paste handler for display formatting
     const pasteResult = this.pasteHandler.processPastedText(trimmed)
@@ -4082,126 +4078,6 @@ export class NikCLI {
 
     // Ensure output is flushed and visible before showing prompt
     console.log() // Extra newline for better separation
-    this.renderPromptAfterOutput()
-  }
-
-  /**
-   * Store selected files in session context for future reference
-   */
-  private storeSelectedFiles(files: string[], pattern: string): void {
-    // Store in a simple context that can be referenced later
-    if (!this.selectedFiles) {
-      this.selectedFiles = new Map()
-    }
-
-    this.selectedFiles.set(pattern, {
-      files,
-      timestamp: new Date(),
-      pattern,
-    })
-
-    // Keep only the last 5 file selections to avoid memory buildup
-    if (this.selectedFiles.size > 5) {
-      const oldestKey = this.selectedFiles.keys().next().value
-      if (oldestKey !== undefined) {
-        this.selectedFiles.delete(oldestKey)
-      }
-    }
-  }
-  /**
-   * Show agent suggestions when @ is pressed
-   */
-  private showAgentSuggestions(): void {
-    // Get available agents from AgentManager
-    const availableAgents = this.agentManager.listAgents()
-
-    const content = ['💡 Available Agents:', '']
-
-    if (availableAgents.length > 0) {
-      availableAgents.forEach((agent) => {
-        const statusIcon = agent.status === 'ready' ? '✓' : agent.status === 'busy' ? '⏳︎' : '✖'
-        content.push(`${statusIcon} @${agent.specialization} - ${agent.description}`)
-
-        // Show some capabilities
-        const capabilities = agent.capabilities.slice(0, 3).join(', ')
-        if (capabilities) {
-          content.push(`   Capabilities: ${capabilities}`)
-        }
-      })
-    } else {
-      content.push('No agents currently available')
-      content.push('')
-      content.push('Standard agents:')
-      content.push('✨ @universal-agent - All-in-one enterprise agent')
-      content.push('🔍 @ai-analysis - AI code analysis and review')
-      content.push('📝 @code-review - Code review specialist')
-      content.push('⚛️ @react-expert - React and Next.js expert')
-    }
-
-    this.printPanel(
-      boxen(content.join('\n'), {
-        title: 'Available Agents',
-        padding: 1,
-        margin: 1,
-        borderStyle: 'round',
-        borderColor: 'cyan',
-      })
-    )
-
-    this.printPanel(
-      boxen('Usage: @agent-name <your task description>', {
-        title: 'Agent Usage Tip',
-        padding: 1,
-        margin: 1,
-        borderStyle: 'round',
-        borderColor: 'cyan',
-      })
-    )
-  }
-
-  /**
-   * Show file picker suggestions when * is pressed
-   */
-  private showFilePickerSuggestions(): void {
-    const content = [
-      '🔍 File Selection Commands:',
-      '',
-      '*              Browse all files in current directory',
-      '* *.ts         Find all TypeScript files',
-      '* *.js         Find all JavaScript files',
-      '* src/**       Browse files in src directory',
-      '* **/*.tsx     Find React component files',
-      '* package.json Find package.json files',
-      '* *.md         Find all markdown files',
-    ].join('\n')
-
-    this.printPanel(
-      boxen(content, {
-        title: 'File Selection Commands',
-        padding: 1,
-        margin: 1,
-        borderStyle: 'round',
-        borderColor: 'magenta',
-      })
-    )
-
-    this.printPanel(
-      boxen(
-        [
-          '💡 Usage: * <pattern> to find and select files',
-          '📋 Selected files can be referenced in your next message',
-        ].join('\n'),
-        {
-          title: 'File Selection Tip',
-          padding: 1,
-          margin: 1,
-          borderStyle: 'round',
-          borderColor: 'cyan',
-        }
-      )
-    )
-    // Ensure output is flushed and visible before showing prompt
-
     this.renderPromptAfterOutput()
   }
 
@@ -6566,11 +6442,275 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
   }
 
   /**
+   * Assess if a task is complex and requires plan-mode streaming with auto-todos
+   */
+  private assessTaskComplexity(input: string): boolean {
+    const lowerInput = input.toLowerCase()
+
+    // Keywords that indicate complex tasks
+    const complexKeywords = [
+      // Development actions
+      'create', 'build', 'implement', 'develop', 'generate', 'setup', 'configure',
+      'refactor', 'migrate', 'deploy', 'install', 'integrate', 'design', 'architect',
+      'optimize', 'debug', 'fix', 'repair', 'maintain', 'update', 'upgrade',
+      'explore', 'plan', 'research', 'analyze', 'investigate', 'discover',
+      // Multi-step indicators (IT/EN)
+      'step', 'phase', 'stage', 'prima', 'poi', 'after', 'before', 'then', 'next',
+      'first', 'second', 'third', 'finally', 'initially', 'subsequently', 'meanwhile',
+      // Project types
+      'application', 'app', 'website', 'api', 'service', 'system', 'platform',
+      'framework', 'library', 'package', 'module', 'component', 'plugin',
+      // Technical domains
+      'database', 'authentication', 'authorization', 'testing', 'documentation',
+      'frontend', 'backend', 'fullstack', 'middleware', 'deployment', 'devops',
+      // File operations
+      'create file', 'modify file', 'refactor code', 'write tests', 'update config',
+      'explore codebase', 'explore repository', 'plan implementation', 'research solution',
+    ]
+
+    // Keywords that indicate simple tasks
+    const simpleKeywords = [
+      'show', 'list', 'check', 'status', 'help', 'what', 'how', 'explain', 'describe',
+      '?', 'info', 'info about', 'tell me', 'show me', 'list', 'view', 'get',
+    ]
+
+    // Pattern that indicate planning/multi-step approach
+    const planningPatterns = [
+      /prima\s+.+poi/i,
+      /step\s+\d+/i,
+      /fase\s+\d+/i,
+      /iniziamo\s+con/i,
+      /poi\s+(?:dobbiamo|devi|si)/i,
+      /dopo\s+(?:questo|di\s+aver)/i,
+      /first\s+.+then/i,
+      /next\s+step/i,
+      /after\s+that/i,
+      /finally,\s+.+/i,
+      /initially,\s+.+/i,
+      /subsequently,\s+.+/i,
+    ]
+
+    // Check for complex indicators
+    const hasComplexKeywords = complexKeywords.some((keyword) => lowerInput.includes(keyword))
+    const hasSimpleKeywords = simpleKeywords.some((keyword) => lowerInput.includes(keyword))
+    const hasPlanningPattern = planningPatterns.some((pattern) => pattern.test(input))
+
+    // Count technical terms (indicates specialized knowledge needed)
+    const technicalTerms = [
+      'react', 'vue', 'angular', 'node', 'python', 'typescript', 'javascript',
+      'api', 'rest', 'graphql', 'database', 'sql', 'mongodb', 'postgres',
+      'docker', 'kubernetes', 'aws', 'azure', 'gcp', 'github', 'gitlab',
+    ]
+    const technicalTermCount = technicalTerms.filter((term) => lowerInput.includes(term)).length
+
+    // Task is complex if:
+    // - Contains complex keywords AND no simple keywords
+    // - Is longer than 100 characters (likely detailed request)
+    // - Contains multiple sentences
+    // - Has planning patterns
+    // - Contains multiple technical terms (2+)
+    const isLongTask = input.length > 100
+    const hasMultipleSentences = input.split(/[.!?]/).filter((s) => s.trim().length > 0).length > 2
+    const hasMultipleTechnicalTerms = technicalTermCount >= 2
+
+    // More aggressive detection: task is complex if it has 2+ complex indicators
+    const complexIndicators = [
+      hasComplexKeywords && !hasSimpleKeywords,
+      isLongTask,
+      hasMultipleSentences,
+      hasPlanningPattern,
+      hasMultipleTechnicalTerms,
+    ].filter(Boolean).length
+
+    return complexIndicators >= 2 || (hasComplexKeywords && !hasSimpleKeywords)
+  }
+
+  /**
+   * Generate agent blueprints automatically based on todos and user task
+   */
+  private async generateAgentBlueprintsFromTodos(todos: any[], userTask: string): Promise<string[]> {
+    console.log(chalk.blue('🧬 Auto-generating agent blueprints from todos...'))
+
+    // Categorize todos by type to create specialized agents
+    const todoCategories = {
+      fileOperations: [] as any[],
+      codeAnalysis: [] as any[],
+      testing: [] as any[],
+      documentation: [] as any[],
+      integration: [] as any[],
+      general: [] as any[],
+    }
+
+    // Categorize each todo
+    for (const todo of todos) {
+      const titleLower = todo.title.toLowerCase()
+      const descLower = (todo.description || '').toLowerCase()
+      const content = `${titleLower} ${descLower}`
+
+      if (content.includes('file') || content.includes('create') || content.includes('write') || content.includes('modify')) {
+        todoCategories.fileOperations.push(todo)
+      } else if (content.includes('test') || content.includes('testing') || content.includes('spec')) {
+        todoCategories.testing.push(todo)
+      } else if (content.includes('doc') || content.includes('readme') || content.includes('comment')) {
+        todoCategories.documentation.push(todo)
+      } else if (content.includes('integrate') || content.includes('deploy') || content.includes('api') || content.includes('service')) {
+        todoCategories.integration.push(todo)
+      } else if (content.includes('analyze') || content.includes('review') || content.includes('refactor') || content.includes('optimize')) {
+        todoCategories.codeAnalysis.push(todo)
+      } else {
+        todoCategories.general.push(todo)
+      }
+    }
+
+    // Create agent blueprints for each category that has todos
+    const blueprintIds: string[] = []
+
+    // File Operations Agent
+    if (todoCategories.fileOperations.length > 0) {
+      const specialization = `File operations and code generation for: ${userTask.substring(0, 100)}`
+      const blueprint = await agentFactory.createAgentBlueprint({
+        name: `file-ops-agent-${Date.now()}`,
+        specialization,
+        description: `Specialized in file operations, code generation, and file modifications. Handles ${todoCategories.fileOperations.length} todos related to file management.`,
+        autonomyLevel: 'fully-autonomous',
+        contextScope: 'project',
+      })
+      blueprintIds.push(blueprint.id)
+      console.log(chalk.green(`✓ Created agent blueprint: ${blueprint.name}`))
+    }
+
+    // Code Analysis Agent
+    if (todoCategories.codeAnalysis.length > 0) {
+      const specialization = `Code analysis, review, and refactoring for: ${userTask.substring(0, 100)}`
+      const blueprint = await agentFactory.createAgentBlueprint({
+        name: `code-analysis-agent-${Date.now()}`,
+        specialization,
+        description: `Specialized in code analysis, review, and refactoring. Handles ${todoCategories.codeAnalysis.length} todos related to code quality.`,
+        autonomyLevel: 'fully-autonomous',
+        contextScope: 'project',
+      })
+      blueprintIds.push(blueprint.id)
+      console.log(chalk.green(`✓ Created agent blueprint: ${blueprint.name}`))
+    }
+
+    // Testing Agent
+    if (todoCategories.testing.length > 0) {
+      const specialization = `Testing and quality assurance for: ${userTask.substring(0, 100)}`
+      const blueprint = await agentFactory.createAgentBlueprint({
+        name: `testing-agent-${Date.now()}`,
+        specialization,
+        description: `Specialized in testing, test writing, and quality assurance. Handles ${todoCategories.testing.length} todos related to testing.`,
+        autonomyLevel: 'fully-autonomous',
+        contextScope: 'project',
+      })
+      blueprintIds.push(blueprint.id)
+      console.log(chalk.green(`✓ Created agent blueprint: ${blueprint.name}`))
+    }
+
+    // Documentation Agent
+    if (todoCategories.documentation.length > 0) {
+      const specialization = `Documentation and knowledge management for: ${userTask.substring(0, 100)}`
+      const blueprint = await agentFactory.createAgentBlueprint({
+        name: `docs-agent-${Date.now()}`,
+        specialization,
+        description: `Specialized in documentation, README creation, and knowledge management. Handles ${todoCategories.documentation.length} todos related to documentation.`,
+        autonomyLevel: 'fully-autonomous',
+        contextScope: 'project',
+      })
+      blueprintIds.push(blueprint.id)
+      console.log(chalk.green(`✓ Created agent blueprint: ${blueprint.name}`))
+    }
+
+    // Integration Agent
+    if (todoCategories.integration.length > 0) {
+      const specialization = `Integration and deployment for: ${userTask.substring(0, 100)}`
+      const blueprint = await agentFactory.createAgentBlueprint({
+        name: `integration-agent-${Date.now()}`,
+        specialization,
+        description: `Specialized in integration, deployment, and service connectivity. Handles ${todoCategories.integration.length} todos related to integration.`,
+        autonomyLevel: 'fully-autonomous',
+        contextScope: 'project',
+      })
+      blueprintIds.push(blueprint.id)
+      console.log(chalk.green(`✓ Created agent blueprint: ${blueprint.name}`))
+    }
+
+    // General Task Agent for remaining todos
+    if (todoCategories.general.length > 0) {
+      const specialization = `General task execution for: ${userTask.substring(0, 100)}`
+      const blueprint = await agentFactory.createAgentBlueprint({
+        name: `general-task-agent-${Date.now()}`,
+        specialization,
+        description: `General purpose agent for miscellaneous tasks. Handles ${todoCategories.general.length} general todos.`,
+        autonomyLevel: 'fully-autonomous',
+        contextScope: 'project',
+      })
+      blueprintIds.push(blueprint.id)
+      console.log(chalk.green(`✓ Created agent blueprint: ${blueprint.name}`))
+    }
+
+    console.log(chalk.cyan(`\n✓ Generated ${blueprintIds.length} agent blueprints for parallel execution\n`))
+    return blueprintIds
+  }
+
+  /**
    * Default mode: Unified Aggregator - observes and subscribes to all event sources
    */
   private async handleDefaultMode(input: string): Promise<void> {
     // Initialize as Unified Aggregator for all event sources
     this.subscribeToAllEventSources()
+
+    // AUTO-DETECTION: Check if task is complex and handle with parallel agents
+    const isComplexTask = this.assessTaskComplexity(input)
+
+    if (isComplexTask) {
+      // Auto-generate plan, agent blueprints, and execute with parallel plan mode
+      try {
+        console.log(chalk.blue('📋 Detected complex task - creating execution plan...'))
+
+        // Generate todos using TaskMaster/legacy planning
+        const universalAgentId = 'universal-agent'
+        const todos = await agentTodoManager.planTodos(universalAgentId, input)
+
+        // Generate agent blueprints automatically from todos
+        const agentBlueprintIds = await this.generateAgentBlueprintsFromTodos(todos, input)
+
+        // Create collaboration context for parallel execution
+        const collaborationContext = {
+          sessionId: `auto-complex-${Date.now()}`,
+          agents: agentBlueprintIds,
+          task: input,
+          logs: new Map<string, string[]>(),
+          sharedData: new Map<string, any>(),
+          planId: '',
+        }
+
+        // Launch agents from blueprints
+        const launchedAgents: any[] = []
+        for (const blueprintId of agentBlueprintIds) {
+          const agent = await agentFactory.launchAgent(blueprintId)
+          ;(agent as any).collaborationContext = collaborationContext
+          launchedAgents.push(agent)
+        }
+
+        // Create plan for parallel execution
+        const plan = await planningService.createPlan(input, {
+          showProgress: false,
+          autoExecute: false,
+          confirmSteps: false,
+        })
+
+        // Execute with parallel plan mode (like /parallel command)
+        await this.executeParallelPlanMode(plan, launchedAgents, collaborationContext)
+
+        console.log(chalk.green('\n✓ Parallel execution completed successfully!'))
+        return
+      } catch (error: any) {
+        console.log(chalk.red(`✖ Failed to execute complex task: ${error.message}`))
+        console.log(chalk.yellow('Falling back to simple chat mode...'))
+        // Continue to simple chat mode below
+      }
+    }
 
     // DISABLED: Auto-todo generation in default chat mode
     // Now only triggers when user explicitly mentions "todo"

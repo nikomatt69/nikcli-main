@@ -14,6 +14,8 @@ import {
 import { VercelKVBackgroundAgentAdapter, vercelKVAdapter } from './adapters/vercel-kv-adapter'
 import { EnvironmentParser } from './core/environment-parser'
 import { PlaybookParser } from './core/playbook-parser'
+import { logger } from '../utils/logger'
+import { structuredLogger } from '../utils/structured-logger'
 import type { BackgroundJob, CreateBackgroundJobRequest, JobStatus } from './types'
 
 export interface BackgroundJobStats {
@@ -85,7 +87,10 @@ export class BackgroundAgentService extends EventEmitter {
       this.initialized = true
       this.emit('ready')
     } catch (error) {
-      console.error('Failed to initialize Background Agent Service:', error)
+      logger.error('Failed to initialize Background Agent Service', {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      })
       this.emit('error', error)
       // Even if initialization fails, mark as initialized to prevent blocking
       this.initialized = true
@@ -101,15 +106,17 @@ export class BackgroundAgentService extends EventEmitter {
       const isAvailable = await this.localAdapter.isAvailable()
       if (isAvailable) {
         this.useLocalFile = true
-        console.log('✓ Local file storage initialized')
+        structuredLogger.success('BackgroundAgentService', 'Local file storage initialized')
 
         // Load existing jobs from local file
         await this.loadJobsFromLocalFile()
       } else {
-        console.warn('⚠︎ Local file storage not available - using in-memory storage only')
+        structuredLogger.warning('BackgroundAgentService', 'Local file storage not available - using in-memory storage only')
       }
     } catch (error) {
-      console.error('Error initializing local file storage:', error)
+      logger.error('Error initializing local file storage', {
+        error: error instanceof Error ? error.message : String(error),
+      })
     }
   }
 
@@ -121,7 +128,10 @@ export class BackgroundAgentService extends EventEmitter {
 
     try {
       const jobs = await this.kvAdapter.getAllJobs()
-      console.log(`📋 Loaded ${jobs.length} jobs from Vercel KV`)
+      logger.info('Loaded jobs from Vercel KV', {
+        count: jobs.length,
+        source: 'vercel-kv',
+      })
 
       for (const job of jobs) {
         this.jobs.set(job.id, job)
@@ -132,7 +142,9 @@ export class BackgroundAgentService extends EventEmitter {
         }
       }
     } catch (error) {
-      console.error('Error loading jobs from KV:', error)
+      logger.error('Error loading jobs from KV', {
+        error: error instanceof Error ? error.message : String(error),
+      })
     }
   }
 
@@ -144,7 +156,10 @@ export class BackgroundAgentService extends EventEmitter {
 
     try {
       const jobs = await this.localAdapter.getAllJobs()
-      console.log(`📋 Loaded ${jobs.length} jobs from local file storage`)
+      logger.info('Loaded jobs from local file storage', {
+        count: jobs.length,
+        source: 'local-file',
+      })
 
       for (const job of jobs) {
         this.jobs.set(job.id, job)
@@ -155,7 +170,9 @@ export class BackgroundAgentService extends EventEmitter {
         }
       }
     } catch (error) {
-      console.error('Error loading jobs from local file:', error)
+      logger.error('Error loading jobs from local file', {
+        error: error instanceof Error ? error.message : String(error),
+      })
     }
   }
 
@@ -202,7 +219,10 @@ export class BackgroundAgentService extends EventEmitter {
         await this.kvAdapter.incrementStat('total')
         await this.kvAdapter.incrementStat('queued')
       } catch (error) {
-        console.error('Error storing job in KV:', error)
+        logger.error('Error storing job in KV', {
+          jobId,
+          error: error instanceof Error ? error.message : String(error),
+        })
       }
     }
 
@@ -213,7 +233,10 @@ export class BackgroundAgentService extends EventEmitter {
         await this.localAdapter.incrementStat('total')
         await this.localAdapter.incrementStat('queued')
       } catch (error) {
-        console.error('Error storing job in local file:', error)
+        logger.error('Error storing job in local file', {
+          jobId,
+          error: error instanceof Error ? error.message : String(error),
+        })
       }
     }
 
@@ -233,18 +256,29 @@ export class BackgroundAgentService extends EventEmitter {
     // Listen for job:ready event from JobQueue
     jobQueue.on('job:ready', async (jobId: string) => {
       try {
-        console.log(`[BackgroundAgentService] Job ${jobId} ready for execution`)
+        logger.info('Job ready for execution', {
+          jobId,
+          component: 'BackgroundAgentService',
+        })
 
         // Check if job still exists and is in correct state
         const job = this.jobs.get(jobId)
         if (!job) {
-          console.error(`[BackgroundAgentService] Job ${jobId} not found, skipping execution`)
+          logger.error('Job not found, skipping execution', {
+            jobId,
+            component: 'BackgroundAgentService',
+          })
           await jobQueue.failJob(jobId, 'Job not found in BackgroundAgentService')
           return
         }
 
         if (job.status !== 'queued') {
-          console.warn(`[BackgroundAgentService] Job ${jobId} has status ${job.status}, expected 'queued'`)
+          logger.warn('Job has unexpected status, skipping', {
+            jobId,
+            expectedStatus: 'queued',
+            actualStatus: job.status,
+            component: 'BackgroundAgentService',
+          })
           return
         }
 
@@ -254,12 +288,19 @@ export class BackgroundAgentService extends EventEmitter {
         // Mark as completed in queue
         await jobQueue.completeJob(jobId)
       } catch (error: any) {
-        console.error(`[BackgroundAgentService] Error executing job ${jobId}:`, error)
+        logger.error('Error executing job', {
+          jobId,
+          component: 'BackgroundAgentService',
+          error: error.message,
+          stack: error.stack,
+        })
         await jobQueue.failJob(jobId, error.message || 'Unknown error')
       }
     })
 
-    console.log('[BackgroundAgentService] Queue event listeners initialized')
+    logger.info('Queue event listeners initialized', {
+      component: 'BackgroundAgentService',
+    })
   }
 
   /**
@@ -475,7 +516,11 @@ export class BackgroundAgentService extends EventEmitter {
       // Notify user if GitHub context exists
       if (job.githubContext) {
         await this.notifyJobTimeout(job).catch((err) => {
-          console.error('Failed to notify job timeout:', err)
+          logger.error('Failed to notify job timeout', {
+            jobId: job.id,
+            author: job.githubContext?.author,
+            error: err instanceof Error ? err.message : String(err),
+          })
         })
       }
     }
@@ -489,7 +534,11 @@ export class BackgroundAgentService extends EventEmitter {
 
     // This would integrate with GitHub API to post a comment
     // For now, just log it
-    console.log(`📢 Would notify ${job.githubContext.author} about timeout for job ${job.id}`)
+    logger.info('Would notify user about job timeout', {
+      jobId: job.id,
+      author: job.githubContext.author,
+      action: 'notification',
+    })
   }
 
   /**
@@ -1260,10 +1309,10 @@ export class BackgroundAgentService extends EventEmitter {
         // Clear streamed output and show formatted version if needed (same as NikCLI)
         if (shouldFormatOutput) {
           // Just add spacing
-          console.log('')
+          advancedUI.logInfo('', 'BackgroundAgent')
         } else {
           // No formatting needed - add spacing after stream
-          console.log('\n')
+          advancedUI.logInfo('', 'BackgroundAgent')
         }
 
         if (!streamCompleted) {
@@ -2000,7 +2049,10 @@ Generated by NikCLI Background Agent with AI Analysis
       try {
         await this.kvAdapter.storeJob(job.id, job)
       } catch (error) {
-        console.error('Error updating job in KV:', error)
+        logger.error('Error updating job in KV', {
+          jobId: job.id,
+          error: error instanceof Error ? error.message : String(error),
+        })
       }
     }
 
@@ -2009,7 +2061,10 @@ Generated by NikCLI Background Agent with AI Analysis
       try {
         await this.localAdapter.storeJob(job.id, job)
       } catch (error) {
-        console.error('Error updating job in local file:', error)
+        logger.error('Error updating job in local file', {
+          jobId: job.id,
+          error: error instanceof Error ? error.message : String(error),
+        })
       }
     }
 
@@ -2025,7 +2080,10 @@ Generated by NikCLI Background Agent with AI Analysis
       try {
         await this.kvAdapter.storeJob(job.id, job)
       } catch (error) {
-        console.error('Error saving job to KV:', error)
+        logger.error('Error saving job to KV', {
+          jobId: job.id,
+          error: error instanceof Error ? error.message : String(error),
+        })
       }
     }
 
@@ -2034,7 +2092,10 @@ Generated by NikCLI Background Agent with AI Analysis
       try {
         await this.localAdapter.storeJob(job.id, job)
       } catch (error) {
-        console.error('Error saving job to local file:', error)
+        logger.error('Error saving job to local file', {
+          jobId: job.id,
+          error: error instanceof Error ? error.message : String(error),
+        })
       }
     }
   }

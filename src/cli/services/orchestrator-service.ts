@@ -12,6 +12,8 @@ import { type AgentTask, agentService } from './agent-service'
 import { lspService } from './lsp-service'
 import { planningService } from './planning-service'
 import { toolService } from './tool-service'
+import { logger } from '../utils/logger'
+import { structuredLogger } from '../utils/structured-logger'
 // Ensure session todo tools are registered for Plan Mode
 import '../tools/todo-tools'
 
@@ -86,7 +88,7 @@ export class OrchestratorService extends EventEmitter {
     // Handle Ctrl+C gracefully
     this.rl.on('SIGINT', () => {
       if (this.context.isProcessing) {
-        console.log(chalk.yellow('\\n⏸️  Stopping current operation...'))
+        structuredLogger.warning('OrchestratorService', 'Stopping current operation')
         this.stopAllOperations()
         this.showPrompt()
       } else {
@@ -164,7 +166,8 @@ export class OrchestratorService extends EventEmitter {
       // Avoid duplicate logging if NikCLI is active
       const nikCliActive = (global as any).__nikCLI?.eventsSubscribed
       if (!nikCliActive) {
-        console.log(chalk.blue(`🔌 Agent ${task.agentType} started: ${task.task.slice(0, 50)}...`))
+        structuredLogger.info('OrchestratorService', `Agent ${task.agentType} started`)
+        logger.debug('Agent task started', { agentType: task.agentType, taskId: task.id, taskPreview: task.task.slice(0, 50) })
       }
     })
 
@@ -172,7 +175,7 @@ export class OrchestratorService extends EventEmitter {
       // Avoid duplicate logging if NikCLI is active
       const nikCliActive = (global as any).__nikCLI?.eventsSubscribed
       if (!nikCliActive) {
-        console.log(chalk.cyan(`  📊 ${task.agentType}: ${update.progress}% - ${update.description || ''}`))
+        logger.debug('Agent task progress', { agentType: task.agentType, taskId: task.id, progress: update.progress, description: update.description })
       }
     })
 
@@ -180,7 +183,7 @@ export class OrchestratorService extends EventEmitter {
       // Avoid duplicate logging if NikCLI is active
       const nikCliActive = (global as any).__nikCLI?.eventsSubscribed
       if (!nikCliActive) {
-        console.log(chalk.magenta(`   ${task.agentType} using ${update.tool}: ${update.description}`))
+        logger.debug('Agent tool usage', { agentType: task.agentType, taskId: task.id, tool: update.tool, description: update.description })
       }
     })
 
@@ -317,18 +320,20 @@ export class OrchestratorService extends EventEmitter {
 
   private async executeAgentTask(agentName: string, task: string): Promise<void> {
     if (!task) {
-      console.log(chalk.red('Please specify a task for the agent'))
+      structuredLogger.error('OrchestratorService', 'Please specify a task for the agent')
       return
     }
 
-    console.log(chalk.blue(`\\n🔌 Launching ${agentName} agent...`))
-    console.log(chalk.gray(`Task: ${task}\\n`))
+    structuredLogger.info('OrchestratorService', `Launching ${agentName} agent`)
+    logger.debug('Agent task launching', { agentName, task })
+    advancedUI.logInfo(`Launching ${agentName} agent...`, 'Agent')
 
     try {
       const taskId = await agentService.executeTask(agentName, task, {})
-      console.log(chalk.dim(`Task ID: ${taskId}`))
+      logger.debug('Agent task launched', { agentName, taskId })
     } catch (error: any) {
-      console.log(chalk.red(`✖ Failed to launch agent: ${error.message}`))
+      logger.error('Failed to launch agent', { agentName, error: error.message, stack: error.stack })
+      structuredLogger.error('OrchestratorService', `Failed to launch agent: ${error.message}`)
     }
   }
 
@@ -337,11 +342,12 @@ export class OrchestratorService extends EventEmitter {
       await this.initializeServices()
     }
 
-    console.log(chalk.blue('⚡︎ Processing natural language request...'))
+    structuredLogger.info('OrchestratorService', 'Processing natural language request')
+    logger.debug('Natural language request', { inputLength: input.length })
 
     // Check for VM agent trigger patterns
     if (this.isVMAgentRequest(input)) {
-      console.log(chalk.cyan('🔌 VM Agent request detected - launching secure virtualized agent'))
+      structuredLogger.info('OrchestratorService', 'VM Agent request detected - launching secure virtualized agent')
       await this.executeVMAgentTask(input)
       return
     }
@@ -353,7 +359,7 @@ export class OrchestratorService extends EventEmitter {
       } catch {}
       try {
         // Create execution plan first
-        console.log(chalk.cyan('🎯 Plan Mode: Creating execution plan...'))
+        structuredLogger.info('OrchestratorService', 'Plan Mode: Creating execution plan')
         const plan = await planningService.createPlan(input, {
           showProgress: true,
           autoExecute: false,
@@ -363,9 +369,9 @@ export class OrchestratorService extends EventEmitter {
         if (!this.context.autonomous) {
           const proceed = await this.promptYesNo('Execute this plan? (y/N)')
           if (!proceed) {
-            console.log(chalk.yellow('Plan execution cancelled'))
-            console.log(chalk.blue('💬 Returning to default chat mode...'))
-            console.log(chalk.gray('   You can provide a new request or modify your requirements.'))
+            structuredLogger.warning('OrchestratorService', 'Plan execution cancelled')
+            structuredLogger.info('OrchestratorService', 'Returning to default chat mode')
+            logger.debug('Plan execution cancelled by user')
             return
           }
         }
@@ -376,15 +382,16 @@ export class OrchestratorService extends EventEmitter {
           confirmSteps: !this.context.autonomous,
         })
       } catch (error: any) {
-        console.log(chalk.red(`✖ Planning failed: ${error.message}`))
-        console.log(chalk.blue('💬 Returning to default chat mode...'))
-        console.log(chalk.gray('   Please try again with a different request.'))
+        logger.error('Planning failed', { error: error.message, stack: error.stack })
+        structuredLogger.error('OrchestratorService', `Planning failed: ${error.message}`)
+        structuredLogger.info('OrchestratorService', 'Returning to default chat mode')
         return
       }
     } else {
       // Direct autonomous execution using appropriate agent
       const bestAgent = this.selectBestAgent(input)
-      console.log(chalk.blue(`🎯 Selected ${bestAgent} agent for this task`))
+      structuredLogger.info('OrchestratorService', `Selected ${bestAgent} agent for this task`)
+      logger.debug('Agent selected', { agent: bestAgent, inputLength: input.length })
       await this.executeAgentTask(bestAgent, input)
     }
   }
@@ -416,7 +423,7 @@ export class OrchestratorService extends EventEmitter {
    */
   private async executeVMAgentTask(input: string): Promise<void> {
     try {
-      console.log(chalk.blue('🐳 Starting VM Agent with secure environment...'))
+      structuredLogger.info('OrchestratorService', 'Starting VM Agent with secure environment')
 
       // Launch vm-agent
       const taskId = await agentService.executeTask('vm-agent', input, {
@@ -425,11 +432,13 @@ export class OrchestratorService extends EventEmitter {
         autonomous: true,
       })
 
-      console.log(chalk.green(`✓ VM Agent launched with task ID: ${taskId}`))
-      console.log(chalk.dim('🔐 Agent will operate in secure isolated environment'))
-      console.log(chalk.dim('📊 Monitor with Ctrl+L for logs, Ctrl+S for security dashboard'))
+      logger.info('VM Agent launched', { taskId })
+      structuredLogger.success('OrchestratorService', `VM Agent launched with task ID: ${taskId}`)
+      advancedUI.logInfo('Agent will operate in secure isolated environment', 'VM Agent')
+      advancedUI.logInfo('Monitor with Ctrl+L for logs, Ctrl+S for security dashboard', 'VM Agent')
     } catch (error: any) {
-      console.log(chalk.red(`✖ Failed to launch VM agent: ${error.message}`))
+      logger.error('Failed to launch VM agent', { error: error.message, stack: error.stack })
+      structuredLogger.error('OrchestratorService', `Failed to launch VM agent: ${error.message}`)
     }
   }
 
@@ -542,8 +551,8 @@ export class OrchestratorService extends EventEmitter {
 
     if (activeAgents.length === 0 && queuedTasks.length === 0) {
       // All background tasks completed, return to default mode with prompt
-      console.log(chalk.gray('─'.repeat(50)))
-      console.log(chalk.cyan('🏠 All background tasks completed. Returning to default mode.'))
+      structuredLogger.info('OrchestratorService', 'All background tasks completed. Returning to default mode.')
+      logger.debug('Returning to default mode', { activeAgents: activeAgents.length, queuedTasks: queuedTasks.length })
 
       // Ensure default mode explicitly
       this.context.planMode = false
@@ -594,86 +603,86 @@ export class OrchestratorService extends EventEmitter {
     const toolHistory = toolService.getExecutionHistory().slice(-5)
     const planStats = planningService.getStatistics()
 
-    console.log(chalk.cyan.bold('\\n Services Status'))
-    console.log(chalk.gray('─'.repeat(50)))
+    logger.debug('Showing services status', { lspCount: lspStatus.length, toolHistoryCount: toolHistory.length, planStats })
 
-    console.log(chalk.white.bold('\\nLSP Servers:'))
+    structuredLogger.info('OrchestratorService', 'Services Status')
+    advancedUI.logInfo('Services Status', 'Status')
+
     lspStatus.forEach((server) => {
       const statusColor =
-        server.status === 'running' ? chalk.green : server.status === 'error' ? chalk.red : chalk.yellow
-      console.log(`  ${statusColor('●')} ${server.name}: ${server.status}`)
+        server.status === 'running' ? 'green' : server.status === 'error' ? 'red' : 'yellow'
+      advancedUI.logInfo(`  ● ${server.name}: ${server.status}`, `LSP (${statusColor})`)
     })
 
-    console.log(chalk.white.bold('\\nRecent Tool Usage:'))
     toolHistory.forEach((exec) => {
       const statusIcon = exec.status === 'completed' ? '✓' : exec.status === 'failed' ? '✖' : '⚡︎'
-      console.log(`  ${statusIcon} ${exec.toolName}: ${exec.status}`)
+      advancedUI.logInfo(`  ${statusIcon} ${exec.toolName}: ${exec.status}`, 'Tools')
     })
 
-    console.log(chalk.white.bold('\\nPlanning Statistics:'))
-    console.log(`  Total Plans: ${planStats.total}`)
-    console.log(`  Active: ${planStats.running}`)
-    console.log(`  Completed: ${planStats.completed}`)
+    advancedUI.logInfo(`  Total Plans: ${planStats.total}`, 'Planning')
+    advancedUI.logInfo(`  Active: ${planStats.running}`, 'Planning')
+    advancedUI.logInfo(`  Completed: ${planStats.completed}`, 'Planning')
   }
 
   private async showActiveAgents(): Promise<void> {
     const activeAgents = agentService.getActiveAgents()
     const queuedTasks = agentService.getQueuedTasks()
 
-    console.log(chalk.cyan.bold('\\n🔌 Agent Status'))
-    console.log(chalk.gray('─'.repeat(50)))
+    logger.debug('Showing agent status', { activeAgents: activeAgents.length, queuedTasks: queuedTasks.length })
+
+    structuredLogger.info('OrchestratorService', 'Agent Status')
+    advancedUI.logInfo('Agent Status', 'Agents')
 
     if (activeAgents.length > 0) {
-      console.log(chalk.white.bold('\\nActive Agents:'))
+      advancedUI.logInfo('Active Agents:', 'Agents')
       activeAgents.forEach((agent) => {
         const progress = agent.progress ? `${agent.progress}%` : 'Starting...'
-        console.log(`  ⚡︎ ${chalk.blue(agent.agentType)}: ${progress}`)
-        console.log(`     ${chalk.dim(agent.task.slice(0, 60))}...`)
+        advancedUI.logInfo(`  ⚡︎ ${agent.agentType}: ${progress}`, 'Active')
+        logger.debug('Active agent', { agentType: agent.agentType, progress, taskPreview: agent.task.slice(0, 60) })
       })
     }
 
     if (queuedTasks.length > 0) {
-      console.log(chalk.white.bold('\\nQueued Tasks:'))
+      advancedUI.logInfo('Queued Tasks:', 'Agents')
       queuedTasks.forEach((task, index) => {
-        console.log(`  ${index + 1}. ${chalk.yellow(task.agentType)}: ${task.task.slice(0, 50)}...`)
+        advancedUI.logInfo(`  ${index + 1}. ${task.agentType}: ${task.task.slice(0, 50)}...`, 'Queued')
       })
     }
 
     if (activeAgents.length === 0 && queuedTasks.length === 0) {
-      console.log(chalk.dim('No active agents or queued tasks'))
+      structuredLogger.info('OrchestratorService', 'No active agents or queued tasks')
     }
   }
 
   private showCommandMenu(): void {
     // Delegate to module manager
-    console.log(`\\n${chalk.cyan.bold('📋 Available Commands:')}`)
-    console.log(chalk.gray('─'.repeat(60)))
+    structuredLogger.info('OrchestratorService', 'Available Commands')
+    advancedUI.logInfo('Available Commands:', 'Help')
 
-    console.log(chalk.white.bold('\\n🎛️  Orchestrator Commands:'))
-    console.log(`${chalk.green('/status')}         Show orchestrator and service status`)
-    console.log(`${chalk.green('/services')}       Show detailed service information`)
-    console.log(`${chalk.green('/agents')}         Show active agents and queue`)
-
-    console.log(chalk.white.bold('\\n Module Commands:'))
     const commands = this.moduleManager.getCommands()
     const categories = ['system', 'file', 'analysis', 'diff', 'security']
 
+    advancedUI.logInfo('Orchestrator Commands:', 'Help')
+    advancedUI.logInfo('/status         Show orchestrator and service status', 'Help')
+    advancedUI.logInfo('/services       Show detailed service information', 'Help')
+    advancedUI.logInfo('/agents         Show active agents and queue', 'Help')
+
+    advancedUI.logInfo('Module Commands:', 'Help')
     categories.forEach((category) => {
       const categoryCommands = commands.filter((c) => c.category === category)
       if (categoryCommands.length > 0) {
         categoryCommands.slice(0, 3).forEach((cmd) => {
-          console.log(`${chalk.green(`/${cmd.name}`).padEnd(20)} ${cmd.description}`)
+          advancedUI.logInfo(`/${cmd.name.padEnd(20)} ${cmd.description}`, 'Module')
         })
       }
     })
 
-    console.log(chalk.white.bold('\\n🔌 Agent Commands:'))
-    console.log(`${chalk.blue('@agent-name')} <task>  Execute task with specific agent`)
-    console.log(`${chalk.dim('Available:')} ai-analysis, code-review, backend-expert, frontend-expert`)
-    console.log(`${chalk.dim('         ')} react-expert, devops-expert, system-admin, autonomous-coder`)
+    advancedUI.logInfo('Agent Commands:', 'Help')
+    advancedUI.logInfo('@agent-name <task>  Execute task with specific agent', 'Help')
+    advancedUI.logInfo('Available: ai-analysis, code-review, backend-expert, frontend-expert', 'Help')
+    advancedUI.logInfo('         react-expert, devops-expert, system-admin, autonomous-coder', 'Help')
 
-    console.log(chalk.gray(`\\n${'─'.repeat(60)}`))
-    console.log(chalk.yellow('💡 Natural language: Just describe what you want to accomplish'))
+    advancedUI.logInfo('💡 Natural language: Just describe what you want to accomplish', 'Help')
   }
 
   private checkAPIKeys(): boolean {
@@ -705,12 +714,14 @@ export class OrchestratorService extends EventEmitter {
     }
 
     const availableKeys = []
-    if (hasAnthropicKey) availableKeys.push(chalk.green('✓ Claude'))
-    if (hasOpenAIKey) availableKeys.push(chalk.green('✓ GPT'))
-    if (hasOpenRouterKey) availableKeys.push(chalk.green('✓ OpenRouter'))
-    if (hasGoogleKey) availableKeys.push(chalk.green('✓ Gemini'))
-    if (hasVercelKey) availableKeys.push(chalk.green('✓ Vercel'))
-    console.log(chalk.dim(`API Keys: ${availableKeys.join(', ')}`))
+    if (hasAnthropicKey) availableKeys.push('Claude')
+    if (hasOpenAIKey) availableKeys.push('GPT')
+    if (hasOpenRouterKey) availableKeys.push('OpenRouter')
+    if (hasGoogleKey) availableKeys.push('Gemini')
+    if (hasVercelKey) availableKeys.push('Vercel')
+
+    logger.debug('API keys status', { availableKeys: availableKeys.length, keyTypes: availableKeys })
+    structuredLogger.success('OrchestratorService', `API Keys: ${availableKeys.join(', ')}`)
     return true
   }
 
@@ -749,12 +760,13 @@ export class OrchestratorService extends EventEmitter {
         process.env.NIKCLI_COMPACT = '1'
         process.env.NIKCLI_SUPER_COMPACT = '1'
       } catch {}
-      console.log(chalk.green('\n🎯 Enhanced Plan Mode Enabled'))
-      console.log(chalk.cyan('   • Comprehensive plan generation with risk analysis'))
-      console.log(chalk.cyan('   • Step-by-step execution with progress tracking'))
-      console.log(chalk.cyan('   • Enhanced approval system with detailed breakdown'))
-      console.log(chalk.dim('   (shift+tab to cycle modes)'))
-      console.log(chalk.gray('   Tip: use tools "todoread" and "todowrite" to manage the session TODOs'))
+      structuredLogger.success('OrchestratorService', 'Enhanced Plan Mode Enabled')
+      logger.info('Plan mode enabled', { mode: 'enhanced' })
+      advancedUI.logInfo('Comprehensive plan generation with risk analysis', 'Plan Mode')
+      advancedUI.logInfo('Step-by-step execution with progress tracking', 'Plan Mode')
+      advancedUI.logInfo('Enhanced approval system with detailed breakdown', 'Plan Mode')
+      advancedUI.logInfo('(shift+tab to cycle modes)', 'Plan Mode')
+      advancedUI.logInfo('Tip: use tools "todoread" and "todowrite" to manage the session TODOs', 'Plan Mode')
       // Show Todo Dashboard (session store preferred) or fallback to existing plans
       setTimeout(async () => {
         try {
@@ -839,8 +851,9 @@ export class OrchestratorService extends EventEmitter {
         } catch {}
       }, 0)
     } else {
-      console.log(chalk.yellow('\n⚠︎  Plan Mode Disabled'))
-      console.log(chalk.gray('   • Returning to standard mode'))
+      structuredLogger.warning('OrchestratorService', 'Plan Mode Disabled')
+      logger.info('Plan mode disabled', { mode: 'standard' })
+      advancedUI.logInfo('Returning to standard mode', 'Plan Mode')
       try {
         delete (process.env as any).NIKCLI_COMPACT
         delete (process.env as any).NIKCLI_SUPER_COMPACT
@@ -871,9 +884,9 @@ export class OrchestratorService extends EventEmitter {
     diffManager.setAutoAccept(this.context.autoAcceptEdits)
 
     if (this.context.autoAcceptEdits) {
-      console.log(chalk.green('\\n✓ auto-accept edits on ') + chalk.dim('(ctrl+a to toggle)'))
+      structuredLogger.success('OrchestratorService', 'auto-accept edits on (ctrl+a to toggle)')
     } else {
-      console.log(chalk.yellow('\\n⚠︎ auto-accept edits off'))
+      structuredLogger.warning('OrchestratorService', 'auto-accept edits off')
     }
     this.updateModuleContext()
   }
@@ -960,8 +973,8 @@ export class OrchestratorService extends EventEmitter {
   }
 
   private async showMiddlewareStatus(): Promise<void> {
-    console.log(chalk.cyan.bold('\n Middleware System Status'))
-    console.log(chalk.gray('─'.repeat(60)))
+    structuredLogger.info('OrchestratorService', 'Middleware System Status')
+    logger.debug('Showing middleware status')
 
     // Show middleware manager status
     middlewareManager.showStatus()
@@ -969,21 +982,21 @@ export class OrchestratorService extends EventEmitter {
     // Show recent middleware events
     const history = middlewareManager.getExecutionHistory(10)
     if (history.length > 0) {
-      console.log(chalk.white.bold('\nRecent Middleware Events:'))
+      advancedUI.logInfo('Recent Middleware Events:', 'Middleware')
       history.forEach((event) => {
         const icon =
           event.type === 'complete' ? '✓' : event.type === 'error' ? '✖' : event.type === 'start' ? '⚡︎' : '⏭️'
         const duration = event.duration ? ` (${event.duration}ms)` : ''
-        console.log(`  ${icon} ${event.middlewareName}: ${event.type}${duration}`)
+        advancedUI.logInfo(`  ${icon} ${event.middlewareName}: ${event.type}${duration}`, 'Middleware')
       })
     }
 
     // Show performance metrics
     const summary = middlewareManager.getMetricsSummary()
-    console.log(chalk.white.bold('\nPerformance Summary:'))
-    console.log(`  Requests processed: ${summary.totalRequests}`)
-    console.log(`  Success rate: ${((1 - summary.overallErrorRate) * 100).toFixed(1)}%`)
-    console.log(`  Average response time: ${summary.averageResponseTime.toFixed(1)}ms`)
+    advancedUI.logInfo('Performance Summary:', 'Middleware')
+    advancedUI.logInfo(`  Requests processed: ${summary.totalRequests}`, 'Middleware')
+    advancedUI.logInfo(`  Success rate: ${((1 - summary.overallErrorRate) * 100).toFixed(1)}%`, 'Middleware')
+    advancedUI.logInfo(`  Average response time: ${summary.averageResponseTime.toFixed(1)}ms`, 'Middleware')
   }
 
   private showGoodbye(): void {
