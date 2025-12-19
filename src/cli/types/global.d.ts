@@ -17,7 +17,6 @@ declare global {
       OLLAMA_HOST?: string
       SUPABASE_URL?: string
       SUPABASE_ANON_KEY?: string
-      MINIMAX_API_KEY?: string
       REDIS_URL?: string
     }
   }

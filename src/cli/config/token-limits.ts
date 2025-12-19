@@ -523,7 +523,7 @@ export const MODEL_CONTEXT_LIMITS: Record<string, number> = {
   '@preset/nikcli-pro': 262144, // OpenRouter actual limit for nikcli-pro preset
 
   // Default fallback for unknown models
-  default: 128000,
+  default: 120000,
 }
 
 /**

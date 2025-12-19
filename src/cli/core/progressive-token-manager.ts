@@ -100,7 +100,7 @@ export class ProgressiveTokenManager {
   /**
    * EMERGENCY: Truncate content if it exceeds hard limits
    */
-  public emergencyTruncate(content: string, maxTokens: number = 120000): string {
+  public emergencyTruncate(content: string, maxTokens: number = 180000): string {
     const estimatedTokens = this.estimateTokens(content)
 
     if (estimatedTokens <= maxTokens) {

@@ -28,6 +28,7 @@ import { docsContextManager } from './context/docs-context-manager'
 import { unifiedRAGSystem } from './context/rag-system'
 import { workspaceContext } from './context/workspace-context'
 import { agentFactory } from './core/agent-factory'
+import { blueprintStorage } from './core/blueprint-storage'
 import { agentLearningSystem } from './core/agent-learning-system'
 import { AgentManager } from './core/agent-manager'
 import { agentStream } from './core/agent-stream'
@@ -6513,7 +6514,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     const hasMultipleSentences = input.split(/[.!?]/).filter((s) => s.trim().length > 0).length > 2
     const hasMultipleTechnicalTerms = technicalTermCount >= 2
 
-    // More aggressive detection: task is complex if it has 2+ complex indicators
+    // More aggressive detection: task is complex if it has 1+ complex indicators
     const complexIndicators = [
       hasComplexKeywords && !hasSimpleKeywords,
       isLongTask,
@@ -6522,135 +6523,338 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       hasMultipleTechnicalTerms,
     ].filter(Boolean).length
 
-    return complexIndicators >= 2 || (hasComplexKeywords && !hasSimpleKeywords)
+    return complexIndicators >= 1 || (hasComplexKeywords && !hasSimpleKeywords)
   }
 
   /**
-   * Generate agent blueprints automatically based on todos and user task
+   * Helper method to get complexity indicators for debugging
+   * Returns array of strings describing why a task is complex
    */
-  private async generateAgentBlueprintsFromTodos(todos: any[], userTask: string): Promise<string[]> {
-    console.log(chalk.blue('🧬 Auto-generating agent blueprints from todos...'))
+  private getTaskComplexityIndicators(input: string): string[] {
+    const lowerInput = input.toLowerCase()
+    const indicators: string[] = []
 
-    // Categorize todos by type to create specialized agents
-    const todoCategories = {
-      fileOperations: [] as any[],
-      codeAnalysis: [] as any[],
-      testing: [] as any[],
-      documentation: [] as any[],
-      integration: [] as any[],
-      general: [] as any[],
+    // Keywords that indicate complex tasks
+    const complexKeywords = [
+      'create', 'build', 'implement', 'develop', 'generate', 'setup', 'configure',
+      'refactor', 'migrate', 'deploy', 'install', 'integrate', 'design', 'architect',
+      'optimize', 'debug', 'fix', 'repair', 'maintain', 'update', 'upgrade',
+      'explore', 'plan', 'research', 'analyze', 'investigate', 'discover',
+    ]
+
+    // Keywords that indicate simple tasks
+    const simpleKeywords = [
+      'show', 'list', 'check', 'status', 'help', 'what', 'how', 'explain', 'describe',
+    ]
+
+    const hasComplexKeywords = complexKeywords.some((keyword) => lowerInput.includes(keyword))
+    const hasSimpleKeywords = simpleKeywords.some((keyword) => lowerInput.includes(keyword))
+
+    if (hasComplexKeywords && !hasSimpleKeywords) {
+      indicators.push('complex keywords')
     }
 
-    // Categorize each todo
-    for (const todo of todos) {
-      const titleLower = todo.title.toLowerCase()
-      const descLower = (todo.description || '').toLowerCase()
-      const content = `${titleLower} ${descLower}`
+    if (input.length > 100) {
+      indicators.push(`long task (${input.length} chars)`)
+    }
 
-      if (content.includes('file') || content.includes('create') || content.includes('write') || content.includes('modify')) {
-        todoCategories.fileOperations.push(todo)
-      } else if (content.includes('test') || content.includes('testing') || content.includes('spec')) {
-        todoCategories.testing.push(todo)
-      } else if (content.includes('doc') || content.includes('readme') || content.includes('comment')) {
-        todoCategories.documentation.push(todo)
-      } else if (content.includes('integrate') || content.includes('deploy') || content.includes('api') || content.includes('service')) {
-        todoCategories.integration.push(todo)
-      } else if (content.includes('analyze') || content.includes('review') || content.includes('refactor') || content.includes('optimize')) {
-        todoCategories.codeAnalysis.push(todo)
+    const sentences = input.split(/[.!?]/).filter((s) => s.trim().length > 0).length
+    if (sentences > 2) {
+      indicators.push(`multiple sentences (${sentences})`)
+    }
+
+    const technicalTerms = [
+      'react', 'vue', 'angular', 'node', 'python', 'typescript', 'javascript',
+      'api', 'rest', 'graphql', 'database', 'sql', 'mongodb', 'postgres',
+      'docker', 'kubernetes', 'aws', 'azure', 'gcp', 'github', 'gitlab',
+    ]
+    const technicalTermCount = technicalTerms.filter((term) => lowerInput.includes(term)).length
+    if (technicalTermCount >= 2) {
+      indicators.push(`multiple technical terms (${technicalTermCount})`)
+    }
+
+    const planningPatterns = [
+      /prima\s+.+poi/i,
+      /step\s+\d+/i,
+      /first\s+.+then/i,
+      /next\s+step/i,
+      /after\s+that/i,
+      /finally,\s+.+/i,
+    ]
+    if (planningPatterns.some((pattern) => pattern.test(input))) {
+      indicators.push('planning pattern')
+    }
+
+    return indicators
+  }
+
+  /**
+   * Analyze prompt and dynamically generate agent blueprints using AI
+   * Uses current session model (advancedAIProvider.currentModel)
+   */
+  private async generateAgentsFromPrompt(userTask: string): Promise<string[]> {
+    advancedUI.logFunctionUpdate('info', chalk.blue('🧬 Analyzing prompt for intelligent agent generation...'))
+
+    // Save current model and find a supported model with API key and provider
+    const originalModel = configManager.getCurrentModel()
+    advancedUI.logFunctionUpdate('info', chalk.gray(`   Original model: ${originalModel}`))
+
+    // Check if current model has API key and supported provider
+    let modelToUse = originalModel
+    const currentApiKey = configManager.getApiKey(originalModel)
+    const models = configManager.get('models')
+    const currentModelConfig = models[originalModel]
+    const currentProvider = currentModelConfig?.provider
+
+    // Define supported providers (from config-manager.ts ModelConfigSchema)
+    const supportedProviders = [
+      'openai', 'anthropic', 'google', 'ollama', 'vercel', 'gateway',
+      'openrouter', 'cerebras', 'groq', 'llamacpp', 'lmstudio',
+      'openai-compatible', 'opencode'
+    ]
+
+    const isCurrentModelValid = currentApiKey && currentProvider && supportedProviders.includes(currentProvider)
+
+    if (!isCurrentModelValid) {
+      advancedUI.logFunctionUpdate('warning', `   No valid API key or unsupported provider for ${originalModel}, finding alternative...`)
+
+      // Find first model with API key AND supported provider
+      const modelsWithKeys = configManager.listModels()
+        .filter(m => m.hasApiKey && m.config.provider && supportedProviders.includes(m.config.provider))
+
+      if (modelsWithKeys.length > 0) {
+        modelToUse = modelsWithKeys[0].name
+        const providerName = modelsWithKeys[0].config.provider
+        advancedUI.logFunctionUpdate('info', chalk.gray(`   Using model with API key: ${modelToUse} (${providerName})`))
       } else {
-        todoCategories.general.push(todo)
+        throw new Error('No models with API key and supported provider found. Please configure an API key with /set-key <model> <key>')
       }
+    } else {
+      advancedUI.logFunctionUpdate('info', chalk.gray(`   Using current model: ${modelToUse} (${currentProvider})`))
     }
 
-    // Create agent blueprints for each category that has todos
-    const blueprintIds: string[] = []
+    // Switch to model with API key and supported provider
+    configManager.set('currentModel', modelToUse)
+    advancedAIProvider.setModel(modelToUse)
 
-    // File Operations Agent
-    if (todoCategories.fileOperations.length > 0) {
-      const specialization = `File operations and code generation for: ${userTask.substring(0, 100)}`
-      const blueprint = await agentFactory.createAgentBlueprint({
-        name: `file-ops-agent-${Date.now()}`,
-        specialization,
-        description: `Specialized in file operations, code generation, and file modifications. Handles ${todoCategories.fileOperations.length} todos related to file management.`,
-        autonomyLevel: 'fully-autonomous',
-        contextScope: 'project',
+    try {
+      // AI analysis prompt
+      const analysisPrompt = `Analyze this development task and determine the optimal agent configuration for parallel execution.
+
+TASK: "${userTask}"
+
+Respond ONLY with a valid JSON object (no markdown, no explanation):
+{
+  "agents": [
+    {
+      "specialization": "specific focus area for this agent",
+      "name": "kebab-case-name",
+      "role": "primary|support|review",
+      "capabilities": ["capability1", "capability2"]
+    }
+  ],
+  "executionStrategy": "parallel|sequential",
+  "reasoning": "brief explanation"
+}
+
+RULES:
+- Maximum 4 agents for efficiency
+- Minimum 1 agent always
+- Create distinct specializations (no overlap)
+- Examples of good splits:
+  - "Build authentication system" → [auth-backend, auth-frontend, auth-testing]
+  - "Optimize database queries" → [query-analyzer, query-optimizer]
+  - "Simple bug fix" → [bug-fixer] (single agent)
+- Each agent must have clear, actionable specialization`
+
+      const messages = [{ role: 'user' as const, content: analysisPrompt }]
+
+      let agentConfigs: Array<{
+        specialization: string
+        name: string
+        role: string
+        capabilities: string[]
+      }> = []
+
+      try {
+        // Generate response with supported model
+        const response = await modelProvider.generateResponse({ messages })
+
+        // Extract JSON
+        const jsonText = this.extractJsonFromMarkdown(response)
+        const parsed = JSON.parse(jsonText)
+
+        if (parsed.agents && Array.isArray(parsed.agents) && parsed.agents.length > 0) {
+          agentConfigs = parsed.agents
+          console.log(chalk.green(`✓ AI determined ${agentConfigs.length} agent(s) needed`))
+          if (parsed.reasoning) {
+            console.log(chalk.gray(`   Reasoning: ${parsed.reasoning}`))
+          }
+        } else {
+          throw new Error('Invalid agents array')
+        }
+      } catch (error: any) {
+        console.log(chalk.yellow(`⚠ AI analysis failed: ${error.message}`))
+        console.log(chalk.yellow('   Creating fallback agent configuration...'))
+
+        // FALLBACK: Rule-based prompt analysis
+        agentConfigs = this.createFallbackAgentConfigs(userTask)
+      }
+
+      // Create blueprint for each agent using the SAME logic as /create-agent
+      // The createAgentBlueprint method has built-in fallback handling:
+      // 1. Try AI generation
+      // 2. Fallback blueprint if AI fails
+      // 3. Minimal blueprint as last resort
+      const blueprintIds: string[] = []
+
+      for (const config of agentConfigs) {
+        try {
+          // Use the SAME logic as /create-agent command
+          const blueprint = await agentFactory.createAgentBlueprint({
+            name: config.name || `auto-agent-${Date.now()}-${blueprintIds.length}`,
+            specialization: config.specialization,
+            description: `Auto-generated: ${config.specialization}`,
+            autonomyLevel: 'fully-autonomous',
+            contextScope: 'project',
+          })
+
+          // CRITICAL FIX: Ensure blueprint is persisted before proceeding
+          // Wait for async storage with retry logic to prevent race condition
+          const maxAttempts = 5
+          let persistedBlueprint: any = null
+          for (let attempt = 0; attempt < maxAttempts; attempt++) {
+            persistedBlueprint = await blueprintStorage.loadBlueprint(blueprint.id)
+            if (persistedBlueprint) {
+              blueprintIds.push(blueprint.id)
+              console.log(chalk.green(`   ✓ Blueprint: ${blueprint.name}`))
+              break
+            }
+            if (attempt === maxAttempts - 1) {
+              throw new Error(`Blueprint not persisted after ${maxAttempts} attempts`)
+            }
+            // Exponential backoff: 50ms, 100ms, 150ms, 200ms
+            await new Promise(resolve => setTimeout(resolve, 50 * (attempt + 1)))
+          }
+        } catch (error: any) {
+          advancedUI.logFunctionUpdate('error', `   ✖ Failed to create blueprint: ${error.message}`)
+          // CRITICAL: Re-throw error instead of continuing silently
+          // This prevents launching zero agents and gives clear error feedback
+          throw error
+        }
+      }
+
+      advancedUI.logFunctionUpdate('success', `\n✓ Generated ${blueprintIds.length} agent blueprint(s)\n`)
+      return blueprintIds
+    } finally {
+      // Always restore original model
+      configManager.set('currentModel', originalModel)
+      advancedAIProvider.setModel(originalModel)
+      advancedUI.logFunctionUpdate('info', chalk.gray(`   Restored model: ${originalModel}`))
+    }
+  }
+
+  /**
+   * Fallback: create agent configuration based on keyword analysis
+   */
+  private createFallbackAgentConfigs(userTask: string): Array<{
+    specialization: string
+    name: string
+    role: string
+    capabilities: string[]
+  }> {
+    const lowerTask = userTask.toLowerCase()
+    const configs: Array<{ specialization: string; name: string; role: string; capabilities: string[] }> = []
+
+    // Keyword analysis to determine specializations
+    const hasCode = /\b(code|implement|create|build|develop|write)\b/.test(lowerTask)
+    const hasTest = /\b(test|testing|spec|unit|integration)\b/.test(lowerTask)
+    const hasDoc = /\b(doc|documentation|readme|comment)\b/.test(lowerTask)
+    const hasRefactor = /\b(refactor|optimize|improve|clean)\b/.test(lowerTask)
+    const hasDebug = /\b(debug|fix|error|bug|issue)\b/.test(lowerTask)
+    const hasAnalysis = /\b(analyze|review|audit|check)\b/.test(lowerTask)
+
+    // Primary agent always present
+    if (hasDebug) {
+      configs.push({
+        specialization: `Debug and fix issues in: ${userTask.slice(0, 80)}`,
+        name: `debugger-${Date.now()}`,
+        role: 'primary',
+        capabilities: ['debugging', 'error-analysis', 'fix-implementation'],
       })
-      blueprintIds.push(blueprint.id)
-      console.log(chalk.green(`✓ Created agent blueprint: ${blueprint.name}`))
-    }
-
-    // Code Analysis Agent
-    if (todoCategories.codeAnalysis.length > 0) {
-      const specialization = `Code analysis, review, and refactoring for: ${userTask.substring(0, 100)}`
-      const blueprint = await agentFactory.createAgentBlueprint({
-        name: `code-analysis-agent-${Date.now()}`,
-        specialization,
-        description: `Specialized in code analysis, review, and refactoring. Handles ${todoCategories.codeAnalysis.length} todos related to code quality.`,
-        autonomyLevel: 'fully-autonomous',
-        contextScope: 'project',
+    } else if (hasRefactor) {
+      configs.push({
+        specialization: `Refactor and optimize: ${userTask.slice(0, 80)}`,
+        name: `refactorer-${Date.now()}`,
+        role: 'primary',
+        capabilities: ['refactoring', 'code-optimization', 'clean-code'],
       })
-      blueprintIds.push(blueprint.id)
-      console.log(chalk.green(`✓ Created agent blueprint: ${blueprint.name}`))
-    }
-
-    // Testing Agent
-    if (todoCategories.testing.length > 0) {
-      const specialization = `Testing and quality assurance for: ${userTask.substring(0, 100)}`
-      const blueprint = await agentFactory.createAgentBlueprint({
-        name: `testing-agent-${Date.now()}`,
-        specialization,
-        description: `Specialized in testing, test writing, and quality assurance. Handles ${todoCategories.testing.length} todos related to testing.`,
-        autonomyLevel: 'fully-autonomous',
-        contextScope: 'project',
+    } else if (hasCode) {
+      configs.push({
+        specialization: `Implement feature: ${userTask.slice(0, 80)}`,
+        name: `implementer-${Date.now()}`,
+        role: 'primary',
+        capabilities: ['code-generation', 'implementation', 'architecture'],
       })
-      blueprintIds.push(blueprint.id)
-      console.log(chalk.green(`✓ Created agent blueprint: ${blueprint.name}`))
-    }
-
-    // Documentation Agent
-    if (todoCategories.documentation.length > 0) {
-      const specialization = `Documentation and knowledge management for: ${userTask.substring(0, 100)}`
-      const blueprint = await agentFactory.createAgentBlueprint({
-        name: `docs-agent-${Date.now()}`,
-        specialization,
-        description: `Specialized in documentation, README creation, and knowledge management. Handles ${todoCategories.documentation.length} todos related to documentation.`,
-        autonomyLevel: 'fully-autonomous',
-        contextScope: 'project',
+    } else {
+      configs.push({
+        specialization: `Execute task: ${userTask.slice(0, 80)}`,
+        name: `executor-${Date.now()}`,
+        role: 'primary',
+        capabilities: ['task-execution', 'problem-solving'],
       })
-      blueprintIds.push(blueprint.id)
-      console.log(chalk.green(`✓ Created agent blueprint: ${blueprint.name}`))
     }
 
-    // Integration Agent
-    if (todoCategories.integration.length > 0) {
-      const specialization = `Integration and deployment for: ${userTask.substring(0, 100)}`
-      const blueprint = await agentFactory.createAgentBlueprint({
-        name: `integration-agent-${Date.now()}`,
-        specialization,
-        description: `Specialized in integration, deployment, and service connectivity. Handles ${todoCategories.integration.length} todos related to integration.`,
-        autonomyLevel: 'fully-autonomous',
-        contextScope: 'project',
+    // Support agents
+    if (hasTest && configs.length < 4) {
+      configs.push({
+        specialization: `Testing and quality assurance for: ${userTask.slice(0, 60)}`,
+        name: `tester-${Date.now()}`,
+        role: 'support',
+        capabilities: ['testing', 'quality-assurance', 'test-writing'],
       })
-      blueprintIds.push(blueprint.id)
-      console.log(chalk.green(`✓ Created agent blueprint: ${blueprint.name}`))
     }
 
-    // General Task Agent for remaining todos
-    if (todoCategories.general.length > 0) {
-      const specialization = `General task execution for: ${userTask.substring(0, 100)}`
-      const blueprint = await agentFactory.createAgentBlueprint({
-        name: `general-task-agent-${Date.now()}`,
-        specialization,
-        description: `General purpose agent for miscellaneous tasks. Handles ${todoCategories.general.length} general todos.`,
-        autonomyLevel: 'fully-autonomous',
-        contextScope: 'project',
+    if (hasDoc && configs.length < 4) {
+      configs.push({
+        specialization: `Documentation for: ${userTask.slice(0, 60)}`,
+        name: `documenter-${Date.now()}`,
+        role: 'support',
+        capabilities: ['documentation', 'comments', 'readme'],
       })
-      blueprintIds.push(blueprint.id)
-      console.log(chalk.green(`✓ Created agent blueprint: ${blueprint.name}`))
     }
 
-    console.log(chalk.cyan(`\n✓ Generated ${blueprintIds.length} agent blueprints for parallel execution\n`))
-    return blueprintIds
+    if (hasAnalysis && configs.length < 4) {
+      configs.push({
+        specialization: `Code analysis and review for: ${userTask.slice(0, 60)}`,
+        name: `analyzer-${Date.now()}`,
+        role: 'review',
+        capabilities: ['code-review', 'analysis', 'recommendations'],
+      })
+    }
+
+    console.log(chalk.gray(`   Fallback: created ${configs.length} agent config(s)`))
+    return configs
+  }
+
+  /**
+   * Helper: Extract JSON from markdown code blocks or raw text
+   */
+  private extractJsonFromMarkdown(text: string): string {
+    // Try to find JSON wrapped in code blocks
+    const jsonBlockMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/)
+    if (jsonBlockMatch) {
+      return jsonBlockMatch[1].trim()
+    }
+
+    // Try to find JSON object directly
+    const jsonMatch = text.match(/\{[\s\S]*\}/)
+    if (jsonMatch) {
+      return jsonMatch[0].trim()
+    }
+
+    // Return original text if no patterns found
+    return text.trim()
   }
 
   /**
@@ -6664,20 +6868,28 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     const isComplexTask = this.assessTaskComplexity(input)
 
     if (isComplexTask) {
-      // Auto-generate plan, agent blueprints, and execute with parallel plan mode
+      // Auto-generate agents from prompt and execute with parallel plan mode
       try {
-        console.log(chalk.blue('📋 Detected complex task - creating execution plan...'))
+        advancedUI.logFunctionUpdate('info', chalk.blue('📋 Complex task detected - auto-configuring parallel agents...'))
+        advancedUI.logFunctionUpdate('info', chalk.gray(`   Task complexity indicators: ${this.getTaskComplexityIndicators(input).join(', ')}`))
 
-        // Generate todos using TaskMaster/legacy planning
-        const universalAgentId = 'universal-agent'
-        const todos = await agentTodoManager.planTodos(universalAgentId, input)
+        // 1. Generate agents dynamically from prompt (uses session model)
+        advancedUI.logFunctionUpdate('info', chalk.blue('🧬 Generating agents from prompt...'))
+        const agentBlueprintIds = await this.generateAgentsFromPrompt(input)
 
-        // Generate agent blueprints automatically from todos
-        const agentBlueprintIds = await this.generateAgentBlueprintsFromTodos(todos, input)
+        advancedUI.logFunctionUpdate('success', `✓ Generated ${agentBlueprintIds.length} blueprint(s)`)
+        // Log blueprint IDs for debugging
+        agentBlueprintIds.forEach((id, i) => {
+          advancedUI.logFunctionUpdate('info', chalk.gray(`   [${i + 1}] ${id}`))
+        })
 
-        // Create collaboration context for parallel execution
+        if (agentBlueprintIds.length === 0) {
+          throw new Error('No agents could be created')
+        }
+
+        // 2. Create collaboration context
         const collaborationContext = {
-          sessionId: `auto-complex-${Date.now()}`,
+          sessionId: `auto-parallel-${Date.now()}`,
           agents: agentBlueprintIds,
           task: input,
           logs: new Map<string, string[]>(),
@@ -6685,30 +6897,77 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
           planId: '',
         }
 
-        // Launch agents from blueprints
+        // 3. Launch the agents with retry logic to prevent race condition
+        advancedUI.logFunctionUpdate('info', chalk.blue(`🚀 Launching ${agentBlueprintIds.length} agent(s)...`))
         const launchedAgents: any[] = []
+
         for (const blueprintId of agentBlueprintIds) {
-          const agent = await agentFactory.launchAgent(blueprintId)
-          ;(agent as any).collaborationContext = collaborationContext
-          launchedAgents.push(agent)
+          // Retry logic per race condition tra persistenza e lancio
+          let agent: any
+          let success = false
+          const maxRetries = 3
+
+          for (let attempt = 0; attempt < maxRetries; attempt++) {
+            try {
+              agent = await agentFactory.launchAgent(blueprintId)
+              ;(agent as any).collaborationContext = collaborationContext
+              success = true
+              break
+            } catch (error: any) {
+              if (attempt === maxRetries - 1) {
+                throw new Error(`Failed to launch agent after ${maxRetries} attempts: ${error.message}`)
+              }
+              // Exponential backoff: 100ms, 200ms
+              await new Promise(resolve => setTimeout(resolve, 100 * (attempt + 1)))
+            }
+          }
+
+          if (success) {
+            launchedAgents.push(agent)
+            const agentName = (agent as any).blueprint?.name || blueprintId
+            advancedUI.logFunctionUpdate('success', `   ✓ Launched: ${agentName}`)
+          }
         }
 
-        // Create plan for parallel execution
+        if (launchedAgents.length === 0) {
+          throw new Error('No agents could be launched')
+        }
+
+        // 4. Create plan with todos
+        advancedUI.logFunctionUpdate('info', chalk.blue('📝 Generating execution plan...'))
         const plan = await planningService.createPlan(input, {
           showProgress: false,
           autoExecute: false,
           confirmSteps: false,
         })
 
-        // Execute with parallel plan mode (like /parallel command)
+        advancedUI.logFunctionUpdate('success', `✓ Generated plan with ${plan.todos?.length || 0} todo(s)`)
+
+        // 5. Initialize Plan HUD (like /parallel)
+        this.initializePlanHud({
+          id: collaborationContext.sessionId,
+          title: `Auto-Parallel (${launchedAgents.length} agents): ${plan.title || input.slice(0, 50)}`,
+          todos: plan.todos,
+        })
+
+        advancedUI.logFunctionUpdate('info', chalk.blue('⚡ Executing in parallel mode...'))
+
+        // 6. Execute in parallel (exactly like /parallel)
         await this.executeParallelPlanMode(plan, launchedAgents, collaborationContext)
 
-        console.log(chalk.green('\n✓ Parallel execution completed successfully!'))
+        advancedUI.logFunctionUpdate('success', '\n✓ Parallel execution completed successfully!')
+
+        // Restore prompt
+        this.safeTimeout(() => this.renderPromptAfterOutput(), 100)
         return
       } catch (error: any) {
-        console.log(chalk.red(`✖ Failed to execute complex task: ${error.message}`))
-        console.log(chalk.yellow('Falling back to simple chat mode...'))
-        // Continue to simple chat mode below
+        advancedUI.logFunctionUpdate('error', `\n✖ Auto-parallel failed: ${error.message}`)
+        advancedUI.logFunctionUpdate('warning', 'Falling back to standard chat mode...')
+        // Continue to standard chat below
+      } finally {
+        // CRITICAL: Always restore prompt to ensure CLI remains usable
+        // This runs whether success or failure occurs
+        this.safeTimeout(() => this.renderPromptAfterOutput(), 100)
       }
     }
 

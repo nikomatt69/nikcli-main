@@ -707,7 +707,7 @@ export class SecureVirtualizedAgent extends EventEmitter implements Agent {
   private emitVMCommunication(message: string): void {
     // Emit to global event bus for streaming orchestrator
     if (global && (global as any).__streamingOrchestrator) {
-      ;(global as any).__streamingOrchestrator.queueMessage({
+      ; (global as any).__streamingOrchestrator.queueMessage({
         type: 'vm',
         content: `[${this.id.slice(0, 8)}] ${message}`,
         metadata: {
@@ -887,10 +887,8 @@ export class SecureVirtualizedAgent extends EventEmitter implements Agent {
             } else if (chunk.type === 'complete') {
               // AI request completed
               this.emitVMCommunication(`AI streaming completed: ${chunk.tokenUsage} tokens`)
-            } else if (chunk.type === 'start' || chunk.type === 'stream-start') {
-              // Handle stream initialization
-              this.emitVMCommunication('AI streaming started')
-            } else if (chunk.type === 'message') {
+
+            } else if (chunk.type === 'content') {
               // Handle message chunks
               if (chunk.content) {
                 this.emitVMCommunication(`AI message: ${chunk.content.slice(0, 30)}...`)

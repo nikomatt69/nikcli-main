@@ -869,12 +869,12 @@ export class AgentFactory extends EventEmitter {
     // Verify model configuration and API key before proceeding
     try {
       const modelInfo = modelProvider.getCurrentModelInfo()
-      const hasApiKey = modelProvider.validateApiKey()
+      const currentModel = configManager.getCurrentModel()
+      const apiKey = configManager.getApiKey(currentModel)
 
-      if (!hasApiKey) {
-        const currentModel = configManager.getCurrentModel()
+      if (!apiKey) {
         throw new Error(
-          `API key not configured for model: ${currentModel}. Use /set-key ${currentModel} <your-api-key>`
+          `API key not configured for model: ${currentModel}. Use /set-key ${currentModel} <your-api-key> or set ${currentModel.toUpperCase()}_API_KEY environment variable`
         )
       }
 

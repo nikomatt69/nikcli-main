@@ -62,14 +62,7 @@ export class AdvancedTools {
         })
         return openrouterProvider(configData.model)
       }
-      case 'minimax': {
-        const { createAnthropic } = require('@ai-sdk/anthropic')
-        const minimaxProvider = createAnthropic({
-          apiKey: process.env.MINIMAX_API_KEY,
-          baseURL: 'https://api.minimax.io/anthropic/v1',
-        })
-        return minimaxProvider(configData.model)
-      }
+
       default:
         throw new Error(`Unsupported provider: ${configData.provider}`)
     }
@@ -134,7 +127,7 @@ export class AdvancedTools {
         available: !!openaiKey,
         model: 'text-embedding-3-small',
       })
-    } catch {}
+    } catch { }
 
     try {
       const googleKey = configManager.getApiKey('google') || process.env.GOOGLE_GENERATIVE_AI_API_KEY
@@ -143,7 +136,7 @@ export class AdvancedTools {
         available: !!googleKey,
         model: 'text-embedding-004',
       })
-    } catch {}
+    } catch { }
 
     try {
       const openrouterKey = configManager.getApiKey('openrouter') || process.env.OPENROUTER_API_KEY
@@ -152,7 +145,7 @@ export class AdvancedTools {
         available: !!openrouterKey,
         model: 'text-embedding-3-small',
       })
-    } catch {}
+    } catch { }
 
     return providers
   }

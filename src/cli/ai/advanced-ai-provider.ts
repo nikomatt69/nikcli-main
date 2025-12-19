@@ -2785,7 +2785,7 @@ The tool automatically handles chunking, token limits, and provides continuation
         ...msg,
         content:
           typeof msg.content === 'string'
-            ? this.progressiveTokenManager.emergencyTruncate(msg.content, 120000)
+            ? this.progressiveTokenManager.emergencyTruncate(msg.content, 1200000)
             : msg.content,
       })) as CoreMessage[]
 
@@ -2882,7 +2882,7 @@ The tool automatically handles chunking, token limits, and provides continuation
 
       // Check if reasoning should be enabled
       const reasoningEnabled = this.shouldEnableReasoning()
-      
+
       // OpenRouter and Anthropic models REQUIRE maxTokens
       if (provider !== 'openai') {
         if (provider === 'openrouter') {
@@ -4012,12 +4012,12 @@ Requirements:
       const _provider = this.getCurrentModelInfo().config.provider
       const genOpts: any = {
         model,
-        prompt: this.progressiveTokenManager.emergencyTruncate(codeGenPrompt, 120000),
+        prompt: this.progressiveTokenManager.emergencyTruncate(codeGenPrompt, 1200000),
       }
       const provider = this.getCurrentModelInfo().config.provider
       // Check if reasoning should be enabled
       const reasoningEnabled = this.shouldEnableReasoning()
-      
+
       if (provider !== 'openai') {
         if (provider === 'openrouter') {
           // All OpenRouter models require maxTokens
