@@ -5277,8 +5277,6 @@ EOF`
    */
   private async executeParallelPlanMode(plan: any, agents: any[], collaborationContext: any): Promise<void> {
     try {
-      const allAggregatedResults: string[] = []
-
       // Notify plan start
       void this.sendPlanStartedNotification(plan, agents)
 
@@ -5311,8 +5309,8 @@ EOF`
         // Aggregate results from all agents for this todo
         const aggregatedResult = await this.aggregateTodoResults(todo, agents, collaborationContext)
 
-        // Store aggregated result
-        allAggregatedResults.push(aggregatedResult)
+        // Stream the aggregated result immediately (collaborative output)
+        await this.streamAggregatedResult(aggregatedResult, todo.title, i + 1, plan.todos.length)
 
         // Mark todo as completed
         this.updatePlanHudTodoStatus(todo.id, 'completed')
@@ -5330,10 +5328,8 @@ EOF`
         this.safeTimeout(() => this.renderPromptAfterOutput(), 50)
       }
 
-      // Generate final collaborative output
-      const finalOutput = this.aggregatePlanResults(plan, allAggregatedResults)
-      await this.renderFinalOutput(finalOutput)
-
+      // Final collaborative output is already streamed per-todo
+      // Just show completion message
       this.addLiveUpdate({
         type: 'status',
         content: '🎉 Parallel plan execution completed successfully!',
@@ -5376,7 +5372,7 @@ EOF`
   private async runTodoInParallel(todo: any, agents: any[], collaborationContext: any): Promise<void> {
     const todoText = todo.description || todo.title
 
-    // Execute with all agents concurrently
+    // Execute with all agents concurrently (collect output, don't stream)
     const agentPromises = agents.map(async (agent) => {
       const agentName = agent.blueprint?.name || agent.blueprintId
       const tools = this.createSpecializedToolchain(agent.blueprint)
@@ -5385,15 +5381,15 @@ EOF`
         // Set up agent helpers for collaboration
         this.setupAgentCollaborationHelpers(agent, collaborationContext)
 
-        // Execute using plan-mode streaming
-        await this.executeAgentWithPlanModeStreaming(agent, todoText, agentName, tools)
+        // Execute WITHOUT streaming to collect output for collaboration
+        const agentOutput = await this.executeAgentCollectOutput(agent, todoText, agentName, tools)
 
-        // Store agent's output
-        const agentOutput = collaborationContext.sharedData.get(`${agent.id}:current-output`) || ''
+        // Store agent's output in collaboration context
         collaborationContext.sharedData.set(`${agent.id}:todo:${todo.id}:output`, {
           raw: agentOutput,
           agentName,
           blueprintId: agent.blueprintId,
+          specialization: agent.blueprint?.specialization || 'general',
           timestamp: new Date().toISOString(),
         })
 
@@ -5408,7 +5404,111 @@ EOF`
       }
     })
 
-    await Promise.all(agentPromises)
+    // Wait for all agents to complete
+    const results = await Promise.all(agentPromises)
+    const successfulAgents = results.filter(r => r.success)
+
+    if (successfulAgents.length === 0) {
+      throw new Error('All agents failed to execute')
+    }
+  }
+
+  /**
+   * Execute agent and collect output without streaming (for collaboration)
+   */
+  private async executeAgentCollectOutput(
+    agent: any,
+    task: string,
+    agentName: string,
+    tools: any[]
+  ): Promise<string> {
+    try {
+      // Get unified tool renderer
+      const unifiedRenderer = getUnifiedToolRenderer()
+
+      // Start parallel execution mode
+      unifiedRenderer.startExecution('parallel')
+
+      // Create collaboration-aware messages
+      const specialization = agent.blueprint?.specialization || 'general'
+      const messages = [
+        {
+          role: 'system' as const,
+          content: `You are ${agentName}, a specialized AI agent with focus on: ${specialization}
+
+IMPORTANT: You are part of a COLLABORATIVE TEAM working on this task with other specialized agents.
+Your teammates have different specializations and will contribute their expertise.
+
+Your role:
+- Focus on YOUR specialization area
+- Share your findings and insights with the team
+- Build upon or complement what other agents discover
+- Be collaborative, not redundant
+
+Task to complete: ${task}
+
+Work on this task focusing on your specialization: ${specialization}`
+        },
+        { role: 'user' as const, content: task }
+      ]
+
+      let assistantText = ''
+
+      // Stream through AI provider
+      const { streamttyService } = await import('./services/streamtty-service')
+      const streamController = new AbortController()
+      this.currentStreamControllers.add(streamController)
+
+      try {
+        // Execute without streaming to UI, just collect output
+        for await (const ev of advancedAIProvider.streamChatWithFullAutonomy(messages, streamController.signal)) {
+          switch (ev.type) {
+            case 'text_delta':
+              if (ev.content) {
+                assistantText += ev.content
+              }
+              break
+            case 'complete':
+              break
+            case 'error':
+              throw new Error(ev.error)
+          }
+        }
+      } finally {
+        this.currentStreamControllers.delete(streamController)
+      }
+
+      return assistantText
+    } finally {
+      // End execution mode
+      const unifiedRenderer = getUnifiedToolRenderer()
+      unifiedRenderer.endExecution()
+    }
+  }
+
+  /**
+   * Stream aggregated collaborative result from all agents
+   */
+  private async streamAggregatedResult(
+    aggregatedResult: string,
+    todoTitle: string,
+    todoNumber: number,
+    totalTodos: number
+  ): Promise<void> {
+    try {
+      const { streamttyService } = await import('./services/streamtty-service')
+
+      // Stream the collaborative result
+      await streamttyService.streamChunk('\n🤝 COLLABORATIVE RESULT:\n', 'ai')
+      await streamttyService.streamChunk(aggregatedResult, 'ai')
+      await streamttyService.streamChunk('\n\n', 'ai')
+    } catch (error: any) {
+      this.addLiveUpdate({
+        type: 'error',
+        content: `✖ Failed to stream collaborative result: ${error.message}`,
+        source: 'parallel-plan',
+      })
+    }
   }
 
   /**
