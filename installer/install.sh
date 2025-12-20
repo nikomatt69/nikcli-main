@@ -4,7 +4,7 @@ set -euo pipefail
 PACKAGE="@nicomatt69/nikcli"
 RELEASE_REPO="${NIKCLI_RELEASE_REPO:-nicomatt69/nikcli-main}"
 NODE_MIN_MAJOR=22
-DEFAULT_METHODS=("brew" "bun" "npm" "standalone")
+DEFAULT_METHODS=( "bun" "npm" "standalone")
 
 info() { echo -e "[NikCLI] $*"; }
 warn() { echo -e "[NikCLI][WARN] $*" >&2; }
