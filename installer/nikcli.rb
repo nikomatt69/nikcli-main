@@ -1,7 +1,7 @@
 class Nikcli < Formula
   desc "NikCLI - Context-Aware AI Development Assistant"
   homepage "https://github.com/nikomatt69/nikcli-main"
-  version "1.5.0"
+  version "1.6.0"
   license "MIT"
 
   on_macos do

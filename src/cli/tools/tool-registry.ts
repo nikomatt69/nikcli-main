@@ -58,7 +58,7 @@ export class ToolRegistry {
     // Update all tool instances that support updateWorkingDirectory
     for (const [_name, tool] of this.tools.entries()) {
       if (tool && typeof (tool as any).updateWorkingDirectory === 'function') {
-        ;(tool as any).updateWorkingDirectory(newDir)
+        ; (tool as any).updateWorkingDirectory(newDir)
       }
     }
   }
@@ -81,7 +81,7 @@ export class ToolRegistry {
       estimatedDuration: metadata?.estimatedDuration || 5000,
       requiredPermissions: metadata?.requiredPermissions || [],
       supportedFileTypes: metadata?.supportedFileTypes || [],
-      version: metadata?.version || '1.5.0',
+      version: metadata?.version || '1.6.0',
       author: metadata?.author || 'system',
       tags: metadata?.tags || [],
     })
@@ -222,7 +222,7 @@ export class ToolRegistry {
     return {
       tools: Array.from(this.toolMetadata.values()),
       exportedAt: new Date(),
-      version: '1.5.0',
+      version: '1.6.0',
     }
   }
 

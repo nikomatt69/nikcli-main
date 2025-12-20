@@ -201,7 +201,7 @@ export type EventTypeMap = Record<string, BaseEvent<string>>
 /**
  * Type system version for compatibility checking
  */
-export const TYPE_SYSTEM_VERSION = '1.5.0' as const
+export const TYPE_SYSTEM_VERSION = '1.6.0' as const
 
 /**
  * Supported type system features

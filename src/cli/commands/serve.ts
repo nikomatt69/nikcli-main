@@ -61,7 +61,7 @@ export function createServeCommand(): Command {
             app.get("/health", (req: Request, res: Response) => {
                 res.json({
                     status: "ok",
-                    version: process.env.npm_package_version || "1.5.0",
+                    version: process.env.npm_package_version || "1.6.0",
                     uptime: process.uptime(),
                     timestamp: new Date().toISOString()
                 })
@@ -71,7 +71,7 @@ export function createServeCommand(): Command {
             app.get("/api/info", (req: Request, res: Response) => {
                 res.json({
                     name: "NikCLI",
-                    version: process.env.npm_package_version || "1.5.0",
+                    version: process.env.npm_package_version || "1.6.0",
                     mode: "desktop",
                     features: [
                         "ai-chat",

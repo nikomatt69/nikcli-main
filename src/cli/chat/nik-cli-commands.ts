@@ -47,7 +47,7 @@ import { initializeVMSelector, vmSelector } from '../virtualized-agents/vm-selec
 import { chatManager } from './chat-manager'
 
 // Skills imports (simplified for create-skill command)
-import { SkillCategory, SkillRiskLevel, } from '../skills/types/skill-types'
+
 
 // ====================== ⚡︎ ZOD COMMAND VALIDATION SCHEMAS ======================
 

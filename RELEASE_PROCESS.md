@@ -79,8 +79,8 @@ bun install -g @nicomatt69/nikcli
 
 ### 4.1 Crea Tag
 ```bash
-git tag v1.5.0
-git push origin v1.5.0
+git tag v1.6.0
+git push origin v1.6.0
 ```
 
 ### 4.2 Carica Assets
@@ -151,7 +151,7 @@ Gli utenti possono scaricare e installare manualmente:
 
 ```bash
 # Scarica
-wget https://github.com/nicomatt69/nikcli/releases/download/v1.5.0/nikcli-macos-arm64.tar.gz
+wget https://github.com/nicomatt69/nikcli/releases/download/v1.6.0/nikcli-macos-arm64.tar.gz
 
 # Estrai
 tar -xzf nikcli-macos-arm64.tar.gz

@@ -35,7 +35,7 @@ export const ToolMetadataSchema = z.object({
   id: z.string(),
   name: z.string(),
   description: z.string(),
-  version: z.string().default('1.5.0'),
+  version: z.string().default('1.6.0'),
   author: z.string().optional(),
   category: z.enum([
     'file-ops',
@@ -1020,11 +1020,11 @@ export class ToolRegistry {
     // Cleanup subsystems
     try {
       if (this.contextSystem && typeof this.contextSystem.clearMemory === 'function') {
-        ;async () => this.contextSystem.clearMemory()
+        ; async () => this.contextSystem.clearMemory()
         return
       }
       if (this.analyticsManager && typeof this.analyticsManager.getSummary === 'function') {
-        ;async () => this.analyticsManager.getSummary()
+        ; async () => this.analyticsManager.getSummary()
         return
       }
     } catch (error: any) {

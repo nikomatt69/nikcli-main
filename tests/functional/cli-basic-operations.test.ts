@@ -328,7 +328,7 @@ for i in range(10):
           language: 'en',
         },
         metadata: {
-          version: '1.5.0',
+          version: '1.6.0',
           lastUpdated: '2023-12-01T10:00:00Z',
           totalUsers: 3,
         },

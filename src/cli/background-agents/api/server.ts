@@ -445,7 +445,7 @@ export class BackgroundAgentsAPIServer {
         res.json({
           status: 'healthy',
           timestamp: new Date().toISOString(),
-          version: '1.5.0',
+          version: '1.6.0',
           uptime: process.uptime(),
         })
       }
@@ -481,7 +481,7 @@ export class BackgroundAgentsAPIServer {
     this.app.get('/', (_req, res) => {
       res.json({
         name: 'NikCLI Background Agents API',
-        version: '1.5.0',
+        version: '1.6.0',
         status: 'running',
         endpoints: {
           health: '/health',
