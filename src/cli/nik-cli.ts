@@ -5277,6 +5277,8 @@ EOF`
    */
   private async executeParallelPlanMode(plan: any, agents: any[], collaborationContext: any): Promise<void> {
     try {
+      const allAggregatedResults: string[] = []
+
       // Notify plan start
       void this.sendPlanStartedNotification(plan, agents)
 
@@ -5328,8 +5330,10 @@ EOF`
         this.safeTimeout(() => this.renderPromptAfterOutput(), 50)
       }
 
-      // Final collaborative output is already streamed per-todo
-      // Just show completion message
+      // Generate final collaborative output
+      const finalOutput = this.aggregatePlanResults(plan, allAggregatedResults)
+      await this.renderFinalOutput(finalOutput)
+
       this.addLiveUpdate({
         type: 'status',
         content: '🎉 Parallel plan execution completed successfully!',
@@ -5372,7 +5376,7 @@ EOF`
   private async runTodoInParallel(todo: any, agents: any[], collaborationContext: any): Promise<void> {
     const todoText = todo.description || todo.title
 
-    // Execute with all agents concurrently (collect output, don't stream)
+    // Execute with all agents concurrently
     const agentPromises = agents.map(async (agent) => {
       const agentName = agent.blueprint?.name || agent.blueprintId
       const tools = this.createSpecializedToolchain(agent.blueprint)
@@ -5381,15 +5385,11 @@ EOF`
         // Set up agent helpers for collaboration
         this.setupAgentCollaborationHelpers(agent, collaborationContext)
 
-        // Execute WITHOUT streaming to collect output for collaboration
         const agentOutput = await this.executeAgentCollectOutput(agent, todoText, agentName, tools)
-
-        // Store agent's output in collaboration context
         collaborationContext.sharedData.set(`${agent.id}:todo:${todo.id}:output`, {
           raw: agentOutput,
           agentName,
           blueprintId: agent.blueprintId,
-          specialization: agent.blueprint?.specialization || 'general',
           timestamp: new Date().toISOString(),
         })
 
@@ -5404,13 +5404,7 @@ EOF`
       }
     })
 
-    // Wait for all agents to complete
-    const results = await Promise.all(agentPromises)
-    const successfulAgents = results.filter(r => r.success)
-
-    if (successfulAgents.length === 0) {
-      throw new Error('All agents failed to execute')
-    }
+    await Promise.all(agentPromises)
   }
 
   /**
@@ -7010,7 +7004,7 @@ RULES:
           for (let attempt = 0; attempt < maxRetries; attempt++) {
             try {
               agent = await agentFactory.launchAgent(blueprintId)
-              ;(agent as any).collaborationContext = collaborationContext
+                ; (agent as any).collaborationContext = collaborationContext
               success = true
               break
             } catch (error: any) {
@@ -13434,17 +13428,6 @@ RULES:
           ['/nikdrive delete <fileId>', 'Delete file from cloud'],
           ['/nikdrive mkdir <name> [parentId]', 'Create cloud folder'],
           ['/set-key nikdrive <apiKey>', 'Configure cloud storage API key'],
-        ],
-      },
-      {
-        title: '🤖 Claude Agent SDK',
-        commands: [
-          ['/skills', 'List all available skills'],
-          ['/skill list', 'List skills with details'],
-          ['/skill run <name> [context]', 'Execute a skill'],
-          ['/skill info <name>', 'Show skill details'],
-          ['/sdk-agent <prompt>', 'Execute agent with prompt'],
-          ['/subagents', 'List available subagents'],
         ],
       },
     ]
