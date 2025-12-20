@@ -64,10 +64,13 @@
     "benchmark:run": "bunx ts-node benchmarks/openrouter-benchmark.ts",
     "benchmark:quick": "BENCHMARK_SIZE=5 bunx ts-node benchmarks/openrouter-benchmark.ts",
     "benchmark:full": "BENCHMARK_SIZE=164 bunx ts-node benchmarks/openrouter-benchmark.ts",
-    "tauri:dev": "cd packages/tauri && cargo tauri dev",
-    "tauri:build": "cd packages/tauri && cargo tauri build",
-    "desktop:dev": "cd packages/tauri && bun run tauri dev",
-    "desktop:build": "cd packages/tauri && bun run tauri build"
+    "tauri:dev": "cd packages/desktop/apps/tauri && cargo tauri dev",
+    "tauri:build": "cd packages/desktop/apps/tauri && cargo tauri build",
+    "desktop:dev": "cd packages/desktop/apps/tauri/src && bun install && bun run dev",
+    "desktop:build": "bun packages/desktop/scripts/build-desktop.mjs",
+    "desktop:app": "cd packages/desktop/apps/tauri && cargo tauri dev",
+    "tui:dev": "bun packages/tui/src/index.ts",
+    "tui:build": "cd packages/tui && bun run build"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^1.0.0",
@@ -78,6 +81,7 @@
     "@ai-sdk/openai": "^1.0.66",
     "@ai-sdk/openai-compatible": "^1.0.22",
     "@ai-sdk/vercel": "^1.0.10",
+    "@anthropic-ai/claude-agent-sdk": "^0.1.74",
     "@anthropic-ai/tokenizer": "^0.0.4",
     "@coinbase/agentkit": "^0.10.1",
     "@coinbase/agentkit-vercel-ai-sdk": "^0.1.0",

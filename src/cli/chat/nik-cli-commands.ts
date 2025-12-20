@@ -22,6 +22,7 @@ import { contextTokenManager } from '../core/context-token-manager'
 import { WebSearchProvider } from '../core/web-search-provider'
 import { ideDiagnosticIntegration } from '../integrations/ide-diagnostic-integration'
 import { enhancedPlanning } from '../planning/enhanced-planning'
+import { claudeAgentProvider } from '../providers/claude-agents'
 import { imageGenerator } from '../providers/image'
 import { visionProvider } from '../providers/vision'
 import { registerAgents } from '../register-agents'
@@ -44,6 +45,9 @@ import { ContainerManager } from '../virtualized-agents/container-manager'
 import { VMOrchestrator } from '../virtualized-agents/vm-orchestrator'
 import { initializeVMSelector, vmSelector } from '../virtualized-agents/vm-selector'
 import { chatManager } from './chat-manager'
+
+// Skills imports (simplified for create-skill command)
+import { SkillCategory, SkillRiskLevel, } from '../skills/types/skill-types'
 
 // ====================== ⚡︎ ZOD COMMAND VALIDATION SCHEMAS ======================
 
@@ -187,7 +191,7 @@ export class SlashCommandHandler {
     const containerManager = new ContainerManager()
     this.vmOrchestrator = new VMOrchestrator(containerManager)
 
-    // Initialize VM selector with the orchestrator
+    // Initialize VM selector with orchestrator
     initializeVMSelector(this.vmOrchestrator)
 
     this.registerCommands()
@@ -441,6 +445,13 @@ export class SlashCommandHandler {
     this.commands.set('browse-close', this.browseCloseCommand.bind(this))
     this.commands.set('browse-cleanup', this.browseCleanupCommand.bind(this))
     this.commands.set('browse-quick', this.browseQuickCommand.bind(this))
+
+    // Claude Agent SDK commands
+    this.commands.set('skill', this.skillCommand.bind(this))
+    this.commands.set('skills', this.skillsListCommand.bind(this))
+    this.commands.set('sdk-agent', this.sdkAgentCommand.bind(this))
+    this.commands.set('subagent', this.subagentCommand.bind(this))
+    this.commands.set('subagents', this.subagentsListCommand.bind(this))
   }
 
   async handle(input: string): Promise<CommandResult> {
@@ -690,6 +701,15 @@ ${chalk.cyan('/dev-mode [enable|status|help]')} - Developer mode controls
 ${chalk.cyan('/safe-mode')} - Enable safe mode (maximum security)
 ${chalk.cyan('/clear-approvals')} - Clear session approvals
 
+${chalk.blue.bold('Claude Agent SDK:')}
+${chalk.cyan('/skills')} - List all available skills
+${chalk.cyan('/skill list')} - List available skills with details
+${chalk.cyan('/skill run <name> [context]')} - Execute a skill
+${chalk.cyan('/skill info <name>')} - Show skill details
+${chalk.cyan('/sdk-agent <prompt>')} - Execute agent with prompt
+${chalk.gray('  Flags: --subagents=name1,name2  --stream  --tools=tool1,tool2')}
+${chalk.cyan('/subagents')} - List available subagents
+
 ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     `
 
@@ -723,7 +743,13 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
             `${chalk.green('/auth logout')}   - Sign out and clear credentials`,
             `${chalk.green('/auth status')}   - Show authentication status`,
           ].join('\n'),
-          { title: 'Authentication', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'cyan' }
+          {
+            title: 'Authentication',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'cyan',
+          }
         )
         if (nik?.printPanel) nik.printPanel(panel)
         else console.log(panel)
@@ -746,7 +772,13 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
               `Email: ${profile.email}`,
               `Tier: ${profile.subscription_tier}`,
             ].join('\n'),
-            { title: 'Auth Status', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'green' }
+            {
+              title: 'Auth Status',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'green',
+            }
           )
           if (nik?.printPanel) nik.printPanel(panel)
           else console.log(panel)
@@ -830,7 +862,9 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       // Perform sign in or sign up
       const result = isSignUp
-        ? await authProvider.signUp(email, password, { username: email.split('@')[0] })
+        ? await authProvider.signUp(email, password, {
+          username: email.split('@')[0],
+        })
         : await authProvider.signIn(email, password, { rememberMe: true })
 
       if (result) {
@@ -958,7 +992,13 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
             `${chalk.green('/pro upgrade')} - Get link to upgrade to Pro`,
             `${chalk.green('/pro activate')} - Fetch and store OpenRouter key (Pro only)`,
           ].join('\n'),
-          { title: 'Plan', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'cyan' }
+          {
+            title: 'Plan',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'cyan',
+          }
         )
         if (nik?.printPanel) nik.printPanel(panel)
         else console.log(panel)
@@ -1197,7 +1237,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           // Show ads (pro users only)
           const { simpleConfigManager } = await import('../core/config-manager')
           const currentConfig = simpleConfigManager.getAll()
-          const updatedConfig = { ...currentConfig, ads: { ...currentConfig.ads, userOptIn: false } }
+          const updatedConfig = {
+            ...currentConfig,
+            ads: { ...currentConfig.ads, userOptIn: false },
+          }
           simpleConfigManager.setAll(updatedConfig)
 
           const panel = boxen('✓ Ads enabled! You will see ads.', {
@@ -1220,7 +1263,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           const { simpleConfigManager } = await import('../core/config-manager')
           const currentConfig = simpleConfigManager.getAll()
           const newHidden = !currentConfig.ads.userOptIn
-          const updatedConfig = { ...currentConfig, ads: { ...currentConfig.ads, userOptIn: newHidden } }
+          const updatedConfig = {
+            ...currentConfig,
+            ads: { ...currentConfig.ads, userOptIn: newHidden },
+          }
           simpleConfigManager.setAll(updatedConfig)
 
           const message = newHidden ? '✓ Ads hidden - you will not see ads' : '✓ Ads shown - you will see ads'
@@ -1244,7 +1290,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           // Hide ads (pro users only)
           const { simpleConfigManager } = await import('../core/config-manager')
           const currentConfig = simpleConfigManager.getAll()
-          const updatedConfig = { ...currentConfig, ads: { ...currentConfig.ads, userOptIn: true } }
+          const updatedConfig = {
+            ...currentConfig,
+            ads: { ...currentConfig.ads, userOptIn: true },
+          }
           simpleConfigManager.setAll(updatedConfig)
 
           const panel = boxen('✓ Ads hidden - you will not see ads', {
@@ -1752,7 +1801,12 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       }
 
       const data = (await response.json()) as any
-      const allModels = (data.data || []) as Array<{ id: string; name: string; description?: string; pricing?: any }>
+      const allModels = (data.data || []) as Array<{
+        id: string
+        name: string
+        description?: string
+        pricing?: any
+      }>
 
       nik?.beginPanelOutput?.()
       this.printPanel(
@@ -2819,7 +2873,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         const token = parts[i]
         if (token.endsWith(quote)) {
           collected.push(token.slice(0, -1))
-          return { value: collected.join(' ').trim(), rest: parts.slice(i + 1) }
+          return {
+            value: collected.join(' ').trim(),
+            rest: parts.slice(i + 1),
+          }
         }
         collected.push(token)
       }
@@ -3427,7 +3484,11 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     }
 
     // Get real session stats from analytics if available
-    const sessionStats = { commands: 0, responses: 0, tokens: { input: 0, output: 0 } }
+    const sessionStats = {
+      commands: 0,
+      responses: 0,
+      tokens: { input: 0, output: 0 },
+    }
     if (this.cliInstance?.analyticsManager) {
       try {
         const summary = this.cliInstance.analyticsManager.getSummary()
@@ -3468,17 +3529,29 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     }
 
     // Get real git info
-    const gitInfo = { branch: 'unknown', status: 'unknown', commits: 0, lastCommit: 'none', uncommittedFiles: 0 }
+    const gitInfo = {
+      branch: 'unknown',
+      status: 'unknown',
+      commits: 0,
+      lastCommit: 'none',
+      uncommittedFiles: 0,
+    }
     try {
       const { execSync } = require('child_process')
       const cwd = process.cwd()
 
       try {
-        gitInfo.branch = execSync('git rev-parse --abbrev-ref HEAD', { cwd, encoding: 'utf8' }).trim()
+        gitInfo.branch = execSync('git rev-parse --abbrev-ref HEAD', {
+          cwd,
+          encoding: 'utf8',
+        }).trim()
       } catch (e) { }
 
       try {
-        const statusOutput = execSync('git status --porcelain', { cwd, encoding: 'utf8' })
+        const statusOutput = execSync('git status --porcelain', {
+          cwd,
+          encoding: 'utf8',
+        })
         gitInfo.uncommittedFiles = statusOutput
           .trim()
           .split('\n')
@@ -3487,11 +3560,21 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       } catch (e) { }
 
       try {
-        gitInfo.commits = parseInt(execSync('git rev-list --count HEAD', { cwd, encoding: 'utf8' }).trim())
+        gitInfo.commits = parseInt(
+          execSync('git rev-list --count HEAD', {
+            cwd,
+            encoding: 'utf8',
+          }).trim()
+        )
       } catch (e) { }
 
       try {
-        gitInfo.lastCommit = execSync('git log -1 --pretty=%B', { cwd, encoding: 'utf8' }).trim().split('\n')[0]
+        gitInfo.lastCommit = execSync('git log -1 --pretty=%B', {
+          cwd,
+          encoding: 'utf8',
+        })
+          .trim()
+          .split('\n')[0]
       } catch (e) { }
     } catch (e) {
       // Git not available or not a git repo, keep defaults
@@ -3558,7 +3641,12 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       const currentModel = modelProvider.getCurrentModelInfo()
 
       // Get real session metrics if available
-      const sessionStats = { requests: 0, successRate: 0, avgTokens: 0, totalCost: 0 }
+      const sessionStats = {
+        requests: 0,
+        successRate: 0,
+        avgTokens: 0,
+        totalCost: 0,
+      }
 
       try {
         const { contextTokenManager } = await import('../core/context-token-manager')
@@ -3596,10 +3684,18 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     try {
       const { execSync } = require('child_process')
 
-      const branch = execSync('git branch --show-current', { encoding: 'utf8' }).trim()
-      const status = execSync('git status --porcelain', { encoding: 'utf8' }).trim()
-      const commits = execSync('git rev-list --count HEAD', { encoding: 'utf8' }).trim()
-      const lastCommit = execSync('git log -1 --format="%h %s"', { encoding: 'utf8' }).trim()
+      const branch = execSync('git branch --show-current', {
+        encoding: 'utf8',
+      }).trim()
+      const status = execSync('git status --porcelain', {
+        encoding: 'utf8',
+      }).trim()
+      const commits = execSync('git rev-list --count HEAD', {
+        encoding: 'utf8',
+      }).trim()
+      const lastCommit = execSync('git log -1 --format="%h %s"', {
+        encoding: 'utf8',
+      }).trim()
       const uncommittedFiles = status.split('\n').filter((line: string) => line.trim()).length
 
       return {
@@ -3705,7 +3801,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
             ? `top -l 1 -pid ${pid} | grep -E "^${pid}" | awk '{print $3}' | sed 's/%//'`
             : `top -bn1 -p ${pid} | grep -E "^\\s*${pid}" | awk '{print $9}'`
 
-        const output = execSync(cmd, { encoding: 'utf8', timeout: 2000 }).trim()
+        const output = execSync(cmd, {
+          encoding: 'utf8',
+          timeout: 2000,
+        }).trim()
         const cpuPercent = parseFloat(output)
         return isNaN(cpuPercent) ? 0 : Math.min(cpuPercent, 100)
       }
@@ -3780,7 +3879,9 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       // Check for TypeScript compilation errors
       try {
-        const tscOutput = execSync('npx tsc --noEmit 2>&1 || true', { encoding: 'utf8' })
+        const tscOutput = execSync('npx tsc --noEmit 2>&1 || true', {
+          encoding: 'utf8',
+        })
         const errorLines = tscOutput
           .split('\n')
           .filter((line: string) => line.includes('error TS') || line.includes('Warning:'))
@@ -3795,7 +3896,9 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       // Check for ESLint warnings/errors
       try {
-        const eslintOutput = execSync('npm run lint 2>&1 || true', { encoding: 'utf8' })
+        const eslintOutput = execSync('npm run lint 2>&1 || true', {
+          encoding: 'utf8',
+        })
         const eslintLines = eslintOutput.split('\n')
         const errorCount = eslintLines.filter((line: string) => line.includes('error')).length
         const warningCount = eslintLines.filter((line: string) => line.includes('warning')).length
@@ -3810,7 +3913,9 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       // Check for Git issues
       try {
-        const gitStatus = execSync('git status --porcelain 2>&1', { encoding: 'utf8' })
+        const gitStatus = execSync('git status --porcelain 2>&1', {
+          encoding: 'utf8',
+        })
         const conflictFiles = gitStatus.split('\n').filter((line: string) => line.startsWith('UU'))
         if (conflictFiles.length > 0) {
           logs.errors += conflictFiles.length
@@ -3859,7 +3964,9 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
   private getDirectorySize(dirPath: string): number {
     try {
       const { execSync } = require('child_process')
-      const result = execSync(`du -sm ${dirPath} 2>/dev/null || echo 0`, { encoding: 'utf8' }).trim()
+      const result = execSync(`du -sm ${dirPath} 2>/dev/null || echo 0`, {
+        encoding: 'utf8',
+      }).trim()
       return parseInt(result.split('\t')[0]) || 0
     } catch {
       return 0
@@ -3894,7 +4001,11 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
     // Always show basic session info
     lines.push(chalk.cyan.bold('📊 Session Statistics'))
-    const sessionStats = metrics.session || { commands: 0, responses: 0, tokens: { input: 0, output: 0 } }
+    const sessionStats = metrics.session || {
+      commands: 0,
+      responses: 0,
+      tokens: { input: 0, output: 0 },
+    }
     const totalTokens = (sessionStats.tokens?.input || 0) + (sessionStats.tokens?.output || 0)
     lines.push(`Commands: ${chalk.yellow(sessionStats.commands || 0)}`)
     lines.push(`Responses: ${chalk.yellow(sessionStats.responses || 0)}`)
@@ -4052,7 +4163,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     lines.push(chalk.yellow.bold('📦 Project Dependencies Status'))
 
     const dependencyData = [
-      { metric: 'Total Dependencies', value: String((project.dependencies || 0) + (project.devDependencies || 0)) },
+      {
+        metric: 'Total Dependencies',
+        value: String((project.dependencies || 0) + (project.devDependencies || 0)),
+      },
       { metric: 'Production', value: String(project.dependencies || 0) },
       { metric: 'Development', value: String(project.devDependencies || 0) },
       { metric: 'Project Name', value: project.name || 'Unknown' },
@@ -4060,7 +4174,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     ]
 
     if (project.nodeModulesSize > 0) {
-      dependencyData.push({ metric: 'node_modules Size', value: `${project.nodeModulesSize}MB` })
+      dependencyData.push({
+        metric: 'node_modules Size',
+        value: `${project.nodeModulesSize}MB`,
+      })
     }
 
     lines.push(this.createSimpleTable(dependencyData))
@@ -4086,7 +4203,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         { metric: 'Heap Total', value: `${perf.heapTotal}MB` },
         { metric: 'RSS Memory', value: `${perf.rss}MB` },
         { metric: 'External', value: `${perf.external}MB` },
-        { metric: 'Heap Usage', value: `${Math.min(100, (perf.heapUsed / perf.heapTotal) * 100).toFixed(1)}%` },
+        {
+          metric: 'Heap Usage',
+          value: `${Math.min(100, (perf.heapUsed / perf.heapTotal) * 100).toFixed(1)}%`,
+        },
       ]
 
       lines.push(this.createSimpleTable(memoryData))
@@ -4110,7 +4230,11 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
     // Session Analytics Section
     lines.push(chalk.yellow.bold('📈 Session Analytics'))
-    const sessionStats = metrics.session || { commands: 0, responses: 0, tokens: { input: 0, output: 0 } }
+    const sessionStats = metrics.session || {
+      commands: 0,
+      responses: 0,
+      tokens: { input: 0, output: 0 },
+    }
     lines.push(`Commands:         ${chalk.cyan(sessionStats.commands)}`)
     lines.push(`Responses:        ${chalk.cyan(sessionStats.responses)}`)
     if (sessionStats.tokens) {
@@ -4633,7 +4757,14 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         console.log(chalk.blue(`🌐 Web searching: "${query}" (${searchType})`))
         const wsp = new WebSearchProvider()
         const webTool: any = wsp.getWebSearchTool()
-        const result = await webTool.execute({ query, maxResults, searchType, mode, includeContent, maxContentBytes })
+        const result = await webTool.execute({
+          query,
+          maxResults,
+          searchType,
+          mode,
+          includeContent,
+          maxContentBytes,
+        })
 
         if (result?.error) {
           console.log(chalk.red(`✖ ${result.error}`))
@@ -4764,7 +4895,9 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       const cmdId = advancedUI.createIndicator('command', `Executing: ${command}`).id
       advancedUI.startSpinner(cmdId, `Running: ${fullCommand}`)
 
-      const result = await toolsManager.runCommand(command, commandArgs, { stream: true })
+      const result = await toolsManager.runCommand(command, commandArgs, {
+        stream: true,
+      })
 
       if (result.code === 0) {
         advancedUI.stopSpinner(cmdId, true, 'Command completed successfully')
@@ -5255,7 +5388,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     }
   }
 
-  private resolveRepositoryTarget(input: string): { target: string; isLocal: boolean } {
+  private resolveRepositoryTarget(input: string): {
+    target: string
+    isLocal: boolean
+  } {
     const repositoryInput = input?.trim()
 
     if (!repositoryInput) {
@@ -5764,7 +5900,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     const boxen = (await import('boxen')).default
 
     try {
-      const vms = await vmSelector.getAvailableVMs({ showInactive: true, sortBy: 'status' })
+      const vms = await vmSelector.getAvailableVMs({
+        showInactive: true,
+        sortBy: 'status',
+      })
 
       if (vms.length === 0) {
         this.printPanel(
@@ -5843,7 +5982,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       console.log(chalk.blue('🎯 Interactive VM selection...'))
 
       try {
-        const selectedVM = await vmSelector.selectVM({ interactive: true, sortBy: 'activity' })
+        const selectedVM = await vmSelector.selectVM({
+          interactive: true,
+          sortBy: 'activity',
+        })
         if (selectedVM) {
           console.log(chalk.green(`✓ Selected VM: ${selectedVM.name}`))
           this.printPanel(
@@ -6256,7 +6398,11 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       // Validate inputs
       try {
-        CreateAgentCommandSchema.parse({ name, specialization, type: agentType })
+        CreateAgentCommandSchema.parse({
+          name,
+          specialization,
+          type: agentType,
+        })
       } catch (validationError: any) {
         console.log(chalk.red('✖ Invalid arguments:'))
         validationError.errors?.forEach((err: any) => {
@@ -8354,7 +8500,13 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
             chalk.gray('Optional: POLYGON_RPC_URL, BASE_RPC_URL'),
             chalk.gray('Tip: Use natural language with /goat chat for complex operations'),
           ].join('\n'),
-          { title: 'GOAT SDK', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' }
+          {
+            title: 'GOAT SDK',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'blue',
+          }
         )
       )
       return { shouldExit: false, shouldUpdatePrompt: false }
@@ -8428,7 +8580,13 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           chain: chain || 'base',
           token: token || 'USDC',
         })
-        const content = this.formatGoatTransferPanel({ result, amount, to, chain, token })
+        const content = this.formatGoatTransferPanel({
+          result,
+          amount,
+          to,
+          chain,
+          token,
+        })
         this.cliInstance.printPanel(content)
       } else if (sub === 'balance') {
         let chain: string | undefined
@@ -8511,7 +8669,12 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           amount,
           token: token || 'USDC',
         })
-        const content = this.formatGoatApprovePanel({ result, spender, amount, token })
+        const content = this.formatGoatApprovePanel({
+          result,
+          spender,
+          amount,
+          token,
+        })
         this.cliInstance.printPanel(content)
       } else if (sub === 'reset') {
         const result = await secureTools.executeGoat('reset-conversation')
@@ -8556,7 +8719,9 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           }
         }
 
-        const result = await secureTools.executeGoat('gamma-trending', { limit })
+        const result = await secureTools.executeGoat('gamma-trending', {
+          limit,
+        })
         const content = this.formatGoatGammaTrendingPanel(result)
         this.cliInstance.printPanel(content)
       } else if (sub === 'gamma-search') {
@@ -8623,7 +8788,13 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       const panel = boxen(
         `Failed to execute GOAT command: ${error.message}` +
         '\n\nTips:\n- Ensure GOAT_EVM_PRIVATE_KEY is set\n- Run /goat init first\n- Use /goat status to check setup',
-        { title: 'GOAT Error', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'red' }
+        {
+          title: 'GOAT Error',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        }
       )
       this.cliInstance.printPanel(panel)
     } finally {
@@ -8656,7 +8827,13 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
             chalk.gray('Note: Polymarket operates on Polygon network'),
             chalk.gray('Ensure GOAT_EVM_PRIVATE_KEY and POLYGON_RPC_URL are configured'),
           ].join('\n'),
-          { title: 'Polymarket', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'magenta' }
+          {
+            title: 'Polymarket',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'magenta',
+          }
         )
       )
       return { shouldExit: false, shouldUpdatePrompt: false }
@@ -8789,7 +8966,13 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       lines.push(chalk.yellow('Run /goat init to set up GOAT SDK'))
     }
 
-    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
+    return boxen(lines.join('\n'), {
+      title,
+      padding: 1,
+      margin: 1,
+      borderStyle: 'round',
+      borderColor: 'blue',
+    })
   }
 
   private formatGoatInitPanel(result: any): string {
@@ -8810,7 +8993,13 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       if (result?.error) lines.push(chalk.gray(result.error))
     }
 
-    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
+    return boxen(lines.join('\n'), {
+      title,
+      padding: 1,
+      margin: 1,
+      borderStyle: 'round',
+      borderColor: 'blue',
+    })
   }
 
   private formatGoatWalletPanel(result: any): string {
@@ -8837,7 +9026,13 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       if (result?.error) lines.push(chalk.gray(result.error))
     }
 
-    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
+    return boxen(lines.join('\n'), {
+      title,
+      padding: 1,
+      margin: 1,
+      borderStyle: 'round',
+      borderColor: 'blue',
+    })
   }
 
   private formatGoatToolsPanel(result: any): string {
@@ -8863,7 +9058,13 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       lines.push(chalk.gray('Initialize GOAT SDK first with /goat init'))
     }
 
-    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
+    return boxen(lines.join('\n'), {
+      title,
+      padding: 1,
+      margin: 1,
+      borderStyle: 'round',
+      borderColor: 'blue',
+    })
   }
 
   private formatGoatMarketsPanel(result: any): string {
@@ -8883,7 +9084,13 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       if (result?.error) lines.push(chalk.gray(result.error))
     }
 
-    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'magenta' })
+    return boxen(lines.join('\n'), {
+      title,
+      padding: 1,
+      margin: 1,
+      borderStyle: 'round',
+      borderColor: 'magenta',
+    })
   }
 
   private formatGoatTransferPanel({ result, amount, to, chain, token }: any): string {
@@ -8908,7 +9115,13 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       if (result?.error) lines.push(chalk.gray(result.error))
     }
 
-    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
+    return boxen(lines.join('\n'), {
+      title,
+      padding: 1,
+      margin: 1,
+      borderStyle: 'round',
+      borderColor: 'blue',
+    })
   }
 
   private formatGoatBalancePanel(result: any): string {
@@ -8928,7 +9141,13 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       if (result?.error) lines.push(chalk.gray(result.error))
     }
 
-    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
+    return boxen(lines.join('\n'), {
+      title,
+      padding: 1,
+      margin: 1,
+      borderStyle: 'round',
+      borderColor: 'blue',
+    })
   }
 
   private formatGoatChatPanel(message: string, result: any): string {
@@ -8951,7 +9170,13 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       if (result?.error) lines.push(chalk.gray(result.error))
     }
 
-    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
+    return boxen(lines.join('\n'), {
+      title,
+      padding: 1,
+      margin: 1,
+      borderStyle: 'round',
+      borderColor: 'blue',
+    })
   }
 
   private formatGoatBetPanel(result: any): string {
@@ -8974,7 +9199,13 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       if (result?.error) lines.push(chalk.gray(result.error))
     }
 
-    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'magenta' })
+    return boxen(lines.join('\n'), {
+      title,
+      padding: 1,
+      margin: 1,
+      borderStyle: 'round',
+      borderColor: 'magenta',
+    })
   }
 
   private formatGoatPositionsPanel(result: any): string {
@@ -8994,7 +9225,13 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       if (result?.error) lines.push(chalk.gray(result.error))
     }
 
-    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'magenta' })
+    return boxen(lines.join('\n'), {
+      title,
+      padding: 1,
+      margin: 1,
+      borderStyle: 'round',
+      borderColor: 'magenta',
+    })
   }
 
   private formatGoatApprovePanel({ result, spender, amount, token }: any): string {
@@ -9021,7 +9258,13 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       if (result?.error) lines.push(chalk.gray(result.error))
     }
 
-    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
+    return boxen(lines.join('\n'), {
+      title,
+      padding: 1,
+      margin: 1,
+      borderStyle: 'round',
+      borderColor: 'blue',
+    })
   }
 
   private formatGoatResetPanel(result: any): string {
@@ -9041,7 +9284,13 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       if (result?.error) lines.push(chalk.gray(result.error))
     }
 
-    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
+    return boxen(lines.join('\n'), {
+      title,
+      padding: 1,
+      margin: 1,
+      borderStyle: 'round',
+      borderColor: 'blue',
+    })
   }
 
   private formatGoatBuilderStatusPanel(result: any): string {
@@ -9065,7 +9314,13 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       if (result?.error) lines.push(chalk.gray(result.error))
     }
 
-    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'yellow' })
+    return boxen(lines.join('\n'), {
+      title,
+      padding: 1,
+      margin: 1,
+      borderStyle: 'round',
+      borderColor: 'yellow',
+    })
   }
 
   private formatGoatBuilderMetricsPanel(result: any): string {
@@ -9089,7 +9344,13 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       if (result?.error) lines.push(chalk.gray(result.error))
     }
 
-    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'yellow' })
+    return boxen(lines.join('\n'), {
+      title,
+      padding: 1,
+      margin: 1,
+      borderStyle: 'round',
+      borderColor: 'yellow',
+    })
   }
 
   private formatGoatSetFunderPanel({ result, address }: any): string {
@@ -9112,7 +9373,13 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       if (result?.error) lines.push(chalk.gray(result.error))
     }
 
-    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
+    return boxen(lines.join('\n'), {
+      title,
+      padding: 1,
+      margin: 1,
+      borderStyle: 'round',
+      borderColor: 'blue',
+    })
   }
 
   private formatGoatFunderStatusPanel(result: any): string {
@@ -9136,7 +9403,13 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       if (result?.error) lines.push(chalk.gray(result.error))
     }
 
-    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
+    return boxen(lines.join('\n'), {
+      title,
+      padding: 1,
+      margin: 1,
+      borderStyle: 'round',
+      borderColor: 'blue',
+    })
   }
 
   private formatGoatGammaTrendingPanel(result: any): string {
@@ -9161,7 +9434,13 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       if (result?.error) lines.push(chalk.gray(result.error))
     }
 
-    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'magenta' })
+    return boxen(lines.join('\n'), {
+      title,
+      padding: 1,
+      margin: 1,
+      borderStyle: 'round',
+      borderColor: 'magenta',
+    })
   }
 
   private formatGoatGammaSearchPanel(result: any): string {
@@ -9190,7 +9469,13 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       if (result?.error) lines.push(chalk.gray(result.error))
     }
 
-    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'magenta' })
+    return boxen(lines.join('\n'), {
+      title,
+      padding: 1,
+      margin: 1,
+      borderStyle: 'round',
+      borderColor: 'magenta',
+    })
   }
 
   private formatGoatRtdsPanel(result: any): string {
@@ -9213,7 +9498,13 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       if (result?.error) lines.push(chalk.gray(result.error))
     }
 
-    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'cyan' })
+    return boxen(lines.join('\n'), {
+      title,
+      padding: 1,
+      margin: 1,
+      borderStyle: 'round',
+      borderColor: 'cyan',
+    })
   }
 
   private formatGoatWebSocketPanel(result: any): string {
@@ -9236,7 +9527,13 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       if (result?.error) lines.push(chalk.gray(result.error))
     }
 
-    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'cyan' })
+    return boxen(lines.join('\n'), {
+      title,
+      padding: 1,
+      margin: 1,
+      borderStyle: 'round',
+      borderColor: 'cyan',
+    })
   }
 
   private formatGoatHelpPanel(category: string | null): string {
@@ -9249,29 +9546,47 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         name: 'getting_started',
         title: '🚀 Getting Started',
         commands: [
-          { cmd: '/goat init', desc: 'Initialize GOAT SDK with wallet and chains' },
+          {
+            cmd: '/goat init',
+            desc: 'Initialize GOAT SDK with wallet and chains',
+          },
           { cmd: '/goat status', desc: 'Check GOAT SDK initialization status' },
-          { cmd: '/goat wallet', desc: 'Display current wallet and configuration' },
+          {
+            cmd: '/goat wallet',
+            desc: 'Display current wallet and configuration',
+          },
         ],
       },
       erc20: {
         name: 'erc20',
         title: '💵 ERC20 Token Operations',
         commands: [
-          { cmd: '/goat balance [--chain polygon|base]', desc: 'Check ERC20 token balance' },
+          {
+            cmd: '/goat balance [--chain polygon|base]',
+            desc: 'Check ERC20 token balance',
+          },
           {
             cmd: '/goat transfer <amount> <to> [--chain polygon|base] [--token USDC|ETH]',
             desc: 'Transfer ERC20 tokens',
           },
-          { cmd: '/goat approve --spender <addr> --amount <num> --token USDC', desc: 'Approve token spending' },
+          {
+            cmd: '/goat approve --spender <addr> --amount <num> --token USDC',
+            desc: 'Approve token spending',
+          },
         ],
       },
       polymarket: {
         name: 'polymarket',
         title: '📊 Polymarket (Prediction Markets)',
         commands: [
-          { cmd: '/polymarket markets', desc: 'List available prediction markets' },
-          { cmd: '/polymarket bet <market-id> <amount> <outcome>', desc: 'Place a bet on prediction market' },
+          {
+            cmd: '/polymarket markets',
+            desc: 'List available prediction markets',
+          },
+          {
+            cmd: '/polymarket bet <market-id> <amount> <outcome>',
+            desc: 'Place a bet on prediction market',
+          },
           { cmd: '/polymarket positions', desc: 'Show your market positions' },
         ],
       },
@@ -9279,7 +9594,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         name: 'conversation',
         title: '💬 Conversation & Chat',
         commands: [
-          { cmd: '/goat chat "<message>"', desc: 'Execute task using AI agent' },
+          {
+            cmd: '/goat chat "<message>"',
+            desc: 'Execute task using AI agent',
+          },
           { cmd: '/goat reset', desc: 'Reset conversation history' },
           { cmd: '/goat tools', desc: 'List all available GOAT tools' },
         ],
@@ -9288,20 +9606,41 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         name: 'builder',
         title: '🏗️ Builder Program (Order Attribution)',
         commands: [
-          { cmd: '/goat builder-status', desc: 'Check builder program configuration' },
+          {
+            cmd: '/goat builder-status',
+            desc: 'Check builder program configuration',
+          },
           { cmd: '/goat builder-metrics', desc: 'Get builder program metrics' },
-          { cmd: '/goat set-funder <address>', desc: 'Set funder address for order attribution' },
-          { cmd: '/goat funder-status', desc: 'Check funder configuration status' },
+          {
+            cmd: '/goat set-funder <address>',
+            desc: 'Set funder address for order attribution',
+          },
+          {
+            cmd: '/goat funder-status',
+            desc: 'Check funder configuration status',
+          },
         ],
       },
       advanced: {
         name: 'advanced',
         title: '⚡ Advanced Features',
         commands: [
-          { cmd: '/goat gamma-trending [--limit 20]', desc: 'Get top trending prediction markets' },
-          { cmd: '/goat gamma-search --query <term>', desc: 'Search markets by keyword' },
-          { cmd: '/goat ws-connect', desc: 'Connect to Polymarket orderbook WebSocket' },
-          { cmd: '/goat rtds-connect', desc: 'Connect to real-time data streams' },
+          {
+            cmd: '/goat gamma-trending [--limit 20]',
+            desc: 'Get top trending prediction markets',
+          },
+          {
+            cmd: '/goat gamma-search --query <term>',
+            desc: 'Search markets by keyword',
+          },
+          {
+            cmd: '/goat ws-connect',
+            desc: 'Connect to Polymarket orderbook WebSocket',
+          },
+          {
+            cmd: '/goat rtds-connect',
+            desc: 'Connect to real-time data streams',
+          },
         ],
       },
     }
@@ -9345,7 +9684,13 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       lines.push(chalk.gray('Or use: /goat help getting_started to get started'))
     }
 
-    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'green' })
+    return boxen(lines.join('\n'), {
+      title,
+      padding: 1,
+      margin: 1,
+      borderStyle: 'round',
+      borderColor: 'green',
+    })
   }
 
   // ====================== WEB3 TOOLCHAIN PANEL FORMATTERS ======================
@@ -9380,7 +9725,13 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       })
     }
 
-    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'cyan' })
+    return boxen(lines.join('\n'), {
+      title,
+      padding: 1,
+      margin: 1,
+      borderStyle: 'round',
+      borderColor: 'cyan',
+    })
   }
 
   private formatWeb3ToolchainExecutionPanel(execution: any): string {
@@ -9417,7 +9768,13 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       })
     }
 
-    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
+    return boxen(lines.join('\n'), {
+      title,
+      padding: 1,
+      margin: 1,
+      borderStyle: 'round',
+      borderColor: 'blue',
+    })
   }
 
   private formatWeb3ToolchainStatusPanel(executions: any[]): string {
@@ -9443,7 +9800,13 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       })
     }
 
-    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'cyan' })
+    return boxen(lines.join('\n'), {
+      title,
+      padding: 1,
+      margin: 1,
+      borderStyle: 'round',
+      borderColor: 'cyan',
+    })
   }
 
   private formatWeb3ToolchainCancelPanel(cancelled: boolean, executionId: string): string {
@@ -9507,7 +9870,13 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
             chalk.gray('Env required: CDP_API_KEY_ID, CDP_API_KEY_SECRET, CDP_WALLET_SECRET'),
             chalk.gray('Tip: /set-coin-keys to enter them interactively'),
           ].join('\n'),
-          { title: 'Web3', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' }
+          {
+            title: 'Web3',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'blue',
+          }
         )
       )
       return { shouldExit: false, shouldUpdatePrompt: false }
@@ -9580,7 +9949,9 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           )
           return { shouldExit: false, shouldUpdatePrompt: false }
         }
-        const useRes = await secureTools.executeCoinbaseAgentKit('use-wallet', { address })
+        const useRes = await secureTools.executeCoinbaseAgentKit('use-wallet', {
+          address,
+        })
         const usePanel = this.formatWeb3UseWalletPanel(useRes)
         this.cliInstance.printPanel(usePanel)
       } else if (sub === 'balance') {
@@ -9616,7 +9987,12 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           to,
           token,
         })
-        const content = this.formatWeb3TransferPanel({ result, amount, to, token })
+        const content = this.formatWeb3TransferPanel({
+          result,
+          amount,
+          to,
+          token,
+        })
         this.cliInstance.printPanel(content)
       } else if (sub === 'chat') {
         const message = args.slice(1).join(' ').trim().replace(/^"|"$/g, '')
@@ -9633,7 +10009,9 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           return { shouldExit: false, shouldUpdatePrompt: false }
         }
 
-        const result = await secureTools.executeCoinbaseAgentKit('chat', { message })
+        const result = await secureTools.executeCoinbaseAgentKit('chat', {
+          message,
+        })
         const content = this.formatWeb3ChatPanel(message, result)
         this.cliInstance.printPanel(content)
       } else if (false && sub === 'defi') {
@@ -9664,7 +10042,13 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       const panel = boxen(
         `Failed to execute web3 command: ${error.message}` +
         '\n\nTips:\n- Ensure CDP_API_KEY_ID and CDP_API_KEY_SECRET are set\n- Run /web3 init first',
-        { title: 'Web3 Error', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'red' }
+        {
+          title: 'Web3 Error',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        }
       )
       this.cliInstance.printPanel(panel)
     } finally {
@@ -9702,7 +10086,13 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
             '',
             chalk.gray('Configure: /set-key nikdrive <API_KEY>'),
           ].join('\n'),
-          { title: 'NikDrive', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'cyan' }
+          {
+            title: 'NikDrive',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'cyan',
+          }
         )
       )
       return { shouldExit: false, shouldUpdatePrompt: false }
@@ -9823,7 +10213,12 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         const { nikdriveProvider } = await import('../providers/nikdrive')
         const [localPath, cloudPath = '/'] = args.slice(1)
 
-        this.cliInstance.printPanel(boxen(chalk.blue('⏳︎ Syncing workspace...'), { padding: 1, margin: 1 }))
+        this.cliInstance.printPanel(
+          boxen(chalk.blue('⏳︎ Syncing workspace...'), {
+            padding: 1,
+            margin: 1,
+          })
+        )
         const stats = await nikdriveProvider.syncWorkspace(localPath, cloudPath)
 
         const lines: string[] = [
@@ -10044,7 +10439,13 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       const panel = boxen(
         `Failed to execute NikDrive command: ${error.message}` +
         '\n\nTips:\n- Ensure API key is configured: /set-key nikdrive <KEY>\n- Run /nikdrive status to check connection',
-        { title: 'NikDrive Error', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'red' }
+        {
+          title: 'NikDrive Error',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        }
       )
       this.cliInstance.printPanel(panel)
     } finally {
@@ -10076,7 +10477,13 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       lines.push(chalk.yellow('No wallets recorded yet'))
       lines.push(chalk.gray('Run /web3 init to create or connect a wallet'))
     }
-    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
+    return boxen(lines.join('\n'), {
+      title,
+      padding: 1,
+      margin: 1,
+      borderStyle: 'round',
+      borderColor: 'blue',
+    })
   }
 
   private formatWeb3UseWalletPanel(result: any): string {
@@ -10092,7 +10499,13 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       lines.push(chalk.red('✖ Failed to select wallet'))
       if (result?.error) lines.push(chalk.gray(result.error))
     }
-    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
+    return boxen(lines.join('\n'), {
+      title,
+      padding: 1,
+      margin: 1,
+      borderStyle: 'round',
+      borderColor: 'blue',
+    })
   }
   private formatWeb3StatusPanel(result: any): string {
     const title = 'Web3 Status'
@@ -10115,7 +10528,13 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       lines.push('')
       lines.push(chalk.yellow('Run /web3 init to set up AgentKit'))
     }
-    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
+    return boxen(lines.join('\n'), {
+      title,
+      padding: 1,
+      margin: 1,
+      borderStyle: 'round',
+      borderColor: 'blue',
+    })
   }
 
   private formatWeb3InitPanel(result: any): string {
@@ -10134,7 +10553,13 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       lines.push(chalk.red('✖ Initialization failed'))
       if (result?.error) lines.push(chalk.gray(result.error))
     }
-    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
+    return boxen(lines.join('\n'), {
+      title,
+      padding: 1,
+      margin: 1,
+      borderStyle: 'round',
+      borderColor: 'blue',
+    })
   }
 
   private formatWeb3WalletPanel(result: any): string {
@@ -10152,7 +10577,13 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       lines.push(chalk.red('✖ Failed to fetch wallet info'))
       if (result?.error) lines.push(chalk.gray(result.error))
     }
-    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
+    return boxen(lines.join('\n'), {
+      title,
+      padding: 1,
+      margin: 1,
+      borderStyle: 'round',
+      borderColor: 'blue',
+    })
   }
 
   private formatWeb3BalancePanel(result: any): string {
@@ -10171,7 +10602,13 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       lines.push(chalk.red('✖ Failed to fetch balance'))
       if (result?.error) lines.push(chalk.gray(result.error))
     }
-    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
+    return boxen(lines.join('\n'), {
+      title,
+      padding: 1,
+      margin: 1,
+      borderStyle: 'round',
+      borderColor: 'blue',
+    })
   }
 
   private formatWeb3TransferPanel({ result, amount, to, token }: any): string {
@@ -10192,7 +10629,13 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       lines.push(chalk.red('✖ Transfer failed'))
       if (result?.error) lines.push(chalk.gray(result.error))
     }
-    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
+    return boxen(lines.join('\n'), {
+      title,
+      padding: 1,
+      margin: 1,
+      borderStyle: 'round',
+      borderColor: 'blue',
+    })
   }
 
   private formatWeb3ChatPanel(message: string, result: any): string {
@@ -10221,7 +10664,13 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       lines.push(chalk.red('✖ Failed'))
       if (result?.error) lines.push(chalk.gray(result.error))
     }
-    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
+    return boxen(lines.join('\n'), {
+      title,
+      padding: 1,
+      margin: 1,
+      borderStyle: 'round',
+      borderColor: 'blue',
+    })
   }
 
   /**
@@ -10834,7 +11283,9 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
     try {
       // First, get snapshot info
-      const snapshots = await snapshotService.searchSnapshots('', { limit: 100 })
+      const snapshots = await snapshotService.searchSnapshots('', {
+        limit: 100,
+      })
       const snapshot = snapshots.find((s) => s.id.startsWith(snapshotId) || s.id === snapshotId)
 
       if (!snapshot) {
@@ -10898,7 +11349,9 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     const query = args.join(' ')
 
     try {
-      const snapshots = await snapshotService.searchSnapshots(query, { limit: 20 })
+      const snapshots = await snapshotService.searchSnapshots(query, {
+        limit: 20,
+      })
 
       if (snapshots.length === 0) {
         console.log(chalk.yellow('📭 No snapshots found'))
@@ -12123,7 +12576,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
   /**
    * Handle style show command
    */
-  private async handleStyleShow(): Promise<{ shouldExit: boolean; shouldUpdatePrompt: boolean }> {
+  private async handleStyleShow(): Promise<{
+    shouldExit: boolean
+    shouldUpdatePrompt: boolean
+  }> {
     const config = modernAIProvider.getCurrentOutputStyleConfig()
 
     console.log(chalk.blue.bold('\n🎨 Current Output Style Configuration\n'))
@@ -12229,7 +12685,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
   /**
    * Handle style help command
    */
-  private async handleStyleHelp(): Promise<{ shouldExit: boolean; shouldUpdatePrompt: boolean }> {
+  private async handleStyleHelp(): Promise<{
+    shouldExit: boolean
+    shouldUpdatePrompt: boolean
+  }> {
     console.log(chalk.blue.bold('\n🎨 Output Style Commands\n'))
 
     console.log(chalk.yellow('Available Commands:'))
@@ -12709,14 +13168,18 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       let baseBranch = 'main'
 
       try {
-        const remoteUrl = execSync('git remote get-url origin', { encoding: 'utf8' }).trim()
+        const remoteUrl = execSync('git remote get-url origin', {
+          encoding: 'utf8',
+        }).trim()
         const match = remoteUrl.match(/github\.com[/:]([^/:]+\/[^/.]+)(?:\.git)?/)
         if (match) {
           repo = match[1]
         }
 
         try {
-          baseBranch = execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf8' }).trim()
+          baseBranch = execSync('git rev-parse --abbrev-ref HEAD', {
+            encoding: 'utf8',
+          }).trim()
         } catch {
           baseBranch = 'main'
         }
@@ -13705,6 +14168,255 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
   }
+
+  // ====================== CLAUDE AGENT SDK COMMANDS ======================
+
+  /**
+   * /skill - Execute or manage Claude Agent SDK skills
+   */
+  private async skillCommand(args: string[]): Promise<CommandResult> {
+    const subCommand = args[0]?.toLowerCase() || 'help'
+
+    switch (subCommand) {
+      case 'list':
+        return this.skillsListCommand([])
+
+      case 'run':
+      case 'execute': {
+        const skillName = args[1]
+        if (!skillName) {
+          console.log(chalk.red('Usage: /skill run <skill-name> [context...]'))
+          return { shouldExit: false, shouldUpdatePrompt: false }
+        }
+
+        const contextArgs = args.slice(2)
+        const context: Record<string, string> = {}
+
+        // Parse context as key=value pairs or as prompt
+        if (contextArgs.length > 0) {
+          const joined = contextArgs.join(' ')
+          if (joined.includes('=')) {
+            for (const arg of contextArgs) {
+              const [key, ...valueParts] = arg.split('=')
+              if (key && valueParts.length > 0) {
+                context[key] = valueParts.join('=')
+              }
+            }
+          } else {
+            context.prompt = joined
+          }
+        }
+
+        try {
+          console.log(chalk.blue(`⚡ Executing skill: ${skillName}`))
+
+          let result
+          for await (const event of claudeAgentProvider.executeSkill(skillName, context)) {
+            if (event.type === 'thinking' && claudeAgentProvider.getConfig().showThinking) {
+              console.log(chalk.gray(`💭 ${event.content?.substring(0, 100)}...`))
+            } else if (event.type === 'tool_call') {
+              console.log(chalk.cyan(`🔧 ${event.toolName}`))
+            } else if (event.type === 'text_delta') {
+              process.stdout.write(event.content || '')
+            } else if (event.type === 'complete') {
+              console.log(chalk.gray(`\n⏱️ Tokens: ${event.usage?.totalTokens || 0} | Cost: $${event.costUsd?.toFixed(4) || 0}`))
+            }
+            result = event
+          }
+
+          console.log('')
+        } catch (error: any) {
+          console.log(chalk.red(`✖ Skill execution failed: ${error.message}`))
+        }
+
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
+
+      case 'info': {
+        const skillName = args[1]
+        if (!skillName) {
+          console.log(chalk.red('Usage: /skill info <skill-name>'))
+          return { shouldExit: false, shouldUpdatePrompt: false }
+        }
+
+        const skill = claudeAgentProvider.getSkill(skillName)
+        if (!skill) {
+          console.log(chalk.red(`✖ Skill '${skillName}' not found`))
+          return { shouldExit: false, shouldUpdatePrompt: false }
+        }
+
+        const panel = boxen(
+          chalk.cyan.bold(`📚 ${skill.name}\n\n`) +
+          chalk.gray(`Description: ${chalk.white(skill.description)}\n`) +
+          chalk.gray(`Category: ${chalk.yellow(skill.category)}\n`) +
+          chalk.gray(`Risk Level: ${skill.riskLevel === 'high' ? chalk.red(skill.riskLevel) : skill.riskLevel === 'medium' ? chalk.yellow(skill.riskLevel) : chalk.green(skill.riskLevel)}\n`) +
+          chalk.gray(`Tools: ${chalk.cyan(skill.tools.join(', '))}\n\n`) +
+          chalk.gray.dim(`Prompt:\n${skill.prompt.substring(0, 200)}...`),
+          {
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'cyan',
+          }
+        )
+
+        this.printPanel(panel)
+
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
+
+      default:
+        console.log(chalk.blue.bold('⚡ Claude Agent SDK - Skills'))
+        console.log(chalk.gray('─'.repeat(40)))
+        console.log(chalk.cyan('/skill list') + chalk.gray(' - List available skills'))
+        console.log(chalk.cyan('/skill run <name> [context]') + chalk.gray(' - Execute a skill'))
+        console.log(chalk.cyan('/skill info <name>') + chalk.gray(' - Show skill details'))
+        console.log('')
+        console.log(chalk.gray('Example: /skill run code-analysis filePath=./src'))
+        return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+  }
+
+  /**
+   * /skills - List all available skills
+   */
+  private async skillsListCommand(_args: string[]): Promise<CommandResult> {
+    const skills = claudeAgentProvider.listSkills()
+
+    const lines: string[] = [
+      chalk.blue.bold('⚡ Available Skills'),
+      chalk.gray('─'.repeat(40)),
+      '',
+    ]
+
+    for (const skill of skills) {
+      const riskColor = skill.riskLevel === 'high' ? chalk.red : skill.riskLevel === 'medium' ? chalk.yellow : chalk.green
+      lines.push(
+        chalk.cyan(`  ${skill.name}`) +
+        chalk.gray(` [${skill.category}]`) +
+        riskColor(` ${skill.riskLevel}`)
+      )
+      lines.push(chalk.gray(`    ${skill.description}`))
+      lines.push('')
+    }
+
+    lines.push(chalk.gray('Use /skill run <name> to execute a skill'))
+
+    const panel = boxen(lines.join('\n'), {
+      padding: 1,
+      margin: 1,
+      borderStyle: 'round',
+      borderColor: 'blue',
+    })
+
+    this.printPanel(panel)
+
+    return { shouldExit: false, shouldUpdatePrompt: false }
+  }
+
+  /**
+   * /sdk-agent - Execute Claude Agent SDK with custom prompt
+   */
+  private async sdkAgentCommand(args: string[]): Promise<CommandResult> {
+    if (args.length === 0) {
+      console.log(chalk.blue.bold('⚡ Claude Agent SDK'))
+      console.log(chalk.gray('─'.repeat(40)))
+      console.log(chalk.cyan('/sdk-agent <prompt>') + chalk.gray(' - Execute agent with prompt'))
+      console.log(chalk.cyan('/sdk-agent --subagents=name1,name2 <prompt>') + chalk.gray(' - Use subagents'))
+      console.log('')
+      console.log(chalk.gray('Example: /sdk-agent "Analyze this codebase for security issues"'))
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+
+    // Parse options
+    let subagents: string[] = []
+    let promptParts: string[] = []
+
+    for (const arg of args) {
+      if (arg.startsWith('--subagents=')) {
+        subagents = arg.replace('--subagents=', '').split(',')
+      } else {
+        promptParts.push(arg)
+      }
+    }
+
+    const prompt = promptParts.join(' ')
+
+    try {
+      console.log(chalk.blue('⚡ Starting Claude Agent...'))
+      if (subagents.length > 0) {
+        console.log(chalk.gray(`Subagents: ${subagents.join(', ')}`))
+      }
+
+      for await (const event of claudeAgentProvider.executeAgent(prompt, { subagents })) {
+        if (event.type === 'thinking' && claudeAgentProvider.getConfig().showThinking) {
+          console.log(chalk.gray(`💭 ${event.content?.substring(0, 100)}...`))
+        } else if (event.type === 'tool_call') {
+          console.log(chalk.cyan(`🔧 ${event.toolName}`))
+        } else if (event.type === 'text_delta') {
+          process.stdout.write(event.content || '')
+        } else if (event.type === 'complete') {
+          console.log(chalk.gray(`\n⏱️ Tokens: ${event.usage?.totalTokens || 0} | Cost: $${event.costUsd?.toFixed(4) || 0}`))
+        }
+      }
+
+      console.log('')
+    } catch (error: any) {
+      console.log(chalk.red(`✖ Agent execution failed: ${error.message}`))
+    }
+
+    return { shouldExit: false, shouldUpdatePrompt: false }
+  }
+
+  /**
+   * /subagent - Manage subagents
+   */
+  private async subagentCommand(args: string[]): Promise<CommandResult> {
+    const subCommand = args[0]?.toLowerCase() || 'list'
+
+    if (subCommand === 'list') {
+      return this.subagentsListCommand([])
+    }
+
+    console.log(chalk.blue.bold('⚡ Subagent Management'))
+    console.log(chalk.cyan('/subagent list') + chalk.gray(' - List available subagents'))
+    console.log(chalk.cyan('/subagents') + chalk.gray(' - Alias for /subagent list'))
+
+    return { shouldExit: false, shouldUpdatePrompt: false }
+  }
+
+  /**
+   * /subagents - List available subagents
+   */
+  private async subagentsListCommand(_args: string[]): Promise<CommandResult> {
+    const subagents = claudeAgentProvider.listSubagents()
+
+    const lines: string[] = [
+      chalk.blue.bold('🤖 Available Subagents'),
+      chalk.gray('─'.repeat(40)),
+      '',
+    ]
+
+    for (const agent of subagents) {
+      lines.push(chalk.cyan(`  ${agent.name}`) + chalk.gray(` [${agent.model || 'inherit'}]`))
+      lines.push(chalk.gray(`    ${agent.description}`))
+      lines.push(chalk.gray(`    Tools: ${agent.tools.join(', ')}`))
+      lines.push('')
+    }
+
+    lines.push(chalk.gray('Use with /sdk-agent --subagents=name1,name2 <prompt>'))
+
+    const panel = boxen(lines.join('\n'), {
+      padding: 1,
+      margin: 1,
+      borderStyle: 'round',
+      borderColor: 'magenta',
+    })
+
+    this.printPanel(panel)
+
+    return { shouldExit: false, shouldUpdatePrompt: false }
+  }
 }
 
 /**
@@ -14049,7 +14761,13 @@ export async function handleGoatSDKCommand(args: string[]): Promise<void> {
           chalk.gray('Optional: POLYGON_RPC_URL, BASE_RPC_URL'),
           chalk.gray('Tip: Use natural language with /goat chat for complex operations'),
         ].join('\n'),
-        { title: 'GOAT SDK', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' }
+        {
+          title: 'GOAT SDK',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'blue',
+        }
       )
     )
     return
@@ -14122,7 +14840,13 @@ export async function handleGoatSDKCommand(args: string[]): Promise<void> {
         chain: chain || 'base',
         token: token || 'USDC',
       })
-      const content = formatGoatTransferPanel({ result, amount, to, chain, token })
+      const content = formatGoatTransferPanel({
+        result,
+        amount,
+        to,
+        chain,
+        token,
+      })
       console.log(content)
     } else if (sub === 'balance') {
       let chain: string | undefined
@@ -14172,7 +14896,13 @@ export async function handleGoatSDKCommand(args: string[]): Promise<void> {
       boxen(
         `Failed to execute GOAT command: ${error.message}` +
         '\n\nTips:\n- Ensure GOAT_EVM_PRIVATE_KEY is set\n- Run /goat init first\n- Use /goat status to check setup',
-        { title: 'GOAT Error', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'red' }
+        {
+          title: 'GOAT Error',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        }
       )
     )
   }
@@ -14197,7 +14927,13 @@ export async function handlePolymarketCommand(args: string[]): Promise<void> {
           chalk.gray('Note: Polymarket operates on Polygon network'),
           chalk.gray('Ensure GOAT_EVM_PRIVATE_KEY and POLYGON_RPC_URL are configured'),
         ].join('\n'),
-        { title: 'Polymarket', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'magenta' }
+        {
+          title: 'Polymarket',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'magenta',
+        }
       )
     )
     return
@@ -14323,7 +15059,13 @@ function formatGoatStatusPanel(result: any): string {
     lines.push(chalk.yellow('Run /goat init to set up GOAT SDK'))
   }
 
-  return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
+  return boxen(lines.join('\n'), {
+    title,
+    padding: 1,
+    margin: 1,
+    borderStyle: 'round',
+    borderColor: 'blue',
+  })
 }
 
 function formatGoatInitPanel(result: any): string {
@@ -14344,7 +15086,13 @@ function formatGoatInitPanel(result: any): string {
     if (result?.error) lines.push(chalk.gray(result.error))
   }
 
-  return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
+  return boxen(lines.join('\n'), {
+    title,
+    padding: 1,
+    margin: 1,
+    borderStyle: 'round',
+    borderColor: 'blue',
+  })
 }
 
 function formatGoatWalletPanel(result: any): string {
@@ -14371,7 +15119,13 @@ function formatGoatWalletPanel(result: any): string {
     if (result?.error) lines.push(chalk.gray(result.error))
   }
 
-  return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
+  return boxen(lines.join('\n'), {
+    title,
+    padding: 1,
+    margin: 1,
+    borderStyle: 'round',
+    borderColor: 'blue',
+  })
 }
 
 function formatGoatToolsPanel(result: any): string {
@@ -14397,7 +15151,13 @@ function formatGoatToolsPanel(result: any): string {
     lines.push(chalk.gray('Initialize GOAT SDK first with /goat init'))
   }
 
-  return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
+  return boxen(lines.join('\n'), {
+    title,
+    padding: 1,
+    margin: 1,
+    borderStyle: 'round',
+    borderColor: 'blue',
+  })
 }
 
 function formatGoatMarketsPanel(result: any): string {
@@ -14417,7 +15177,13 @@ function formatGoatMarketsPanel(result: any): string {
     if (result?.error) lines.push(chalk.gray(result.error))
   }
 
-  return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'magenta' })
+  return boxen(lines.join('\n'), {
+    title,
+    padding: 1,
+    margin: 1,
+    borderStyle: 'round',
+    borderColor: 'magenta',
+  })
 }
 
 function formatGoatTransferPanel({ result, amount, to, chain, token }: any): string {
@@ -14442,7 +15208,13 @@ function formatGoatTransferPanel({ result, amount, to, chain, token }: any): str
     if (result?.error) lines.push(chalk.gray(result.error))
   }
 
-  return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
+  return boxen(lines.join('\n'), {
+    title,
+    padding: 1,
+    margin: 1,
+    borderStyle: 'round',
+    borderColor: 'blue',
+  })
 }
 
 function formatGoatBalancePanel(result: any): string {
@@ -14462,7 +15234,13 @@ function formatGoatBalancePanel(result: any): string {
     if (result?.error) lines.push(chalk.gray(result.error))
   }
 
-  return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
+  return boxen(lines.join('\n'), {
+    title,
+    padding: 1,
+    margin: 1,
+    borderStyle: 'round',
+    borderColor: 'blue',
+  })
 }
 
 function formatGoatChatPanel(message: string, result: any): string {
@@ -14485,7 +15263,13 @@ function formatGoatChatPanel(message: string, result: any): string {
     if (result?.error) lines.push(chalk.gray(result.error))
   }
 
-  return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
+  return boxen(lines.join('\n'), {
+    title,
+    padding: 1,
+    margin: 1,
+    borderStyle: 'round',
+    borderColor: 'blue',
+  })
 }
 
 function formatGoatBetPanel(result: any): string {
@@ -14508,7 +15292,13 @@ function formatGoatBetPanel(result: any): string {
     if (result?.error) lines.push(chalk.gray(result.error))
   }
 
-  return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'magenta' })
+  return boxen(lines.join('\n'), {
+    title,
+    padding: 1,
+    margin: 1,
+    borderStyle: 'round',
+    borderColor: 'magenta',
+  })
 }
 
 function formatGoatPositionsPanel(result: any): string {
@@ -14528,7 +15318,13 @@ function formatGoatPositionsPanel(result: any): string {
     if (result?.error) lines.push(chalk.gray(result.error))
   }
 
-  return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'magenta' })
+  return boxen(lines.join('\n'), {
+    title,
+    padding: 1,
+    margin: 1,
+    borderStyle: 'round',
+    borderColor: 'magenta',
+  })
 }
 
 // ====================== WEB3 TOOLCHAIN PANEL FORMATTERS ======================
@@ -14563,7 +15359,13 @@ function formatWeb3ToolchainListPanel(toolchains: any[]): string {
     })
   }
 
-  return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'cyan' })
+  return boxen(lines.join('\n'), {
+    title,
+    padding: 1,
+    margin: 1,
+    borderStyle: 'round',
+    borderColor: 'cyan',
+  })
 }
 
 function formatWeb3ToolchainExecutionPanel(execution: any): string {
@@ -14600,7 +15402,13 @@ function formatWeb3ToolchainExecutionPanel(execution: any): string {
     })
   }
 
-  return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
+  return boxen(lines.join('\n'), {
+    title,
+    padding: 1,
+    margin: 1,
+    borderStyle: 'round',
+    borderColor: 'blue',
+  })
 }
 
 function formatWeb3ToolchainStatusPanel(executions: any[]): string {
@@ -14626,7 +15434,13 @@ function formatWeb3ToolchainStatusPanel(executions: any[]): string {
     })
   }
 
-  return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'cyan' })
+  return boxen(lines.join('\n'), {
+    title,
+    padding: 1,
+    margin: 1,
+    borderStyle: 'round',
+    borderColor: 'cyan',
+  })
 }
 
 function formatWeb3ToolchainCancelPanel(cancelled: boolean, executionId: string): string {

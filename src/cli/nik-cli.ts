@@ -13436,6 +13436,17 @@ RULES:
           ['/set-key nikdrive <apiKey>', 'Configure cloud storage API key'],
         ],
       },
+      {
+        title: '🤖 Claude Agent SDK',
+        commands: [
+          ['/skills', 'List all available skills'],
+          ['/skill list', 'List skills with details'],
+          ['/skill run <name> [context]', 'Execute a skill'],
+          ['/skill info <name>', 'Show skill details'],
+          ['/sdk-agent <prompt>', 'Execute agent with prompt'],
+          ['/subagents', 'List available subagents'],
+        ],
+      },
     ]
   }
 
