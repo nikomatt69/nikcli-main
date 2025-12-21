@@ -696,7 +696,7 @@ export class AgentService extends EventEmitter {
           'Reading package.json to understand dependencies, scripts, and project metadata. This reveals technology stack, framework choices, and maintenance status.',
         nextAction: 'Parse package.json for comprehensive dependency analysis',
       }
-      let packageInfo = null
+      let packageInfo: any = null
       try {
         yield { type: 'tool_use', tool: 'read_file', description: 'Reading package.json' }
         packageInfo = await context.tools.executeTool('read_file', { filePath: 'package.json' })
@@ -736,7 +736,7 @@ export class AgentService extends EventEmitter {
           'Checking git status to understand current development state, branch information, and pending changes. This provides context about active development.',
         nextAction: 'Query git status for repository state',
       }
-      let gitInfo = null
+      let gitInfo: any = null
       try {
         yield { type: 'tool_use', tool: 'git_status', description: 'Checking git repository status' }
         gitInfo = await context.tools.executeTool('git_status', {})
@@ -879,7 +879,7 @@ export class AgentService extends EventEmitter {
     if (!packageInfo?.dependencies) return []
 
     const allDeps = { ...packageInfo.dependencies, ...packageInfo.devDependencies }
-    const keyLibs = []
+    const keyLibs: string[] = []
 
     // Framework libraries
     if (allDeps.react) keyLibs.push('React')
@@ -904,7 +904,7 @@ export class AgentService extends EventEmitter {
   }
 
   private generateRecommendations(context: any): string[] {
-    const recommendations = []
+    const recommendations: string[] = []
 
     if (!context.hasTests) {
       recommendations.push('Add unit tests for better code reliability')
@@ -969,7 +969,7 @@ export class AgentService extends EventEmitter {
         nextAction: 'Retrieve and analyze code differences',
       }
       let diff = null
-      let reviewFindings = []
+      let reviewFindings: string[] = []
       if (gitStatus?.files && gitStatus.files.length > 0) {
         yield { type: 'tool_use', tool: 'git_diff', description: 'Getting code changes for review' }
         diff = await context.tools.executeTool('git_diff', {})
@@ -1072,7 +1072,7 @@ export class AgentService extends EventEmitter {
   }
 
   private performQualityReview(_diff: any): string[] {
-    const qualityIssues = []
+    const qualityIssues: string[] = []
     // Basic quality checks
     qualityIssues.push('Verify error handling is comprehensive')
     qualityIssues.push('Ensure proper TypeScript typing')
@@ -1502,8 +1502,8 @@ export class AgentService extends EventEmitter {
         estimatedDuration: `${executionPlan.estimatedDuration} seconds`,
       }
 
-      const results = []
-      const errors = []
+      const results: any[] = []
+      const errors: any[] = []
       let currentStep = 0
 
       for (const step of executionPlan.steps) {
@@ -1581,7 +1581,7 @@ export class AgentService extends EventEmitter {
    * Generate execution plan based on task and context
    */
   private generateExecutionPlan(task: string, _workspaceFiles: string[], _agentType: string): any {
-    const steps = []
+    const steps: any[] = []
     const requiredTools = ['analysis']
 
     // Basic planning based on task keywords

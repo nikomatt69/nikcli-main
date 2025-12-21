@@ -156,7 +156,7 @@ export class FrontendAgent extends BaseAgent {
     advancedUI.logInfo(`⚡ Optimizing frontend performance: ${optimizationType}`)
 
     try {
-      const optimizations = []
+      const optimizations: string[] = []
 
       // Code splitting optimization
       if (optimizationType.includes('code-splitting')) {
@@ -201,7 +201,7 @@ export class FrontendAgent extends BaseAgent {
     advancedUI.logInfo(`📱 Adding responsive design to components`)
 
     try {
-      const responsiveUpdates = []
+      const responsiveUpdates: any[] = []
 
       for (const file of targetFiles || []) {
         const content = await this.executeTool('read-file-tool', file)
@@ -233,7 +233,7 @@ export class FrontendAgent extends BaseAgent {
     advancedUI.logInfo(`♿ Improving accessibility: ${accessibilityLevel} level`)
 
     try {
-      const accessibilityImprovements = []
+      const accessibilityImprovements: any[] = []
 
       for (const file of targetFiles || []) {
         const content = await this.executeTool('read-file-tool', file)
@@ -275,7 +275,7 @@ export class FrontendAgent extends BaseAgent {
       await this.setupTestingFramework(testingFramework)
 
       // Generate tests for components
-      const testFiles = []
+      const testFiles: string[] = []
       for (const componentPath of componentPaths || []) {
         const testContent = await this.generateComponentTest(componentPath, testingFramework)
         const testPath = this.getTestPath(componentPath, testingFramework)

@@ -3087,9 +3087,13 @@ export class NikCLI {
     const trimmed = content.trim()
     if (!trimmed) return
 
-
     // Process through paste handler for display formatting
     const pasteResult = this.pasteHandler.processPastedText(trimmed)
+
+    // If not detected as paste (short text), skip - readline already has the content
+    if (!pasteResult.shouldTruncate) {
+      return
+    }
 
     // Store the content - will be submitted when user presses Enter
     this.pendingPasteContent = pasteResult.originalText
@@ -3098,6 +3102,8 @@ export class NikCLI {
     // Clear the line (which now contains existing + pasted text visible)
     // Then rewrite ONLY: pre-paste content + indicator
     if (this?.rl) {
+      // Clear current line first to avoid duplication
+      this.rl.write('', { ctrl: true, name: 'u' })
       // Write the indicator as the current line content (user sees this before pressing Enter)
       this.rl?.write(existingContent + pasteResult.displayText)
     }
@@ -6542,6 +6548,21 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
   private assessTaskComplexity(input: string): boolean {
     const lowerInput = input.toLowerCase()
 
+    // Keywords that FORCE very_complex (parallel agents) - user explicitly wants deep/parallel execution
+    const forceParallelKeywords = [
+      // Explicit parallel/multi-agent requests
+      'deep', 'parallel', 'agents', 'multiagents', 'multi-agents',
+      'parallel agents', 'multi-agent', 'multiagent', 'multiple agents',
+      // Italian equivalentszw
+      'in parallelo', 'agenti paralleli', 'agenti multipli', 'analisi profonda',
+      // Deep analysis requests
+      'deep analysis', 'comprehensive analysis', 'thorough', 'exhaustive', 'in-depth',
+      'analisi completa', 'analisi approfondita',
+    ]
+    if (forceParallelKeywords.some((keyword) => lowerInput.includes(keyword))) {
+      return true
+    }
+
     // Keywords that indicate complex tasks
     const complexKeywords = [
       // Development actions
@@ -6608,7 +6629,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     const hasMultipleSentences = input.split(/[.!?]/).filter((s) => s.trim().length > 0).length > 2
     const hasMultipleTechnicalTerms = technicalTermCount >= 2
 
-    // More aggressive detection: task is complex if it has 1+ complex indicators
+    // Count complexity indicators
     const complexIndicators = [
       hasComplexKeywords && !hasSimpleKeywords,
       isLongTask,
@@ -6638,7 +6659,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
 
     // Keywords that indicate simple tasks
     const simpleKeywords = [
-      'show', 'list', 'check', 'status', 'help', 'what', 'how', 'explain', 'describe',
+
     ]
 
     const hasComplexKeywords = complexKeywords.some((keyword) => lowerInput.includes(keyword))
@@ -13346,6 +13367,18 @@ RULES:
           ['/generate-image "prompt"', 'Generate image with AI'],
           ['/images', 'Discover and analyze images'],
           ['/create-image "prompt"', 'Generate image with AI'],
+        ],
+      },
+      {
+        title: '🎯 Anthropic Skills',
+        commands: [
+          ['/skill list', 'List available skills'],
+          ['/skill run <name> [context]', 'Execute a skill'],
+          ['/skill info <name>', 'Show skill details'],
+          ['/skill install <name>', 'Install skill from Anthropic repo'],
+          ['/skill sync', 'Sync all skills from repository'],
+          ['/skill remove <name>', 'Remove installed skill'],
+          ['/skills', 'List all available skills'],
         ],
       },
       {

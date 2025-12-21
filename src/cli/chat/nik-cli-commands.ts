@@ -23,6 +23,7 @@ import { WebSearchProvider } from '../core/web-search-provider'
 import { ideDiagnosticIntegration } from '../integrations/ide-diagnostic-integration'
 import { enhancedPlanning } from '../planning/enhanced-planning'
 import { claudeAgentProvider } from '../providers/claude-agents'
+import { skillProvider } from '../providers/skills'
 import { imageGenerator } from '../providers/image'
 import { visionProvider } from '../providers/vision'
 import { registerAgents } from '../register-agents'
@@ -13355,10 +13356,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       logs.forEach((log) => {
         const levelIcon = {
-          info: 'ℹ️',
+          info: 'ℹ︎',
           warn: '⚠︎',
           error: '✖',
-          debug: '🐛',
+
         }[log.level]
 
         const timestamp = new Date(log.timestamp).toLocaleTimeString()
@@ -14271,9 +14272,55 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         console.log(chalk.cyan('/skill list') + chalk.gray(' - List available skills'))
         console.log(chalk.cyan('/skill run <name> [context]') + chalk.gray(' - Execute a skill'))
         console.log(chalk.cyan('/skill info <name>') + chalk.gray(' - Show skill details'))
+        console.log(chalk.cyan('/skill install <name>') + chalk.gray(' - Install skill from Anthropic repo'))
+        console.log(chalk.cyan('/skill sync') + chalk.gray(' - Sync all skills from repository'))
+        console.log(chalk.cyan('/skill remove <name>') + chalk.gray(' - Remove installed skill'))
         console.log('')
         console.log(chalk.gray('Example: /skill run code-analysis filePath=./src'))
+        console.log(chalk.gray('Available: docx, pdf, pptx, xlsx'))
         return { shouldExit: false, shouldUpdatePrompt: false }
+
+      case 'install': {
+        const skillName = args[1]
+        if (!skillName) {
+          console.log(chalk.red('Usage: /skill install <skill-name>'))
+          console.log(chalk.gray('Available: docx, pdf, pptx, xlsx'))
+          return { shouldExit: false, shouldUpdatePrompt: false }
+        }
+        try {
+          console.log(chalk.blue(`⬇️  Installing skill: ${skillName}...`))
+          await skillProvider.installSkill(skillName)
+          console.log(chalk.green(`✓ Skill '${skillName}' installed successfully`))
+        } catch (error: any) {
+          console.log(chalk.red(`✖ ${error.message}`))
+        }
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
+
+      case 'sync': {
+        try {
+          await skillProvider.syncSkills()
+        } catch (error: any) {
+          console.log(chalk.red(`✖ Sync failed: ${error.message}`))
+        }
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
+
+      case 'remove':
+      case 'uninstall': {
+        const skillName = args[1]
+        if (!skillName) {
+          console.log(chalk.red('Usage: /skill remove <skill-name>'))
+          return { shouldExit: false, shouldUpdatePrompt: false }
+        }
+        const removed = skillProvider.removeSkill(skillName)
+        if (removed) {
+          console.log(chalk.green(`✓ Skill '${skillName}' removed`))
+        } else {
+          console.log(chalk.yellow(`⚠️  Skill '${skillName}' not found`))
+        }
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
     }
   }
 

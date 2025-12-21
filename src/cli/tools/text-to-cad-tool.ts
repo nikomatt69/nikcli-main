@@ -341,14 +341,14 @@ export class TextToCADTool extends BaseTool {
         this.activeBridge = 'ai-cad-sdk'
         return
       }
-    } catch {}
+    } catch { }
     try {
       const cadOk = await this.cadBridge.initialize()
       if (cadOk && this.cadBridge.isAvailable()) {
         this.activeBridge = 'cadcamfun'
         return
       }
-    } catch {}
+    } catch { }
     this.activeBridge = null
   }
 
@@ -502,7 +502,7 @@ export class TextToCADTool extends BaseTool {
 
     // Extract dimensions
     const dimensionRegex = /(\d+(?:\.\d+)?)\s*(mm|cm|m|inch|in)/gi
-    const dimensions = []
+    const dimensions: any = []
     let match
     while ((match = dimensionRegex.exec(description)) !== null) {
       dimensions.push({ value: parseFloat(match[1]), unit: match[2] })

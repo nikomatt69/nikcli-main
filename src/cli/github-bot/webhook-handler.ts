@@ -218,7 +218,7 @@ export class GitHubWebhookHandler {
 
     // Check if this is a comment on a PR (issue.pull_request exists)
     const isPR = !!issue.pull_request
-    let pullRequest = null
+    let pullRequest: any = null
 
     if (isPR) {
       // Fetch full PR details

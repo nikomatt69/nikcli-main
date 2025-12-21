@@ -339,7 +339,7 @@ Create production-ready infrastructure with security-first approach, cost optimi
   }
 
   private getDevOpsCapabilities(cognition: TaskCognition): string[] {
-    const capabilities = []
+    const capabilities: string[] = []
 
     if (cognition.intent.primary === 'deploy') capabilities.push('deployment')
     if (cognition.normalizedTask.includes('container')) capabilities.push('containerization')
@@ -392,7 +392,7 @@ Create production-ready infrastructure with security-first approach, cost optimi
   }
 
   private extractResourcesFromResponse(response: string): string[] {
-    const resources = []
+    const resources: any[] = []
 
     if (response.includes('apiVersion')) resources.push('Kubernetes manifests')
     if (response.includes('services:')) resources.push('Docker Compose')
@@ -403,7 +403,7 @@ Create production-ready infrastructure with security-first approach, cost optimi
   }
 
   private extractConfigurationsFromResponse(response: string): string[] {
-    const configs = []
+    const configs: string[] = []
 
     if (response.includes('prometheus')) configs.push('Prometheus monitoring')
     if (response.includes('grafana')) configs.push('Grafana dashboard')

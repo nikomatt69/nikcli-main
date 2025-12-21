@@ -12,6 +12,23 @@ import {
   experimental_customProvider as customProvider,
 } from 'ai'
 
+// Type-safe provider registry interface
+interface ProviderRegistry {
+  [key: string]: any
+}
+
+interface ProviderRegistryConfig {
+  anthropic: ProviderRegistry
+  openai: ProviderRegistry
+  google: ProviderRegistry
+  groq: ProviderRegistry
+  mistral: ProviderRegistry
+  cerebras: ProviderRegistry
+  openrouter: ProviderRegistry
+  vercel: ProviderRegistry
+  xai: ProviderRegistry
+}
+
 /**
  * OpenRouter provider with custom configuration
  * Supports all OpenRouter models dynamically
@@ -70,9 +87,7 @@ export const openrouterProvider = customProvider({
 
     // === xAI Grok Models (131K context) ===
     'grok-4-fast': openrouterBase('xai/grok-4-fast') as any, // 131K context, frontier reasoning
-    'grok-4.1-fast:free': openrouterBase('xai/grok-4.1-fast:free') as any, // Free tier
-
-    // === Mistral AI Models ===
+    'grok-4.1-fast:free': openrouterBase('xai/grok-4.1-fast-2') as any, // Free tier
 
     // === Model Aliases for common use cases ===
     // Fast tier - use Claude Haiku 4.5 (best price/performance)

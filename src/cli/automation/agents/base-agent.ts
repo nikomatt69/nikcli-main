@@ -384,14 +384,14 @@ export abstract class BaseAgent implements AgentInstance {
    * Enhanced batch processing for better performance
    */
   protected async processBatch<T>(items: T[], processor: (item: T) => Promise<any>): Promise<any[]> {
-    const results = []
+    const results: any = []
 
     for (let i = 0; i < items.length; i += this.batchSize) {
       const batch = items.slice(i, i + this.batchSize)
       const batchResults = await Promise.allSettled(batch.map((item) => processor(item)))
 
       results.push(
-        ...batchResults.map((result) => (result.status === 'fulfilled' ? result.value : { error: result.reason }))
+        ...(batchResults as PromiseSettledResult<any>[]).map((result) => (result.status === 'fulfilled' ? result.value : { error: result.reason }))
       )
 
       // Small delay between batches to prevent overwhelming

@@ -713,7 +713,7 @@ export class OrchestratorService extends EventEmitter {
       return false
     }
 
-    const availableKeys = []
+    const availableKeys: string[] = []
     if (hasAnthropicKey) availableKeys.push('Claude')
     if (hasOpenAIKey) availableKeys.push('GPT')
     if (hasOpenRouterKey) availableKeys.push('OpenRouter')
@@ -796,7 +796,7 @@ export class OrchestratorService extends EventEmitter {
           if (todos.length === 0) {
             try {
               const { enhancedPlanning } = await import('../planning/enhanced-planning')
-              const plans = enhancedPlanning.getActivePlans?.() || []
+              const plans: any[] = enhancedPlanning.getActivePlans?.() || []
               const latest = plans[plans.length - 1]
               if (latest?.todos) {
                 title = latest.title || title
@@ -814,7 +814,7 @@ export class OrchestratorService extends EventEmitter {
           if (todos.length === 0) {
             try {
               const { planningService } = await import('./planning-service')
-              const plans = planningService.getActivePlans?.() || []
+              const plans: any[] = planningService.getActivePlans?.() || []
               const latest = plans[plans.length - 1]
               if (latest?.todos) {
                 title = latest.title || title
@@ -934,7 +934,7 @@ export class OrchestratorService extends EventEmitter {
   }
 
   private getPromptIndicators(): string[] {
-    const indicators = []
+    const indicators: string[] = []
 
     if (this.context.planMode) indicators.push(chalk.cyan('plan'))
     if (this.context.autoAcceptEdits) indicators.push(chalk.green('auto-accept'))

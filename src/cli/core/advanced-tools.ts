@@ -118,7 +118,7 @@ export class AdvancedTools {
 
   // Get available embedding providers
   getAvailableEmbeddingProviders(): Array<{ provider: string; available: boolean; model: string }> {
-    const providers = []
+    const providers: Array<{ provider: string; available: boolean; model: string }> = []
 
     try {
       const openaiKey = configManager.getApiKey('openai') || process.env.OPENAI_API_KEY
@@ -180,7 +180,7 @@ export class AdvancedTools {
 
           // Find files and generate embeddings
           const files = this.findFiles(searchPath, fileTypes)
-          const results = []
+          const results: any[] = []
 
           for (const file of files.slice(0, 20)) {
             // Limit to 20 files for performance

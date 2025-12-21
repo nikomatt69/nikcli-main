@@ -466,7 +466,7 @@ export class BackendAgent extends CognitiveAgentBase {
   }
 
   private getBackendCapabilities(cognition: TaskCognition): string[] {
-    const capabilities = []
+    const capabilities: string[] = []
 
     if (cognition.intent.primary === 'create') capabilities.push('api-development')
     if (cognition.normalizedTask.includes('database')) capabilities.push('database-design')
@@ -497,7 +497,7 @@ export class BackendAgent extends CognitiveAgentBase {
   }
 
   private async analyzeSecurityNeeds(cognition: TaskCognition): Promise<string[]> {
-    const needs = []
+    const needs: string[] = []
     const taskText = cognition.normalizedTask.toLowerCase()
 
     if (taskText.includes('auth') || taskText.includes('login')) {
@@ -516,7 +516,7 @@ export class BackendAgent extends CognitiveAgentBase {
   }
 
   private async analyzePerformanceNeeds(cognition: TaskCognition): Promise<string[]> {
-    const needs = []
+    const needs: string[] = []
     const taskText = cognition.normalizedTask.toLowerCase()
 
     if (taskText.includes('database') || taskText.includes('query')) {
@@ -537,7 +537,7 @@ export class BackendAgent extends CognitiveAgentBase {
   // Cognitive analysis methods
   private analyzeAPIPatterns(): string[] {
     const patterns = this.cognitiveMemory.taskPatterns.get('api-design') || []
-    const optimizations = []
+    const optimizations: string[] = []
 
     if (patterns.length > 10) {
       const restCount = patterns.filter((p) => p.normalizedTask.includes('rest')).length
@@ -550,7 +550,7 @@ export class BackendAgent extends CognitiveAgentBase {
   }
 
   private analyzeDatabasePatterns(): string[] {
-    const optimizations = []
+    const optimizations: string[] = []
     const dbPatterns = this.cognitiveMemory.taskPatterns.get('database-optimization') || []
 
     if (dbPatterns.length > 5) {
@@ -567,7 +567,7 @@ export class BackendAgent extends CognitiveAgentBase {
   }
 
   private analyzeSecurityPatterns(): string[] {
-    const optimizations = []
+    const optimizations: string[] = []
     const securityHistory = this.cognitiveMemory.performanceHistory
       .filter((h) => h.cognition.requiredCapabilities.includes('security-assessment'))
       .slice(-10)
@@ -586,7 +586,7 @@ export class BackendAgent extends CognitiveAgentBase {
   }
 
   private analyzePerformancePatterns(): string[] {
-    const optimizations = []
+    const optimizations: string[] = []
     const performanceHistory = this.cognitiveMemory.performanceHistory
       .filter((h) => h.cognition.requiredCapabilities.includes('performance-optimization'))
       .slice(-15)
@@ -643,7 +643,7 @@ export class BackendAgent extends CognitiveAgentBase {
       await this.executeTool('write-file-tool', controllerPath, controllerCode)
 
       // Generate model if database is specified
-      let modelPath = null
+      let modelPath: string | null = null
       if (database) {
         const modelCode = await this.generateModel(apiName, database)
         modelPath = await this.determineModelPath(apiName, database)
@@ -760,7 +760,7 @@ export class BackendAgent extends CognitiveAgentBase {
     advancedUI.logInfo(`🔨 Setting up middleware: ${middlewareTypes?.join(', ')}`)
 
     try {
-      const middlewareFiles = []
+      const middlewareFiles: string[] = []
 
       for (const middlewareType of middlewareTypes || []) {
         const middlewareCode = await this.generateMiddleware(middlewareType, framework)
@@ -792,7 +792,7 @@ export class BackendAgent extends CognitiveAgentBase {
     advancedUI.logInfo(`⚡ Optimizing backend performance: ${optimizationType}`)
 
     try {
-      const optimizations = []
+      const optimizations: string[] = []
 
       // Database query optimization
       if (optimizationType.includes('database')) {
@@ -837,7 +837,7 @@ export class BackendAgent extends CognitiveAgentBase {
     advancedUI.logInfo(`📊 Setting up monitoring with: ${monitoringTools?.join(', ')}`)
 
     try {
-      const monitoringFiles = []
+      const monitoringFiles: string[] = []
 
       // Setup logging
       const loggingCode = await this.generateLoggingSetup(monitoringTools)

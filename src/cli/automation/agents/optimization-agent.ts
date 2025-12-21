@@ -188,7 +188,7 @@ export class OptimizationAgent extends CognitiveAgentBase {
   }
 
   private getOptimizationCapabilities(cognition: TaskCognition): string[] {
-    const capabilities = []
+    const capabilities: string[] = []
 
     if (cognition.intent.primary === 'optimize') capabilities.push('performance-optimization')
     if (cognition.normalizedTask.includes('memory')) capabilities.push('memory-optimization')
@@ -238,7 +238,7 @@ Provide the optimized version with explanations of improvements made.`
   }
 
   private extractOptimizationExplanations(aiResponse: string): string[] {
-    const explanations = []
+    const explanations: string[] = []
 
     if (aiResponse.includes('performance')) explanations.push('Performance optimizations applied')
     if (aiResponse.includes('memory')) explanations.push('Memory optimizations applied')

@@ -4,6 +4,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import path, { extname, join, relative, resolve } from 'node:path'
 import chalk from 'chalk'
 import { advancedUI } from '../ui/advanced-cli-ui'
+import { WorkspaceCacheManager, FileMetadata } from './workspace-cache-manager'
 
 export interface FileEmbedding {
   path: string
@@ -78,10 +79,32 @@ export interface PlanTodo {
 export class WorkspaceRAG {
   private context: WorkspaceContext
   private embeddings: Map<string, number[]> = new Map()
+  private cacheManager: WorkspaceCacheManager
+  private readonly CACHE_VERSION = '2.0'
+  private readonly DEFAULT_CACHE_TTL = 24 * 60 * 60 * 1000 // 24 hours
 
-  constructor(workspacePath: string = process.cwd()) {
+  constructor(workspacePath: string = process.cwd(), options?: { forceRefresh?: boolean; cacheTTL?: number }) {
+    this.cacheManager = new WorkspaceCacheManager(workspacePath, {
+      ttl: options?.cacheTTL || this.DEFAULT_CACHE_TTL,
+      version: this.CACHE_VERSION,
+    })
+
     this.context = this.initializeWorkspace(workspacePath)
-    this.analyzeWorkspace()
+
+    // SOLO se non c'è cache valida o forceRefresh
+    if (options?.forceRefresh || !this.cacheManager.hasValidCache()) {
+      this.analyzeWorkspace()
+    } else {
+      const cachedContext = this.cacheManager.loadCachedContext()
+      if (cachedContext) {
+        this.context = cachedContext
+        if (!process.env.NIKCLI_QUIET_STARTUP) {
+          advancedUI.logInfo(chalk.green('✓ Loaded workspace context from cache'))
+        }
+      } else {
+        this.analyzeWorkspace()
+      }
+    }
   }
 
   private initializeWorkspace(path: string): WorkspaceContext {
@@ -110,28 +133,93 @@ export class WorkspaceRAG {
   }
 
   // Analisi completa del workspace con RAG
-  async analyzeWorkspace(): Promise<WorkspaceContext> {
+  async analyzeWorkspace(options?: { incremental?: boolean }): Promise<WorkspaceContext> {
     if (!process.env.NIKCLI_QUIET_STARTUP) {
       advancedUI.logInfo(chalk.blue('⚡︎ Building workspace context with RAG...'))
     }
 
-    // 1. Scan all files
-    await this.scanFiles()
+    // Se è incremental mode, rileva solo i cambiamenti
+    if (options?.incremental) {
+      const changes = await this.cacheManager.detectFileChanges()
+      if (changes.changed.length === 0 && changes.added.length === 0) {
+        if (!process.env.NIKCLI_QUIET_STARTUP) {
+          advancedUI.logInfo(chalk.green('✓ No changes detected, using cached context'))
+        }
+        return this.context
+      }
+      if (!process.env.NIKCLI_QUIET_STARTUP) {
+        advancedUI.logInfo(chalk.yellow(`🔄 Incremental update: ${changes.changed.length} changed, ${changes.added.length} added`))
+      }
+      // Aggiorna solo i file modificati
+      await this.updateChangedFiles(changes)
+    } else {
+      // Modalità completa - scan tutti i file
+      await this.scanFiles()
 
-    // 2. Analyze project structure
-    await this.analyzeProjectStructure()
+      // 2. Analyze project structure
+      await this.analyzeProjectStructure()
 
-    // 3. Extract dependencies and relationships
-    this.extractDependencies(this.context.files as any, this.context.framework)
+      // 3. Extract dependencies and relationships
+      this.extractDependencies(this.context.files as any, this.context.framework)
 
-    // 4. Analyze git context
-    await this.analyzeGitContext()
+      // 4. Analyze git context
+      await this.analyzeGitContext()
 
-    // 5. Build semantic understanding
-    await this.buildSemanticIndex()
+      // 5. Build semantic understanding
+      await this.buildSemanticIndex()
+    }
 
     this.context.lastAnalyzed = new Date()
+
+    // Salva la cache
+    const fileMetadata = await this.generateFileMetadata()
+    this.cacheManager.saveContext(this.context, fileMetadata)
+
     return this.context
+  }
+
+  /**
+   * Aggiorna solo i file che sono cambiati
+   */
+  private async updateChangedFiles(changes: { changed: string[], removed: string[], added: string[] }): Promise<void> {
+    // Rimuovi file cancellati
+    for (const path of changes.removed) {
+      this.context.files.delete(path)
+    }
+
+    // Analizza file modificati e aggiunti
+    const filesToUpdate = [...changes.changed, ...changes.added]
+    for (const relativePath of filesToUpdate) {
+      const fullPath = join(this.context.rootPath, relativePath)
+      if (existsSync(fullPath)) {
+        this.analyzeFile(fullPath, relativePath)
+      }
+    }
+
+    // Aggiorna dipendenze e struttura se necessario
+    if (changes.changed.length > 0 || changes.added.length > 0) {
+      await this.analyzeProjectStructure()
+      this.extractDependencies(this.context.files as any, this.context.framework)
+      await this.buildSemanticIndex()
+    }
+  }
+
+  /**
+   * Genera metadata per tutti i file
+   */
+  private async generateFileMetadata(): Promise<Map<string, FileMetadata>> {
+    const metadata = new Map<string, FileMetadata>()
+
+    for (const [path, file] of this.context.files) {
+      metadata.set(path, {
+        hash: file.hash,
+        mtime: file.lastModified.getTime(),
+        size: file.size,
+        lastIndexed: new Date(),
+      })
+    }
+
+    return metadata
   }
 
   private async scanFiles(): Promise<void> {
@@ -554,6 +642,38 @@ export class WorkspaceRAG {
 
   getContext(): WorkspaceContext {
     return this.context
+  }
+
+  /**
+   * Ottiene statistiche della cache
+   */
+  getCacheStats() {
+    return this.cacheManager.getCacheStats()
+  }
+
+  /**
+   * Pulisce tutte le cache
+   */
+  clearCache(): void {
+    this.cacheManager.clearAllCaches()
+    if (!process.env.NIKCLI_QUIET_STARTUP) {
+      advancedUI.logInfo(chalk.yellow('🗑 Cache cleared'))
+    }
+  }
+
+  /**
+   * Forza il refresh del workspace
+   */
+  async forceRefresh(): Promise<WorkspaceContext> {
+    this.clearCache()
+    return await this.analyzeWorkspace()
+  }
+
+  /**
+   * Aggiorna solo i file che sono cambiati (incremental update)
+   */
+  async incrementalUpdate(): Promise<WorkspaceContext> {
+    return await this.analyzeWorkspace({ incremental: true })
   }
 
   // Update context when files change

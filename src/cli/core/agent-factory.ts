@@ -777,7 +777,7 @@ export class AgentFactory extends EventEmitter {
     const lowerSpec = specialization.toLowerCase()
 
     // Determine capabilities based on specialization keywords
-    const capabilities = []
+    const capabilities: string[] = []
     const requiredTools = ['Read', 'Write']
 
     if (

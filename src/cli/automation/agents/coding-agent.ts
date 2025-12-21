@@ -275,7 +275,7 @@ export class CodingAgent extends CognitiveAgentBase {
    * Get coding-specific capabilities needed for task
    */
   private getCodingCapabilities(cognition: TaskCognition): string[] {
-    const capabilities = []
+    const capabilities: string[] = []
 
     if (cognition.intent.primary === 'create') capabilities.push('code-generation')
     if (cognition.intent.primary === 'debug') capabilities.push('debugging')

@@ -16,6 +16,10 @@ import { adaptiveModelRouter, type ModelScope } from './adaptive-model-router'
 import { openRouterRegistry } from './openrouter-model-registry'
 import { ReasoningDetector } from './reasoning-detector'
 
+// Static import for provider registry (replaces dynamic require for performance)
+import { getLanguageModel } from './provider-registry'
+import chalk from 'chalk'
+
 // ====================== ⚡︎ ZOD VALIDATION SCHEMAS ======================
 
 // Chat Message Schema
@@ -237,13 +241,14 @@ export class ModelProvider {
   private getModel(config: ModelConfig) {
     const currentModelName = configManager.get('currentModel')
 
-    // Try provider registry first (optional, experimental)
+    // Try provider registry first (optional, experimental) - now uses static import
     if (process.env.USE_PROVIDER_REGISTRY === 'true') {
       try {
-        const { getLanguageModel } = require('./provider-registry')
+        // Lazy initialization - only load when needed
         return getLanguageModel(config.provider, config.model)
       } catch (error) {
         // Fall through to legacy implementation
+        console.log(chalk.yellow(`⚠︎ Provider registry failed, using legacy provider: ${error}`))
       }
     }
 

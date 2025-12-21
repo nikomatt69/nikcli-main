@@ -292,7 +292,7 @@ export class ReactAgent extends CognitiveAgentBase {
   }
 
   private getReactCapabilities(cognition: TaskCognition): string[] {
-    const capabilities = []
+    const capabilities: string[] = []
 
     if (cognition.intent.primary === 'create') capabilities.push('component-creation')
     if (cognition.normalizedTask.includes('hook')) capabilities.push('custom-hooks')
@@ -395,7 +395,7 @@ Provide complete, working code that can be used immediately.`
   }
 
   private getPerformanceOptimizations(componentType: string, stateManagement: string): string[] {
-    const opts = []
+    const opts: any[] = []
 
     if (componentType === 'functional') {
       opts.push('React.memo for preventing re-renders')

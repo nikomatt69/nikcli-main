@@ -310,7 +310,7 @@ export class PerformanceMiddleware extends BaseMiddleware {
   }
 
   private getOptimizationSuggestion(benchmark: PerformanceBenchmark): string {
-    const suggestions = []
+    const suggestions: string[] = []
 
     if (benchmark.averageTime > 10000) {
       suggestions.push('Consider breaking this operation into smaller chunks')

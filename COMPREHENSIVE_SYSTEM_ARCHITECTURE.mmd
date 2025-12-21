@@ -1,0 +1,295 @@
+graph TB
+    %% ======================================================================
+    %% NIKCLI COMPREHENSIVE SYSTEM ARCHITECTURE DIAGRAM
+    %% ======================================================================
+    
+    %% ======================================================================
+    %% USER INTERFACE LAYER
+    %% ======================================================================
+    
+    subgraph UI ["🖥️ USER INTERFACE LAYER"]
+        CLI["📱 CLI Interface<br/>Node.js CLI App<br/>Command Processing<br/>User I/O Management"]
+        WEB["🌐 Web Dashboard<br/>React/Next.js UI<br/>Real-time Monitoring<br/>Task Visualization"]
+        API["🔌 API Gateway<br/>Express.js Server<br/>REST Endpoints<br/>WebSocket Support"]
+        IDE_INTEGRATION["💻 IDE Integration<br/>LSP Support<br/>VSCode Extension<br/>Plugin Architecture"]
+    end
+    
+    %% ======================================================================
+    %% CORE ORCHESTRATION LAYER
+    %% ======================================================================
+    
+    subgraph ORCHESTRATION ["🎯 CORE ORCHESTRATION LAYER"]
+        BASE_AGENT["🤖 Base Universal Agent<br/>Primary Controller<br/>Task Coordination<br/>Agent Supervision"]
+        ORCHESTRATOR["⚙️ Orchestrator Service<br/>Main Coordination Hub<br/>Multi-Agent Workflows<br/>Resource Management"]
+        PLANNING["📋 Planning Service<br/>Advanced Execution Planning<br/>TaskMaster AI Integration<br/>Dependency Management"]
+    end
+    
+    %% ======================================================================
+    %% SPECIALIZED AGENT SYSTEM
+    %% ======================================================================
+    
+    subgraph AGENTS ["🔧 SPECIALIZED AGENT SYSTEM"]
+        
+        subgraph FRONTEND ["🎨 Frontend Agents"]
+            REACT_AGENT["⚛️ React Agent<br/>React/Next.js Specialist<br/>Component Creation<br/>UI Development"]
+        end
+        
+        subgraph BACKEND ["🖥️ Backend Agents"]
+            BACKEND_AGENT["🛠️ Backend Agent<br/>API/Server Specialist<br/>Database Operations<br/>Service Development"]
+            DEV_OPS["🚀 DevOps Agent<br/>Infrastructure Specialist<br/>Docker & Deployment<br/>CI/CD Pipeline"]
+        end
+        
+        subgraph QUALITY ["🔍 Quality & Analysis Agents"]
+            CODE_REVIEW["📊 Code Review Agent<br/>Quality Assurance<br/>Security Audits<br/>Performance Analysis"]
+            OPTIMIZATION["⚡ Optimization Agent<br/>Performance Tuning<br/>Resource Optimization<br/>Efficiency Analysis"]
+        end
+        
+        subgraph SPECIALIZED ["🎯 Specialized Agents"]
+            CONTEXT_AGENT["🧠 Context Agent<br/>RAG System Management<br/>Knowledge Retrieval<br/>Context Intelligence"]
+            TASK_AGENT["📋 Task Agent<br/>Task Management<br/>Queue Processing<br/>Progress Tracking"]
+        end
+    end
+    
+    %% ======================================================================
+    %% CORE SERVICES FRAMEWORK
+    %% ======================================================================
+    
+    subgraph SERVICES ["⚡ CORE SERVICES FRAMEWORK"]
+        
+        subgraph COGNITIVE ["🧠 Cognitive Framework"]
+            TASK_COGNITION["🎯 Task Cognition<br/>Intent Classification<br/>Entity Extraction<br/>Context Analysis"]
+            COMPLEXITY["📊 Complexity Assessment<br/>1-10 Scale Analysis<br/>Risk Evaluation<br/>Resource Planning"]
+            STRATEGY["🎲 Adaptive Strategy<br/>Sequential/Parallel<br/>Hybrid Execution<br/>Dynamic Adjustment"]
+        end
+        
+        subgraph CORE_SERVICES ["🔧 Core Services"]
+            TOOL_SERVICE["🛠️ Tool Service<br/>Tool Registry<br/>Command Execution<br/>Package Management"]
+            AI_PROVIDER["🤖 AI Provider<br/>Multi-Model Support<br/>Streaming & Caching<br/>Context Enhancement"]
+            FILE_OPS["📁 File Operations<br/>Read/Write/Edit<br/>Atomic Operations<br/>Workspace Management"]
+            CONTEXT_SYSTEM["🧠 Context System<br/>Context-Aware RAG<br/>Workspace Intelligence<br/>Knowledge Graph"]
+        end
+        
+        subgraph STATE ["💾 State Management"]
+            WORKSPACE["🏢 Workspace<br/>Project Environment<br/>File System<br/>Configuration"]
+            SESSION_STATE["💽 Session State<br/>Runtime Context<br/>User Preferences<br/>Execution History"]
+            CONTEXT_CACHE["🗄️ Context Cache<br/>RAG Memory<br/>Query Results<br/>Knowledge Storage"]
+        end
+    end
+    
+    %% ======================================================================
+    %% EXTERNAL INTEGRATIONS
+    %% ======================================================================
+    
+    subgraph EXTERNAL ["🌐 EXTERNAL INTEGRATIONS"]
+        
+        subgraph CLOUD ["☁️ Cloud Platforms"]
+            VERCEL["▲ Vercel<br/>Deployment Platform<br/>Edge Functions<br/>CDN & Analytics"]
+            RAILWAY["🚂 Railway<br/>Backend Hosting<br/>Database Services<br/>Environment Management"]
+            SUPABASE["🗄️ Supabase<br/>Database & Auth<br/>Real-time Features<br/>Edge Functions"]
+        end
+        
+        subgraph AI_PLATFORMS ["🤖 AI Platforms"]
+            OPENAI["🤖 OpenAI<br/>GPT-4 Models<br/>Function Calling<br/>Embeddings"]
+            ANTHROPIC["🧠 Anthropic Claude<br/>Advanced Reasoning<br/>Tool Use<br/>Context Windows"]
+            GOOGLE_AI["🌟 Google AI<br/>Gemini Models<br/>Multi-modal Support<br/>Enterprise Features"]
+            GROQ["⚡ Groq<br/>Lightning Fast<br/>Llama Models<br/>Real-time Processing"]
+        end
+        
+        subgraph DEVELOPMENT ["👨‍💻 Development Tools"]
+            GIT["🌿 Git Integration<br/>Version Control<br/>Branch Management<br/>Merge Operations"]
+            NPM["📦 Package Manager<br/>npm/yarn/pnpm<br/>Dependency Resolution<br/>Workspace Support"]
+            DOCKER["🐳 Docker Runtime<br/>Container Management<br/>Image Building<br/>Orchestration"]
+            IDE_TOOLS["💻 IDE Tools<br/>LSP Integration<br/>Language Servers<br/>Plugin Ecosystem"]
+        end
+        
+        subgraph MONITORING ["📊 Monitoring & Observability"]
+            SENTRY["🛡️ Sentry<br/>Error Tracking<br/>Performance Monitoring<br/>Release Management"]
+            TELEMETRY["📈 OpenTelemetry<br/>Distributed Tracing<br/>Metrics Collection<br/>Context Propagation"]
+            HUGGINGFACE["🤗 Hugging Face<br/>Model Hub<br/>Transformers<br/>Inference APIs"]
+        end
+    end
+    
+    %% ======================================================================
+    %% DATA FLOW ARCHITECTURE
+    %% ======================================================================
+    
+    subgraph DATA_FLOW ["📊 DATA FLOW ARCHITECTURE"]
+        
+        subgraph INPUT ["📥 Input Processing"]
+            USER_INPUT["👤 User Input<br/>CLI Commands<br/>Web Interface<br/>API Requests"]
+            WEBHOOKS["🔗 Webhooks<br/>GitHub Events<br/>Slack Integration<br/>External Triggers"]
+            SCHEDULE["⏰ Scheduled Tasks<br/>Cron Jobs<br/>Automated Reports<br/>Maintenance"]
+        end
+        
+        subgraph PROCESSING ["⚙️ Processing Pipeline"]
+            TASK_QUEUE["📋 Task Queue<br/>Priority Scheduling<br/>Resource Allocation<br/>Execution Management"]
+            AGENT_ROUTER["🎯 Agent Router<br/>Task Distribution<br/>Load Balancing<br/>Capacity Planning"]
+            WORKFLOW_ENGINE["🔄 Workflow Engine<br/>Step Coordination<br/>Parallel Execution<br/>Error Recovery"]
+        end
+        
+        subgraph OUTPUT ["📤 Output Management"]
+            RESULT_AGGREGATOR["📊 Result Aggregator<br/>Data Consolidation<br/>Report Generation<br/>Visualization"]
+            NOTIFICATION_SYSTEM["🔔 Notification System<br/>Progress Updates<br/>Completion Alerts<br/>Error Notifications"]
+            FILE_GENERATOR["📁 File Generator<br/>Artifact Creation<br/>Report Export<br/>Documentation"]
+        end
+    end
+    
+    %% ======================================================================
+    %% SECURITY & COMPLIANCE LAYER
+    %% ======================================================================
+    
+    subgraph SECURITY ["🔒 SECURITY & COMPLIANCE LAYER"]
+        AUTH_SYSTEM["🔐 Authentication<br/>Multi-Factor Auth<br/>Session Management<br/>Token Validation"]
+        ENCRYPTION["🔒 Encryption<br/>Data Protection<br/>Transmission Security<br/>Key Management"]
+        AUDIT_LOG["📋 Audit Log<br/>Activity Tracking<br/>Compliance Reporting<br/>Security Monitoring"]
+        RATE_LIMITING["⚡ Rate Limiting<br/>API Protection<br/>Usage Control<br/>Resource Quotas"]
+    end
+    
+    %% ======================================================================
+    %% CONFIGURATION & ENVIRONMENT
+    %% ======================================================================
+    
+    subgraph CONFIG ["⚙️ CONFIGURATION & ENVIRONMENT"]
+        ENV_MANAGER["🌍 Environment Manager<br/>Config Separation<br/>Secret Management<br/>Deployment Config"]
+        FEATURE_FLAGS["🚩 Feature Flags<br/>A/B Testing<br/>Gradual Rollout<br/>Experimental Features"]
+        LOCALIZATION["🌐 Localization<br/>Multi-language Support<br/>Regional Settings<br/>Cultural Adaptation"]
+    end
+    
+    %% ======================================================================
+    %% MAIN EXECUTION FLOW
+    %% ======================================================================
+    
+    %% User Interface to Orchestration
+    USER_INPUT --> BASE_AGENT
+    API --> BASE_AGENT
+    WEB --> BASE_AGENT
+    IDE_INTEGRATION --> BASE_AGENT
+    
+    %% Orchestration Layer Processing
+    BASE_AGENT --> TASK_COGNITION
+    TASK_COGNITION --> COMPLEXITY
+    COMPLEXITY --> STRATEGY
+    STRATEGY --> PLANNING
+    
+    %% Planning Phase
+    PLANNING --> ORCHESTRATOR
+    ORCHESTRATOR --> TASK_QUEUE
+    TASK_QUEUE --> AGENT_ROUTER
+    
+    %% Agent Delegation Logic
+    AGENT_ROUTER -->|Complexity ≥ 4<br/>& Frontend Tasks| REACT_AGENT
+    AGENT_ROUTER -->|Complexity ≥ 4<br/>& Backend Tasks| BACKEND_AGENT
+    AGENT_ROUTER -->|Complexity ≥ 4<br/>& Infrastructure| DEV_OPS
+    AGENT_ROUTER -->|Complexity ≥ 3<br/>& Code Quality| CODE_REVIEW
+    AGENT_ROUTER -->|Complexity ≥ 5<br/>& Performance| OPTIMIZATION
+    AGENT_ROUTER -->|Context Analysis| CONTEXT_AGENT
+    AGENT_ROUTER -->|Task Management| TASK_AGENT
+    
+    %% Core Service Integration
+    BASE_AGENT --> TOOL_SERVICE
+    BASE_AGENT --> AI_PROVIDER
+    BASE_AGENT --> CONTEXT_SYSTEM
+    BASE_AGENT --> FILE_OPS
+    BASE_AGENT --> WORKSPACE
+    BASE_AGENT --> SESSION_STATE
+    
+    %% Cognitive Services Interaction
+    TOOL_SERVICE --> NPM
+    TOOL_SERVICE --> DOCKER
+    TOOL_SERVICE --> GIT
+    FILE_OPS --> IDE_TOOLS
+    CONTEXT_SYSTEM --> CONTEXT_CACHE
+    CONTEXT_SYSTEM --> SUPABASE
+    
+    %% External Service Integration
+    AI_PROVIDER --> OPENAI
+    AI_PROVIDER --> ANTHROPIC
+    AI_PROVIDER --> GOOGLE_AI
+    AI_PROVIDER --> GROQ
+    AI_PROVIDER --> HUGGINGFACE
+    
+    DEV_OPS --> VERCEL
+    DEV_OPS --> RAILWAY
+    DEV_OPS --> DOCKER
+    
+    MONITORING_TOOLS["📊 Monitoring Tools<br/>Sentry + OpenTelemetry<br/>Performance Tracking<br/>Error Analytics"]
+    
+    MONITORING_TOOLS --> SENTRY
+    MONITORING_TOOLS --> TELEMETRY
+    
+    %% Security Layer Integration
+    BASE_AGENT --> AUTH_SYSTEM
+    AI_PROVIDER --> ENCRYPTION
+    ORCHESTRATOR --> AUDIT_LOG
+    API --> RATE_LIMITING
+    
+    %% Configuration Management
+    BASE_AGENT --> ENV_MANAGER
+    ORCHESTRATOR --> FEATURE_FLAGS
+    WEB --> LOCALIZATION
+    
+    %% Data Flow Integration
+    WEBHOOKS --> TASK_QUEUE
+    SCHEDULE --> TASK_QUEUE
+    USER_INPUT --> WORKFLOW_ENGINE
+    WORKFLOW_ENGINE --> RESULT_AGGREGATOR
+    RESULT_AGGREGATOR --> NOTIFICATION_SYSTEM
+    RESULT_AGGREGATOR --> FILE_GENERATOR
+    
+    %% Adaptive Strategy Execution
+    STRATEGY -->|Sequential<br/>Complexity ≤ 3| TASK_QUEUE
+    STRATEGY -->|Parallel<br/>Independent Tasks| TASK_QUEUE
+    STRATEGY -->|Hybrid<br/>Mixed Dependencies| TASK_QUEUE
+    STRATEGY -->|Adaptive<br/>Complexity 9-10| TASK_QUEUE
+    
+    %% Quality Assurance Loop
+    TASK_QUEUE --> QA_VALIDATION["✅ Quality Validation<br/>Requirement Check<br/>Test Execution<br/>Security Scan"]
+    QA_VALIDATION -->|Passed| COMPLETION["🎉 Task Complete<br/>Result Delivery<br/>Documentation Update<br/>Next Steps"]
+    QA_VALIDATION -->|Failed| BASE_AGENT
+    
+    %% External Monitoring Integration
+    SENTRY --> MONITORING_TOOLS
+    TELEMETRY --> MONITORING_TOOLS
+    
+    %% ======================================================================
+    %% STYLING DEFINITIONS
+    %% ======================================================================
+    
+    classDef userInterface fill:#1e88e5,stroke:#0d47a1,stroke-width:3px,color:#ffffff
+    classDef orchestration fill:#7b1fa2,stroke:#4a148c,stroke-width:3px,color:#ffffff
+    classDef agents fill:#2e7d32,stroke:#1b5e20,stroke-width:2px,color:#ffffff
+    classDef services fill:#f57c00,stroke:#e65100,stroke-width:2px,color:#ffffff
+    classDef cognitive fill:#c2185b,stroke:#880e4f,stroke-width:2px,color:#ffffff
+    classDef external fill:#546e7a,stroke:#37474f,stroke-width:2px,color:#ffffff
+    classDef dataFlow fill:#00897b,stroke:#004d40,stroke-width:2px,color:#ffffff
+    classDef security fill:#d32f2f,stroke:#b71c1c,stroke-width:2px,color:#ffffff
+    classDef config fill:#5e35b1,stroke:#311b92,stroke-width:2px,color:#ffffff
+    
+    class CLI,WEB,API,IDE_INTEGRATION userInterface
+    class BASE_AGENT,ORCHESTRATOR,PLANNING orchestration
+    class REACT_AGENT,BACKEND_AGENT,DEV_OPS,CODE_REVIEW,OPTIMIZATION,CONTEXT_AGENT,TASK_AGENT agents
+    class TOOL_SERVICE,AI_PROVIDER,FILE_OPS,CONTEXT_SYSTEM,TASK_COGNITION,COMPLEXITY,STRATEGY services
+    class VERCEL,RAILWAY,SUPABASE,OPENAI,ANTHROPIC,GOOGLE_AI,GROQ,GIT,NPM,DOCKER,IDE_TOOLS,SENTRY,TELEMETRY,HUGGINGFACE external
+    class USER_INPUT,WEBHOOKS,SCHEDULE,TASK_QUEUE,AGENT_ROUTER,WORKFLOW_ENGINE,RESULT_AGGREGATOR,NOTIFICATION_SYSTEM,FILE_GENERATOR dataFlow
+    class AUTH_SYSTEM,ENCRYPTION,AUDIT_LOG,RATE_LIMITING security
+    class ENV_MANAGER,FEATURE_FLAGS,LOCALIZATION config
+    
+    %% ======================================================================
+    %% LEGEND & METRICS
+    %% ======================================================================
+    
+    subgraph LEGEND ["📊 SYSTEM LEGEND"]
+        METRICS["📈 Key Metrics:<br/>• 10+ AI Provider Integrations<br/>• 8 Specialized Agents<br/>• 5 Cloud Platforms<br/>• 15+ External Services<br/>• Real-time Monitoring<br/>• Sub-second Response Times"]
+        CAPABILITIES["🎯 Core Capabilities:<br/>• Multi-Modal AI Processing<br/>• Real-time Code Generation<br/>• Context-Aware Intelligence<br/>• Autonomous Task Execution<br/>• Enterprise Security<br/>• Global Distribution"]
+    end
+
+    %% Apply styling to all groups
+    class UI userInterface
+    class ORCHESTRATION orchestration
+    class AGENTS,FRONTEND,BACKEND,QUALITY,SPECIALIZED agents
+    class SERVICES,COGNITIVE,CORE_SERVICES,STATE services
+    class EXTERNAL,CLOUD,AI_PLATFORMS,DEVELOPMENT,MONITORING external
+    class DATA_FLOW,INPUT,PROCESSING,OUTPUT dataFlow
+    class SECURITY security
+    class CONFIG config
+    class LEGEND config

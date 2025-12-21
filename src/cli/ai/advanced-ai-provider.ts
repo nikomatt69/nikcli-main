@@ -1288,7 +1288,7 @@ The tool automatically handles chunking, token limits, and provides continuation
             }
 
             // ⚡︎ VALIDATION WITH LSP - Before writing anything
-            let validationResult = null
+            let validationResult: any = null
             let finalContent = content
 
             if (validate) {
@@ -1305,7 +1305,10 @@ The tool automatically handles chunking, token limits, and provides continuation
 
               validationResult = await validatorManager.validateContent(validationContext)
 
-              if (!validationResult.isValid) {
+              if (!validationResult) {
+                // Validation failed or returned null
+                advancedUI.logFunctionUpdate('warning', 'Validation returned null, proceeding without validation', '⚠')
+              } else if (!validationResult.isValid) {
                 // Auto-fix was attempted in ValidatorManager
                 if (validationResult.fixedContent) {
                   finalContent = validationResult.fixedContent
@@ -1314,7 +1317,7 @@ The tool automatically handles chunking, token limits, and provides continuation
                   // If validation fails and no auto-fix available, return error
                   return {
                     success: false,
-                    error: `File processing failed: ${validationResult.errors?.join(', ')}`,
+                    error: `File processing failed: ${validationResult.errors?.join(', ') || 'Unknown error'}`,
                     path,
                     validationErrors: validationResult.errors,
                     reasoning: reasoning || 'Agent attempted to write file but processing failed',
@@ -2292,6 +2295,21 @@ The tool automatically handles chunking, token limits, and provides continuation
           const imageGenTool = this.toolRegistry.getTool('image-generation-tool')
           if (!imageGenTool) return { error: 'Image generation tool not available' }
           const result = await imageGenTool.execute(params)
+          return result.success ? result.data : { error: result.error }
+        },
+      }),
+
+      // 15. SKILL_EXECUTE: Execute Anthropic Skills (Priority 7)
+      skill_execute: tool({
+        description: 'Execute Anthropic Skills for document creation and manipulation (docx, pdf, pptx, xlsx)',
+        parameters: z.object({
+          skillName: z.string().describe('Name of skill: docx, pdf, pptx, xlsx'),
+          context: z.record(z.unknown()).optional().describe('Context for skill execution'),
+        }),
+        execute: async (params) => {
+          const skillTool = this.toolRegistry.getTool('skill-tool')
+          if (!skillTool) return { error: 'Skill tool not available' }
+          const result = await skillTool.execute(params.skillName, { context: params.context })
           return result.success ? result.data : { error: result.error }
         },
       }),
@@ -4647,7 +4665,7 @@ Requirements:
     if (failed > 0) analysis += `${failed} failed. `
 
     // Suggest missing tools based on query
-    const missing = []
+    const missing: string[] = []
     if (
       (queryLower.includes('search') ||
         queryLower.includes('find') ||
@@ -5507,7 +5525,7 @@ Use this cognitive understanding to provide more targeted and effective response
   }
 
   private summarizeWorkspaceChanges(workspaceState: any): string {
-    const parts = []
+    const parts: string[] = []
     if (workspaceState.filesCreated?.length) {
       parts.push(`${workspaceState.filesCreated.length} files created`)
     }

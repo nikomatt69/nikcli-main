@@ -15,9 +15,62 @@ export interface ChatSession {
   systemPrompt?: string
 }
 
+// LRU Cache implementation for sessions (Node.js compatible)
+class LRUCache<K, V> {
+  private cache = new Map<K, V>()
+  private maxSize: number
+
+  constructor(maxSize: number) {
+    this.maxSize = maxSize
+  }
+
+  get(key: K): V | undefined {
+    const value = this.cache.get(key)
+    if (value !== undefined) {
+      // Move to end (most recently used)
+      this.cache.delete(key)
+      this.cache.set(key, value)
+    }
+    return value
+  }
+
+  set(key: K, value: V): void {
+    if (this.cache.has(key)) {
+      this.cache.delete(key)
+    } else if (this.cache.size >= this.maxSize) {
+      // Remove least recently used (first item)
+      const firstKey = this.cache.keys().next().value
+      if (firstKey !== undefined) {
+        this.cache.delete(firstKey)
+      }
+    }
+    this.cache.set(key, value)
+  }
+
+  delete(key: K): boolean {
+    return this.cache.delete(key)
+  }
+
+  clear(): void {
+    this.cache.clear()
+  }
+
+  size(): number {
+    return this.cache.size
+  }
+
+  values(): V[] {
+    return Array.from(this.cache.values())
+  }
+
+  keys(): K[] {
+    return Array.from(this.cache.keys())
+  }
+}
+
 export class ChatManager {
   private currentSession: ChatSession | null = null
-  private sessions: Map<string, ChatSession> = new Map()
+  private sessions: LRUCache<string, ChatSession> = new LRUCache<string, ChatSession>(100)
   private budget: UnifiedTokenBudget = new UnifiedTokenBudget()
 
   createNewSession(title?: string, systemPrompt?: string): ChatSession {
@@ -223,7 +276,7 @@ export class ChatManager {
   }
 
   listSessions(): ChatSession[] {
-    return Array.from(this.sessions.values()).sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
+    return this.sessions.values().sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
   }
 
   deleteSession(sessionId: string): boolean {
@@ -252,10 +305,10 @@ export class ChatManager {
   }
 
   getSessionStats(): { totalSessions: number; totalMessages: number; currentSessionMessages: number } {
-    const totalMessages = Array.from(this.sessions.values()).reduce((sum, session) => sum + session.messages.length, 0)
+    const totalMessages = this.sessions.values().reduce((sum, session) => sum + session.messages.length, 0)
 
     return {
-      totalSessions: this.sessions.size,
+      totalSessions: this.sessions.size(),
       totalMessages,
       currentSessionMessages: this.currentSession?.messages.length || 0,
     }

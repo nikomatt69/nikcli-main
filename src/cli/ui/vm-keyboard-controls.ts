@@ -338,7 +338,7 @@ export class VMKeyboardControls extends EventEmitter {
     this.currentPanel = 'tokens'
 
     const agents = this.statusIndicator.getActiveAgents()
-    const lines = []
+    const lines: string[] = []
 
     lines.push(chalk.cyan.bold('🎫 Token Usage Summary'))
     lines.push(chalk.gray('─'.repeat(60)))

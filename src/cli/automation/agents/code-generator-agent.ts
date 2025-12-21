@@ -190,7 +190,7 @@ Include proper types, error handling, and JSDoc comments.`
   }
 
   private getCodeGeneratorCapabilities(cognition: TaskCognition): string[] {
-    const capabilities = []
+    const capabilities: string[] = []
 
     if (cognition.intent.primary === 'create') capabilities.push('code-generation')
     if (cognition.normalizedTask.includes('template')) capabilities.push('template-creation')
@@ -215,7 +215,7 @@ Include proper types, error handling, and JSDoc comments.`
   }
 
   private extractDependencies(aiResponse: string): string[] {
-    const dependencies = []
+    const dependencies: string[] = []
     const importMatches = aiResponse.match(/import.*from\s+['"]([^'"]+)['"]/g) || []
 
     for (const importMatch of importMatches) {
