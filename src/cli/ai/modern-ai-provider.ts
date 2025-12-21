@@ -134,6 +134,47 @@ function getContextAwareTransforms(
 }
 
 /**
+ * Generates a unique thought signature for Gemini tool calls
+ * Required for Gemini models through OpenRouter
+ */
+function generateThoughtSignature(): string {
+  const timestamp = Date.now()
+  const random = Math.random().toString(36).substring(2, 10)
+  return `thought_${timestamp}_${random}`
+}
+
+/**
+ * Checks if the model is a Gemini model (case-insensitive)
+ */
+function isGeminiModel(modelName: string): boolean {
+  const lowerModel = modelName.toLowerCase()
+  return lowerModel.includes('gemini') || lowerModel.startsWith('google/')
+}
+
+/**
+ * Adds thought_signature to tools for Gemini models through OpenRouter
+ * This is required by Google Gemini models when using OpenRouter's tool calling
+ */
+function addGeminiThoughtSignatures(
+  options: any,
+  tools: Record<string, CoreTool> | undefined,
+  modelName: string,
+  provider: string
+): void {
+  // Only apply for Gemini models through OpenRouter with tools
+  if (provider !== 'openrouter' || !isGeminiModel(modelName) || !tools) {
+    return
+  }
+
+  // Build tools array with thought_signature for each tool
+  const toolNames = Object.keys(tools)
+  options.experimental_providerMetadata.openrouter.tools = toolNames.map(name => ({
+    name,
+    thought_signature: generateThoughtSignature(),
+  }))
+}
+
+/**
  * Check if response qualifies for Zero Completion Insurance (no charge)
  * Conditions: zero completion tokens AND (blank finish_reason OR error finish_reason)
  */
@@ -1481,6 +1522,9 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
         // Parallel tool calls control
         streamOptions.experimental_providerMetadata.openrouter.parallel_tool_calls = parallelToolCalls
 
+        // Add thought_signature for Gemini models (required by OpenRouter)
+        addGeminiThoughtSignatures(streamOptions, tools, cfg.model, cfg.provider)
+
         // Fetch model capabilities and build parameters dynamically
         try {
           const modelCaps = await openRouterRegistry.getCapabilities(cfg.model)
@@ -1765,6 +1809,9 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
         // Parallel tool calls control
         // Reference: https://openrouter.ai/docs/guides/features/tool-calling
         generateOptions.experimental_providerMetadata.openrouter.parallel_tool_calls = parallelToolCalls
+
+        // Add thought_signature for Gemini models (required by OpenRouter)
+        addGeminiThoughtSignatures(generateOptions, tools, cfg.model, cfg.provider)
 
         // Fetch model capabilities and build parameters dynamically
         try {

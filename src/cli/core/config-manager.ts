@@ -793,6 +793,18 @@ const ConfigSchema = z.object({
       maxWidth: 120,
       compactThreshold: 20,
     }),
+  // UI Theme configuration
+  ui: z
+    .object({
+      theme: z
+        .object({
+          active: z.string().default('default').describe('Active theme name'),
+          customThemes: z.record(z.string()).default({}).describe('Custom themes as JSON'),
+        })
+        .default({ active: 'default', customThemes: {} }),
+    })
+    .default({ theme: { active: 'default', customThemes: {} } }),
+
   // Enterprise Monitoring configuration
   monitoring: z
     .object({
@@ -1702,6 +1714,12 @@ export class SimpleConfigManager {
         maxResponseLength: 'medium',
       },
     },
+    ui: {
+      theme: {
+        active: 'default',
+        customThemes: {},
+      },
+    },
     models: this.defaultModels,
     embeddingModels: this.defaultEmbeddingModels,
     rerankingModels: {
@@ -1848,6 +1866,7 @@ export class SimpleConfigManager {
       rememberChoices: true,
       expirationDays: 30,
     },
+
     redis: {
       enabled: true, // ✓ Enabled by default - Upstash Redis cache
       host: 'localhost',

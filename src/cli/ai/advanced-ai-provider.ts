@@ -2934,6 +2934,19 @@ The tool automatically handles chunking, token limits, and provides continuation
             } catch {
               // Silently fail if we can't get capabilities
             }
+
+            // Add thought_signature for Gemini models (required by OpenRouter)
+
+            if (tools && Object.keys(tools).length > 0) {
+              if (!streamOpts.experimental_providerMetadata.openrouter) {
+                streamOpts.experimental_providerMetadata.openrouter = {}
+              }
+              const toolNames = Object.keys(tools)
+              streamOpts.experimental_providerMetadata.openrouter.tools = toolNames.map(name => ({
+                name,
+                thought_signature: `thought_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`,
+              }))
+            }
           }
         } else if (provider === 'anthropic') {
           if (this.getCurrentModelInfo().config.maxTokens) {
