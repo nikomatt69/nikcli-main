@@ -9,7 +9,7 @@ import { createGroq } from '@ai-sdk/groq'
 import { createOpenAI } from '@ai-sdk/openai'
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import { createVercel } from '@ai-sdk/vercel'
-import { type CoreMessage, type CoreTool, experimental_wrapLanguageModel, generateText, streamText, tool } from 'ai'
+import { type CoreMessage, type CoreTool, wrapLanguageModel, generateText, streamText, tool } from 'ai'
 import { createOllama } from 'ollama-ai-provider'
 import { z } from 'zod'
 import { simpleConfigManager } from '../core/config-manager'
@@ -138,7 +138,7 @@ function getContextAwareTransforms(
  * Conditions: zero completion tokens AND (blank finish_reason OR error finish_reason)
  */
 function isZeroCompletionResponse(result: any): boolean {
-  const usage = result?.usage || result?.experimental_providerMetadata?.usage
+  const usage = result?.usage || result?.providerOptions?.usage
   const finishReason = result?.finishReason || result?.finish_reason
 
   // Zero completion tokens with blank/null/error finish reason
@@ -1406,7 +1406,7 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
         toolChoice: 'auto',
         // AI SDK Tool Call Repair - automatically fix invalid tool calls
         // Reference: https://v4.ai-sdk.dev/docs/ai-sdk-core/tools-and-tool-calling#tool-call-repair
-        experimental_repairToolCall: this.createToolCallRepairHandler(model, tools),
+        repairToolCall: this.createToolCallRepairHandler(model, tools),
         // AI SDK Agent Loop Control - onStepFinish callback
         // Reference: https://ai-sdk.dev/docs/agents/loop-control
         onStepFinish: (step: {
@@ -1450,7 +1450,7 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
       // Reference: https://openrouter.ai/docs/guides/features/tool-calling
       const parallelToolCalls = cfg?.parallelToolCalls ?? true
       if (!parallelToolCalls) {
-        streamOptions.experimental_toolCallStreaming = false
+        streamOptions.toolCallStreaming = false
       }
 
       // Add reasoning metadata for ALL providers using ReasoningDetector
@@ -1463,23 +1463,23 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
         )
 
         if (Object.keys(providerMetadata).length > 0) {
-          streamOptions.experimental_providerMetadata = {
-            ...streamOptions.experimental_providerMetadata,
+          streamOptions.providerOptions = {
+            ...streamOptions.providerOptions,
             ...providerMetadata,
           }
         }
       }
 
       if (cfg?.provider === 'openrouter') {
-        if (!streamOptions.experimental_providerMetadata) {
-          streamOptions.experimental_providerMetadata = {}
+        if (!streamOptions.providerOptions) {
+          streamOptions.providerOptions = {}
         }
-        if (!streamOptions.experimental_providerMetadata.openrouter) {
-          streamOptions.experimental_providerMetadata.openrouter = {}
+        if (!streamOptions.providerOptions.openrouter) {
+          streamOptions.providerOptions.openrouter = {}
         }
 
         // Parallel tool calls control
-        streamOptions.experimental_providerMetadata.openrouter.parallel_tool_calls = parallelToolCalls
+        streamOptions.providerOptions.openrouter.parallel_tool_calls = parallelToolCalls
 
         // Fetch model capabilities and build parameters dynamically
         try {
@@ -1488,10 +1488,10 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
           // Only add reasoning if model supports it
           if (reasoningEnabled && (modelCaps.supportsReasoning || modelCaps.supportsIncludeReasoning)) {
             if (modelCaps.supportsIncludeReasoning) {
-              streamOptions.experimental_providerMetadata.openrouter.include_reasoning = true
+              streamOptions.providerOptions.openrouter.include_reasoning = true
             }
             if (modelCaps.supportsReasoningEffort) {
-              streamOptions.experimental_providerMetadata.openrouter.reasoning = {
+              streamOptions.providerOptions.openrouter.reasoning = {
                 effort: 'medium',
                 enabled: true,
               }
@@ -1505,7 +1505,7 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
           const contextWindow = modelCaps.contextLength || 128000
           const contextAwareTransforms = getContextAwareTransforms(estimatedTokens, contextWindow, explicitTransforms)
           if (contextAwareTransforms && contextAwareTransforms.length > 0) {
-            streamOptions.experimental_providerMetadata.openrouter.transforms = contextAwareTransforms
+            streamOptions.providerOptions.openrouter.transforms = contextAwareTransforms
           }
         } catch {
           // Fallback: use explicit transforms or auto-enable for large prompts
@@ -1513,7 +1513,7 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
           const estimatedTokens = JSON.stringify(messages).length / 4
           const contextAwareTransforms = getContextAwareTransforms(estimatedTokens, 128000, explicitTransforms)
           if (contextAwareTransforms && contextAwareTransforms.length > 0) {
-            streamOptions.experimental_providerMetadata.openrouter.transforms = contextAwareTransforms
+            streamOptions.providerOptions.openrouter.transforms = contextAwareTransforms
           }
         }
       }
@@ -1702,7 +1702,7 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
         // AI SDK toolChoice: 'auto' (default), 'none', 'required', or { type: 'tool', toolName: 'specific-tool' }
         toolChoice: 'auto',
         // AI SDK Tool Call Repair - automatically fix invalid tool calls
-        experimental_repairToolCall: this.createToolCallRepairHandler(model, tools),
+        repairToolCall: this.createToolCallRepairHandler(model, tools),
         // AI SDK Agent Loop Control - onStepFinish callback
         onStepFinish: (step: {
           stepType: 'initial' | 'continue' | 'tool-result'
@@ -1734,7 +1734,7 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
       const parallelToolCalls = cfg?.parallelToolCalls ?? true
       if (!parallelToolCalls) {
         // When disabled, tools are called sequentially (useful for dependent operations)
-        generateOptions.experimental_toolCallStreaming = false
+        generateOptions.toolCallStreaming = false
       }
 
       // Add reasoning metadata for ALL providers using ReasoningDetector
@@ -1747,24 +1747,24 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
         )
 
         if (Object.keys(providerMetadata).length > 0) {
-          generateOptions.experimental_providerMetadata = {
-            ...generateOptions.experimental_providerMetadata,
+          generateOptions.providerOptions = {
+            ...generateOptions.providerOptions,
             ...providerMetadata,
           }
         }
       }
 
       if (cfg?.provider === 'openrouter') {
-        if (!generateOptions.experimental_providerMetadata) {
-          generateOptions.experimental_providerMetadata = {}
+        if (!generateOptions.providerOptions) {
+          generateOptions.providerOptions = {}
         }
-        if (!generateOptions.experimental_providerMetadata.openrouter) {
-          generateOptions.experimental_providerMetadata.openrouter = {}
+        if (!generateOptions.providerOptions.openrouter) {
+          generateOptions.providerOptions.openrouter = {}
         }
 
         // Parallel tool calls control
         // Reference: https://openrouter.ai/docs/guides/features/tool-calling
-        generateOptions.experimental_providerMetadata.openrouter.parallel_tool_calls = parallelToolCalls
+        generateOptions.providerOptions.openrouter.parallel_tool_calls = parallelToolCalls
 
         // Fetch model capabilities and build parameters dynamically
         try {
@@ -1773,10 +1773,10 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
           // Only add reasoning parameters if model supports them
           if (reasoningEnabled && (modelCaps.supportsReasoning || modelCaps.supportsIncludeReasoning)) {
             if (modelCaps.supportsIncludeReasoning) {
-              generateOptions.experimental_providerMetadata.openrouter.include_reasoning = true
+              generateOptions.providerOptions.openrouter.include_reasoning = true
             }
             if (modelCaps.supportsReasoningEffort) {
-              generateOptions.experimental_providerMetadata.openrouter.reasoning = {
+              generateOptions.providerOptions.openrouter.reasoning = {
                 effort: 'medium',
                 exclude: false,
                 enabled: true,
@@ -1790,12 +1790,12 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
           const contextWindow = modelCaps.contextLength || 128000
           const contextAwareTransforms = getContextAwareTransforms(estimatedTokens, contextWindow, explicitTransforms)
           if (contextAwareTransforms && contextAwareTransforms.length > 0) {
-            generateOptions.experimental_providerMetadata.openrouter.transforms = contextAwareTransforms
+            generateOptions.providerOptions.openrouter.transforms = contextAwareTransforms
           }
         } catch {
           // Fallback to default if registry fails
           if (reasoningEnabled) {
-            generateOptions.experimental_providerMetadata.openrouter.reasoning = {
+            generateOptions.providerOptions.openrouter.reasoning = {
               effort: 'medium',
               exclude: false,
               enabled: true,
@@ -1806,7 +1806,7 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
           const estimatedTokens = JSON.stringify(messages).length / 4
           const contextAwareTransforms = getContextAwareTransforms(estimatedTokens, 128000, explicitTransforms)
           if (contextAwareTransforms && contextAwareTransforms.length > 0) {
-            generateOptions.experimental_providerMetadata.openrouter.transforms = contextAwareTransforms
+            generateOptions.providerOptions.openrouter.transforms = contextAwareTransforms
           }
         }
       }

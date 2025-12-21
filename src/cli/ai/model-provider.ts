@@ -93,7 +93,7 @@ const ZERO_COMPLETION_CONFIG = {
  * Check if response qualifies for Zero Completion Insurance (no charge)
  */
 function isZeroCompletionResponse(result: any): boolean {
-  const usage = result?.usage || result?.experimental_providerMetadata?.usage
+  const usage = result?.usage || result?.providerOptions?.usage
   const finishReason = result?.finishReason || result?.finish_reason
 
   if (usage?.completionTokens === 0 || usage?.completion_tokens === 0) {
@@ -515,11 +515,11 @@ export class ModelProvider {
 
     // OpenRouter-specific parameters support - dynamic based on model capabilities
     if (effectiveConfig.provider === 'openrouter') {
-      if (!baseOptions.experimental_providerMetadata) {
-        baseOptions.experimental_providerMetadata = {}
+      if (!baseOptions.providerOptions) {
+        baseOptions.providerOptions = {}
       }
-      if (!baseOptions.experimental_providerMetadata.openrouter) {
-        baseOptions.experimental_providerMetadata.openrouter = {}
+      if (!baseOptions.providerOptions.openrouter) {
+        baseOptions.providerOptions.openrouter = {}
       }
 
       // Fetch model capabilities and build parameters dynamically
@@ -529,7 +529,7 @@ export class ModelProvider {
         // Only add reasoning parameters if model supports them
         if (reasoningEnabled && (modelCaps.supportsReasoning || modelCaps.supportsIncludeReasoning)) {
           if (modelCaps.supportsIncludeReasoning) {
-            baseOptions.experimental_providerMetadata.openrouter.include_reasoning = true
+            baseOptions.providerOptions.openrouter.include_reasoning = true
           }
           if (modelCaps.supportsReasoningEffort) {
             const reasoningConfig = validatedOptions.reasoning || {
@@ -537,16 +537,16 @@ export class ModelProvider {
               exclude: false,
               enabled: true,
             }
-            baseOptions.experimental_providerMetadata.openrouter.reasoning = reasoningConfig
+            baseOptions.providerOptions.openrouter.reasoning = reasoningConfig
           }
         }
 
         // Transforms parameter support (e.g., middle-out for context compression)
         const transforms = (effectiveConfig as any).transforms || configManager.get('openrouterTransforms')
         if (transforms && Array.isArray(transforms) && transforms.length > 0) {
-          baseOptions.experimental_providerMetadata.openrouter.transforms = transforms
+          baseOptions.providerOptions.openrouter.transforms = transforms
         } else {
-          baseOptions.experimental_providerMetadata.openrouter.transforms = ['middle-out']
+          baseOptions.providerOptions.openrouter.transforms = ['middle-out']
         }
       } catch {
         // Fallback to default if registry fails
@@ -557,13 +557,13 @@ export class ModelProvider {
             enabled: true,
           }
             ; (reasoningConfig as any).include_reasoning = (reasoningConfig as any).include_reasoning ?? true
-          baseOptions.experimental_providerMetadata.openrouter.reasoning = reasoningConfig
+          baseOptions.providerOptions.openrouter.reasoning = reasoningConfig
         }
         const transforms = (effectiveConfig as any).transforms || configManager.get('openrouterTransforms')
         if (transforms && Array.isArray(transforms) && transforms.length > 0) {
-          baseOptions.experimental_providerMetadata.openrouter.transforms = transforms
+          baseOptions.providerOptions.openrouter.transforms = transforms
         } else {
-          baseOptions.experimental_providerMetadata.openrouter.transforms = ['middle-out']
+          baseOptions.providerOptions.openrouter.transforms = ['middle-out']
         }
       }
 
@@ -573,7 +573,7 @@ export class ModelProvider {
         const cache: any = {}
         if (cacheCfg.mode) cache.mode = cacheCfg.mode
         if (cacheCfg.ttl) cache.ttl = cacheCfg.ttl
-        baseOptions.experimental_providerMetadata.openrouter.cache = cache
+        baseOptions.providerOptions.openrouter.cache = cache
       }
     }
     // Execute with Zero Completion Insurance retry logic
@@ -711,11 +711,11 @@ export class ModelProvider {
 
     // OpenRouter-specific parameters support for streaming - dynamic based on model capabilities
     if (effectiveConfig2.provider === 'openrouter') {
-      if (!streamOptions.experimental_providerMetadata) {
-        streamOptions.experimental_providerMetadata = {}
+      if (!streamOptions.providerOptions) {
+        streamOptions.providerOptions = {}
       }
-      if (!streamOptions.experimental_providerMetadata.openrouter) {
-        streamOptions.experimental_providerMetadata.openrouter = {}
+      if (!streamOptions.providerOptions.openrouter) {
+        streamOptions.providerOptions.openrouter = {}
       }
 
       // Fetch model capabilities and build parameters dynamically
@@ -725,7 +725,7 @@ export class ModelProvider {
         // Only add reasoning parameters if model supports them
         if (reasoningEnabled && (modelCaps.supportsReasoning || modelCaps.supportsIncludeReasoning)) {
           if (modelCaps.supportsIncludeReasoning) {
-            streamOptions.experimental_providerMetadata.openrouter.include_reasoning = true
+            streamOptions.providerOptions.openrouter.include_reasoning = true
           }
           if (modelCaps.supportsReasoningEffort) {
             const reasoningConfig = validatedOptions.reasoning || {
@@ -733,16 +733,16 @@ export class ModelProvider {
               exclude: false,
               enabled: true,
             }
-            streamOptions.experimental_providerMetadata.openrouter.reasoning = reasoningConfig
+            streamOptions.providerOptions.openrouter.reasoning = reasoningConfig
           }
         }
 
         // Transforms parameter support (e.g., middle-out for context compression)
         const transforms = (effectiveConfig2 as any).transforms || configManager.get('openrouterTransforms')
         if (transforms && Array.isArray(transforms) && transforms.length > 0) {
-          streamOptions.experimental_providerMetadata.openrouter.transforms = transforms
+          streamOptions.providerOptions.openrouter.transforms = transforms
         } else {
-          streamOptions.experimental_providerMetadata.openrouter.transforms = ['middle-out']
+          streamOptions.providerOptions.openrouter.transforms = ['middle-out']
         }
       } catch {
         // Fallback to default if registry fails
@@ -753,13 +753,13 @@ export class ModelProvider {
             enabled: true,
           }
             ; (reasoningConfig as any).include_reasoning = (reasoningConfig as any).include_reasoning ?? true
-          streamOptions.experimental_providerMetadata.openrouter.reasoning = reasoningConfig
+          streamOptions.providerOptions.openrouter.reasoning = reasoningConfig
         }
         const transforms = (effectiveConfig2 as any).transforms || configManager.get('openrouterTransforms')
         if (transforms && Array.isArray(transforms) && transforms.length > 0) {
-          streamOptions.experimental_providerMetadata.openrouter.transforms = transforms
+          streamOptions.providerOptions.openrouter.transforms = transforms
         } else {
-          streamOptions.experimental_providerMetadata.openrouter.transforms = ['middle-out']
+          streamOptions.providerOptions.openrouter.transforms = ['middle-out']
         }
       }
 
@@ -769,7 +769,7 @@ export class ModelProvider {
         const cache: any = {}
         if (cacheCfg.mode) cache.mode = cacheCfg.mode
         if (cacheCfg.ttl) cache.ttl = cacheCfg.ttl
-        streamOptions.experimental_providerMetadata.openrouter.cache = cache
+        streamOptions.providerOptions.openrouter.cache = cache
       }
     }
 

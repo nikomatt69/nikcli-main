@@ -4,7 +4,7 @@
  * Dynamically fetches model capabilities from OpenRouter API
  */
 
-import { experimental_wrapLanguageModel, type LanguageModelV1 } from 'ai'
+import { wrapLanguageModel, type LanguageModelV1 } from 'ai'
 import { type ModelCapabilities, openRouterRegistry } from './openrouter-model-registry'
 
 /**
@@ -305,7 +305,7 @@ export function wrapWithReasoningMiddleware(
 ): LanguageModelV1 {
   const middleware = createReasoningMiddleware(config)
 
-  return experimental_wrapLanguageModel({
+  return wrapLanguageModel({
     model,
     middleware: {
       wrapGenerate: async ({ doGenerate }) => {
@@ -318,7 +318,7 @@ export function wrapWithReasoningMiddleware(
         const { reasoning, cleanedText } = middleware.extractFromText(result.text)
 
         if (reasoning) {
-          const existingMetadata = (result as any).experimental_providerMetadata || {}
+          const existingMetadata = (result as any).providerMetadata || {}
           return {
             ...result,
             text: cleanedText,
@@ -473,11 +473,11 @@ export class ReasoningDetector {
       }
     }
 
-    // 2. Check experimental_providerMetadata for reasoning
-    if (response.experimental_providerMetadata?.reasoning?.content) {
+    // 2. Check providerMetadata for reasoning
+    if (response.providerMetadata?.reasoning?.content) {
       return {
-        reasoning: response.experimental_providerMetadata.reasoning.content,
-        reasoningText: response.experimental_providerMetadata.reasoning.content,
+        reasoning: response.providerMetadata.reasoning.content,
+        reasoningText: response.providerMetadata.reasoning.content,
       }
     }
 

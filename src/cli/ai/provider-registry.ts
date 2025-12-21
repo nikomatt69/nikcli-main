@@ -7,10 +7,7 @@ import { createOpenAI } from '@ai-sdk/openai'
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import { createVercel } from '@ai-sdk/vercel'
 import { createXai } from '@ai-sdk/xai'
-import {
-  experimental_createProviderRegistry as createProviderRegistry,
-  experimental_customProvider as customProvider,
-} from 'ai'
+import { createProviderRegistry, customProvider } from 'ai'
 
 /**
  * OpenRouter provider with custom configuration

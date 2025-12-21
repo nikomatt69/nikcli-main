@@ -2655,7 +2655,7 @@ The tool automatically handles chunking, token limits, and provides continuation
             ? lastUserMessage.content
             : Array.isArray(lastUserMessage.content)
               ? lastUserMessage.content
-                .map((part) => (typeof part === 'string' ? part : part.experimental_providerMetadata?.content || ''))
+                .map((part) => (typeof part === 'string' ? part : part.providerOptions?.content || ''))
                 .join('')
               : String(lastUserMessage.content)
 
@@ -2806,7 +2806,7 @@ The tool automatically handles chunking, token limits, and provides continuation
         // For autonomous operations, use 'auto' to let model decide tool usage
         toolChoice: 'auto',
         // AI SDK Tool Call Repair - automatically fix invalid tool calls
-        experimental_repairToolCall: this.createToolCallRepairHandler(model, tools),
+        repairToolCall: this.createToolCallRepairHandler(model, tools),
         // AI SDK Agent Loop Control - onStepFinish callback
         // Reference: https://ai-sdk.dev/docs/agents/loop-control
         onStepFinish: (step: {
@@ -2898,8 +2898,8 @@ The tool automatically handles chunking, token limits, and provides continuation
             )
 
             if (Object.keys(providerMetadata).length > 0) {
-              streamOpts.experimental_providerMetadata = {
-                ...streamOpts.experimental_providerMetadata,
+              streamOpts.providerOptions = {
+                ...streamOpts.providerOptions,
                 ...providerMetadata,
               }
             }
@@ -2908,10 +2908,10 @@ The tool automatically handles chunking, token limits, and provides continuation
             try {
               const modelCaps = await openRouterRegistry.getCapabilities(model)
               if (modelCaps.supportedParameters && modelCaps.supportedParameters.includes('transforms')) {
-                if (!streamOpts.experimental_providerMetadata.openrouter) {
-                  streamOpts.experimental_providerMetadata.openrouter = {}
+                if (!streamOpts.providerOptions.openrouter) {
+                  streamOpts.providerOptions.openrouter = {}
                 }
-                streamOpts.experimental_providerMetadata.openrouter.transforms = ['middle-out']
+                streamOpts.providerOptions.openrouter.transforms = ['middle-out']
               }
             } catch {
               // Silently fail if we can't get capabilities
@@ -2931,8 +2931,8 @@ The tool automatically handles chunking, token limits, and provides continuation
             )
 
             if (Object.keys(providerMetadata).length > 0) {
-              streamOpts.experimental_providerMetadata = {
-                ...streamOpts.experimental_providerMetadata,
+              streamOpts.providerOptions = {
+                ...streamOpts.providerOptions,
                 ...providerMetadata,
               }
             }
@@ -2947,8 +2947,8 @@ The tool automatically handles chunking, token limits, and provides continuation
             )
 
             if (Object.keys(providerMetadata).length > 0) {
-              streamOpts.experimental_providerMetadata = {
-                ...streamOpts.experimental_providerMetadata,
+              streamOpts.providerOptions = {
+                ...streamOpts.providerOptions,
                 ...providerMetadata,
               }
             }
@@ -3174,7 +3174,7 @@ The tool automatically handles chunking, token limits, and provides continuation
                     : Array.isArray(lastUserMessage.content)
                       ? lastUserMessage.content
                         .map((part) =>
-                          typeof part === 'string' ? part : part.experimental_providerMetadata?.content || ''
+                          typeof part === 'string' ? part : part.providerOptions?.content || ''
                         )
                         .join('')
                       : String(lastUserMessage.content)
@@ -4032,8 +4032,8 @@ Requirements:
             )
 
             if (Object.keys(providerMetadata).length > 0) {
-              genOpts.experimental_providerMetadata = {
-                ...genOpts.experimental_providerMetadata,
+              genOpts.providerOptions = {
+                ...genOpts.providerOptions,
                 ...providerMetadata,
               }
             }
@@ -4042,10 +4042,10 @@ Requirements:
             try {
               const modelCaps = await openRouterRegistry.getCapabilities(model)
               if (modelCaps.supportedParameters && modelCaps.supportedParameters.includes('transforms')) {
-                if (!genOpts.experimental_providerMetadata.openrouter) {
-                  genOpts.experimental_providerMetadata.openrouter = {}
+                if (!genOpts.providerOptions.openrouter) {
+                  genOpts.providerOptions.openrouter = {}
                 }
-                genOpts.experimental_providerMetadata.openrouter.transforms = ['middle-out']
+                genOpts.providerOptions.openrouter.transforms = ['middle-out']
               }
             } catch {
               // Silently fail if we can't get capabilities
@@ -4063,8 +4063,8 @@ Requirements:
             )
 
             if (Object.keys(providerMetadata).length > 0) {
-              genOpts.experimental_providerMetadata = {
-                ...genOpts.experimental_providerMetadata,
+              genOpts.providerOptions = {
+                ...genOpts.providerOptions,
                 ...providerMetadata,
               }
             }
@@ -4079,8 +4079,8 @@ Requirements:
             )
 
             if (Object.keys(providerMetadata).length > 0) {
-              genOpts.experimental_providerMetadata = {
-                ...genOpts.experimental_providerMetadata,
+              genOpts.providerOptions = {
+                ...genOpts.providerOptions,
                 ...providerMetadata,
               }
             }

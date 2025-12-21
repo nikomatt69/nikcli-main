@@ -111,7 +111,7 @@ export class AIChatService extends EventEmitter {
       maxTokens: this.maxTokens,
       temperature: this.temperature,
       // Disabilita reasoning chunks per evitare errori "Unhandled chunk type: reasoning"
-      experimental_providerMetadata: {
+      providerOptions: {
         openrouter: {
           reasoning: {
             exclude: true,
