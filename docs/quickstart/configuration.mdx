@@ -1,545 +1,242 @@
 ---
 title: "Configuration"
-description: "Configure NikCLI for optimal performance with API keys, preferences, and advanced settings"
-icon: "settings"
+description: "Configure NikCLI models, agents, and settings"
+icon: "gear"
 ---
 
-# Configuration Guide
+# Configuration
 
-Configure NikCLI to match your development workflow with comprehensive settings for API keys, agent behavior, security, and performance.
+NikCLI offers extensive configuration options for models, agents, security, and performance.
 
-## 🔑 API Keys Setup
-
-### Supported AI Providers
-
-NikCLI supports multiple AI providers for maximum flexibility:
-
-<CardGroup cols={2}>
-  <Card title="Anthropic Claude" icon="brain">
-    **Recommended** - Best for complex reasoning and code generation
-  </Card>
-  <Card title="OpenAI GPT" icon="sparkles">
-    **Popular** - Excellent for general tasks and creativity
-  </Card>
-  <Card title="Google Gemini" icon="zap">
-    **Efficient** - Great for analysis and optimization
-  </Card>
-  <Card title="Ollama Local" icon="server">
-    **Private** - Run models locally for complete privacy
-  </Card>
-</CardGroup>
-
-### Setting API Keys
+## Configuration Commands
 
 ```bash
-# Set Anthropic API key (recommended)
-/set-key anthropic sk-ant-api03-...
-
-# Set OpenAI API key
-/set-key openai sk-...
-
-# Set Google API key
-/set-key google AIza...
-
-# Set Ollama endpoint
-/set-key ollama http://localhost:11434
+/config            # Show current configuration
 ```
 
-### Environment Variables
+## Model Configuration
 
-You can also set API keys via environment variables:
+### Switching Models
 
 ```bash
-# Set environment variables
-export ANTHROPIC_API_KEY="sk-ant-api03-..."
-export OPENAI_API_KEY="sk-..."
-export GOOGLE_API_KEY="AIza..."
-
-# Or in .env file
-echo "ANTHROPIC_API_KEY=sk-ant-api03-..." >> .env
-echo "OPENAI_API_KEY=sk-..." >> .env
+/model <name>      # Switch model
+/models            # List available models
+/temp <0.0-2.0>    # Set temperature
 ```
 
-### Verify Configuration
+### Supported Models
+
+| Provider | Models | Context Window |
+|----------|--------|----------------|
+| **Anthropic** | Claude Sonnet 4, Claude 3.5 Sonnet, Claude 3.7 Sonnet, Claude 3 Opus, Claude 3 Haiku | 200K |
+| **OpenAI** | GPT-5, GPT-4o, GPT-4o Mini, GPT-3.5 Turbo | 128K-200K |
+| **Google** | Gemini 2.5 Pro/Flash, Gemini 2.0 Flash, Gemini 1.5 Pro | Up to 2M |
+| **Grok** | Grok-4, Grok-3, Grok-3 Mini | Varies |
+| **DeepSeek** | DeepSeek R1 | Varies |
+| **Ollama** | Local models | Varies |
+
+### Model Pricing (per 1M tokens)
+
+| Model | Input | Output |
+|-------|-------|--------|
+| Claude 3.5 Sonnet | $3.00 | $15.00 |
+| Claude 3 Opus | $15.00 | $75.00 |
+| Claude 3 Haiku | $0.25 | $1.25 |
+| GPT-5 | $1.25 | $10.00 |
+| GPT-4o | $3.00 | $10.00 |
+| Gemini 2.5 Pro | $2.50 | $15.00 |
+| DeepSeek R1 | $0.55 | $2.19 |
+
+### Model Routing
 
 ```bash
-# Check current configuration
-/config
-
-# Test API connectivity
-/debug
-
-# List available models
-/models
+/router status     # Check router status
+/router on         # Enable adaptive routing
+/router off        # Disable routing
+/router mode balanced  # Set mode: conservative, balanced, aggressive
 ```
 
-## ⚙️ Agent Configuration
+## API Keys
 
-### Universal Agent Settings
-
-Configure the Universal Agent for optimal performance:
+### Setting Keys
 
 ```bash
-# Set agent behavior style
-/agent-config universal-agent --style collaborative
-/agent-config universal-agent --style autonomous
-/agent-config universal-agent --style guided
+# AI Providers
+/set-key anthropic <key>
+/set-key openai <key>
+/set-key google <key>
+/set-key openrouter <key>
+/set-key groq <key>
+/set-key cerebras <key>
 
-# Set verbosity level
-/agent-config universal-agent --verbosity detailed
-/agent-config universal-agent --verbosity concise
-/agent-config universal-agent --verbosity minimal
-
-# Configure permissions
-/agent-config universal-agent --permissions "read:src/,write:src/,execute:npm,git"
-
-# Set context paths
-/agent-config universal-agent --context "src/,tests/,docs/"
+# Additional Services
+/set-key-redis          # Configure Redis/Upstash
+/set-vector-key         # Configure Upstash Vector
+/set-key-bb             # Configure Browserbase
+/set-key-figma          # Configure Figma
+/set-coin-keys          # Configure Coinbase (Web3)
+/set-key-nikdrive <key> # Configure NikDrive
 ```
 
-### VM Agent Settings
+## Default Settings
 
-Configure the VM Agent for secure development:
+### Model Settings
 
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `temperature` | `1.0` | Model creativity (0-2) |
+| `maxTokens` | `6000` | Max output tokens |
+| `chatHistory` | `true` | Enable history |
+| `maxHistoryLength` | `100` | Max history messages |
+
+### Security Settings
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `securityMode` | `safe` | `safe`, `default`, `developer` |
+| `approvalPolicy` | `moderate` | `strict`, `moderate`, `permissive` |
+| `requireApprovalForNetwork` | `true` | Require network approval |
+
+### Session Settings
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `approvalTimeoutMs` | `30000` | 30 second timeout |
+| `devModeTimeoutMs` | `3600000` | 1 hour timeout |
+| `autoApproveReadOnly` | `true` | Auto-approve reads |
+
+## Token Limits
+
+| Limit | Value | Description |
+|-------|-------|-------------|
+| `MAX_CONTEXT_TOKENS` | 80,000 | Maximum context |
+| `EMERGENCY_TRUNCATE_AT` | 50,000 | Truncation point |
+| `MAX_SYSTEM_MESSAGE_TOKENS` | 800 | System message limit |
+| `MAX_TOOL_MESSAGE_TOKENS` | 600 | Tool message limit |
+| `RAG_CHUNK_TOKENS` | 1,000 | RAG chunk size |
+| `RAG_CHUNK_OVERLAP_TOKENS` | 30 | Chunk overlap |
+
+## Security Modes
+
+### Safe Mode (Default)
 ```bash
-# Set isolation level
-/agent-config vm-agent --isolation-level strict
-/agent-config vm-agent --isolation-level moderate
-/agent-config vm-agent --isolation-level permissive
-
-# Configure container resources
-/agent-config vm-agent --container-resources "memory:4GB,cpu:2,storage:10GB"
-
-# Set token budget
-/agent-config vm-agent --token-budget 50000
+/safe-mode
 ```
+Maximum security with approval for all operations.
 
-## 🎛️ System Preferences
-
-### Model Selection
-
+### Default Mode
 ```bash
-# Switch to specific model
-/model claude-3-5-sonnet
-/model gpt-4o
-/model gemini-1.5-pro
-/model ollama:llama3.1:8b
-
-# View current model
-/model
-
-# List all available models
-/models
+/security set default
 ```
-
-### Creativity Settings
-
-```bash
-# Set temperature (creativity level)
-/temp 0.7    # Balanced creativity
-/temp 0.3    # More focused
-/temp 1.2    # More creative
-
-# View current temperature
-/temp
-```
-
-### Session Management
-
-```bash
-# Enable/disable chat history
-/history on
-/history off
-
-# Set system prompt
-/system "You are a senior React developer specializing in TypeScript and performance optimization"
-
-# Clear current session
-/clear
-
-# Start new session
-/new "React Authentication Project"
-```
-
-## 🔒 Security Configuration
-
-### Approval System
-
-Configure the approval system for sensitive operations:
-
-```bash
-# Set approval level
-/security --approval-level strict
-/security --approval-level moderate
-/security --approval-level permissive
-
-# Configure approval timeout
-/security --approval-timeout 300
-
-# Enable/disable specific approvals
-/security --enable-file-write-approval
-/security --enable-command-execution-approval
-/security --enable-network-access-approval
-```
-
-### Sandbox Settings
-
-```bash
-# Enable sandbox mode
-/sandbox --enable
-
-# Configure file system access
-/sandbox --allow-file-system
-/sandbox --restrict-paths "/home/user/projects"
-
-# Configure command execution
-/sandbox --allow-commands "npm,git,node"
-/sandbox --block-commands "rm,rmdir,sudo"
-
-# Configure network access
-/sandbox --allow-network
-/sandbox --restrict-domains "github.com,npmjs.com"
-```
+Balanced security with approval for risky operations.
 
 ### Developer Mode
+```bash
+/dev-mode enable
+/dev-mode status
+```
+Reduced restrictions for trusted development.
+
+<Warning>
+Developer mode reduces security checks. Only use in trusted environments.
+</Warning>
+
+## Feature Flags
+
+Enable via environment variables:
+
+### Semantic Cache
+```bash
+export NIKCLI_SEMANTIC_CACHE=true
+```
+- `minSimilarity`: 0.85
+- `ttl`: 3600 seconds
+- `maxCacheSize`: 100,000 entries
+
+### Agent Memory
+```bash
+export NIKCLI_AGENT_MEMORY=true
+```
+- `maxMemorySize`: 10,000 entries
+- `retrievalTopK`: 5
+- `autoLearning`: true
+
+### Debug Dashboard
+```bash
+export NIKCLI_DEBUG_DASHBOARD=true
+```
+- `updateInterval`: 500ms
+- `theme`: `dark` or `light`
+
+## Caching
+
+### Redis/Upstash
 
 ```bash
-# Enable developer mode (reduces security restrictions)
-/dev-mode
-
-# Disable developer mode
-/dev-mode --disable
-
-# Check current mode
-/dev-mode --status
+/redis-enable      # Enable Redis
+/redis-disable     # Disable Redis
+/redis-status      # Check status
 ```
 
-## 📊 Performance Settings
+Environment variables:
+```bash
+export REDIS_URL="redis://localhost:6379"
+export UPSTASH_REDIS_REST_URL="https://..."
+export UPSTASH_REDIS_REST_TOKEN="..."
+```
 
-### Caching Configuration
+### Cache Management
 
 ```bash
-# Enable response caching
-/cache --enable
-
-# Set cache size
-/cache --size 100MB
-
-# Clear cache
-/cache --clear
-
-# Configure cache TTL
-/cache --ttl 3600
+/cache stats       # Show statistics
+/cache clear       # Clear cache
+/cache settings    # View settings
 ```
 
-### Memory Management
+## Sandbox Configuration
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `sandbox.enabled` | `true` | Enable sandboxing |
+| `sandbox.allowFileSystem` | `true` | Allow file ops |
+| `sandbox.allowNetwork` | `true` | Allow network |
+| `sandbox.allowCommands` | `true` | Allow commands |
+
+### Trusted Domains
+
+Default trusted domains:
+- `registry.npmjs.org`, `npmjs.org`
+- `github.com`, `api.github.com`
+- `pypi.org`, `crates.io`, `rubygems.org`
+- `docker.io`, `proxy.golang.org`
+
+## Output Styling
 
 ```bash
-# Set memory limits
-/memory --limit 2GB
-
-# Configure garbage collection
-/memory --gc-interval 300
-
-# Monitor memory usage
-/memory --stats
+/style             # Show style options
+/styles            # List available styles
+/style set <style> # Set default style
 ```
 
-### Parallel Execution
+## Environment Variables
 
-```bash
-# Configure parallel execution
-/parallel --max-concurrent 3
-/parallel --timeout 300
+| Variable | Description |
+|----------|-------------|
+| `NIKCLI_QUIET_STARTUP` | Suppress startup messages |
+| `NIKCLI_SEMANTIC_CACHE` | Enable semantic cache |
+| `NIKCLI_AGENT_MEMORY` | Enable agent memory |
+| `NIKCLI_DEBUG_DASHBOARD` | Enable debug dashboard |
+| `REDIS_URL` | Redis connection URL |
+| `SUPABASE_URL` | Supabase project URL |
+| `SUPABASE_ANON_KEY` | Supabase anon key |
 
-# Enable parallel mode
-/parallel --enable
-
-# Disable parallel mode
-/parallel --disable
-```
-
-## 🎨 UI Customization
-
-### Display Settings
-
-```bash
-# Set compact mode
-/set compact true
-
-# Enable clean chat mode
-/set clean-chat true
-
-# Configure live updates
-/set live-updates ephemeral
-
-# Set minimal stream mode
-/set minimal-stream true
-```
-
-### Color Themes
-
-```bash
-# Set color theme
-/theme dark
-/theme light
-/theme auto
-
-# Customize colors
-/theme --primary "#4EC5F1"
-/theme --secondary "#1f39ff"
-```
-
-## 🔧 Advanced Configuration
-
-### LSP Integration
-
-```bash
-# Enable LSP integration
-/lsp --enable
-
-# Configure LSP servers
-/lsp --add typescript
-/lsp --add python
-/lsp --add rust
-
-# Set LSP timeout
-/lsp --timeout 5000
-```
-
-### Context Management
-
-```bash
-# Configure context retention
-/context --retention 7d
-/context --max-files 1000
-
-# Enable context indexing
-/context --indexing true
-
-# Set context paths
-/context --paths "src/,tests/,docs/"
-```
-
-### Logging Configuration
-
-```bash
-# Set log level
-/log --level debug
-/log --level info
-/log --level warn
-/log --level error
-
-# Enable structured logging
-/log --structured true
-
-# Set log file
-/log --file ~/.nikcli/logs/nikcli.log
-```
-
-## 📁 Configuration Files
-
-### Main Configuration
-
-NikCLI stores configuration in `~/.nikcli/config.json`:
-
-```json
-{
-  "defaultProvider": "anthropic",
-  "defaultModel": "claude-3-5-sonnet",
-  "temperature": 0.7,
-  "historyEnabled": true,
-  "approvalLevel": "moderate",
-  "sandbox": {
-    "enabled": true,
-    "allowFileSystem": true,
-    "allowCommands": true,
-    "allowNetwork": true
-  },
-  "agents": {
-    "universal": {
-      "style": "collaborative",
-      "verbosity": "detailed",
-      "maxConcurrentTasks": 3
-    },
-    "vm": {
-      "isolationLevel": "moderate",
-      "tokenBudget": 50000,
-      "containerResources": {
-        "memory": "4GB",
-        "cpu": "2"
-      }
-    }
-  }
-}
-```
-
-### Environment Variables
-
-Set these environment variables for advanced configuration:
-
-```bash
-# API Keys
-export ANTHROPIC_API_KEY="sk-ant-api03-..."
-export OPENAI_API_KEY="sk-..."
-export GOOGLE_API_KEY="AIza..."
-
-# Performance
-export NIKCLI_COMPACT=1
-export NIKCLI_CLEAN_CHAT=1
-export NIKCLI_MINIMAL_STREAM=1
-
-# Embedding Optimization
-export EMBED_BATCH_SIZE=300
-export EMBED_MAX_CONCURRENCY=6
-export EMBED_INTER_BATCH_DELAY_MS=25
-export INDEXING_BATCH_SIZE=300
-export EMBED_ADAPTIVE_BATCHING=true
-```
-
-## 🔍 Configuration Validation
-
-### Check Configuration
-
-```bash
-# Validate current configuration
-/config --validate
-
-# Test all API connections
-/debug --full
-
-# Check agent status
-/agents --status
-
-# Verify permissions
-/security --check
-```
-
-### Troubleshooting
-
-<AccordionGroup>
-  <Accordion title="API Key Issues">
-    **Problem:** API keys not working
-    
-    **Solutions:**
-    ```bash
-    # Check API key format
-    /config
-    
-    # Test API connectivity
-    /debug
-    
-    # Re-set API key
-    /set-key anthropic sk-ant-api03-...
-    ```
-  </Accordion>
-  
-  <Accordion title="Permission Errors">
-    **Problem:** Permission denied errors
-    
-    **Solutions:**
-    ```bash
-    # Check current permissions
-    /security --check
-    
-    # Adjust sandbox settings
-    /sandbox --allow-file-system
-    
-    # Enable developer mode temporarily
-    /dev-mode
-    ```
-  </Accordion>
-  
-  <Accordion title="Performance Issues">
-    **Problem:** Slow performance
-    
-    **Solutions:**
-    ```bash
-    # Check memory usage
-    /memory --stats
-    
-    # Clear cache
-    /cache --clear
-    
-    # Adjust parallel execution
-    /parallel --max-concurrent 2
-    ```
-  </Accordion>
-</AccordionGroup>
-
-## 🎯 Best Practices
-
-### 1. Start with Defaults
-
-Begin with default configuration and adjust as needed:
-
-```bash
-# Use default configuration
-/config --reset
-
-# Gradually customize
-/temp 0.7
-/agent-config universal-agent --style collaborative
-```
-
-### 2. Use Environment Variables
-
-For team projects, use environment variables:
-
-```bash
-# Create .env file
-echo "ANTHROPIC_API_KEY=sk-ant-api03-..." > .env
-echo "NIKCLI_COMPACT=1" >> .env
-```
-
-### 3. Regular Configuration Review
-
-Periodically review and optimize configuration:
-
-```bash
-# Check current settings
-/config
-
-# Review performance metrics
-/stats
-
-# Optimize based on usage patterns
-/agent-config universal-agent --optimize
-```
-
-## 🚀 Next Steps
+## Next Steps
 
 <CardGroup cols={2}>
-  <Card
-    title="Agent System"
-    icon="robot"
-    href="/agent-system/architecture"
-  >
-    Learn about cognitive orchestration
+  <Card title="CLI Reference" icon="book" href="/cli-reference/commands-overview">
+    Complete command reference
   </Card>
-  <Card
-    title="Command Reference"
-    icon="terminal"
-    href="/cli-reference/commands-overview"
-  >
-    Master all commands
-  </Card>
-  <Card
-    title="Advanced Features"
-    icon="zap"
-    href="/features/vim-mode"
-  >
-    Explore advanced capabilities
-  </Card>
-  <Card
-    title="Troubleshooting"
-    icon="wrench"
-    href="/troubleshooting/common-issues"
-  >
-    Solve common problems
+  <Card title="Agent System" icon="robot" href="/agent-system/overview">
+    Learn about agents
   </Card>
 </CardGroup>
-
-<Tip>
-  **Pro Tip:** Use `/config --export` to save your configuration and `/config --import` to restore it on other machines.
-</Tip>

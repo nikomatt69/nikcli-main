@@ -1,471 +1,204 @@
 ---
 title: "First Steps"
-description: "Learn the basics of NikCLI with interactive examples and hands-on tutorials"
+description: "Learn the essential NikCLI commands"
 icon: "play"
 ---
 
-# First Steps with NikCLI
+# First Steps
 
-Welcome to NikCLI! This guide will walk you through the essential commands and workflows to get you productive quickly.
+This guide covers the essential commands to get started with NikCLI.
 
-## 🚀 Quick Start
-
-### 1. Launch NikCLI
+## Starting NikCLI
 
 ```bash
+# Start in current directory
 nikcli
+
+# Start with a specific model
+nikcli --model claude-3-5-sonnet
 ```
 
-You'll see the NikCLI interface with a welcome message and available commands.
+## Essential Commands
 
-### 2. Check Your Setup
+### Getting Help
 
 ```bash
-# View current configuration
-/config
-
-# List available AI models
-/models
-
-# Check agent status
-/agents
+/help              # Show comprehensive help
+/commands          # Alias for /help
 ```
 
-### 3. Test Basic Functionality
+### Model Management
 
 ```bash
-# Read a file
-/read package.json
-
-# List directory contents
-/ls
-
-# Get help
-/help
+/models            # List all available models
+/model <name>      # Switch to specific model
+/temp 0.7          # Set temperature (0.0-2.0)
 ```
-
-## 📚 Essential Commands
 
 ### File Operations
 
-<CardGroup cols={2}>
-  <Card title="Read Files" icon="file-text">
-    ```bash
-    /read filename.txt
-    /read src/components/Button.tsx
-    /read package.json
-    ```
-  </Card>
-  <Card title="Write Files" icon="edit">
-    ```bash
-    /write filename.txt "content here"
-    /write src/App.tsx "import React from 'react'"
-    ```
-  </Card>
-  <Card title="List Directory" icon="folder">
-    ```bash
-    /ls
-    /ls src/
-    /ls --all
-    ```
-  </Card>
-  <Card title="Search Files" icon="search">
-    ```bash
-    /search "function"
-    /find-files "*.tsx"
-    /grep "import React"
-    ```
-  </Card>
-</CardGroup>
+```bash
+/read <file>       # Read file contents
+/write <file> <content>  # Write to file
+/edit <file>       # Edit file interactively
+/ls [directory]    # List files
+/search <query>    # Search in files
+/grep <query>      # Alias for search
+```
 
 ### Terminal Commands
 
-<CardGroup cols={2}>
-  <Card title="Run Commands" icon="terminal">
-    ```bash
-    /run npm install
-    /run git status
-    /run ls -la
-    ```
-  </Card>
-  <Card title="Package Management" icon="package">
-    ```bash
-    /npm install react
-    /npm run build
-    /install express
-    ```
-  </Card>
-  <Card title="Git Operations" icon="git-branch">
-    ```bash
-    /git status
-    /git add .
-    /git commit -m "message"
-    ```
-  </Card>
-  <Card title="System Info" icon="monitor">
-    ```bash
-    /ps
-    /kill process-id
-    /diagnostic
-    ```
-  </Card>
-</CardGroup>
-
-## 🤖 Working with Agents
-
-### Universal Agent
-
-The Universal Agent is your main development partner with 35+ capabilities:
-
 ```bash
-# Basic agent usage
-/agent universal-agent "Create a simple React component"
-
-# More complex tasks
-/agent universal-agent "Build a complete authentication system with React frontend and Node.js backend"
-
-# Code analysis
-/agent universal-agent "Analyze this codebase for performance issues and suggest optimizations"
+/run <command>     # Execute any command
+/npm <args>        # Run npm commands
+/yarn <args>       # Run yarn commands
+/git <args>        # Run git commands
+/docker <args>     # Run docker commands
+/build             # Build project
+/test [pattern]    # Run tests
 ```
 
-### Agent Capabilities
-
-<AccordionGroup>
-  <Accordion title="Frontend Development">
-    ```bash
-    # React components
-    /agent universal-agent "Create a responsive navigation component with TypeScript"
-    
-    # Next.js applications
-    /agent universal-agent "Build a Next.js blog with MDX support and dark mode"
-    
-    # UI/UX optimization
-    /agent universal-agent "Improve the accessibility and performance of this React app"
-    ```
-  </Accordion>
-  
-  <Accordion title="Backend Development">
-    ```bash
-    # API development
-    /agent universal-agent "Create a REST API for user management with JWT authentication"
-    
-    # Database integration
-    /agent universal-agent "Set up PostgreSQL with Prisma ORM and create user schema"
-    
-    # Microservices
-    /agent universal-agent "Design a microservices architecture for e-commerce platform"
-    ```
-  </Accordion>
-  
-  <Accordion title="DevOps & Deployment">
-    ```bash
-    # Docker setup
-    /agent universal-agent "Create Docker configuration for this Node.js application"
-    
-    # CI/CD pipeline
-    /agent universal-agent "Set up GitHub Actions workflow for automated testing and deployment"
-    
-    # Kubernetes deployment
-    /agent universal-agent "Create Kubernetes manifests for production deployment"
-    ```
-  </Accordion>
-</AccordionGroup>
-
-## 🎯 Operating Modes
-
-NikCLI has three operating modes accessible via `Shift+Tab`:
-
-### Default Chat Mode (💬)
-
-Interactive conversation with manual confirmation:
+### Agent Commands
 
 ```bash
-# Example: Creating a file with confirmation
-/write src/components/Button.tsx
-# → Shows preview
-# → Asks for confirmation
-# → Explains what will be created
+/agents            # List all agents
+/agent <name> <task>  # Run specific agent
+/auto <task>       # Autonomous execution
+/parallel <agents> <task>  # Run agents in parallel
 ```
 
-### Planning Mode (📋)
+## Working with Agents
 
-Strategic planning with comprehensive execution plans:
+### Available Agents
+
+| Agent | Description |
+|-------|-------------|
+| `universal-agent` | All-purpose development (70+ capabilities) |
+| `react-expert` | React and frontend development |
+| `backend-expert` | API and backend development |
+| `devops-expert` | DevOps and infrastructure |
+| `code-review` | Code quality analysis |
+| `autonomous-coder` | Fully autonomous coding |
+| `frontend-expert` | Frontend/UI development |
+| `nextjs-expert` | Next.js specialist |
+| `vue-expert` | Vue.js specialist |
+| `framer-motion-expert` | UI animations |
+| `system-admin` | System administration |
+| `optimization-expert` | Performance optimization |
+| `ai-sdk-integrator` | Vercel AI SDK integration |
+
+### Using an Agent
 
 ```bash
-# Switch to planning mode
-/plan
+# React component
+/agent react-expert "Create a responsive navbar with dark mode"
 
-# Create a project plan
-/plan "Build a complete e-commerce platform"
+# API endpoint
+/agent backend-expert "Create REST API for authentication"
 
-# View todos
-/todo
+# Code review
+/agent code-review "Review src/auth/login.ts for security"
+
+# Autonomous task
+/auto "Build a todo app with React and Express"
 ```
 
-### Auto Mode (🤖)
+## Operating Modes
 
-Autonomous execution with minimal intervention:
+### Default Mode
+Standard conversational chat with auto-todos for complex tasks.
+```bash
+/default
+```
+
+### Plan Mode
+Structured planning with approval before execution.
+```bash
+/plan "Implement user authentication with JWT"
+```
+
+### VM Mode
+Isolated development in Docker containers.
+```bash
+/vm
+/vm-create ubuntu
+/vm-connect <id>
+```
+
+## Session Management
 
 ```bash
-# Switch to auto mode
-/auto
-
-# Execute tasks autonomously
-/auto "Create a React component with tests and documentation"
+/new [title]       # Start new session
+/sessions          # List sessions
+/export [id]       # Export to markdown
+/resume [id]       # Resume work session
+/save-session [name]  # Save current session
 ```
 
-## 🛠️ Practical Examples
+## Practical Examples
 
-### Example 1: Create a React Component
-
-<Steps>
-  <Step title="Start NikCLI">
-    ```bash
-    nikcli
-    ```
-  </Step>
-  
-  <Step title="Create Component">
-    ```bash
-    /agent universal-agent "Create a reusable Button component with TypeScript, styled-components, and Jest tests"
-    ```
-  </Step>
-  
-  <Step title="Review Results">
-    ```bash
-    # Check what was created
-    /ls src/components/
-    
-    # Read the component
-    /read src/components/Button.tsx
-    
-    # Check tests
-    /read src/components/Button.test.tsx
-    ```
-  </Step>
-  
-  <Step title="Run Tests">
-    ```bash
-    /run npm test Button.test.tsx
-    ```
-  </Step>
-</Steps>
-
-### Example 2: Analyze Existing Code
-
-<Steps>
-  <Step title="Analyze Project">
-    ```bash
-    /agent universal-agent "Analyze this React project for code quality, performance issues, and security vulnerabilities"
-    ```
-  </Step>
-  
-  <Step title="Review Analysis">
-    ```bash
-    # The agent will provide detailed analysis including:
-    # - Code quality metrics
-    # - Performance bottlenecks
-    # - Security vulnerabilities
-    # - Improvement recommendations
-    ```
-  </Step>
-  
-  <Step title="Apply Fixes">
-    ```bash
-    /agent universal-agent "Fix the issues identified in the analysis and optimize the code"
-    ```
-  </Step>
-</Steps>
-
-### Example 3: Full-Stack Development
-
-<Steps>
-  <Step title="Plan the Project">
-    ```bash
-    /plan "Create a task management app with React frontend, Node.js API, and PostgreSQL database"
-    ```
-  </Step>
-  
-  <Step title="Execute Backend">
-    ```bash
-    /agent universal-agent "Create the backend API with Express, PostgreSQL, and authentication"
-    ```
-  </Step>
-  
-  <Step title="Build Frontend">
-    ```bash
-    /agent universal-agent "Create the React frontend with task management features"
-    ```
-  </Step>
-  
-  <Step title="Integrate & Test">
-    ```bash
-    /agent universal-agent "Connect frontend to backend and add comprehensive testing"
-    ```
-  </Step>
-</Steps>
-
-## 🔧 Configuration
-
-### Set Up API Keys
+### Create a Component
 
 ```bash
-# Set Anthropic API key
-/set-key anthropic sk-ant-api03-...
-
-# Set OpenAI API key
-/set-key openai sk-...
-
-# Set Google API key
-/set-key google AIza...
-
-# Check configuration
-/config
+/agent react-expert "Create DataTable with sorting and pagination"
 ```
 
-### Configure Agent Behavior
+### Analyze Code
 
 ```bash
-# Set creativity level (0.0 = focused, 2.0 = creative)
-/temp 0.7
-
-# Set system prompt
-/system "You are a senior React developer specializing in TypeScript"
-
-# Enable/disable history
-/history on
+/search "async function" src/
+/read src/services/auth.ts
+/agent code-review "Review src/services/auth.ts"
 ```
 
-## 📊 Monitoring & Debugging
-
-### View Agent Status
+### Git Workflow
 
 ```bash
-# List all agents
-/agents
-
-# Check agent metrics
-/agent universal-agent --metrics
-
-# View agent capabilities
-/agent universal-agent --capabilities
+/git status
+/git checkout -b feature/auth
+/git commit -m "Add authentication"
 ```
 
-### Debug Issues
+## Memory & Context
 
 ```bash
-# Run diagnostics
-/diagnostic
-
-# Check system status
-/monitor
-
-# View logs
-/logs
+/remember "fact"   # Store in long-term memory
+/recall "query"    # Search memories
+/memory stats      # Show memory statistics
+/context           # Manage context
+/index <path>      # Index files for context
 ```
 
-### Performance Monitoring
+## Undo/Redo
 
 ```bash
-# View usage statistics
-/stats
-
-# Check token usage
-/tokens
-
-# Monitor memory usage
-/memory
+/undo [count]      # Undo last N edits
+/redo [count]      # Redo last N edits
+/edit-history      # Show edit history
 ```
 
-## 🎯 Best Practices
+## Keyboard Shortcuts
 
-### 1. Start Simple
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl+C` | Cancel operation |
+| `Ctrl+D` | Exit NikCLI |
+| `Up/Down` | Navigate history |
+| `Tab` | Autocomplete |
 
-Begin with basic file operations and gradually move to complex agent tasks:
-
-```bash
-# Start with simple commands
-/read package.json
-/ls src/
-
-# Move to agent tasks
-/agent universal-agent "Create a simple component"
-```
-
-### 2. Use Planning Mode for Complex Projects
-
-For large projects, use planning mode to break down tasks:
-
-```bash
-/plan "Build a complete application"
-# → Creates detailed execution plan
-# → Generates todo.md
-# → Sets up approval workflow
-```
-
-### 3. Leverage Agent Capabilities
-
-Understand what each agent can do:
-
-```bash
-# Check agent capabilities
-/agents
-
-# Use specific capabilities
-/agent universal-agent "Optimize this code for performance"
-/agent universal-agent "Add comprehensive testing to this project"
-```
-
-### 4. Monitor and Learn
-
-Use monitoring tools to understand performance:
-
-```bash
-# Check metrics
-/stats
-
-# View agent performance
-/agent universal-agent --metrics
-
-# Learn from patterns
-/agent universal-agent --learn
-```
-
-## 🚀 Next Steps
-
-Now that you understand the basics, explore advanced features:
+## Next Steps
 
 <CardGroup cols={2}>
-  <Card
-    title="Agent System"
-    icon="robot"
-    href="/agent-system/architecture"
-  >
-    Deep dive into cognitive orchestration
+  <Card title="Configuration" icon="gear" href="/quickstart/configuration">
+    Configure models and settings
   </Card>
-  <Card
-    title="Command Reference"
-    icon="terminal"
-    href="/cli-reference/commands-overview"
-  >
-    Master all 70+ commands
+  <Card title="CLI Reference" icon="book" href="/cli-reference/commands-overview">
+    Complete command reference
   </Card>
-  <Card
-    title="Advanced Features"
-    icon="zap"
-    href="/features/vim-mode"
-  >
-    Vim integration, VM operations, and more
+  <Card title="Agent System" icon="robot" href="/agent-system/overview">
+    Deep dive into agents
   </Card>
-  <Card
-    title="Examples & Tutorials"
-    icon="book"
-    href="/examples/basic-workflows"
-  >
-    Learn through practical examples
+  <Card title="VM Commands" icon="server" href="/cli-reference/vm-commands">
+    Learn about VM containers
   </Card>
 </CardGroup>
-
-<Tip>
-  **Pro Tip:** Use `/help` at any time to see all available commands. NikCLI is context-aware and will show relevant options based on your current project and mode.
-</Tip>

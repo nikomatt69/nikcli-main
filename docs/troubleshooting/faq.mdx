@@ -1,491 +1,259 @@
 ---
 title: "FAQ"
 description: "Frequently Asked Questions about NikCLI"
-icon: "help-circle"
+icon: "circle-question"
 ---
 
 # Frequently Asked Questions
 
-Get answers to the most common questions about NikCLI.
-
-## 🚀 Getting Started
+## Getting Started
 
 ### What is NikCLI?
 
-NikCLI is an advanced AI-powered development assistant that combines artificial intelligence with practical development tools. It features **cognitive orchestration** - an intelligent system that understands natural language tasks, breaks them down intelligently, and executes them using the most appropriate strategies.
+NikCLI is an AI-powered CLI tool for software development. It features:
 
-### How is NikCLI different from other CLI tools?
+- **Multi-provider AI support**: Claude, GPT, Gemini, Ollama
+- **26+ built-in agents** for specialized tasks
+- **150+ slash commands** for all development workflows
+- **VM containers** for isolated development
+- **Web3 integration** for blockchain development
 
-Unlike traditional CLI tools, NikCLI features:
+### System Requirements
 
-- **Cognitive Orchestration**: Advanced NLP-based task understanding
-- **Dual Agent Architecture**: Universal Agent (35+ capabilities) and VM Agent (20+ capabilities)
-- **Three Operating Modes**: Default Chat, Planning, and Auto Mode
-- **Parallel Execution**: Intelligent concurrent task processing
-- **Learning Capabilities**: Improves from each interaction
-
-### What are the system requirements?
-
-**Minimum Requirements:**
+**Minimum:**
 - Node.js 18+
 - 4GB RAM
-- 1GB free disk space
-- Internet connection (for AI providers)
+- Internet connection
 
 **Recommended:**
 - Node.js 20+
 - 8GB RAM
-- 2GB free disk space
-- Fast internet connection
+- Fast internet
 
-### Which package managers are supported?
+### Supported Package Managers
 
-NikCLI supports all major package managers:
 - npm
 - yarn
 - pnpm
 - bun
 
-The universal installer automatically detects and uses the best available package manager.
+## Agents
 
-## 🤖 Agents and AI
+### Available Agents
 
-### What is the Universal Agent?
+| Agent | Purpose |
+|-------|---------|
+| `universal-agent` | All-purpose (70+ capabilities) |
+| `vm-agent` | Secure virtualized execution |
+| `react-expert` | React & Next.js |
+| `backend-expert` | API & databases |
+| `devops-expert` | CI/CD & infrastructure |
+| `code-review` | Code quality |
+| `autonomous-coder` | Fully autonomous |
+| `frontend-expert` | UI/UX development |
+| `vue-expert` | Vue.js |
+| `optimization-expert` | Performance |
 
-The Universal Agent is NikCLI's flagship agent with **35 comprehensive capabilities**:
-
-- **Core Development** (7): Code generation, analysis, review, optimization, debugging, refactoring, testing
-- **Frontend Technologies** (11): React, Next.js, TypeScript, JavaScript, HTML, CSS, components, hooks, JSX, TSX
-- **Backend Development** (8): Node.js, API development, databases, server architecture, REST, GraphQL, microservices
-- **DevOps & Infrastructure** (8): CI/CD, Docker, Kubernetes, deployment, infrastructure, monitoring, security
-- **Advanced Analysis** (5): Performance analysis, security analysis, quality assessment, architecture review, documentation generation
-
-### What is the VM Agent?
-
-The VM Agent is a **secure virtualized agent** with 20 specialized capabilities:
-
-- **VM Operations** (7): vm-management, container-orchestration, isolated-execution, repository-cloning, vscode-server, autonomous-development, pull-request-automation
-- **Repository Management** (5): repository-analysis, dependency-management, testing-automation, documentation-generation, code-quality-analysis
-- **Security Features** (5): secure-api-communication, token-budget-management, audit-logging, resource-isolation, credential-management
-- **Development Workflows** (3): full-stack-development, ci-cd-integration, git-operations, package-management, environment-setup
-
-### How does cognitive orchestration work?
-
-Cognitive orchestration uses advanced NLP to:
-
-1. **Parse natural language** with 90%+ accuracy
-2. **Extract entities** (files, components, APIs, databases)
-3. **Assess complexity** and select optimal strategies
-4. **Create execution plans** with phases and dependencies
-5. **Learn patterns** from previous tasks
-
-### Which AI providers are supported?
-
-NikCLI supports multiple AI providers:
-
-- **Anthropic Claude** (recommended)
-- **OpenAI GPT**
-- **Google Gemini**
-- **Ollama** (local models)
-
-## 🔧 Commands and Usage
-
-### How many commands does NikCLI have?
-
-NikCLI provides **70+ commands** organized into categories:
-
-- **File Operations** (5): `/read`, `/write`, `/ls`, `/search`, `/find-files`, `/grep`
-- **Terminal Commands** (12): `/run`, `/install`, `/npm`, `/git`, `/docker`, `/ps`, `/kill`
-- **Project Management** (5): `/init`, `/build`, `/test`, `/lint`, `/analyze-project`
-- **AI Model Commands** (5): `/models`, `/model`, `/temp`, `/set-key`, `/tokens`
-- **Agent Management** (9): `/agents`, `/agent`, `/factory`, `/create-agent`, `/launch-agent`
-- **Planning & Todo** (4): `/plan`, `/todo`, `/todos`, `/approval`
-- **Parallel Execution** (8): `/parallel`, `/auto`, `/parallel-config`, `/parallel-monitor`
-- **Security** (4): `/security`, `/dev-mode`, `/safe-mode`, `/clear-approvals`
-- **VM Operations** (8): `/vm-create`, `/vm-list`, `/vm-connect`, `/vm-select`
-- **Development Tools** (5): `/snapshot`, `/commits`, `/diff`, `/monitor`, `/diagnostic`
-- **Memory & Data** (8): `/remember`, `/recall`, `/cache`, `/index`
-
-### What are the three operating modes?
-
-**Default Chat Mode (💬):**
-- Interactive conversation with manual confirmation
-- Step-by-step guidance
-- Best for learning and experimentation
-
-**Planning Mode (📋):**
-- Strategic planning with comprehensive execution plans
-- Todo.md file generation
-- Approval workflows
-- Best for complex projects
-
-**Auto Mode (🤖):**
-- Autonomous execution with minimal intervention
-- Streamlined workflows
-- Best for rapid development
-
-### How do I switch between modes?
-
-Use `Shift+Tab` to cycle through modes, or specific commands:
+### How to Use Agents
 
 ```bash
-/default    # Switch to Default Chat Mode
-/plan       # Switch to Planning Mode
-/auto       # Switch to Auto Mode
+# List agents
+/agents
+
+# Use an agent
+/agent react-expert "Create a login form"
+
+# Autonomous mode
+/auto "Build a REST API"
+
+# Parallel execution
+/parallel "react,backend" "Create full-stack app"
 ```
 
-## ⚡ Parallel Execution
+## Operating Modes
 
-### What is parallel execution?
+### Available Modes
 
-Parallel execution allows you to run multiple tasks simultaneously with intelligent coordination, dependency management, and resource optimization.
+| Mode | Description | Command |
+|------|-------------|---------|
+| **Default** | Conversational with auto-todos | `/default` |
+| **Plan** | Structured planning | `/plan [task]` |
+| **VM** | Container development | `/vm` |
 
-### How do I use parallel execution?
+### Switching Modes
 
 ```bash
-# Basic parallel execution
-/parallel "task1" "task2" "task3"
-
-# With strategy
-/parallel --strategy hybrid "Create frontend" "Build API" "Set up database"
-
-# With dependencies
-/parallel --dependencies {"task2": ["task1"]} "task1" "task2" "task3"
+/default    # Default mode
+/plan       # Planning mode
+/vm         # VM mode
 ```
 
-### What strategies are available?
+## Configuration
 
-- **Sequential**: Execute tasks one after another
-- **Parallel**: Execute all tasks simultaneously
-- **Hybrid**: Mix of parallel and sequential based on dependencies
-- **Adaptive**: Dynamically adjust based on task characteristics
+### Configuration Storage
 
-### How do I monitor parallel execution?
+Configuration is stored in `~/.nikcli/config.json`
+
+### Key Settings
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `temperature` | 1.0 | Model creativity |
+| `maxTokens` | 6000 | Max output tokens |
+| `securityMode` | safe | Security level |
+| `approvalPolicy` | moderate | Approval strictness |
+
+### Environment Variables
 
 ```bash
-# Monitor execution
-/parallel-monitor
+# AI Providers
+export ANTHROPIC_API_KEY="sk-ant-..."
+export OPENAI_API_KEY="sk-..."
 
-# View progress
-/parallel-monitor --progress
+# Features
+export NIKCLI_QUIET_STARTUP=true
+export NIKCLI_SEMANTIC_CACHE=true
+export NIKCLI_AGENT_MEMORY=true
 
-# Check resources
-/parallel-monitor --resources
-
-# Control execution
-/parallel-monitor --pause
-/parallel-monitor --resume
+# Caching
+export REDIS_URL="redis://..."
 ```
 
-## 🔒 Security and Privacy
+## Security
 
-### Is NikCLI secure?
+### Security Modes
 
-Yes, NikCLI is designed with security in mind:
+| Mode | Description |
+|------|-------------|
+| `safe` | Maximum security, all approvals required |
+| `default` | Balanced, risky operations need approval |
+| `developer` | Reduced restrictions |
 
-- **Local First**: Works entirely on your machine
-- **Encrypted API Keys**: Secure storage with AES-256-GCM
-- **Approval System**: Interactive confirmation for sensitive operations
-- **Sandbox Mode**: Restricted execution environment
-- **VM Isolation**: Secure virtualized development
+### API Key Storage
 
-### How are API keys stored?
+API keys are stored securely with AES-256-GCM encryption in `~/.nikcli/config.json`.
 
-API keys are stored securely in `~/.nikcli/config.json` with AES-256-GCM encryption. They are never transmitted to external servers except for the intended AI providers.
+### Approval System
 
-### What is the approval system?
-
-The approval system requires user confirmation for sensitive operations:
-
+The approval system requires confirmation for:
 - File write operations
 - Command execution
 - Network access
 - Configuration changes
 
-### Can I use NikCLI offline?
+## Troubleshooting
 
-Yes, with local models:
-
-```bash
-# Set up Ollama
-/set-key ollama http://localhost:11434
-/model ollama:llama3.1:8b
-
-# Or enable offline mode
-/config --offline-mode
-```
-
-## 🎯 Performance and Optimization
-
-### How can I improve performance?
-
-```bash
-# Enable caching
-/cache --enable
-
-# Optimize memory usage
-/memory --optimize
-
-# Reduce concurrency
-/parallel-config --max-concurrent 2
-
-# Use faster models
-/model gpt-4o-mini
-```
-
-### What are the resource limits?
-
-**Default Limits:**
-- Memory: 2GB
-- CPU: 4 cores
-- Concurrent tasks: 3
-- Timeout: 5 minutes
-
-**Configurable:**
-```bash
-/parallel-config --memory-limit 4GB --cpu-limit 8
-/parallel-config --max-concurrent 6
-```
-
-### How do I monitor performance?
-
-```bash
-# Check metrics
-/stats
-
-# Monitor resources
-/memory --stats
-/cpu --stats
-
-# Check agent performance
-/agents --metrics
-```
-
-## 🔧 Configuration
-
-### Where is configuration stored?
-
-Configuration is stored in `~/.nikcli/config.json`:
-
-```json
-{
-  "defaultProvider": "anthropic",
-  "defaultModel": "claude-3-5-sonnet",
-  "temperature": 0.7,
-  "historyEnabled": true,
-  "approvalLevel": "moderate"
-}
-```
-
-### How do I backup my configuration?
-
-```bash
-# Export configuration
-/config --export backup-config.json
-
-# Import configuration
-/config --import backup-config.json
-```
-
-### Can I use environment variables?
-
-Yes, you can set configuration via environment variables:
-
-```bash
-export ANTHROPIC_API_KEY="sk-ant-api03-..."
-export OPENAI_API_KEY="sk-..."
-export NIKCLI_COMPACT=1
-export NIKCLI_CLEAN_CHAT=1
-```
-
-## 🐛 Troubleshooting
-
-### NikCLI is not responding
+### NikCLI Not Responding
 
 ```bash
 # Check status
-/agents
+/status
 
-# Restart agents
-/agent universal-agent --restart
+# View debug info
+/debug
 
-# Check resources
-/memory --stats
-
-# Restart NikCLI
-/quit
+# Clear and restart
+/clear
+/exit
 nikcli
 ```
 
-### API keys not working
+### API Key Issues
 
 ```bash
 # Check configuration
 /config
 
-# Test API connection
-/debug
-
 # Re-set API key
-/set-key anthropic sk-ant-api03-...
+/set-key anthropic sk-ant-...
+
+# Test connection
+/debug
 ```
 
-### Parallel tasks hanging
+### Memory Issues
 
 ```bash
-# Check resources
-/parallel-monitor --resources
+# Check cache
+/cache stats
 
-# Reduce concurrency
-/parallel-config --max-concurrent 2
+# Clear cache
+/cache clear
 
-# Stop and restart
-/parallel --kill
+# Compact memory
+/compact
 ```
 
-### Memory issues
+### VM Issues
 
 ```bash
-# Check memory usage
-/memory --stats
+# List VMs
+/vm-list
 
-# Clear caches
-/cache --clear
+# Check health
+/vm-health
 
-# Reduce limits
-/parallel-config --memory-limit 1GB
+# View logs
+/vm-logs <id>
+
+# Restart VM
+/vm-stop <id>
+/vm-create
 ```
 
-## 💰 Pricing and Limits
+## Costs
 
-### Is NikCLI free?
+### Pricing
 
-NikCLI is open-source and free to use. You only pay for the AI provider API calls you make.
+NikCLI is open-source. You pay only for AI provider API calls.
 
-### What are the API costs?
+### Cost by Provider (per 1M tokens)
 
-Costs depend on your AI provider:
+| Provider | Input | Output |
+|----------|-------|--------|
+| Claude 3.5 Sonnet | $3.00 | $15.00 |
+| Claude 3 Haiku | $0.25 | $1.25 |
+| GPT-4o | $3.00 | $10.00 |
+| GPT-4o Mini | $0.15 | $0.60 |
+| Gemini 2.5 Pro | $2.50 | $15.00 |
+| Ollama | Free | Free |
 
-- **Anthropic Claude**: ~$0.003 per 1K tokens
-- **OpenAI GPT**: ~$0.002 per 1K tokens
-- **Google Gemini**: ~$0.001 per 1K tokens
-- **Ollama**: Free (local models)
-
-### How can I reduce costs?
+### Reducing Costs
 
 ```bash
-# Use faster models
+# Use efficient models
+/model claude-3-haiku
 /model gpt-4o-mini
-/model claude-3-5-haiku
 
 # Enable caching
-/cache --enable
+/redis-enable
+/cache stats
 
 # Use local models
 /set-key ollama http://localhost:11434
+/model ollama:llama3.1:8b
 ```
 
-## 🚀 Advanced Features
+## Support
 
-### How do I create custom agents?
+### Getting Help
 
-```bash
-# Create specialized agent
-/create-agent "React Expert" --specialization "react,typescript" --capabilities "component-design,ui-ux"
+- **In-app**: `/help`
+- **GitHub**: [github.com/nikomatt69/nikcli-main/issues](https://github.com/nikomatt69/nikcli-main/issues)
 
-# Configure agent
-/agent-config "React Expert" --style collaborative --verbosity detailed
+### Contributing
 
-# Use custom agent
-/agent "React Expert" "Create a responsive navigation component"
-```
+- Report bugs via GitHub Issues
+- Submit PRs for improvements
+- Improve documentation
 
-### How do I use the VM Agent?
-
-```bash
-# Create VM container
-/vm-create https://github.com/user/repo.git
-
-# Connect to VM
-/vm-connect container-id
-
-# Execute in VM
-/agent vm-agent "Set up development environment"
-```
-
-### How do I use planning mode?
-
-```bash
-# Switch to planning mode
-/plan
-
-# Create project plan
-/plan "Build complete application"
-
-# View todos
-/todo
-
-# Execute plan
-/execute-plan
-```
-
-## 🤝 Community and Support
-
-### Where can I get help?
-
-- **Documentation**: [nikcli.mintlify.app](https://nikcli.mintlify.app)
-- **GitHub Issues**: [github.com/nikomatt69/nikcli-main/issues](https://github.com/nikomatt69/nikcli-main/issues)
-- **Discord Community**: [discord.gg/nikcli](https://discord.gg/nikcli)
-- **Email Support**: support@nikcli.dev
-
-### How can I contribute?
-
-- **Report bugs**: Use GitHub Issues
-- **Request features**: Use GitHub Discussions
-- **Submit PRs**: Fork and submit pull requests
-- **Improve docs**: Submit documentation improvements
-
-### Is there enterprise support?
-
-Yes, we offer enterprise support:
-
-- **Email**: enterprise@nikcli.dev
-- **Training**: training@nikcli.dev
-- **Consulting**: consulting@nikcli.dev
-
-## 🎯 Next Steps
+## Next Steps
 
 <CardGroup cols={2}>
-  <Card
-    title="Getting Started"
-    icon="play"
-    href="/quickstart/installation"
-  >
-    Start using NikCLI
+  <Card title="Installation" icon="download" href="/quickstart/installation">
+    Get started with NikCLI
   </Card>
-  <Card
-    title="Examples"
-    icon="book"
-    href="/examples/basic-workflows"
-  >
-    Learn through examples
-  </Card>
-  <Card
-    title="Command Reference"
-    icon="terminal"
-    href="/cli-reference/commands-overview"
-  >
-    Master all commands
-  </Card>
-  <Card
-    title="Troubleshooting"
-    icon="wrench"
-    href="/troubleshooting/common-issues"
-  >
-    Solve problems
+  <Card title="Commands" icon="terminal" href="/cli-reference/commands-overview">
+    Complete command reference
   </Card>
 </CardGroup>
-
-<Tip>
-  **Pro Tip:** Use `/help` at any time to see all available commands. NikCLI is context-aware and will show relevant options based on your current project and mode.
-</Tip>
