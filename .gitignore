@@ -45,7 +45,8 @@ scripts/releases/
 releases/
 *.exe
 sam3-railway
-
+PROJECT_ANALYSIS_REPORT.md
+WORKSPACE_ANALYSIS.md
 # Exception: Allow binary in public/bin for Vercel deployment
 !public/bin/nikcli-linux
 temp-*
