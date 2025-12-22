@@ -128,7 +128,7 @@ export class DynamicAgent extends BaseAgent {
 
   protected async onStop(): Promise<void> {
     this.isRunning = false
-    agentStream.emitEvent(this.id, 'info', `🛑 Dynamic agent ${this.id} stopped`)
+    // agentStream.emitEvent(this.id, 'info', `🛑 Dynamic agent ${this.id} stopped`)
   }
 
   protected async onExecuteTask(task: any): Promise<any> {

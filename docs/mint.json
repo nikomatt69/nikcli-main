@@ -4,7 +4,7 @@
     "logo": {
         "dark": "./images/icon.png",
         "light": "./images/icon.png",
-        "href": "https://nikcli.store"
+        "href": "https://docs.nikcli.store"
     },
     "favicon": "./images/icon.png",
     "colors": {
@@ -45,7 +45,7 @@
             "name": "npm Package",
             "icon": "npm",
             "url": "https://www.npmjs.com/package/@nicomatt69/nikcli"
-        },
+        }
     ],
     "navigation": [
         {
@@ -129,7 +129,7 @@
     ],
     "footerSocials": {
         "github": "https://github.com/nikomatt69/nikcli-main",
-        "twitter": "https://x.com/nikomatt69",
+        "twitter": "https://x.com/nikomatt69"
     },
     "feedback": {
         "thumbsRating": true,
