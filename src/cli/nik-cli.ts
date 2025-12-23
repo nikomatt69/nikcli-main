@@ -21204,7 +21204,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
                 name: 'maxTokens',
                 message: 'Max tokens',
                 default: cfg.maxTokens,
-                validate: (v: any) => asNumber(v, 1, 800000),
+                validate: (v: any) => asNumber(v, 1, 120000),
               },
               {
                 type: 'confirm',

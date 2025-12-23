@@ -2748,7 +2748,7 @@ The tool automatically handles chunking, token limits, and provides continuation
       }
 
       // Check if we're approaching token limits and need to create a summary
-      const tokenLimit = 80000 // Conservative limit
+      const tokenLimit = 120000 // Conservative limit
       const isAnalysisRequest =
         lastUserMessage &&
         typeof lastUserMessage.content === 'string' &&

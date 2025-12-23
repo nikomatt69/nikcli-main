@@ -33,7 +33,7 @@ export const ChatMessageSchema = z.object({
 export const GenerateOptionsSchema = z.object({
   messages: z.array(ChatMessageSchema).min(1),
   temperature: z.number().min(0).max(2).optional(),
-  maxTokens: z.number().int().min(1).max(80000).optional(),
+  maxTokens: z.number().int().min(1).max(120000).optional(),
   stream: z.boolean().optional(),
   // Routing hints (optional)
   scope: z.enum(['chat_default', 'planning', 'code_gen', 'tool_light', 'tool_heavy', 'vision']).optional(),

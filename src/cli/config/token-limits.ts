@@ -58,7 +58,7 @@ export const TOKEN_LIMITS = {
 
   // Chat trimming & summarization window - Optimized for minimal context
   CHAT: {
-    MAX_CONTEXT_TOKENS: 80000, // DRASTICALLY reduced to 3k tokens (was 100k)
+    MAX_CONTEXT_TOKENS: 120000, // DRASTICALLY reduced to 3k tokens (was 100k)
     MAX_RECENT_NON_SYSTEM: 4, // Further reduced to 4 messages
     HEAD_TAIL_WINDOW: 2, // Reduced to 2 messages
     EMERGENCY_TRUNCATE_AT: 50000, // HARD truncate at 120k tokens (80k safety margin)
