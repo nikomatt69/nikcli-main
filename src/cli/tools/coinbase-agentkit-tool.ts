@@ -1,5 +1,5 @@
 import { openai } from '@ai-sdk/openai'
-import type { CoreMessage } from 'ai'
+import type { ModelMessage } from 'ai'
 import { generateText } from 'ai'
 import chalk from 'chalk'
 import { configManager } from '../core/config-manager'
@@ -23,7 +23,7 @@ import { BaseTool, type ToolExecutionResult } from './base-tool'
 export class CoinbaseAgentKitTool extends BaseTool {
   private agentKitProvider: CoinbaseAgentKitProvider | null = null
   private isInitialized: boolean = false
-  private conversationMessages: CoreMessage[] = []
+  private conversationMessages: ModelMessage[] = []
   private toolHintInjected: boolean = false
 
   // Official Coinbase agent configuration (like their CLI)
@@ -283,8 +283,10 @@ export class CoinbaseAgentKitTool extends BaseTool {
 
       // Generate response using official Coinbase configuration
       const { text, toolCalls, toolResults } = await generateText({
-        ...this.agent,
+        model: this.agent.model,
         messages: this.conversationMessages,
+        tools: this.agent.tools,
+        system: this.agent.system,
       })
 
       // Add assistant response to conversation

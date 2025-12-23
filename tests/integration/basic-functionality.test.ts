@@ -76,7 +76,7 @@ describe('Basic CLI Integration Tests', () => {
         apiKey: 'test-key',
         model: 'claude-3',
         temperature: 0.7,
-        maxTokens: 1000,
+        maxOutputTokens: 1000,
       }
 
       const configPath = await createTempFile('config.json', JSON.stringify(config, null, 2))

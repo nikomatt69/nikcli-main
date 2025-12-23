@@ -4,7 +4,8 @@
  * Dynamically fetches model capabilities from OpenRouter API
  */
 
-import { experimental_wrapLanguageModel, type LanguageModelV1 } from 'ai'
+import { type LanguageModelV2 } from '@ai-sdk/provider';
+import { wrapLanguageModel } from 'ai';
 import { type ModelCapabilities, openRouterRegistry } from './openrouter-model-registry'
 
 /**
@@ -21,9 +22,7 @@ export interface ReasoningCapabilities {
  * Extracted reasoning result from middleware
  */
 export interface ExtractedReasoning {
-  reasoning?: string
-  reasoningText?: string
-  reasoningDetails?: Array<{ type: string; text: string }>
+  reasoningText?: string | Array<{ type: string; text: string }>
 }
 
 /**
@@ -69,7 +68,7 @@ export interface OpenAIReasoningConfig {
 /** OpenRouter reasoning configuration */
 export interface OpenRouterReasoningConfig {
   include_reasoning?: boolean
-  reasoning?: {
+  reasoningText?: {
     effort?: 'minimal' | 'low' | 'medium' | 'high' | 'xhigh'
     max_tokens?: number // min 1024, max 32000
     enabled?: boolean // for DeepSeek
@@ -267,7 +266,7 @@ export function createReasoningMiddleware(config: ReasoningMiddlewareConfig = {}
   const tagPattern = new RegExp(`${escapeRegex(startTag)}([\\s\\S]*?)${escapeRegex(endTag)}`, 'gi')
 
   return {
-    extractFromText(text: string): { reasoning: string; cleanedText: string } {
+    extractFromText(text: string): { reasoningText: string; cleanedText: string } {
       const reasoningParts: string[] = []
       let cleanedText = text
 
@@ -281,62 +280,32 @@ export function createReasoningMiddleware(config: ReasoningMiddlewareConfig = {}
       cleanedText = text.replace(tagPattern, '').trim()
 
       return {
-        reasoning: reasoningParts.join(separator),
+        reasoningText: reasoningParts.join(separator),
         cleanedText,
-      }
+      };
     },
 
     hasReasoningTags(text: string): boolean {
       return tagPattern.test(text)
     },
-  }
+  };
 }
 
 function escapeRegex(str: string): string {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 /**
  * Wrap a language model with reasoning extraction middleware
+ * Note: Currently disabled due to V2/V3 compatibility issues
  */
 export function wrapWithReasoningMiddleware(
-  model: LanguageModelV1,
+  model: LanguageModelV2,
   config: ReasoningMiddlewareConfig = {}
-): LanguageModelV1 {
-  const middleware = createReasoningMiddleware(config)
-
-  return experimental_wrapLanguageModel({
-    model,
-    middleware: {
-      wrapGenerate: async ({ doGenerate }) => {
-        const result = await doGenerate()
-
-        if (!result.text) {
-          return result
-        }
-
-        const { reasoning, cleanedText } = middleware.extractFromText(result.text)
-
-        if (reasoning) {
-          const existingMetadata = (result as any).experimental_providerMetadata || {}
-          return {
-            ...result,
-            text: cleanedText,
-            reasoning,
-            providerMetadata: {
-              ...existingMetadata,
-              reasoning: {
-                content: reasoning,
-                extracted: true,
-              },
-            },
-          } as typeof result
-        }
-
-        return result
-      },
-    },
-  })
+): LanguageModelV2 {
+  // TODO: Implement V2-compatible middleware or remove this function
+  // For now, just return the model as-is
+  return model
 }
 
 /**
@@ -466,19 +435,17 @@ export class ReasoningDetector {
     const middleware = ReasoningDetector.getMiddleware(provider)
 
     // 1. Check for reasoning already extracted by middleware
-    if (response.reasoning && typeof response.reasoning === 'string') {
+    if (response.reasoningText && typeof response.reasoningText === 'string') {
       return {
-        reasoning: response.reasoning,
-        reasoningText: response.reasoning,
-      }
+        reasoningText: response.reasoningText,
+      };
     }
 
     // 2. Check experimental_providerMetadata for reasoning
-    if (response.experimental_providerMetadata?.reasoning?.content) {
+    if (response.experimental_providerMetadata?.reasoningText?.content) {
       return {
-        reasoning: response.experimental_providerMetadata.reasoning.content,
-        reasoningText: response.experimental_providerMetadata.reasoning.content,
-      }
+        reasoningText: response.experimental_providerMetadata.reasoningText.content,
+      };
     }
 
     // 3. Check for OpenRouter reasoning_details array format
@@ -496,10 +463,8 @@ export class ReasoningDetector {
 
       if (textParts.length > 0) {
         return {
-          reasoning: response.reasoning_details,
           reasoningText: textParts.join('\n\n'),
-          reasoningDetails: response.reasoning_details,
-        }
+        };
       }
     }
 
@@ -509,19 +474,17 @@ export class ReasoningDetector {
 
     if (reasoningField || reasoningTextField) {
       return {
-        reasoning: reasoningField || undefined,
         reasoningText: reasoningTextField || (typeof reasoningField === 'string' ? reasoningField : undefined),
-      }
+      };
     }
 
     // 5. Try to extract from text content using middleware
     if (response.text && typeof response.text === 'string') {
-      const { reasoning } = middleware.extractFromText(response.text)
-      if (reasoning) {
+      const { reasoningText } = middleware.extractFromText(response.text)
+      if (reasoningText) {
         return {
-          reasoning,
-          reasoningText: reasoning,
-        }
+          reasoningText,
+        };
       }
     }
 
@@ -614,14 +577,14 @@ export class ReasoningDetector {
         return {
           openrouter: {
             include_reasoning: enabled,
-            reasoning: enabled
+            reasoningText: enabled
               ? {
-                  effort: effort as 'minimal' | 'low' | 'medium' | 'high' | 'xhigh',
-                  enabled: true,
-                }
+                effort: effort as 'minimal' | 'low' | 'medium' | 'high' | 'xhigh',
+                enabled: true,
+              }
               : undefined,
           },
-        }
+        };
 
       default:
         // Generic fallback for providers without native reasoning
@@ -655,7 +618,7 @@ export class ReasoningDetector {
             metadata.openrouter.include_reasoning = true
           }
           if (caps.supportsReasoningEffort) {
-            metadata.openrouter.reasoning = {
+            metadata.openrouter.reasoningText = {
               effort: effort as 'minimal' | 'low' | 'medium' | 'high' | 'xhigh',
               enabled: true,
             }
@@ -701,7 +664,7 @@ export class ReasoningDetector {
   /**
    * Wrap a model with reasoning extraction middleware
    */
-  static wrapModel(model: LanguageModelV1, provider: string, config?: ReasoningMiddlewareConfig): LanguageModelV1 {
+  static wrapModel(model: LanguageModelV2, provider: string, config?: ReasoningMiddlewareConfig): LanguageModelV2 {
     const providerConfig = ReasoningDetector.getProviderReasoningConfig(provider)
     return wrapWithReasoningMiddleware(model, {
       tagName: providerConfig.defaultTagName,
@@ -712,24 +675,24 @@ export class ReasoningDetector {
   /**
    * Process streaming chunks to extract reasoning in real-time
    */
-  static processStreamChunk(chunk: any, provider: string): { text?: string; reasoning?: string; type: string } {
+  static processStreamChunk(chunk: any, provider: string): { text?: string; reasoningText?: string; type: string } {
     const middleware = ReasoningDetector.getMiddleware(provider)
 
     if (chunk.type === 'thinking' || chunk.type === 'reasoning') {
       return {
-        reasoning: chunk.thinking || chunk.reasoning || chunk.content,
+        reasoningText: chunk.thinking || chunk.reasoningText || chunk.content,
         type: 'reasoning',
-      }
+      };
     }
 
     if (chunk.type === 'text-delta' && chunk.textDelta) {
       if (middleware.hasReasoningTags(chunk.textDelta)) {
-        const { reasoning, cleanedText } = middleware.extractFromText(chunk.textDelta)
+        const { reasoningText, cleanedText } = middleware.extractFromText(chunk.textDelta)
         return {
           text: cleanedText || undefined,
-          reasoning: reasoning || undefined,
-          type: reasoning ? 'mixed' : 'text',
-        }
+          reasoningText: reasoningText || undefined,
+          type: reasoningText ? 'mixed' : 'text',
+        };
       }
       return {
         text: chunk.textDelta,

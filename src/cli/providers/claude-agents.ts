@@ -55,14 +55,14 @@ export interface StreamEvent {
   toolArgs?: Record<string, unknown>
   toolResult?: unknown
   sessionId?: string
-  usage?: { promptTokens: number; completionTokens: number; totalTokens: number }
+  usage?: { inputTokens: number; outputTokens: number; totalTokens: number }
   costUsd?: number
 }
 
 export interface SkillExecutionResult {
   success: boolean
   output: string
-  reasoning?: string[]
+  reasoningText?: string[]
   toolsCalled: string[]
   tokensUsed: number
   costUsd: number
@@ -260,7 +260,7 @@ export class ClaudeAgentProvider extends EventEmitter {
       const fullPrompt = `${skill.prompt}\n\n## Context:\n${contextPrompt || 'No additional context provided.'}`
 
       let finalResult = ''
-      let usage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 }
+      let usage = { inputTokens: 0, outputTokens: 0, totalTokens: 0 }
       let costUsd = 0
 
       for await (const message of query({
@@ -300,8 +300,8 @@ export class ClaudeAgentProvider extends EventEmitter {
           const u = msg.usage
           if (u) {
             usage = {
-              promptTokens: u.input_tokens || u.promptTokens || 0,
-              completionTokens: u.output_tokens || u.completionTokens || 0,
+              inputTokens: u.input_tokens || u.inputTokens || 0,
+              outputTokens: u.output_tokens || u.outputTokens || 0,
               totalTokens: (u.input_tokens || 0) + (u.output_tokens || 0) || u.totalTokens || 0,
             }
           }
@@ -321,12 +321,12 @@ export class ClaudeAgentProvider extends EventEmitter {
       return {
         success: true,
         output: finalResult,
-        reasoning,
+        reasoningText: reasoning,
         toolsCalled,
         tokensUsed: usage.totalTokens,
         costUsd,
         duration: Date.now() - startTime,
-      }
+      };
     } catch (error) {
       const session = this.activeSessions.get(sessionId)
       if (session) {
@@ -340,12 +340,12 @@ export class ClaudeAgentProvider extends EventEmitter {
       return {
         success: false,
         output: errorMessage,
-        reasoning,
+        reasoningText: reasoning,
         toolsCalled,
         tokensUsed: 0,
         costUsd: 0,
         duration: Date.now() - startTime,
-      }
+      };
     }
   }
 
@@ -391,7 +391,7 @@ export class ClaudeAgentProvider extends EventEmitter {
       }
 
       let finalResult = ''
-      let usage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 }
+      let usage = { inputTokens: 0, outputTokens: 0, totalTokens: 0 }
       let costUsd = 0
 
       for await (const message of query({
@@ -432,8 +432,8 @@ export class ClaudeAgentProvider extends EventEmitter {
           const u = msg.usage
           if (u) {
             usage = {
-              promptTokens: u.input_tokens || u.promptTokens || 0,
-              completionTokens: u.output_tokens || u.completionTokens || 0,
+              inputTokens: u.input_tokens || u.inputTokens || 0,
+              outputTokens: u.output_tokens || u.outputTokens || 0,
               totalTokens: (u.input_tokens || 0) + (u.output_tokens || 0) || u.totalTokens || 0,
             }
           }
@@ -453,12 +453,12 @@ export class ClaudeAgentProvider extends EventEmitter {
       return {
         success: true,
         output: finalResult,
-        reasoning,
+        reasoningText: reasoning,
         toolsCalled,
         tokensUsed: usage.totalTokens,
         costUsd,
         duration: Date.now() - startTime,
-      }
+      };
     } catch (error) {
       const session = this.activeSessions.get(sessionId)
       if (session) {
@@ -472,12 +472,12 @@ export class ClaudeAgentProvider extends EventEmitter {
       return {
         success: false,
         output: errorMessage,
-        reasoning,
+        reasoningText: reasoning,
         toolsCalled,
         tokensUsed: 0,
         costUsd: 0,
         duration: Date.now() - startTime,
-      }
+      };
     }
   }
 
@@ -587,10 +587,10 @@ export class ClaudeAgentProvider extends EventEmitter {
     lines.push('')
     lines.push(result.output)
 
-    if (result.reasoning && result.reasoning.length > 0 && this.config.showThinking) {
+    if (result.reasoningText && result.reasoningText.length > 0 && this.config.showThinking) {
       lines.push('')
       lines.push(chalk.gray('─── Reasoning ───'))
-      for (const r of result.reasoning) {
+      for (const r of result.reasoningText) {
         lines.push(chalk.gray(`  ${r.substring(0, 200)}${r.length > 200 ? '...' : ''}`))
       }
     }

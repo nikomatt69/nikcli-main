@@ -225,7 +225,7 @@ export interface VMAgentContext {
   settings: {
     model?: string
     temperature?: number
-    maxTokens?: number
+    maxOutputTokens?: number
     systemPrompt?: string
   }
 }

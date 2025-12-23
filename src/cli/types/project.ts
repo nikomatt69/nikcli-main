@@ -3,7 +3,7 @@
  * Defines types for project analysis, file operations, and system integration
  */
 
-import { z } from 'zod'
+import { z } from 'zod/v3';
 
 // File System Types
 export const FileInfoSchema = z.object({

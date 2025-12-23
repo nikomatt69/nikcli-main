@@ -21,7 +21,7 @@ export interface ModelConfig {
   name: string
   provider: AIProvider
   enableReasoning?: boolean
-  maxTokens?: number
+  maxOutputTokens?: number
   temperature?: number
   apiKey?: string
 }

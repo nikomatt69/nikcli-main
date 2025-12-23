@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events'
 import { countTokens as anthropicCountTokens } from '@anthropic-ai/tokenizer'
-import type { CoreMessage } from 'ai'
+import type { ModelMessage, LanguageModelUsage } from 'ai'
 import { encode } from 'gpt-tokenizer'
 import { encodingForModel } from 'js-tiktoken'
 import { MODEL_COSTS } from '../config/token-limits'
@@ -8,8 +8,14 @@ import { structuredLogger } from '../utils/structured-logger'
 
 /**
  * Extract text content from complex content types
+ * Handles: string, array, object with .parts, null/undefined
  */
 function extractTextContent(content: any): string {
+  // Handle null/undefined
+  if (content == null) {
+    return ''
+  }
+
   if (typeof content === 'string') {
     return content
   }
@@ -25,6 +31,13 @@ function extractTextContent(content: any): string {
       .join('')
   }
 
+  // Support for object with .parts (UIMessage format from SDK responses)
+  if (content?.parts && Array.isArray(content.parts)) {
+    return content.parts
+      .map((part: any) => part?.text || '')
+      .join('')
+  }
+
   if (content?.text) {
     return content.text
   }
@@ -34,7 +47,7 @@ function extractTextContent(content: any): string {
 
 export interface TokenizerAdapter {
   countTokens(text: string, model: string): Promise<number>
-  countMessagesTokens(messages: CoreMessage[], model: string): Promise<number>
+  countMessagesTokens(messages: ModelMessage[], model: string): Promise<number>
   getModelLimits(model: string): { context: number; output: number }
   getEncoding?(model: string): string
 }
@@ -46,8 +59,8 @@ export interface UniversalTokenizerOptions {
 }
 
 export interface TokenUsage {
-  promptTokens: number
-  completionTokens: number
+  inputTokens: number
+  outputTokens: number
   totalTokens: number
   estimatedCost: number
   model: string
@@ -84,7 +97,7 @@ class GPTTokenizerAdapter implements TokenizerAdapter {
     }
   }
 
-  async countMessagesTokens(messages: CoreMessage[], model: string): Promise<number> {
+  async countMessagesTokens(messages: ModelMessage[], model: string): Promise<number> {
     let totalTokens = 0
 
     for (const message of messages) {
@@ -149,7 +162,7 @@ class AnthropicTokenizerAdapter implements TokenizerAdapter {
     }
   }
 
-  async countMessagesTokens(messages: CoreMessage[], model: string): Promise<number> {
+  async countMessagesTokens(messages: ModelMessage[], model: string): Promise<number> {
     let totalTokens = 0
 
     for (const message of messages) {
@@ -234,7 +247,7 @@ class GeminiTokenizerAdapter implements TokenizerAdapter {
     return this.estimateGeminiTokens(text, model)
   }
 
-  async countMessagesTokens(messages: CoreMessage[], model: string): Promise<number> {
+  async countMessagesTokens(messages: ModelMessage[], model: string): Promise<number> {
     let totalTokens = 0
 
     for (const message of messages) {
@@ -289,7 +302,7 @@ class OllamaTokenizerAdapter implements TokenizerAdapter {
     }
   }
 
-  async countMessagesTokens(messages: CoreMessage[], model: string): Promise<number> {
+  async countMessagesTokens(messages: ModelMessage[], model: string): Promise<number> {
     let totalTokens = 0
 
     for (const message of messages) {
@@ -361,7 +374,7 @@ class DynamicTokenizerAdapter implements TokenizerAdapter {
     return this.fallbackTokenCount(text)
   }
 
-  async countMessagesTokens(messages: CoreMessage[], model: string): Promise<number> {
+  async countMessagesTokens(messages: ModelMessage[], model: string): Promise<number> {
     const provider = this.detectProviderFromModel(model)
     const adapter = this.adapters.get(provider)
 
@@ -474,7 +487,7 @@ export class UniversalTokenizerService extends EventEmitter {
   /**
    * Count tokens for an array of messages
    */
-  async countMessagesTokens(messages: CoreMessage[], model: string, provider: string = 'openai'): Promise<number> {
+  async countMessagesTokens(messages: ModelMessage[], model: string, provider: string = 'openai'): Promise<number> {
     try {
       const adapter = this.getAdapter(provider)
       const tokenCount = await adapter.countMessagesTokens(messages, model)
@@ -544,23 +557,28 @@ export class UniversalTokenizerService extends EventEmitter {
    * Get comprehensive token usage info
    */
   async getTokenUsage(
-    messages: CoreMessage[],
+    messages: ModelMessage[],
     model: string,
     provider: string,
     estimatedOutputTokens: number = 0
-  ): Promise<TokenUsage> {
-    const promptTokens = await this.countMessagesTokens(messages, model, provider)
-    const totalTokens = promptTokens + estimatedOutputTokens
-    const cost = this.calculateCost(promptTokens, estimatedOutputTokens, model)
+  ): Promise<LanguageModelUsage> {
+    const inputTokens = await this.countMessagesTokens(messages, model, provider)
+    const totalTokens = inputTokens + estimatedOutputTokens
 
     return {
-      promptTokens,
-      completionTokens: estimatedOutputTokens,
+      inputTokens,
+      outputTokens: estimatedOutputTokens,
       totalTokens,
-      estimatedCost: cost.totalCost,
-      model,
-      provider,
-    }
+      inputTokenDetails: {
+        noCacheTokens: inputTokens,
+        cacheReadTokens: 0,
+        cacheWriteTokens: 0,
+      },
+      outputTokenDetails: {
+        textTokens: estimatedOutputTokens,
+        reasoningTokens: 0,
+      },
+    };
   }
 
   /**

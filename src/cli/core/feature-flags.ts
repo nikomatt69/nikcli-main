@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs'
 import { readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import chalk from 'chalk'
-import { z } from 'zod'
+import { z } from 'zod/v3';
 import { advancedUI } from '../ui/advanced-cli-ui'
 import { structuredLogger } from '../utils/structured-logger'
 

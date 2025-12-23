@@ -3,7 +3,7 @@
  * Defines types and schemas for user interface events, status updates, and streaming
  */
 
-import { z } from 'zod'
+import { z } from 'zod/v3';
 
 // UI Event Schemas
 export const UIEventTypeSchema = z.enum([

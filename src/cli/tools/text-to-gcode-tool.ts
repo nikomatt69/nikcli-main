@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import chalk from 'chalk'
-import { z } from 'zod'
+import { z } from 'zod/v3';
 import { BaseTool, type ToolExecutionResult } from './base-tool'
 
 export const GCodeGenerationOptionsSchema = z.object({

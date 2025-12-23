@@ -5,9 +5,10 @@ import { createAnthropic } from '@ai-sdk/anthropic'
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import { createOpenAI } from '@ai-sdk/openai'
 import { createOpenRouter } from '@openrouter/ai-sdk-provider'
-import { type CoreMessage, generateObject, type LanguageModelV1 } from 'ai'
+import { type LanguageModelV2 } from '@ai-sdk/provider';
+import { type ModelMessage, generateObject } from 'ai';
 import chalk from 'chalk'
-import { z } from 'zod'
+import { z } from 'zod/v3';
 import { simpleConfigManager } from '../../core/config-manager'
 import { advancedUI } from '../../ui/advanced-cli-ui'
 import { redisProvider } from '../redis/redis-provider'
@@ -194,7 +195,7 @@ export class VisionProvider extends EventEmitter {
 Provide structured, detailed insights that would be useful for understanding the image content and context.`
 
     const result = await generateObject({
-      model: model as any as LanguageModelV1,
+      model: model as any as LanguageModelV2,
       messages: [
         {
           role: 'user',
@@ -206,7 +207,7 @@ Provide structured, detailed insights that would be useful for understanding the
             },
           ],
         },
-      ] as CoreMessage[],
+      ] as ModelMessage[],
       schema: z.object({
         description: z.string().describe('Detailed description of the image'),
         objects: z.array(z.string()).describe('List of objects/subjects in the image'),
@@ -274,7 +275,7 @@ Provide thorough, useful insights for understanding the image content and contex
             },
           ],
         },
-      ] as CoreMessage[],
+      ] as ModelMessage[],
       schema: z.object({
         description: z.string().describe('Comprehensive description of the image'),
         objects: z.array(z.string()).describe('Objects and subjects present'),
@@ -576,8 +577,24 @@ Deliver detailed, structured insights for complete image understanding.`
     const result = await generateObject({
       model: model as any,
       messages: [
-        { role: 'user', content: systemPrompt },
-        { role: 'user', content: imageData },
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: systemPrompt
+            }
+          ]
+        },
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: imageData
+            }
+          ]
+        },
       ],
       schema: z.object({
         description: z.string().describe('Complete image description'),

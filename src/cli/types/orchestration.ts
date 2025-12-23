@@ -3,7 +3,7 @@
  * Defines types for cognitive orchestration, state management, and system coordination
  */
 
-import { z } from 'zod'
+import { z } from 'zod/v3';
 
 // Orchestration Level Types
 export const OrchestrationLevelSchema = z.enum(['minimal', 'basic', 'intermediate', 'advanced', 'expert', 'maximum'])
@@ -21,7 +21,7 @@ export const CognitiveLoadSchema = z.object({
 export const CognitiveMetricsSchema = z.object({
   attention: z.number().min(0).max(1),
   comprehension: z.number().min(0).max(1),
-  reasoning: z.number().min(0).max(1),
+  reasoningText: z.number().min(0).max(1),
   learning: z.number().min(0).max(1),
   adaptation: z.number().min(0).max(1),
 })

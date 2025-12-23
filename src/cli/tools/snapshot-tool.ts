@@ -1,6 +1,6 @@
 import { tool } from 'ai'
 import chalk from 'chalk'
-import { z } from 'zod'
+import { z } from 'zod/v3';
 import { snapshotService } from '../services/snapshot-service'
 
 // Schema definitions
@@ -58,7 +58,7 @@ const CreateTemplateSchema = z.object({
 export const createSnapshotTool = tool({
   description:
     'Create a snapshot of the current project state. Supports different types: quick (current state), full (entire project), dev (source code only), config (configuration files)',
-  parameters: CreateSnapshotSchema,
+  inputSchema: CreateSnapshotSchema,
   execute: async ({ name, description = '', type, tags = [], includeNodeModules = false }) => {
     try {
       console.log(chalk.blue(`📸 Creating ${type} snapshot: ${name}`))
@@ -113,7 +113,7 @@ export const createSnapshotTool = tool({
 export const restoreSnapshotTool = tool({
   description:
     'Restore files from a snapshot. Can restore to current directory or specified path, with options for overwrite and file selection',
-  parameters: RestoreSnapshotSchema,
+  inputSchema: RestoreSnapshotSchema,
   execute: async ({ snapshotId, targetPath, overwrite = false, selectedFiles, backup = true }) => {
     try {
       console.log(chalk.blue(`⚡︎ Restoring snapshot: ${snapshotId.substring(0, 8)}...`))
@@ -151,7 +151,7 @@ export const restoreSnapshotTool = tool({
  */
 export const listSnapshotsTool = tool({
   description: 'List available snapshots with optional filtering by name, tags, or date range',
-  parameters: ListSnapshotsSchema,
+  inputSchema: ListSnapshotsSchema,
   execute: async ({ query, tags, limit = 10, dateRange }) => {
     try {
       const searchOptions: any = { limit }
@@ -214,7 +214,7 @@ export const listSnapshotsTool = tool({
  */
 export const compareSnapshotsTool = tool({
   description: 'Compare two snapshots to see what files were added, removed, or modified between them',
-  parameters: CompareSnapshotsSchema,
+  inputSchema: CompareSnapshotsSchema,
   execute: async ({ snapshot1Id, snapshot2Id }) => {
     try {
       console.log(
@@ -289,7 +289,7 @@ export const compareSnapshotsTool = tool({
  */
 export const deleteSnapshotTool = tool({
   description: 'Delete a snapshot permanently. This action cannot be undone.',
-  parameters: DeleteSnapshotSchema,
+  inputSchema: DeleteSnapshotSchema,
   execute: async ({ snapshotId, confirm = false }) => {
     try {
       if (!confirm) {
@@ -335,7 +335,7 @@ export const deleteSnapshotTool = tool({
  */
 export const createSnapshotTemplateTool = tool({
   description: 'Create a reusable template for snapshots with specific include/exclude patterns and tags',
-  parameters: CreateTemplateSchema,
+  inputSchema: CreateTemplateSchema,
   execute: async ({ name, description, includePaths, excludePaths = [], tags = [] }) => {
     try {
       console.log(chalk.blue(`📋 Creating snapshot template: ${name}`))
@@ -382,7 +382,7 @@ export const createSnapshotTemplateTool = tool({
  */
 export const getSnapshotStatsTool = tool({
   description: 'Get statistics about snapshots including total count, size, and recent activity',
-  parameters: z.object({}),
+  inputSchema: z.object({}),
   execute: async () => {
     try {
       const stats = snapshotService.getSnapshotStats()

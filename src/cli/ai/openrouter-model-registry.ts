@@ -319,7 +319,7 @@ export class OpenRouterModelRegistry {
       }
 
       if (capabilities.supportsReasoningEffort && options.reasoningEffort) {
-        metadata.reasoning = {
+        metadata.reasoningText = {
           effort: options.reasoningEffort,
         }
       }
@@ -340,7 +340,7 @@ export class OpenRouterModelRegistry {
     modelId: string,
     baseOptions: {
       temperature?: number
-      maxTokens?: number
+      maxOutputTokens?: number
       topP?: number
       topK?: number
       stop?: string[]
@@ -357,8 +357,8 @@ export class OpenRouterModelRegistry {
       options.temperature = baseOptions.temperature
     }
 
-    if (baseOptions.maxTokens !== undefined && capabilities.supportsMaxTokens) {
-      options.maxTokens = Math.min(baseOptions.maxTokens, capabilities.maxCompletionTokens || baseOptions.maxTokens)
+    if (baseOptions.maxOutputTokens !== undefined && capabilities.supportsMaxTokens) {
+      options.maxOutputTokens = Math.min(baseOptions.maxOutputTokens, capabilities.maxCompletionTokens || baseOptions.maxOutputTokens)
     }
 
     if (baseOptions.topP !== undefined && capabilities.supportsTopP) {

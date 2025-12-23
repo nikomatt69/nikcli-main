@@ -21,7 +21,7 @@ export interface TodoItem {
   tags: string[]
   commands?: string[]
   files?: string[]
-  reasoning: string
+  reasoningText: string
   createdAt: Date
   startedAt?: Date
   completedAt?: Date
@@ -940,7 +940,7 @@ Generate a comprehensive plan that is practical and executable.`,
         // Normalize commands/files fields to arrays of strings
         commands: Array.isArray(todoData.commands) ? todoData.commands.filter((c: any) => typeof c === 'string') : [],
         files: Array.isArray(todoData.files) ? todoData.files.filter((f: any) => typeof f === 'string') : [],
-        reasoning: todoData.reasoning || '',
+        reasoningText: todoData.reasoningText || '',
         createdAt: new Date(),
       }))
 
@@ -965,10 +965,10 @@ Generate a comprehensive plan that is practical and executable.`,
           estimatedDuration: 60,
           dependencies: [],
           tags: ['manual'],
-          reasoning: 'Fallback todo when AI planning fails',
+          reasoningText: 'Fallback todo when AI planning fails',
           createdAt: new Date(),
         },
-      ]
+      ];
     }
   }
 
@@ -1004,8 +1004,8 @@ Generate a comprehensive plan that is practical and executable.`,
       content += `**Description:** ${todo.description}\n\n`
       content += `**Category:** ${todo.category} | **Priority:** ${todo.priority} | **Duration:** ${todo.estimatedDuration}min\n\n`
 
-      if (todo.reasoning) {
-        content += `**Reasoning:** ${todo.reasoning}\n\n`
+      if (todo.reasoningText) {
+        content += `**Reasoning:** ${todo.reasoningText}\n\n`
       }
 
       if (todo.dependencies.length > 0) {

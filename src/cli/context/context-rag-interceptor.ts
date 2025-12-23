@@ -1,4 +1,4 @@
-import type { CoreMessage } from 'ai'
+import type { ModelMessage } from 'ai'
 import { contextEnhancer } from '../core/context-enhancer'
 import { UnifiedRAGSystem } from './rag-system'
 
@@ -23,7 +23,7 @@ class ContextRAGInterceptor {
       const originalTools = (advancedAIProvider as any).generateWithTools?.bind(advancedAIProvider)
 
       ;(advancedAIProvider as any).streamChatWithFullAutonomy = async (
-        messages: CoreMessage[],
+        messages: ModelMessage[],
         abortSignal?: AbortSignal
       ) => {
         const enriched = await this.enrichMessages(messages)
@@ -32,7 +32,7 @@ class ContextRAGInterceptor {
 
       if (typeof originalExec === 'function') {
         ;(advancedAIProvider as any).executeAutonomousTask = async (task: string, context?: any) => {
-          const messages: CoreMessage[] = Array.isArray(context?.messages) ? context.messages : []
+          const messages: ModelMessage[] = Array.isArray(context?.messages) ? context.messages : []
           const enriched = messages.length ? await this.enrichMessages(messages) : undefined
           const nextCtx = enriched ? { ...context, messages: enriched } : context
           return originalExec(task, nextCtx)
@@ -40,7 +40,7 @@ class ContextRAGInterceptor {
       }
 
       if (typeof originalTools === 'function') {
-        ;(advancedAIProvider as any).generateWithTools = async (planningMessages: CoreMessage[]) => {
+        ;(advancedAIProvider as any).generateWithTools = async (planningMessages: ModelMessage[]) => {
           const enriched = await this.enrichMessages(planningMessages)
           return originalTools(enriched)
         }
@@ -50,7 +50,7 @@ class ContextRAGInterceptor {
     }
   }
 
-  private async enrichMessages(messages: CoreMessage[]): Promise<CoreMessage[]> {
+  private async enrichMessages(messages: ModelMessage[]): Promise<ModelMessage[]> {
     if (!messages || messages.length === 0) return messages
     const first = messages[0]
     const firstText = typeof first?.content === 'string' ? first.content : ''
@@ -80,7 +80,7 @@ class ContextRAGInterceptor {
       return `• ${title}:\n${body}`
     })
 
-    const contextMessage: CoreMessage = {
+    const contextMessage: ModelMessage = {
       role: 'system',
       content: `${this.CONTEXT_SENTINEL}\n${sections.join('\n\n')}`,
     }

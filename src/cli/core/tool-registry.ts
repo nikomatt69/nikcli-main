@@ -2,7 +2,7 @@ import { readdir, stat } from 'node:fs/promises'
 import { extname, join } from 'node:path'
 import chalk from 'chalk'
 import { nanoid } from 'nanoid'
-import { z } from 'zod'
+import { z } from 'zod/v3';
 import { ContextAwareRAGSystem } from '../context/context-aware-rag'
 import { lspManager } from '../lsp/lsp-manager'
 import { ImageGenerationTool, VisionAnalysisTool } from '../tools'

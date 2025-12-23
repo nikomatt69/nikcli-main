@@ -3,7 +3,7 @@
  * Defines types for service integration, API clients, and external systems
  */
 
-import { z } from 'zod'
+import { z } from 'zod/v3';
 
 // Service Status Types
 export const ServiceStatusSchema = z.enum(['starting', 'running', 'stopping', 'stopped', 'error', 'unknown'])

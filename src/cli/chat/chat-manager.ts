@@ -1,5 +1,6 @@
 import { nanoid } from 'nanoid'
 import type { ChatMessage } from '../ai/model-provider'
+
 import { TOKEN_LIMITS } from '../config/token-limits'
 import { simpleConfigManager as configManager } from '../core/config-manager'
 import { contextManager } from '../core/context-manager'
@@ -88,7 +89,7 @@ export class ChatManager {
       session.messages.push({
         role: 'system',
         content: session.systemPrompt,
-        timestamp: new Date(),
+        timestamp: new Date().toISOString(),
       })
     }
 
@@ -120,7 +121,7 @@ export class ChatManager {
     const message: ChatMessage = {
       role,
       content,
-      timestamp: new Date(),
+      timestamp: new Date().toISOString(),
     }
 
     this.currentSession?.messages.push(message)
@@ -190,7 +191,7 @@ export class ChatManager {
     // FIXED: Added null check for systemMessage.content (ERR-017)
     // Always include system message
     const systemMessage = messages.find((m) => m.role === 'system')
-    if (systemMessage && systemMessage.content) {
+    if (systemMessage && systemMessage.content && typeof systemMessage.content === 'string') {
       result.push(systemMessage)
       currentTokens += this.estimateTokens(systemMessage.content)
     }
@@ -207,7 +208,7 @@ export class ChatManager {
     for (let i = recentMessages.length - 1; i >= 0; i--) {
       const msg = recentMessages[i]
       if (!msg || !msg.content) continue
-      const tokens = this.estimateTokens(msg.content)
+      const tokens = this.estimateTokens(msg.content as string)
 
       if (currentTokens + tokens > maxTokens) break
 
@@ -248,10 +249,10 @@ export class ChatManager {
     const notice: ChatMessage | null =
       trimmedCount > 0
         ? {
-            role: 'system',
-            content: `[Conversation trimmed] ${trimmedCount} older messages were removed to fit history limits. Recent context preserved.`,
-            timestamp: new Date(),
-          }
+          role: 'system',
+          content: `[Conversation trimmed] ${trimmedCount} older messages were removed to fit history limits. Recent context preserved.`,
+          timestamp: new Date().toISOString(),
+        }
         : null
 
     this.currentSession.messages = [
@@ -268,7 +269,7 @@ export class ChatManager {
         this.currentSession.messages.push({
           role: 'system',
           content: this.currentSession.systemPrompt,
-          timestamp: new Date(),
+          timestamp: new Date().toISOString(),
         })
       }
       this.currentSession.updatedAt = new Date()

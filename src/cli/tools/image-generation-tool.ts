@@ -1,5 +1,5 @@
 import { resolve } from 'node:path'
-import { z } from 'zod'
+import { z } from 'zod/v3';
 import { PromptManager } from '../prompts/prompt-manager'
 import { type ImageGenerationOptions, type ImageGenerationResult, imageGenerator } from '../providers/image'
 import { advancedUI } from '../ui/advanced-cli-ui'

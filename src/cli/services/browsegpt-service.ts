@@ -1,6 +1,5 @@
 import { openai } from '@ai-sdk/openai'
 import { Readability } from '@mozilla/readability'
-import { createOpenRouter } from '@openrouter/ai-sdk-provider'
 import { generateText } from 'ai'
 import { JSDOM } from 'jsdom'
 import { chromium } from 'playwright'
@@ -249,7 +248,7 @@ When responding:
           { role: 'system', content: systemPrompt },
           { role: 'user', content: message },
         ],
-        maxTokens: 2000,
+        maxOutputTokens: 2000,
       })
 
       session.lastActivity = new Date()
@@ -350,7 +349,7 @@ When responding:
   }
 
   private generateSessionId(): string {
-    return `browse_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    return `browse_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`
   }
 
   private async extractSearchResults(html: string): Promise<SearchResultItem[]> {
@@ -412,14 +411,14 @@ When responding:
         messages: [
           {
             role: 'system',
-            content: 'You are a helpful assistant that summarizes web content based on user requests.',
+            content: 'You are a helpful assistant that summarizes web content based on user requests.'
           },
           {
             role: 'user',
-            content: `Content: ${content.slice(0, 8000)}\n\nRequest: ${prompt}`,
+            content: `Content: ${content.slice(0, 8000)}\n\nRequest: ${prompt}`
           },
         ],
-        maxTokens: 1000,
+        maxOutputTokens: 1000,
       })
 
       return response.text

@@ -12,7 +12,7 @@
 
 import { createOpenRouter } from '@openrouter/ai-sdk-provider'
 import { generateObject, generateText } from 'ai'
-import { z } from 'zod'
+import { z } from 'zod/v3';
 import { simpleConfigManager } from '../core/config-manager'
 
 // ============================================================================
@@ -25,7 +25,7 @@ export interface WorkflowStep<T = any> {
 }
 
 export interface RoutingDecision {
-  reasoning: string
+  reasoningText: string
   route: string
   confidence: number
 }
@@ -300,11 +300,11 @@ export async function routingWorkflow<T extends Record<string, (input: string) =
   input: string,
   routes: T,
   options?: {
-    customClassifier?: (input: string) => Promise<{ route: keyof T; reasoning: string }>
+    customClassifier?: (input: string) => Promise<{ route: keyof T; reasoningText: string }>
   }
 ): Promise<{
   route: keyof T
-  reasoning: string
+  reasoningText: string
   result: any
 }> {
   const model = getModel('small')
@@ -314,7 +314,7 @@ export async function routingWorkflow<T extends Record<string, (input: string) =
   const { object: classification } = await generateObject({
     model,
     schema: z.object({
-      reasoning: z.string().describe('Why this route was chosen'),
+      reasoningText: z.string().describe('Why this route was chosen'),
       route: z.enum(routeNames as [string, ...string[]]).describe('The selected route'),
       confidence: z.number().min(0).max(1).describe('Confidence in the classification'),
     }),
@@ -333,16 +333,16 @@ Determine the best route with reasoning.`,
 
   return {
     route: classification.route as keyof T,
-    reasoning: classification.reasoning,
+    reasoningText: classification.reasoningText,
     result,
-  }
+  };
 }
 
 /**
  * Smart query router - routes to specialized handlers based on query type
  */
 export async function smartQueryRouter(query: string): Promise<{
-  classification: { type: string; complexity: string; reasoning: string }
+  classification: { type: string; complexity: string; reasoningText: string }
   response: string
   modelUsed: string
 }> {
@@ -353,7 +353,7 @@ export async function smartQueryRouter(query: string): Promise<{
   const { object: classification } = await generateObject({
     model: smallModel,
     schema: z.object({
-      reasoning: z.string(),
+      reasoningText: z.string(),
       type: z.enum(['general', 'technical', 'code_review', 'architecture', 'debugging']),
       complexity: z.enum(['simple', 'moderate', 'complex']),
     }),
@@ -436,7 +436,7 @@ export async function orchestratorWorkflow(config: OrchestratorConfig): Promise<
         })
       ),
       estimatedComplexity: z.enum(['low', 'medium', 'high']),
-      reasoning: z.string(),
+      reasoningText: z.string(),
     }),
     system: 'You are a senior software architect planning task execution.',
     prompt: `Create an execution plan for this task:

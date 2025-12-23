@@ -261,7 +261,7 @@ describe('TokenAwareStatusBar', () => {
     it('should update token context', () => {
       const context = {
         currentTokens: 1000,
-        maxTokens: 10000,
+        maxOutputTokens: 10000,
         sessionStartTime: new Date(),
       }
       expect(() => statusBar.updateTokenContext(context)).not.toThrow()

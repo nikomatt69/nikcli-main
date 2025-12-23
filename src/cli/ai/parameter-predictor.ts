@@ -15,7 +15,7 @@ export interface ParameterPrediction {
   parameters: Record<string, any>
   confidence: number // 0-1
   method: 'pattern' | 'extraction' | 'lsp' | 'none'
-  reasoning: string
+  reasoningText: string
 }
 
 /**
@@ -222,8 +222,8 @@ export class ParameterPredictor {
         parameters: {},
         confidence: 0,
         method: 'none',
-        reasoning: `No patterns registered for tool: ${toolName}`,
-      }
+        reasoningText: `No patterns registered for tool: ${toolName}`,
+      };
     }
 
     // Try each pattern in order
@@ -255,8 +255,8 @@ export class ParameterPredictor {
           parameters,
           confidence: 0.75,
           method: 'pattern',
-          reasoning: `Pattern matched: ${pattern.name}`,
-        }
+          reasoningText: `Pattern matched: ${pattern.name}`,
+        };
       }
     }
 
@@ -267,16 +267,16 @@ export class ParameterPredictor {
         parameters: heuristicParams,
         confidence: 0.45,
         method: 'extraction',
-        reasoning: 'Basic heuristic extraction',
-      }
+        reasoningText: 'Basic heuristic extraction',
+      };
     }
 
     return {
       parameters: {},
       confidence: 0,
       method: 'none',
-      reasoning: 'No parameters could be predicted',
-    }
+      reasoningText: 'No parameters could be predicted',
+    };
   }
 
   /**

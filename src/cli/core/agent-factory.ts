@@ -1,7 +1,7 @@
 import { EventEmitter } from 'node:events'
 import chalk from 'chalk'
 import { nanoid } from 'nanoid'
-import { z } from 'zod'
+import { z } from 'zod/v3';
 import { type ChatMessage, modelProvider } from '../ai/model-provider'
 import { BaseAgent } from '../automation/agents/base-agent'
 import { workspaceContext } from '../context/workspace-context'
@@ -766,7 +766,7 @@ export class AgentFactory extends EventEmitter {
       return capabilities
         .split(/[,;|\n]/)
         .map((cap) => cap.trim())
-        .filter((cap) => cap.length > 0)
+        .filter((cap) => cap.length > 0);
     }
 
     return null
@@ -1610,7 +1610,7 @@ Execute tasks step-by-step and verify results before proceeding.`
   ): Promise<{
     primary: DynamicAgent
     secondary: DynamicAgent[]
-    reasoning: string
+    reasoningText: string
     confidence: number
     fallbackOptions: DynamicAgent[]
   }> {
@@ -1671,10 +1671,10 @@ Execute tasks step-by-step and verify results before proceeding.`
     return {
       primary,
       secondary,
-      reasoning,
+      reasoningText: reasoning,
       confidence,
       fallbackOptions,
-    }
+    };
   }
 
   /**
@@ -2091,7 +2091,7 @@ Execute tasks step-by-step and verify results before proceeding.`
       successRate: number
       errorCount: number
     }
-  ): Promise<{ shouldRebalance: boolean; newPrimary?: DynamicAgent; reasoning: string }> {
+  ): Promise<{ shouldRebalance: boolean; newPrimary?: DynamicAgent; reasoningText: string }> {
     console.log(chalk.yellow(`⚡︎ Evaluating agent rebalancing for task ${taskId}...`))
 
     // Determine if rebalancing is needed
@@ -2103,8 +2103,8 @@ Execute tasks step-by-step and verify results before proceeding.`
     if (!shouldRebalance) {
       return {
         shouldRebalance: false,
-        reasoning: 'Current agent performance is satisfactory - no rebalancing needed',
-      }
+        reasoningText: 'Current agent performance is satisfactory - no rebalancing needed',
+      };
     }
 
     // Find alternative agents
@@ -2115,8 +2115,8 @@ Execute tasks step-by-step and verify results before proceeding.`
     if (alternatives.length === 0) {
       return {
         shouldRebalance: false,
-        reasoning: 'No alternative agents available for rebalancing',
-      }
+        reasoningText: 'No alternative agents available for rebalancing',
+      };
     }
 
     // Select best alternative based on different criteria
@@ -2131,8 +2131,8 @@ Execute tasks step-by-step and verify results before proceeding.`
     return {
       shouldRebalance: true,
       newPrimary,
-      reasoning: `Switching from ${currentPrimary.getBlueprint().name} to ${newPrimary.getBlueprint().name} due to performance issues`,
-    }
+      reasoningText: `Switching from ${currentPrimary.getBlueprint().name} to ${newPrimary.getBlueprint().name} due to performance issues`,
+    };
   }
 
   /**

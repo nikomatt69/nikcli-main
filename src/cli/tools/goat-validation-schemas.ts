@@ -1,5 +1,5 @@
 import { getAddress } from 'viem'
-import { z } from 'zod'
+import { z } from 'zod/v3';
 
 /**
  * GOAT SDK Tool Validation Schemas
@@ -163,7 +163,7 @@ export type PolymarketBet = z.infer<typeof PolymarketBetSchema>
 export const PolymarketMarketsSchema = z.object({
   limit: z.number().optional().default(10).describe('Number of markets to fetch'),
   offset: z.number().optional().default(0).describe('Pagination offset'),
-  filter: z.enum(['active', 'resolved', 'all']).optional().default('active').describe('Market filter'),
+  filter: z.enum(['active', 'resolved', 'all']).default('active').optional().describe('Market filter'),
 })
 
 export type PolymarketMarkets = z.infer<typeof PolymarketMarketsSchema>
@@ -405,7 +405,7 @@ export const PolymarketNativeOrderSchema = z.object({
   size: z.number().min(0).describe('Order size'),
   side: z.enum(['BUY', 'SELL']).describe('BUY or SELL'),
   orderType: z.enum(['FOK', 'GTC', 'GTD']).describe('Order type'),
-  builderAttribution: z.boolean().optional().default(true).describe('Include builder attribution headers'),
+  builderAttribution: z.boolean().default(true).optional().describe('Include builder attribution headers'),
 })
 
 export type PolymarketNativeOrder = z.infer<typeof PolymarketNativeOrderSchema>
@@ -496,7 +496,7 @@ export function validatePolymarketNativeOrder(params: any): {
 
 export const WebSocketSubscriptionSchema = z.object({
   assetId: z.string().min(1).describe('Market asset ID to subscribe to'),
-  handler: z.function().optional().describe('Optional callback handler for updates'),
+  handler: z.any().optional().describe('Optional callback handler for updates (removed z.function for ai-sdk compatibility)'),
 })
 
 export type WebSocketSubscription = z.infer<typeof WebSocketSubscriptionSchema>

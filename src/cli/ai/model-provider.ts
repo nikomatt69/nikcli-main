@@ -8,8 +8,9 @@ import { createVercel } from '@ai-sdk/vercel'
 import { generateObject, generateText, streamText } from 'ai'
 
 import { createOllama } from 'ollama-ai-provider'
-import { z } from 'zod'
+import { z } from 'zod/v3';
 
+import { ChatMessageSchema } from '../schemas/core-schemas'
 import { configManager, type ModelConfig } from '../core/config-manager'
 import { streamttyService } from '../services/streamtty-service'
 import { adaptiveModelRouter, type ModelScope } from './adaptive-model-router'
@@ -22,18 +23,14 @@ import chalk from 'chalk'
 
 // ====================== ⚡︎ ZOD VALIDATION SCHEMAS ======================
 
-// Chat Message Schema
-export const ChatMessageSchema = z.object({
-  role: z.enum(['system', 'user', 'assistant']),
-  content: z.string().min(1),
-  timestamp: z.date().optional(),
-})
+
 
 // Generate Options Schema
+// Note: messages validation handled by ai-sdk at runtime
 export const GenerateOptionsSchema = z.object({
-  messages: z.array(ChatMessageSchema).min(1),
+  messages: z.array(z.any()).min(1),
   temperature: z.number().min(0).max(2).optional(),
-  maxTokens: z.number().int().min(1).max(80000).optional(),
+  maxOutputTokens: z.number().int().min(1).max(80000).optional(),
   stream: z.boolean().optional(),
   // Routing hints (optional)
   scope: z.enum(['chat_default', 'planning', 'code_gen', 'tool_light', 'tool_heavy', 'vision']).optional(),
@@ -43,7 +40,7 @@ export const GenerateOptionsSchema = z.object({
   enableReasoning: z.boolean().optional(),
   showReasoningProcess: z.boolean().optional(),
   // OpenRouter reasoning configuration
-  reasoning: z
+  reasoningText: z
     .object({
       effort: z.enum(['high', 'medium', 'low']).optional(),
       max_tokens: z.number().int().min(1024).max(32000).optional(),
@@ -64,15 +61,14 @@ export const ModelResponseSchema = z.object({
   text: z.string(),
   usage: z
     .object({
-      promptTokens: z.number().int().min(0),
-      completionTokens: z.number().int().min(0),
+      inputTokens: z.number().int().min(0),
+      outputTokens: z.number().int().min(0),
       totalTokens: z.number().int().min(0),
     })
     .optional(),
-  finishReason: z.enum(['stop', 'length', 'content-filter', 'tool-calls']).optional(),
+  finishReason: z.enum(['stop', 'length', 'content-filter', 'tool-calls', 'error', 'other']).optional(),
   warnings: z.array(z.string()).optional(),
   // Reasoning fields
-  reasoning: z.any().optional(),
   reasoningText: z.string().optional(),
 })
 
@@ -100,7 +96,7 @@ function isZeroCompletionResponse(result: any): boolean {
   const usage = result?.usage || result?.experimental_providerMetadata?.usage
   const finishReason = result?.finishReason || result?.finish_reason
 
-  if (usage?.completionTokens === 0 || usage?.completion_tokens === 0) {
+  if (usage?.outputTokens === 0 || usage?.completion_tokens === 0) {
     if (!finishReason || finishReason === '' || finishReason === 'error') {
       return true
     }
@@ -120,10 +116,10 @@ export class ModelProvider {
    * Determine if reasoning should be enabled for the current request
    */
   private shouldEnableReasoning(options: GenerateOptions, config: ModelConfig): boolean {
-    const globalReasoningConfig = configManager.get('reasoning')
+    const globalReasoningConfig = configManager.get('reasoningText') as any
 
     // If reasoning is globally disabled, don't enable
-    if (!globalReasoningConfig.enabled) {
+    if (!globalReasoningConfig?.enabled) {
       return false
     }
 
@@ -138,7 +134,7 @@ export class ModelProvider {
     }
 
     // If auto-detect is enabled, check model capabilities
-    if (globalReasoningConfig.autoDetect) {
+    if (globalReasoningConfig?.autoDetect) {
       return ReasoningDetector.shouldEnableReasoning(config.provider, config.model)
     }
 
@@ -149,10 +145,9 @@ export class ModelProvider {
    * Log reasoning information if enabled
    */
   private logReasoning(provider: string, modelId: string, reasoningEnabled: boolean): void {
-    const globalReasoningConfig = configManager.get('reasoning')
+    const globalReasoningConfig = configManager.get('reasoningText') as any
 
-    if (globalReasoningConfig.logReasoning) {
-      const _capabilities = ReasoningDetector.detectReasoningSupport(provider, modelId)
+    if (globalReasoningConfig?.logReasoning) {
       const summary = ReasoningDetector.getModelReasoningSummary(provider, modelId)
 
       try {
@@ -258,7 +253,9 @@ export class ModelProvider {
         if (!apiKey) {
           throw new Error(`API key not found for model: ${currentModelName} (OpenAI). Use /set-key to configure.`)
         }
-        const openaiProvider = createOpenAI({ apiKey, compatibility: 'strict' })
+        const openaiProvider = createOpenAI({
+          apiKey
+        })
         return openaiProvider(config.model)
       }
       case 'anthropic': {
@@ -502,13 +499,13 @@ export class ModelProvider {
       messages: validatedOptions.messages.map((msg) => ({ role: msg.role, content: msg.content })),
     }
     // Always honor explicit user settings for all providers
-    if (validatedOptions.maxTokens != null) {
-      baseOptions.maxTokens = validatedOptions.maxTokens
+    if (validatedOptions.maxOutputTokens != null) {
+      baseOptions.maxOutputTokens = validatedOptions.maxOutputTokens
     } else if (currentModelConfig.provider === 'openrouter') {
       // OpenRouter needs maxTokens set for all models
-      baseOptions.maxTokens = 6000
+      baseOptions.maxOutputTokens = 6000
     } else if (currentModelConfig.provider !== 'openai') {
-      baseOptions.maxTokens = 6000 // provider-specific default when not supplied
+      baseOptions.maxOutputTokens = 6000 // provider-specific default when not supplied
     }
     const resolvedTemp = validatedOptions.temperature ?? configManager.get('temperature')
     if (resolvedTemp != null) {
@@ -520,11 +517,12 @@ export class ModelProvider {
 
     // OpenRouter-specific parameters support - dynamic based on model capabilities
     if (effectiveConfig.provider === 'openrouter') {
-      if (!baseOptions.experimental_providerMetadata) {
-        baseOptions.experimental_providerMetadata = {}
+      const baseOptionsAny = baseOptions as any
+      if (!baseOptionsAny.experimental_providerMetadata) {
+        baseOptionsAny.experimental_providerMetadata = {}
       }
-      if (!baseOptions.experimental_providerMetadata.openrouter) {
-        baseOptions.experimental_providerMetadata.openrouter = {}
+      if (!baseOptionsAny.experimental_providerMetadata.openrouter) {
+        baseOptionsAny.experimental_providerMetadata.openrouter = {}
       }
 
       // Fetch model capabilities and build parameters dynamically
@@ -534,41 +532,41 @@ export class ModelProvider {
         // Only add reasoning parameters if model supports them
         if (reasoningEnabled && (modelCaps.supportsReasoning || modelCaps.supportsIncludeReasoning)) {
           if (modelCaps.supportsIncludeReasoning) {
-            baseOptions.experimental_providerMetadata.openrouter.include_reasoning = true
+            baseOptionsAny.experimental_providerMetadata.openrouter.include_reasoning = true
           }
           if (modelCaps.supportsReasoningEffort) {
-            const reasoningConfig = validatedOptions.reasoning || {
+            const reasoningConfig = validatedOptions.reasoningText || {
               effort: 'medium',
               exclude: false,
               enabled: true,
             }
-            baseOptions.experimental_providerMetadata.openrouter.reasoning = reasoningConfig
+            baseOptionsAny.experimental_providerMetadata.openrouter.reasoningText = reasoningConfig
           }
         }
 
         // Transforms parameter support (e.g., middle-out for context compression)
         const transforms = (effectiveConfig as any).transforms || configManager.get('openrouterTransforms')
         if (transforms && Array.isArray(transforms) && transforms.length > 0) {
-          baseOptions.experimental_providerMetadata.openrouter.transforms = transforms
+          baseOptionsAny.experimental_providerMetadata.openrouter.transforms = transforms
         } else {
-          baseOptions.experimental_providerMetadata.openrouter.transforms = ['middle-out']
+          baseOptionsAny.experimental_providerMetadata.openrouter.transforms = ['middle-out']
         }
       } catch {
         // Fallback to default if registry fails
         if (reasoningEnabled) {
-          const reasoningConfig = validatedOptions.reasoning || {
+          const reasoningConfig = validatedOptions.reasoningText || {
             effort: 'medium',
             exclude: false,
             enabled: true,
           }
             ; (reasoningConfig as any).include_reasoning = (reasoningConfig as any).include_reasoning ?? true
-          baseOptions.experimental_providerMetadata.openrouter.reasoning = reasoningConfig
+          baseOptionsAny.experimental_providerMetadata.openrouter.reasoningText = reasoningConfig
         }
         const transforms = (effectiveConfig as any).transforms || configManager.get('openrouterTransforms')
         if (transforms && Array.isArray(transforms) && transforms.length > 0) {
-          baseOptions.experimental_providerMetadata.openrouter.transforms = transforms
+          baseOptionsAny.experimental_providerMetadata.openrouter.transforms = transforms
         } else {
-          baseOptions.experimental_providerMetadata.openrouter.transforms = ['middle-out']
+          baseOptionsAny.experimental_providerMetadata.openrouter.transforms = ['middle-out']
         }
       }
 
@@ -578,7 +576,7 @@ export class ModelProvider {
         const cache: any = {}
         if (cacheCfg.mode) cache.mode = cacheCfg.mode
         if (cacheCfg.ttl) cache.ttl = cacheCfg.ttl
-        baseOptions.experimental_providerMetadata.openrouter.cache = cache
+        baseOptionsAny.experimental_providerMetadata.openrouter.cache = cache
       }
     }
     // Execute with Zero Completion Insurance retry logic
@@ -602,11 +600,11 @@ export class ModelProvider {
     // Extract reasoning if available and display if requested
     if (reasoningEnabled) {
       const reasoningData = ReasoningDetector.extractReasoning(result, currentModelConfig.provider)
-      const globalReasoningConfig = configManager.get('reasoning')
+      const globalReasoningConfig = configManager.get('reasoningText') as any
 
       if (
         reasoningData.reasoningText &&
-        (globalReasoningConfig.showReasoningProcess || validatedOptions.showReasoningProcess)
+        (globalReasoningConfig?.showReasoningProcess || validatedOptions.showReasoningProcess)
       ) {
         try {
           const nik = (global as any).__nikCLI
@@ -708,19 +706,20 @@ export class ModelProvider {
       streamOptions.temperature = 1.0
     }
 
-    streamOptions.maxTokens = validatedOptions.maxTokens ?? 6000
+    streamOptions.maxOutputTokens = validatedOptions.maxOutputTokens ?? 6000
     if (currentModelConfig.provider === 'openrouter') {
       // OpenRouter needs maxTokens set for all models
-      streamOptions.maxTokens = validatedOptions.maxTokens ?? 6000
+      streamOptions.maxOutputTokens = validatedOptions.maxOutputTokens ?? 6000
     }
 
     // OpenRouter-specific parameters support for streaming - dynamic based on model capabilities
     if (effectiveConfig2.provider === 'openrouter') {
-      if (!streamOptions.experimental_providerMetadata) {
-        streamOptions.experimental_providerMetadata = {}
+      const streamOptionsAny = streamOptions as any
+      if (!streamOptionsAny.experimental_providerMetadata) {
+        streamOptionsAny.experimental_providerMetadata = {}
       }
-      if (!streamOptions.experimental_providerMetadata.openrouter) {
-        streamOptions.experimental_providerMetadata.openrouter = {}
+      if (!streamOptionsAny.experimental_providerMetadata.openrouter) {
+        streamOptionsAny.experimental_providerMetadata.openrouter = {}
       }
 
       // Fetch model capabilities and build parameters dynamically
@@ -730,41 +729,41 @@ export class ModelProvider {
         // Only add reasoning parameters if model supports them
         if (reasoningEnabled && (modelCaps.supportsReasoning || modelCaps.supportsIncludeReasoning)) {
           if (modelCaps.supportsIncludeReasoning) {
-            streamOptions.experimental_providerMetadata.openrouter.include_reasoning = true
+            streamOptionsAny.experimental_providerMetadata.openrouter.include_reasoning = true
           }
           if (modelCaps.supportsReasoningEffort) {
-            const reasoningConfig = validatedOptions.reasoning || {
+            const reasoningConfig = validatedOptions.reasoningText || {
               effort: 'medium',
               exclude: false,
               enabled: true,
             }
-            streamOptions.experimental_providerMetadata.openrouter.reasoning = reasoningConfig
+            streamOptionsAny.experimental_providerMetadata.openrouter.reasoningText = reasoningConfig
           }
         }
 
         // Transforms parameter support (e.g., middle-out for context compression)
         const transforms = (effectiveConfig2 as any).transforms || configManager.get('openrouterTransforms')
         if (transforms && Array.isArray(transforms) && transforms.length > 0) {
-          streamOptions.experimental_providerMetadata.openrouter.transforms = transforms
+          streamOptionsAny.experimental_providerMetadata.openrouter.transforms = transforms
         } else {
-          streamOptions.experimental_providerMetadata.openrouter.transforms = ['middle-out']
+          streamOptionsAny.experimental_providerMetadata.openrouter.transforms = ['middle-out']
         }
       } catch {
         // Fallback to default if registry fails
         if (reasoningEnabled) {
-          const reasoningConfig = validatedOptions.reasoning || {
+          const reasoningConfig = validatedOptions.reasoningText || {
             effort: 'medium',
             exclude: false,
             enabled: true,
           }
             ; (reasoningConfig as any).include_reasoning = (reasoningConfig as any).include_reasoning ?? true
-          streamOptions.experimental_providerMetadata.openrouter.reasoning = reasoningConfig
+          streamOptionsAny.experimental_providerMetadata.openrouter.reasoningText = reasoningConfig
         }
         const transforms = (effectiveConfig2 as any).transforms || configManager.get('openrouterTransforms')
         if (transforms && Array.isArray(transforms) && transforms.length > 0) {
-          streamOptions.experimental_providerMetadata.openrouter.transforms = transforms
+          streamOptionsAny.experimental_providerMetadata.openrouter.transforms = transforms
         } else {
-          streamOptions.experimental_providerMetadata.openrouter.transforms = ['middle-out']
+          streamOptionsAny.experimental_providerMetadata.openrouter.transforms = ['middle-out']
         }
       }
 
@@ -774,11 +773,11 @@ export class ModelProvider {
         const cache: any = {}
         if (cacheCfg.mode) cache.mode = cacheCfg.mode
         if (cacheCfg.ttl) cache.ttl = cacheCfg.ttl
-        streamOptions.experimental_providerMetadata.openrouter.cache = cache
+        streamOptionsAny.experimental_providerMetadata.openrouter.cache = cache
       }
     }
 
-    const result = await streamText(streamOptions)
+    const result = streamText(streamOptions)
 
     for await (const delta of result.textStream) {
       yield delta
@@ -853,7 +852,7 @@ export class ModelProvider {
     }
 
     // Set maxTokens for all providers
-    generateObjectParams.maxTokens = options.maxTokens ?? 6000
+    generateObjectParams.maxOutputTokens = options.maxOutputTokens ?? 6000
 
     // Add AI SDK steps and finalStep support
     if (options.steps) {
@@ -896,7 +895,7 @@ export class ModelProvider {
     summary: string
     enabled: boolean
   } {
-    const { name, config } = this.getCurrentModelInfo()
+    const { config } = this.getCurrentModelInfo()
     const capabilities = ReasoningDetector.detectReasoningSupport(config.provider, config.model)
     const summary = ReasoningDetector.getModelReasoningSummary(config.provider, config.model)
     const enabled = this.shouldEnableReasoning({ messages: [] }, config)

@@ -322,7 +322,7 @@ export class TaskMasterService extends EventEmitter {
       context: {
         nikCLIData: {
           progress: todo.progress,
-          reasoning: todo.reasoning,
+          reasoningText: todo.reasoningText,
           tools: todo.tools,
           estimatedDuration: todo.estimatedDuration,
         },
@@ -403,7 +403,7 @@ export class TaskMasterService extends EventEmitter {
           estimatedDuration: 10,
           progress: 0,
           tools: availableTools,
-          reasoning: 'Understanding project context is crucial for successful implementation',
+          reasoningText: 'Understanding project context is crucial for successful implementation',
           metadata: { suggestedTools: ['analyze_project', 'rag-search-tool', 'multi-read-tool'] },
         },
         {
@@ -417,7 +417,7 @@ export class TaskMasterService extends EventEmitter {
           estimatedDuration: 15,
           progress: 0,
           tools: availableTools,
-          reasoning: 'Proper planning reduces implementation complexity',
+          reasoningText: 'Proper planning reduces implementation complexity',
           metadata: { suggestedTools: ['analyze_project', 'rag-search-tool', 'multi-read-tool'] },
         },
         {
@@ -431,7 +431,7 @@ export class TaskMasterService extends EventEmitter {
           estimatedDuration: 30,
           progress: 0,
           tools: availableTools,
-          reasoning: 'Core implementation task',
+          reasoningText: 'Core implementation task',
           metadata: { suggestedTools: ['generate_code', 'write_file', 'rag-search-tool', 'multi-read-tool'] },
         },
         {
@@ -445,7 +445,7 @@ export class TaskMasterService extends EventEmitter {
           estimatedDuration: 15,
           progress: 0,
           tools: availableTools,
-          reasoning: 'Ensure quality and functionality',
+          reasoningText: 'Ensure quality and functionality',
           metadata: { suggestedTools: ['execute_command', 'analyze_project', 'rag-search-tool', 'multi-read-tool'] },
         }
       )
@@ -462,7 +462,7 @@ export class TaskMasterService extends EventEmitter {
           estimatedDuration: 15,
           progress: 0,
           tools: availableTools,
-          reasoning: 'Investigate the issue using the available tools',
+          reasoningText: 'Investigate the issue using the available tools',
           metadata: { suggestedTools: ['read_file', 'rag-search-tool', 'multi-read-tool', 'grep-tool'] },
         },
         {
@@ -476,7 +476,7 @@ export class TaskMasterService extends EventEmitter {
           estimatedDuration: 20,
           progress: 0,
           tools: availableTools,
-          reasoning: 'Implement the solution using the available tools',
+          reasoningText: 'Implement the solution using the available tools',
           metadata: { suggestedTools: ['write_file', 'execute_command', 'rag-search-tool', 'multi-edit-tool'] },
         }
       )
@@ -494,7 +494,7 @@ export class TaskMasterService extends EventEmitter {
           estimatedDuration: 20,
           progress: 0,
           tools: availableTools,
-          reasoning: 'Execute the task using the available tools',
+          reasoningText: 'Execute the task using the available tools',
           metadata: {
             suggestedTools: ['analyze_project', 'rag-search-tool', 'write_file', 'execute_command', 'multi-edit-tool'],
           },
@@ -510,7 +510,7 @@ export class TaskMasterService extends EventEmitter {
           estimatedDuration: 20,
           progress: 0,
           tools: availableTools,
-          reasoning: 'Execute the task using the available tools',
+          reasoningText: 'Execute the task using the available tools',
           metadata: {
             suggestedTools: ['analyze_project', 'rag-search-tool', 'write_file', 'execute_command', 'multi-edit-tool'],
           },
@@ -672,7 +672,7 @@ Generate tasks NOW (JSON only):`
             Array.isArray(task.tools) && task.tools.length > 0
               ? { suggestedTools: task.tools.filter((tool: any) => typeof tool === 'string') }
               : undefined,
-          reasoning: typeof task.reasoning === 'string' ? task.reasoning : 'AI generated reasoning',
+          reasoningText: typeof task.reasoningText === 'string' ? task.reasoningText : 'AI generated reasoning',
         }))
 
       // Assicurati che abbiamo sempre almeno 3 task validi
@@ -712,7 +712,7 @@ Generate tasks NOW (JSON only):`
           progress: 0,
           tools: availableTools,
           metadata: { suggestedTools: ['explore_directory', 'read_file', 'analyze_project', 'rag-search-tool'] },
-          reasoning: 'Understanding the codebase structure is the foundation for comprehensive analysis',
+          reasoningText: 'Understanding the codebase structure is the foundation for comprehensive analysis',
         },
         {
           id: nanoid(),
@@ -726,7 +726,7 @@ Generate tasks NOW (JSON only):`
           progress: 0,
           tools: availableTools,
           metadata: { suggestedTools: ['read_file', 'analyze_project', 'execute_command', 'rag-search-tool'] },
-          reasoning: 'Code quality assessment identifies areas for improvement and technical risks',
+          reasoningText: 'Code quality assessment identifies areas for improvement and technical risks',
         },
         {
           id: nanoid(),
@@ -740,7 +740,7 @@ Generate tasks NOW (JSON only):`
           progress: 0,
           tools: availableTools,
           metadata: { suggestedTools: ['read_file', 'analyze_project', 'execute_command', 'rag-search-tool'] },
-          reasoning: 'Security and performance are critical for production readiness',
+          reasoningText: 'Security and performance are critical for production readiness',
         },
         {
           id: nanoid(),
@@ -754,7 +754,7 @@ Generate tasks NOW (JSON only):`
           progress: 0,
           tools: availableTools,
           metadata: { suggestedTools: ['read_file', 'rag-search-tool', 'execute_command'] },
-          reasoning: 'Good documentation and dependency management ensure maintainability',
+          reasoningText: 'Good documentation and dependency management ensure maintainability',
         },
         {
           id: nanoid(),
@@ -768,9 +768,9 @@ Generate tasks NOW (JSON only):`
           progress: 0,
           tools: availableTools,
           metadata: { suggestedTools: ['generate_code', 'write_file', 'rag-search-tool'] },
-          reasoning: 'A comprehensive report provides actionable insights and strategic recommendations',
+          reasoningText: 'A comprehensive report provides actionable insights and strategic recommendations',
         },
-      ]
+      ];
     }
   }
 
@@ -786,31 +786,31 @@ Generate tasks NOW (JSON only):`
         title: 'Initial Analysis',
         description: `Analyze requirements for: ${userRequest}`,
         tools: ['analyze_project', 'read_file'],
-        reasoning: 'Understanding requirements is essential for any task',
+        reasoningText: 'Understanding requirements is essential for any task',
       },
       {
         title: 'Planning & Design',
         description: `Create implementation plan for: ${userRequest}`,
         tools: ['doc_search', 'analyze_project'],
-        reasoning: 'Proper planning reduces implementation complexity',
+        reasoningText: 'Proper planning reduces implementation complexity',
       },
       {
         title: 'Implementation',
         description: `Execute the main task: ${userRequest}`,
         tools: ['write_file', 'execute_command', 'generate_code'],
-        reasoning: 'Core implementation of the requested feature',
+        reasoningText: 'Core implementation of the requested feature',
       },
       {
         title: 'Testing & Validation',
         description: `Test and validate the implementation`,
         tools: ['execute_command', 'read_file'],
-        reasoning: 'Ensure the implementation works correctly',
+        reasoningText: 'Ensure the implementation works correctly',
       },
       {
         title: 'Documentation & Cleanup',
         description: `Document changes and clean up`,
         tools: ['write_file', 'doc_search'],
-        reasoning: 'Maintain code quality and documentation',
+        reasoningText: 'Maintain code quality and documentation',
       },
     ]
 
@@ -827,7 +827,7 @@ Generate tasks NOW (JSON only):`
         estimatedDuration: 15 + i * 5, // Vary duration slightly
         progress: 0,
         tools: registryTools,
-        reasoning: baseTask.reasoning,
+        reasoningText: baseTask.reasoningText,
         metadata: { suggestedTools: baseTask.tools },
       })
     }
@@ -904,7 +904,7 @@ Generate tasks NOW (JSON only):`
         model: this.config.model,
         apiKey: this.config.apiKey,
         baseURL: this.config.baseURL,
-        maxTokens: 4000,
+        maxOutputTokens: 4000,
         temperature: 0.1,
         topP: 0.9,
         profiles: {

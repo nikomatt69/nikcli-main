@@ -1,4 +1,4 @@
-import type { CoreTool } from 'ai'
+import type { Tool } from 'ai'
 import { aiDocsTools } from '../tools/docs-request-tool'
 import { aiMemoryTools } from '../tools/memory-search-tool'
 import { smartDocsTools } from '../tools/smart-docs-tool'
@@ -22,7 +22,7 @@ export class FeedbackAwareTools {
   /**
    * Wrappa un tool esistente con intelligence feedback
    */
-  static wrapTool(toolName: string, originalTool: CoreTool, agentType?: string): CoreTool {
+  static wrapTool(toolName: string, originalTool: Tool, agentType?: string): Tool {
     return {
       ...originalTool,
       execute: async (parameters: any) => {
@@ -32,7 +32,7 @@ export class FeedbackAwareTools {
           toolName,
           async () => {
             // Esegui il tool originale
-            return await originalTool?.execute?.(parameters, {})
+            return await (originalTool as any)?.execute?.(parameters, {})
           },
           parameters,
           context,
@@ -81,8 +81,8 @@ export class FeedbackAwareTools {
   /**
    * Wrapper generico per qualsiasi tool
    */
-  static enhanceAllTools(tools: Record<string, CoreTool>, agentType?: string): Record<string, CoreTool> {
-    const enhancedTools: Record<string, CoreTool> = {}
+  static enhanceAllTools(tools: Record<string, Tool>, agentType?: string): Record<string, Tool> {
+    const enhancedTools: Record<string, Tool> = {}
 
     for (const [toolName, tool] of Object.entries(tools)) {
       // Non wrappare due volte i tools già enhanced

@@ -1,5 +1,5 @@
 import chalk from 'chalk'
-import { z } from 'zod'
+import { z } from 'zod/v3';
 import { type ChatMessage, modelProvider } from '../../ai/model-provider'
 import { type ErrorAnalysis, toolsManager } from '../../tools/tools-manager'
 import { advancedUI } from '../../ui/advanced-cli-ui'
@@ -15,7 +15,7 @@ const _CodingTaskSchema = z.object({
       priority: z.enum(['low', 'medium', 'high']),
     })
   ),
-  reasoning: z.string(),
+  reasoningText: z.string(),
 })
 
 const CodeGenerationSchema = z.object({

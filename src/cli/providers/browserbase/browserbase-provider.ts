@@ -5,10 +5,10 @@ import { createOpenAI } from '@ai-sdk/openai'
 import { Readability } from '@mozilla/readability'
 import { createOpenRouter, openrouter } from '@openrouter/ai-sdk-provider'
 
-import { type CoreMessage, generateObject } from 'ai'
+import { type ModelMessage, generateObject } from 'ai'
 import chalk from 'chalk'
 import { JSDOM } from 'jsdom'
-import { z } from 'zod'
+import { z } from 'zod/v3';
 import { simpleConfigManager } from '../../core/config-manager'
 import { advancedUI } from '../../ui/advanced-cli-ui'
 import { redisProvider } from '../redis/redis-provider'
@@ -397,7 +397,7 @@ export class BrowserbaseProvider extends EventEmitter {
           role: 'user',
           content: `${systemPrompt}\n\nWebpage Content:\nURL: ${content.url}\nTitle: ${content.title}\n\nContent:\n${content.textContent.substring(0, 8000)}`, // Limit content length
         },
-      ] as CoreMessage[],
+      ] as ModelMessage[],
       schema: z.object({
         summary: z.string().describe('Concise summary of the content'),
         keyPoints: z.array(z.string()).describe('Key points and important information'),
@@ -441,7 +441,7 @@ export class BrowserbaseProvider extends EventEmitter {
           role: 'user',
           content: `${systemPrompt}\n\nWebpage Content:\nURL: ${content.url}\nTitle: ${content.title}\n\nContent:\n${content.textContent.substring(0, 8000)}`,
         },
-      ] as CoreMessage[],
+      ] as ModelMessage[],
       schema: z.object({
         summary: z.string().describe('Content summary'),
         keyPoints: z.array(z.string()).describe('Key points extracted'),
@@ -485,7 +485,7 @@ export class BrowserbaseProvider extends EventEmitter {
           role: 'user',
           content: `${systemPrompt}\n\nWebpage Content:\nURL: ${content.url}\nTitle: ${content.title}\n\nContent:\n${content.textContent.substring(0, 8000)}`,
         },
-      ] as CoreMessage[],
+      ] as ModelMessage[],
       schema: z.object({
         summary: z.string().describe('Content summary'),
         keyPoints: z.array(z.string()).describe('Key information points'),
@@ -529,7 +529,7 @@ export class BrowserbaseProvider extends EventEmitter {
           role: 'user',
           content: `${systemPrompt}\n\nWebpage Content:\nURL: ${content.url}\nTitle: ${content.title}\n\nContent:\n${content.textContent.substring(0, 8000)}`,
         },
-      ] as CoreMessage[],
+      ] as ModelMessage[],
       schema: z.object({
         summary: z.string().describe('Content summary'),
         keyPoints: z.array(z.string()).describe('Key information points'),

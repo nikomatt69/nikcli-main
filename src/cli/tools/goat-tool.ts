@@ -1,5 +1,5 @@
 import { openai } from '@ai-sdk/openai'
-import type { CoreMessage } from 'ai'
+import type { ModelMessage } from 'ai'
 import { generateText } from 'ai'
 import chalk from 'chalk'
 import { configManager } from '../core/config-manager'
@@ -62,7 +62,7 @@ const PLUGIN_DEFAULT_CHAINS = {
 export class GoatTool extends BaseTool {
   private goatProvider: GoatProvider | null = null
   private isInitialized: boolean = false
-  private conversationMessages: CoreMessage[] = []
+  private conversationMessages: ModelMessage[] = []
   private toolHintInjected: boolean = false
 
   // GOAT agent configuration
@@ -293,7 +293,7 @@ export class GoatTool extends BaseTool {
           const baseRpc = configManager.getApiKey('base_rpc_url')
           if (baseRpc) process.env.BASE_RPC_URL = baseRpc
         }
-      } catch {}
+      } catch { }
 
       // Check if dependencies are installed
       const isInstalled = await GoatProvider.isInstalled()
@@ -422,8 +422,8 @@ export class GoatTool extends BaseTool {
           content: `You have access to GOAT SDK tools for blockchain operations.
 Available plugins: ${this.goatProvider!.getEnabledPlugins().join(', ')}
 Available chains: ${this.goatProvider!.getSupportedChains()
-            .map((c) => c.name)
-            .join(', ')}
+              .map((c) => c.name)
+              .join(', ')}
 
 IMPORTANT INSTRUCTIONS FOR ETHEREUM ADDRESSES:
 - ALWAYS generate valid Ethereum addresses in format: 0x followed by 40 hexadecimal characters (0-9, a-f)
@@ -469,7 +469,6 @@ ALWAYS confirm with user before executing any blockchain transaction.`,
         model: this.agent.model,
         messages: this.conversationMessages,
         tools: this.agent.tools,
-        maxSteps: this.agent.maxSteps,
         system: this.agent.system,
       })
 

@@ -10,7 +10,7 @@ interface FeatureVector {
 interface ToolPredictionResult {
   tools: string[]
   confidence: number
-  reasoning: string
+  reasoningText: string
   successProbabilities: Record<string, number>
 }
 
@@ -55,9 +55,9 @@ class MLInferenceEngine {
       return {
         tools: [],
         confidence: 0,
-        reasoning: 'Engine not initialized',
+        reasoningText: 'Engine not initialized',
         successProbabilities: {},
-      }
+      };
     }
 
     try {
@@ -83,7 +83,7 @@ class MLInferenceEngine {
       const result: ToolPredictionResult = {
         tools: rankedTools,
         confidence,
-        reasoning: this.generateReasoningText(rankedTools, featureVector),
+        reasoningText: this.generateReasoningText(rankedTools, featureVector),
         successProbabilities: Object.fromEntries(
           rankedTools.map((tool) => [tool, this.getToolSuccessProbability(tool)])
         ),
@@ -98,9 +98,9 @@ class MLInferenceEngine {
       return {
         tools: [],
         confidence: 0,
-        reasoning: 'Inference failed',
+        reasoningText: 'Inference failed',
         successProbabilities: {},
-      }
+      };
     }
   }
 

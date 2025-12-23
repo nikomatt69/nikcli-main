@@ -1,4 +1,4 @@
-import { z } from 'zod'
+import { z } from 'zod/v3';
 import { BaseTool, type ToolExecutionResult } from '../tools/base-tool'
 import { advancedUI } from '../ui/advanced-cli-ui'
 import { type BrowserAction, type BrowserActionResult, browserSessionManager } from './browser-session-manager'

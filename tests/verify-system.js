@@ -204,7 +204,7 @@ async function main() {
       apiKey: 'test-key-validation',
       model: 'claude-3-sonnet',
       temperature: 0.7,
-      maxTokens: 4000,
+      maxOutputTokens: 4000,
     }
 
     const configPath = 'test-config-validation.json'

@@ -1,4 +1,4 @@
-import type { CoreMessage } from 'ai'
+import type { ModelMessage } from 'ai'
 import chalk from 'chalk'
 import { docsContextManager } from '../context/docs-context-manager'
 import { workspaceContext } from '../context/workspace-context'
@@ -9,7 +9,7 @@ import { contextManager } from './context-manager'
 export interface EnhancementContext {
   workingDirectory: string
   executionContext: Map<string, any>
-  conversationMemory: CoreMessage[]
+  conversationMemory: ModelMessage[]
   analysisCache: Map<string, any>
   // Enhanced context providers
   enableRAGIntegration?: boolean
@@ -44,7 +44,7 @@ export class ContextEnhancer {
   private readonly MAX_CACHE_SIZE = 100
 
   // Enhanced main method with smart context integration
-  async enhance(messages: CoreMessage[], context: EnhancementContext): Promise<CoreMessage[]> {
+  async enhance(messages: ModelMessage[], context: EnhancementContext): Promise<ModelMessage[]> {
     // Get optimized context from all sources
     const smartContext = await this.buildSmartContext(messages, context)
 
@@ -58,7 +58,7 @@ export class ContextEnhancer {
   }
 
   // Build smart context from all available sources
-  private async buildSmartContext(messages: CoreMessage[], context: EnhancementContext): Promise<SmartContext> {
+  private async buildSmartContext(messages: ModelMessage[], context: EnhancementContext): Promise<SmartContext> {
     const cacheKey = this.generateCacheKey(messages, context)
 
     // Check cache first
@@ -189,10 +189,10 @@ export class ContextEnhancer {
 
   // Build final enhanced messages
   private async buildEnhancedMessages(
-    originalMessages: CoreMessage[],
+    originalMessages: ModelMessage[],
     smartContext: SmartContext,
     context: EnhancementContext
-  ): Promise<CoreMessage[]> {
+  ): Promise<ModelMessage[]> {
     const enhancedMessages = [...originalMessages]
 
     // Add enhanced system prompt if not present
@@ -258,7 +258,7 @@ export class ContextEnhancer {
     }
   }
 
-  private async getDocsContextSource(_messages: CoreMessage[]): Promise<ContextSource | null> {
+  private async getDocsContextSource(_messages: ModelMessage[]): Promise<ContextSource | null> {
     try {
       const docsContext = docsContextManager.getContextSummary()
       if (!docsContext || docsContext.includes('No documentation loaded')) {
@@ -282,8 +282,8 @@ export class ContextEnhancer {
   }
 
   private async getEnhancedMemorySource(
-    conversationMemory: CoreMessage[],
-    _currentMessages: CoreMessage[]
+    conversationMemory: ModelMessage[],
+    _currentMessages: ModelMessage[]
   ): Promise<ContextSource | null> {
     if (conversationMemory.length === 0) return null
 
@@ -332,7 +332,7 @@ export class ContextEnhancer {
   }
 
   private async getSemanticContextSources(
-    messages: CoreMessage[],
+    messages: ModelMessage[],
     _context: EnhancementContext
   ): Promise<ContextSource[]> {
     const sources: ContextSource[] = []
@@ -368,7 +368,7 @@ export class ContextEnhancer {
   }
 
   // Utility methods
-  private generateCacheKey(messages: CoreMessage[], context: EnhancementContext): string {
+  private generateCacheKey(messages: ModelMessage[], context: EnhancementContext): string {
     const lastMessage = messages[messages.length - 1]
     const content = typeof lastMessage?.content === 'string' ? lastMessage.content : ''
     const contextKey = `${context.workingDirectory}-${context.enableRAGIntegration}-${context.enableDocsContext}`
@@ -460,7 +460,7 @@ export class ContextEnhancer {
     return Math.ceil(content.length / 4) // Rough estimation
   }
 
-  private summarizeMessages(messages: CoreMessage[]): string {
+  private summarizeMessages(messages: ModelMessage[]): string {
     return messages
       .slice(-5)
       .map((msg) => {
@@ -524,7 +524,7 @@ Use this rich context to provide accurate, contextually-aware responses. Always 
     return fileKeywords.some((keyword) => text.toLowerCase().includes(keyword))
   }
 
-  getConversationMemory(memory: CoreMessage[]): string {
+  getConversationMemory(memory: ModelMessage[]): string {
     return this.summarizeMessages(memory.slice(-5))
   }
 
@@ -535,7 +535,7 @@ Use this rich context to provide accurate, contextually-aware responses. Always 
 
   // Public methods for external usage
   async getSmartContextForMessages(
-    messages: CoreMessage[],
+    messages: ModelMessage[],
     options?: Partial<EnhancementContext>
   ): Promise<SmartContext> {
     const context: EnhancementContext = {

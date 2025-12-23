@@ -88,7 +88,7 @@ export function createServeCommand(): Command {
                 res.json({
                     model: process.env.NIKCLI_MODEL || "claude-3.5-sonnet",
                     provider: process.env.NIKCLI_PROVIDER || "anthropic",
-                    maxTokens: parseInt(process.env.NIKCLI_MAX_TOKENS || "8192", 10),
+                    maxOutputTokens: parseInt(process.env.NIKCLI_MAX_TOKENS || "8192", 10),
                     temperature: parseFloat(process.env.NIKCLI_TEMPERATURE || "0.7")
                 })
             })
@@ -188,5 +188,5 @@ export function createServeCommand(): Command {
 
             process.on("SIGINT", shutdown)
             process.on("SIGTERM", shutdown)
-        })
+        });
 }

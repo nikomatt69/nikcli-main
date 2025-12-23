@@ -1,6 +1,6 @@
 import chalk from 'chalk'
 import { nanoid } from 'nanoid'
-import { z } from 'zod'
+import { z } from 'zod/v3';
 import { type ChatMessage, modelProvider } from '../../ai/model-provider'
 import { advancedUI } from '../../ui/advanced-cli-ui'
 import { CliUI } from '../../utils/cli-ui'
@@ -177,7 +177,7 @@ export class CodingAgent extends CognitiveAgentBase {
 
   private extractCodeFromCognition(cognition: TaskCognition): string | null {
     const codeMatch = cognition.originalTask.match(/```[\s\S]*?```/)
-    return codeMatch ? codeMatch[0].replace(/```/g, '').trim() : null
+    return codeMatch ? codeMatch[0].replace(/```/g, '').trim() : null;
   }
 
   /**

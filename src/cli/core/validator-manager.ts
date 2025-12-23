@@ -5,7 +5,7 @@
 
 import chalk from 'chalk'
 import { EventEmitter } from 'events'
-import { z } from 'zod'
+import { z } from 'zod/v3';
 import type { ContentValidator, ValidationResult } from '../schemas/tool-schemas'
 import { ContentValidators } from '../tools/write-file-tool'
 import { advancedUI } from '../ui/advanced-cli-ui'
@@ -969,7 +969,7 @@ export class ValidatorManager extends EventEmitter {
       })
 
       return { isValid: errors.length === 0, errors, warnings }
-    }
+    };
   }
 
   /**
@@ -1121,7 +1121,7 @@ export class ValidatorManager extends EventEmitter {
       }
 
       return { isValid: errors.length === 0, errors, warnings }
-    }
+    };
   }
 
   /**
@@ -1144,7 +1144,7 @@ export class ValidatorManager extends EventEmitter {
       }
 
       return { isValid: errors.length === 0, errors, warnings }
-    }
+    };
   }
 
   /**
@@ -1174,7 +1174,7 @@ export class ValidatorManager extends EventEmitter {
       }
 
       return { isValid: errors.length === 0, errors, warnings }
-    }
+    };
   }
 
   /**
@@ -1268,14 +1268,14 @@ export class ValidatorManager extends EventEmitter {
    */
   private fixMissingSemicolons(content: string): string {
     // Add semicolons to import statements
-    return content.replace(/^(import.*from\s+['"][^'"]*['"])(?!\s*;)/gm, '$1;')
+    return content.replace(/^(import.*from\s+['"][^'"]*['"])(?!\s*;)/gm, '$1;');
   }
 
   /**
    * Fix trailing commas in JSON
    */
   private fixTrailingCommas(content: string): string {
-    return content.replace(/,(\s*[}\]])/g, '$1')
+    return content.replace(/,(\s*[}\]])/g, '$1');
   }
 
   /**

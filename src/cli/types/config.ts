@@ -10,7 +10,7 @@ export interface ModelConfig {
   model: string
   apiKey?: string
   baseUrl?: string
-  maxTokens?: number
+  maxOutputTokens?: number
   temperature?: number
   topP?: number
   enabled: boolean

@@ -3,7 +3,7 @@
  * Defines types and interfaces for agent management, events, and communication
  */
 
-import { z } from 'zod'
+import { z } from 'zod/v3';
 
 // Agent Event Types
 export const AgentEventTypeSchema = z.enum([

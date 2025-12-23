@@ -1,4 +1,4 @@
-import { z } from 'zod'
+import { z } from 'zod/v3';
 import { SUPPORTED_SHELL_NAMES } from '../tools/shell-support'
 
 // Costanti centralizzate per token management
@@ -37,8 +37,7 @@ export const WriteFileOptionsSchema = z.object({
   rollbackOnPartialFailure: z.boolean().optional(),
   showDiff: z.boolean().optional(),
   skipFormatting: z.boolean().optional(),
-  validators: z.array(z.function().returns(z.promise(ValidationResultSchema))).optional(),
-  transformers: z.array(z.function().returns(z.promise(z.string()))).optional(),
+  // validators and transformers removed - z.function() not serializable for ai-sdk
 })
 
 export const WriteFileResultSchema = z.object({

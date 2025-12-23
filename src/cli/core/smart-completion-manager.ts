@@ -1,5 +1,5 @@
 import chalk from 'chalk'
-import { z } from 'zod'
+import { z } from 'zod/v3';
 import { workspaceContext } from '../context/workspace-context'
 import { agentService } from '../services/agent-service'
 import { type AICompletion, aiCompletionService, type CompletionContext } from '../services/ai-completion-service'
@@ -268,11 +268,11 @@ export class SmartCompletionManager {
         source: 'ai' as CompletionSource,
         category: aiComp.category,
         priority: aiComp.priority,
-        description: `AI: ${aiComp.reasoning}`,
+        description: `AI: ${aiComp.reasoningText}`,
         requiresApproval: aiComp.requiresApproval,
         icon: '✨',
         color: 'magenta',
-      }))
+      }));
     } catch (error) {
       console.warn(chalk.yellow(`[Smart Completion] AI error: ${error}`))
       return []

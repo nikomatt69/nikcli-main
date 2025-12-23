@@ -2,7 +2,7 @@ import * as crypto from 'node:crypto'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import chalk from 'chalk'
-import { z } from 'zod'
+import { z } from 'zod/v3';
 import { fileExistsSync, mkdirpSync, readTextSync, writeTextSync } from '../utils/bun-compat'
 import { OutputStyleConfigSchema, OutputStyleEnum } from '../types/output-styles'
 import { advancedUI } from '../ui/advanced-cli-ui'
@@ -26,7 +26,7 @@ const ModelConfigSchema = z.object({
   ]),
   model: z.string(),
   temperature: z.number().min(0).max(2).optional(),
-  maxTokens: z.number().min(1).max(6000).optional(),
+  maxOutputTokens: z.number().min(1).max(6000).optional(),
   maxContextTokens: z.number().min(1).max(3000000).optional().describe('Maximum context window for this model'),
   // Reasoning configuration
   enableReasoning: z.boolean().optional().describe('Enable reasoning for supported models'),
@@ -43,7 +43,7 @@ const EmbeddingModelConfigSchema = z.object({
   provider: z.enum(['openai', 'google', 'anthropic', 'openrouter']),
   model: z.string(),
   dimensions: z.number().int().positive().optional(),
-  maxTokens: z.number().int().positive().optional(),
+  maxOutputTokens: z.number().int().positive().optional(),
   batchSize: z.number().int().positive().optional(),
   costPer1KTokens: z.number().nonnegative().optional(),
   baseURL: z.string().url().optional(),
@@ -81,7 +81,7 @@ const ConfigSchema = z.object({
   currentModel: z.string(),
   currentEmbeddingModel: z.string().default('openai/text-embedding-3-small'),
   temperature: z.number().min(0).max(2).default(1),
-  maxTokens: z.number().min(1).max(6000).default(6000),
+  maxOutputTokens: z.number().min(1).max(6000).default(6000),
   chatHistory: z.boolean().default(true),
   maxHistoryLength: z.number().min(1).max(1000).default(100),
   // Optional system prompt for general chat mode
@@ -115,7 +115,7 @@ const ConfigSchema = z.object({
     })
     .default({ enabled: true, verbose: false, mode: 'balanced' }),
   // Reasoning configuration
-  reasoning: z
+  reasoningText: z
     .object({
       enabled: z.boolean().default(true).describe('Enable reasoning globally'),
       autoDetect: z.boolean().default(true).describe('Auto-detect reasoning capable models'),
@@ -1658,7 +1658,7 @@ export class SimpleConfigManager {
       provider: 'openrouter',
       model: 'openai/text-embedding-3-small',
       dimensions: 1536,
-      maxTokens: 8191,
+      maxOutputTokens: 8191,
       batchSize: 256,
       costPer1KTokens: 0.00002,
       baseURL: 'https://openrouter.ai/api/v1',
@@ -1671,7 +1671,7 @@ export class SimpleConfigManager {
       provider: 'google',
       model: 'text-embedding-004',
       dimensions: 768,
-      maxTokens: 2048,
+      maxOutputTokens: 2048,
       batchSize: 128,
       costPer1KTokens: 0.000025,
     },
@@ -1698,7 +1698,7 @@ export class SimpleConfigManager {
       cacheTtl: 300,
     },
     temperature: 1,
-    maxTokens: 6000,
+    maxOutputTokens: 6000,
     chatHistory: true,
     maxHistoryLength: 100,
     systemPrompt: undefined,
@@ -1780,7 +1780,7 @@ export class SimpleConfigManager {
     environmentVariables: {},
     environmentSources: [],
     modelRouting: { enabled: true, verbose: false, mode: 'balanced' },
-    reasoning: {
+    reasoningText: {
       enabled: true,
       autoDetect: true,
       showReasoningProcess: true,
@@ -2412,10 +2412,10 @@ export class SimpleConfigManager {
           'X-Title': 'NikCLI',
         },
         dimensions: this.getDefaultEmbeddingDimensions('openrouter'),
-        maxTokens: 8191,
+        maxOutputTokens: 8191,
         batchSize: 256,
         costPer1KTokens: 0,
-      }
+      };
     }
 
     return undefined
@@ -2460,7 +2460,7 @@ export class SimpleConfigManager {
         headers: config.headers || baseConfig.headers,
         dimensions:
           config.dimensions ?? baseConfig.dimensions ?? this.getDefaultEmbeddingDimensions(baseConfig.provider),
-        maxTokens: config.maxTokens ?? baseConfig.maxTokens ?? 8191,
+        maxOutputTokens: config.maxOutputTokens ?? baseConfig.maxOutputTokens ?? 8191,
         batchSize: config.batchSize ?? baseConfig.batchSize ?? 256,
         costPer1KTokens: config.costPer1KTokens ?? baseConfig.costPer1KTokens ?? 0,
       },
@@ -2535,9 +2535,9 @@ export class SimpleConfigManager {
           provider: 'openrouter',
           model: model,
           temperature: 1,
-          maxTokens: 6000,
+          maxOutputTokens: 6000,
           maxContextTokens: this.getDefaultContextTokens(model),
-        }
+        };
       }
     }
 

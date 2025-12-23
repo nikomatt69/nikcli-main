@@ -11,7 +11,7 @@ export interface EmbeddingConfig {
   provider: 'openai' | 'google' | 'anthropic' | 'openrouter' | 'local'
   model: string
   dimensions: number
-  maxTokens: number
+  maxOutputTokens: number
   batchSize: number
   cacheEnabled: boolean
   persistenceEnabled: boolean
@@ -97,7 +97,7 @@ export class UnifiedEmbeddingInterface {
       provider: 'openai',
       model: 'text-embedding-3-small',
       dimensions: 1536, // OpenAI default (Google would be 768)
-      maxTokens: 8191,
+      maxOutputTokens: 8191,
       batchSize: Number(process.env.EMBED_BATCH_SIZE || 300), // Configurable via env
       cacheEnabled: true,
       persistenceEnabled: true,
@@ -121,7 +121,7 @@ export class UnifiedEmbeddingInterface {
         provider: cfg.provider,
         model: cfg.model || currentModel,
         dimensions: cfg.dimensions || this.provider.getCurrentDimensions(),
-        maxTokens: cfg.maxTokens || this.config.maxTokens,
+        maxOutputTokens: cfg.maxOutputTokens || this.config.maxOutputTokens,
         batchSize: cfg.batchSize || this.config.batchSize,
       }
     }
@@ -438,7 +438,7 @@ export class UnifiedEmbeddingInterface {
     console.log(`  Provider: ${this.config.provider}`)
     console.log(`  Model: ${this.config.model}`)
     console.log(`  Dimensions: ${this.config.dimensions}`)
-    console.log(`  Max Tokens: ${this.config.maxTokens.toLocaleString()}`)
+    console.log(`  Max Tokens: ${this.config.maxOutputTokens.toLocaleString()}`)
     console.log(`  Batch Size: ${this.config.batchSize}`)
     console.log(`  Caching: ${this.config.cacheEnabled ? 'enabled' : 'disabled'}`)
     console.log(`  Persistence: ${this.config.persistenceEnabled ? 'enabled' : 'disabled'}`)

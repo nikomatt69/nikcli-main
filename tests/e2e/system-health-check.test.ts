@@ -86,7 +86,7 @@ describe('System Health Check - End to End', () => {
         apiKey: 'test-key-12345',
         model: 'claude-3-sonnet',
         temperature: 0.7,
-        maxTokens: 4000,
+        maxOutputTokens: 4000,
       }
 
       // Create config file

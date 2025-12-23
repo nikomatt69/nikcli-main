@@ -1,6 +1,6 @@
 // src/cli/config/notification-defaults.ts
 
-import { z } from 'zod'
+import { z } from 'zod/v3';
 import type { NotificationConfig } from '../types/notifications'
 import { NotificationProvider } from '../types/notifications'
 

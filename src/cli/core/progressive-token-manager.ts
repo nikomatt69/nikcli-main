@@ -1,7 +1,7 @@
 import crypto from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import type { CoreMessage } from 'ai'
+import type { ModelMessage } from 'ai'
 import chalk from 'chalk'
 import { TOKEN_LIMITS } from '../config/token-limits'
 
@@ -19,7 +19,7 @@ interface ProgressiveTokenConfig {
 interface TokenChunk {
   id: string
   index: number
-  messages: CoreMessage[]
+  messages: ModelMessage[]
   estimatedTokens: number
   compressed: boolean
   summary?: string
@@ -129,9 +129,9 @@ export class ProgressiveTokenManager {
   /**
    * Create chunks from messages with progressive processing
    */
-  async createProgressiveChunks(messages: CoreMessage[]): Promise<TokenChunk[]> {
+  async createProgressiveChunks(messages: ModelMessage[]): Promise<TokenChunk[]> {
     const chunks: TokenChunk[] = []
-    let currentChunk: CoreMessage[] = []
+    let currentChunk: ModelMessage[] = []
     let currentTokens = 0
     let chunkIndex = 0
 
@@ -448,8 +448,8 @@ export class ProgressiveTokenManager {
   /**
    * Compress messages to reduce token count
    */
-  async compressMessages(messages: CoreMessage[]): Promise<CoreMessage[]> {
-    const compressed: CoreMessage[] = []
+  async compressMessages(messages: ModelMessage[]): Promise<ModelMessage[]> {
+    const compressed: ModelMessage[] = []
     const _targetReduction = 1 - this.config.compressionRatio
 
     for (const message of messages) {
@@ -493,7 +493,7 @@ export class ProgressiveTokenManager {
   /**
    * Estimate total tokens in messages
    */
-  private estimateMessagesTokens(messages: CoreMessage[]): number {
+  private estimateMessagesTokens(messages: ModelMessage[]): number {
     return messages.reduce((total, msg) => {
       const content = typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content)
       return total + this.estimateTokens(content)

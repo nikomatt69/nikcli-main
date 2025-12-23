@@ -2,7 +2,8 @@
 import { EventEmitter } from 'node:events'
 import blessed from 'blessed'
 import chalk from 'chalk'
-import { type ModelLimits, type TokenUsage, universalTokenizer } from '../core/universal-tokenizer-service'
+import type { LanguageModelUsage } from 'ai'
+import { type ModelLimits, universalTokenizer } from '../core/universal-tokenizer-service'
 
 export interface TokenDisplayOptions {
   showPercentage?: boolean
@@ -16,7 +17,7 @@ export interface TokenDisplayOptions {
 
 export interface TokenContext {
   currentTokens: number
-  maxTokens: number
+  maxOutputTokens: number
   provider: string
   model: string
   estimatedCost: number
@@ -141,14 +142,14 @@ export class TokenAwareStatusBar extends EventEmitter {
    */
   updateTokenContext(
     currentTokens: number,
-    maxTokens: number,
+    maxOutputTokens: number,
     provider: string,
     model: string,
     estimatedCost: number = 0
   ): void {
     this.tokenContext = {
       currentTokens,
-      maxTokens,
+      maxOutputTokens,
       provider,
       model,
       estimatedCost,
@@ -162,8 +163,8 @@ export class TokenAwareStatusBar extends EventEmitter {
   /**
    * Update token context from TokenUsage object
    */
-  updateFromTokenUsage(usage: TokenUsage, limits: ModelLimits): void {
-    this.updateTokenContext(usage.promptTokens, limits.context, usage.provider, usage.model, usage.estimatedCost)
+  updateFromTokenUsage(usage: LanguageModelUsage, limits: ModelLimits, provider?: string, model?: string, estimatedCost?: number): void {
+    this.updateTokenContext(usage.inputTokens || 0, limits.context, provider || 'unknown', model || 'unknown', estimatedCost || 0)
   }
 
   /**
@@ -185,7 +186,7 @@ export class TokenAwareStatusBar extends EventEmitter {
 
     this.tokenContext = {
       currentTokens: 0,
-      maxTokens: limits.context,
+      maxOutputTokens: limits.context,
       provider,
       model,
       estimatedCost: 0,
@@ -203,10 +204,10 @@ export class TokenAwareStatusBar extends EventEmitter {
     if (!this.tokenContext || !this.isVisible) return
 
     // Update token display
-    const percentage = (this.tokenContext.currentTokens / this.tokenContext.maxTokens) * 100
+    const percentage = (this.tokenContext.currentTokens / this.tokenContext.maxOutputTokens) * 100
     const tokenColor = this.getTokenColor(percentage)
     const formattedTokens = this.formatTokens(this.tokenContext.currentTokens)
-    const formattedMax = this.formatTokens(this.tokenContext.maxTokens)
+    const formattedMax = this.formatTokens(this.tokenContext.maxOutputTokens)
 
     let tokenText = `Tokens: ${formattedTokens}/${formattedMax}`
     if (this.options.showPercentage) {
@@ -327,7 +328,7 @@ export class TokenAwareStatusBar extends EventEmitter {
 
       // Update token element base color (but getTokenColor will handle dynamic)
       this.tokenElement.style.fg = this.getTokenColor(
-        (this.tokenContext?.currentTokens || 0 / (this.tokenContext?.maxTokens || 0)) * 100
+        (this.tokenContext?.currentTokens || 0 / (this.tokenContext?.maxOutputTokens || 0)) * 100
       )
 
       // Update cost and model
@@ -376,7 +377,7 @@ export class TokenAwareStatusBar extends EventEmitter {
     thresholdWarning: boolean
     thresholdCritical: boolean
   } {
-    const percentage = this.tokenContext ? (this.tokenContext.currentTokens / this.tokenContext.maxTokens) * 100 : 0
+    const percentage = this.tokenContext ? (this.tokenContext.currentTokens / this.tokenContext.maxOutputTokens) * 100 : 0
 
     return {
       context: this.tokenContext,
@@ -394,8 +395,8 @@ export class TokenAwareStatusBar extends EventEmitter {
     if (!this.tokenContext) return 'No active session'
 
     const formattedTokens = this.formatTokens(this.tokenContext.currentTokens)
-    const formattedMax = this.formatTokens(this.tokenContext.maxTokens)
-    const percentage = (this.tokenContext.currentTokens / this.tokenContext.maxTokens) * 100
+    const formattedMax = this.formatTokens(this.tokenContext.maxOutputTokens)
+    const percentage = (this.tokenContext.currentTokens / this.tokenContext.maxOutputTokens) * 100
     const cost = this.tokenContext.estimatedCost.toFixed(4)
 
     const baseColor = this.planMode ? chalk.magenta : chalk.white
@@ -467,7 +468,7 @@ export function createConsoleTokenDisplay(): {
     update: (currentTokens: number, maxTokens: number, provider: string, model: string, cost: number = 0) => {
       context = {
         currentTokens,
-        maxTokens,
+        maxOutputTokens: maxTokens,
         provider,
         model,
         estimatedCost: cost,
@@ -481,22 +482,22 @@ export function createConsoleTokenDisplay(): {
         return
       }
 
-      const percentage = (context.currentTokens / context.maxTokens) * 100
+      const percentage = (context.currentTokens / context.maxOutputTokens) * 100
       const formattedTokens =
         context.currentTokens >= 1000
           ? `${(context.currentTokens / 1000).toFixed(1)}k`
           : context.currentTokens.toString()
 
       const formattedMax =
-        context.maxTokens >= 1000 ? `${(context.maxTokens / 1000).toFixed(1)}k` : context.maxTokens.toString()
+        context.maxOutputTokens >= 1000 ? `${(context.maxOutputTokens / 1000).toFixed(1)}k` : context.maxOutputTokens.toString()
 
       const color = percentage >= 90 ? chalk.red : percentage >= 80 ? chalk.yellow : chalk.green
       const baseStyle = planMode ? chalk.magenta.bgMagenta : chalk.white
 
       console.log(
         baseStyle(color(`🔢 Tokens: ${formattedTokens}/${formattedMax} (${percentage.toFixed(1)}%)`)) +
-          chalk.cyan(` | 💰 $${context.estimatedCost.toFixed(4)}`) +
-          chalk.blue(` | 🔌 ${context.provider}:${context.model}`)
+        chalk.cyan(` | 💰 $${context.estimatedCost.toFixed(4)}`) +
+        chalk.blue(` | 🔌 ${context.provider}:${context.model}`)
       )
     },
 
@@ -507,5 +508,5 @@ export function createConsoleTokenDisplay(): {
     setPlanMode: (enabled: boolean) => {
       planMode = enabled
     },
-  }
+  };
 }

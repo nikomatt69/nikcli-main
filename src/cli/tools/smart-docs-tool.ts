@@ -1,6 +1,6 @@
-import { type CoreTool, tool } from 'ai'
+import { type Tool, tool } from 'ai'
 import chalk from 'chalk'
-import { z } from 'zod'
+import { z } from 'zod/v3';
 import { docsContextManager } from '../context/docs-context-manager'
 import { getCloudDocsProvider } from '../core/cloud-docs-provider'
 import { documentationDatabase } from '../core/documentation-database'
@@ -37,10 +37,10 @@ type SmartDocsResults = {
  * Smart Documentation Tool per gli agenti AI
  * Permette agli agenti di cercare e caricare automaticamente documentazione
  */
-export const smartDocsSearchTool: CoreTool = tool({
+export const smartDocsSearchTool: Tool = tool({
   description:
     'Search and load documentation automatically when you need information about specific technologies, frameworks, or implementation details',
-  parameters: z.object({
+  inputSchema: z.object({
     query: z
       .string()
       .describe('What you are looking for (e.g., "react hooks", "nodejs authentication", "express middleware")'),
@@ -231,9 +231,9 @@ ${[...results.localResults, ...results.sharedResults]
  * Smart Documentation Loading Tool
  * Carica documenti specifici nel contesto dell'agente
  */
-export const smartDocsLoadTool: CoreTool = tool({
+export const smartDocsLoadTool: Tool = tool({
   description: 'Load specific documentation into AI context when you need detailed reference material',
-  parameters: z.object({
+  inputSchema: z.object({
     docNames: z.array(z.string()).describe('Names or identifiers of documents to load'),
     replace: z.boolean().default(false).describe('Replace current context or add to existing'),
     priority: z.enum(['low', 'medium', 'high']).default('medium').describe('Priority level for context loading'),
@@ -299,9 +299,9 @@ ${result.loadedDocs
  * Smart Documentation Context Tool
  * Mostra lo stato attuale del contesto documentazione
  */
-export const smartDocsContextTool: CoreTool = tool({
+export const smartDocsContextTool: Tool = tool({
   description: 'Check what documentation is currently loaded in context and get suggestions',
-  parameters: z.object({
+  inputSchema: z.object({
     includeContent: z.boolean().default(false).describe('Include actual content snippets in response'),
     suggestForQuery: z.string().optional().describe('Get suggestions for a specific query or task'),
   }),

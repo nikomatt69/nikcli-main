@@ -7,7 +7,7 @@ import type { MLInferenceEngine } from './ml-inference-engine'
 interface ToolPrediction {
   tools: string[]
   confidence: number
-  reasoning: string
+  reasoningText: string
 }
 
 interface ToolExecution {
@@ -73,7 +73,7 @@ class ToolchainOptimizer extends EventEmitter {
 
   async predictOptimalTools(userIntent: string, context: Record<string, any>): Promise<ToolPrediction> {
     if (!this.initialized || !this.inferenceEngine || !this.featureExtractor) {
-      return { tools: [], confidence: 0, reasoning: 'ML not initialized' }
+      return { tools: [], confidence: 0, reasoningText: 'ML not initialized' };
     }
 
     try {
@@ -86,11 +86,11 @@ class ToolchainOptimizer extends EventEmitter {
       return {
         tools: prediction.tools,
         confidence: prediction.confidence,
-        reasoning: prediction.reasoning,
-      }
+        reasoningText: prediction.reasoningText,
+      };
     } catch (error: any) {
       structuredLogger.warning('ToolchainOptimizer', `Tool prediction failed: ${error.message}`)
-      return { tools: [], confidence: 0, reasoning: 'Prediction failed' }
+      return { tools: [], confidence: 0, reasoningText: 'Prediction failed' };
     }
   }
 

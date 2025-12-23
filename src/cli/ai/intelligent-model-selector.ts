@@ -138,8 +138,12 @@ export class IntelligentModelSelector {
    */
   private async estimateRequestTokens(input: ModelRouteInput): Promise<number> {
     try {
+      const coreMessages = input.messages.map((m) => ({
+        role: m.role,
+        content: m.content,
+      })) as unknown as import('ai').ModelMessage[]
       const result = await universalTokenizer.countMessagesTokens(
-        input.messages,
+        coreMessages,
         input.baseModel || 'gpt-4',
         input.provider
       )

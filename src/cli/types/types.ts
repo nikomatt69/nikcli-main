@@ -103,7 +103,7 @@ export interface AgentTodo {
   context?: {
     files?: string[]
     commands?: string[]
-    reasoning?: string
+    reasoningText?: string
     guidance?: string
   }
 
@@ -160,7 +160,7 @@ export interface AgentConfig {
   // Behavior settings
   autonomyLevel: 'supervised' | 'semi-autonomous' | 'fully-autonomous'
   temperature?: number
-  maxTokens?: number
+  maxOutputTokens?: number
 
   // Execution settings
   maxConcurrentTasks: number

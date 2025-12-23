@@ -1,4 +1,4 @@
-import type { CoreMessage } from 'ai'
+import type { ModelMessage } from 'ai'
 import boxen from 'boxen'
 import chalk from 'chalk'
 import ora, { type Ora } from 'ora'
@@ -24,7 +24,7 @@ configureSyntaxHighlighting()
 
 interface AutonomousChatSession {
   id: string
-  messages: CoreMessage[]
+  messages: ModelMessage[]
   workingDirectory: string
   createdAt: Date
   agentMode?: string

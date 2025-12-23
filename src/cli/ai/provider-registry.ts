@@ -97,7 +97,7 @@ export const openrouterProvider = customProvider({
     // Powerful tier - use GPT-5.1 or Claude Opus 4.5
     powerful: openrouterBase('openai/gpt-5.1') as any,
     // Reasoning tier - use Claude Sonnet 4.5 (1M context)
-    reasoning: openrouterBase('anthropic/claude-sonnet-4.5') as any,
+    reasoningText: openrouterBase('anthropic/claude-sonnet-4.5') as any,
     // Coding tier - use GPT-5.1-Codex (optimized for coding)
     coding: openrouterBase('openai/gpt-5.1-codex') as any,
 
@@ -141,7 +141,7 @@ export const anthropicProvider = customProvider({
     balanced: anthropicBase('claude-sonnet-4.5') as any,
     powerful: anthropicBase('claude-opus-4.5') as any,
     opus: anthropicBase('claude-opus-4.5') as any,
-    reasoning: anthropicBase('claude-sonnet-4.5') as any,
+    reasoningText: anthropicBase('claude-sonnet-4.5') as any,
   },
   fallbackProvider: anthropicBase as any,
 })
@@ -151,8 +151,7 @@ export const anthropicProvider = customProvider({
  * Updated: December 2025 with GPT-5.1 models
  */
 const openaiBase = createOpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-  compatibility: 'strict',
+  apiKey: process.env.OPENAI_API_KEY
 })
 
 export const openaiProvider = customProvider({
@@ -183,7 +182,7 @@ export const openaiProvider = customProvider({
     powerful: openaiBase('gpt-5.1') as any,
     coding: openaiBase('gpt-5.1-codex') as any,
     'coding-mini': openaiBase('gpt-5.1-codex-mini') as any,
-    reasoning: openaiBase('o3') as any,
+    reasoningText: openaiBase('o3') as any,
     'reasoning-mini': openaiBase('o4-mini') as any,
   },
   fallbackProvider: openaiBase as any,
@@ -301,7 +300,7 @@ export function getLanguageModel(provider: string, modelId: string) {
  * const embedder = getTextEmbeddingModel('openai', 'text-embedding-3-small')
  */
 export function getTextEmbeddingModel(provider: string, modelId: string) {
-  return providerRegistry.textEmbeddingModel(`${provider}:${modelId}`)
+  return providerRegistry.embeddingModel(`${provider}:${modelId}`);
 }
 
 /**
@@ -324,7 +323,7 @@ export const MODEL_ALIASES: Record<string, { provider: string; model: string }> 
   frontier: { provider: 'openrouter', model: 'openai/gpt-5.1' },
 
   // === Reasoning ===
-  reasoning: { provider: 'openrouter', model: 'anthropic/claude-sonnet-4.5' },
+  reasoningText: { provider: 'openrouter', model: 'anthropic/claude-sonnet-4.5' },
   'deep-thinking': { provider: 'openrouter', model: 'google/gemini-3-pro-preview' },
 
   // === Coding ===
@@ -401,11 +400,11 @@ export class EnhancedModelSelector {
    * Select optimal model based on requirements
    */
   static selectOptimalModel(requirements: {
-    reasoning?: boolean
+    reasoningText?: boolean
     vision?: boolean
     speed?: 'fast' | 'balanced' | 'powerful'
   } = {}): string {
-    const { reasoning = false, vision = false, speed = 'balanced' } = requirements
+    const { reasoningText = false, vision = false, speed = 'balanced' } = requirements
 
     let candidates: Set<string>
 
@@ -420,7 +419,7 @@ export class EnhancedModelSelector {
         candidates = new Set([...EnhancedModelSelector.fastModels, ...EnhancedModelSelector.powerfulModels])
     }
 
-    if (reasoning) {
+    if (reasoningText) {
       candidates = new Set([...candidates].filter(id => EnhancedModelSelector.reasoningEnabledModels.has(id)))
     }
 

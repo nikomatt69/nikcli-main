@@ -39,7 +39,7 @@ export const botConfig = {
     provider: 'openai',
     model: 'gpt-4',
     temperature: 0.2,
-    maxTokens: 2000,
+    maxOutputTokens: 2000,
   },
 }
 

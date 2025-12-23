@@ -10,17 +10,16 @@ import { createGroq } from '@ai-sdk/groq'
 import { createOpenAI } from '@ai-sdk/openai'
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import { createVercel } from '@ai-sdk/vercel'
-import { type CoreMessage, type CoreTool, generateText, streamText, type ToolCallPart, tool } from 'ai'
+import { type ModelMessage, type Tool, generateText, streamText, type ToolCallPart, tool } from 'ai'
 import chalk from 'chalk'
 import { createOllama } from 'ollama-ai-provider'
-import { z } from 'zod'
+import { z } from 'zod/v3';
 // ⚡︎ Import Cognitive Orchestration Types
 import type { OrchestrationPlan, TaskCognition } from '../automation/agents/universal-agent'
 import { docsContextManager } from '../context/docs-context-manager'
 import { AdvancedTools } from '../core/advanced-tools'
 import { simpleConfigManager as configManager } from '../core/config-manager'
 import { ContextEnhancer } from '../core/context-enhancer'
-import { docLibrary } from '../core/documentation-library'
 import { documentationTools } from '../core/documentation-tool'
 import { IDEContextEnricher } from '../core/ide-context-enricher'
 import {
@@ -35,7 +34,6 @@ import { ToolRouter } from '../core/tool-router'
 import { type ValidationContext, validatorManager } from '../core/validator-manager'
 import { WebSearchProvider } from '../core/web-search-provider'
 import { PromptManager } from '../prompts/prompt-manager'
-import { streamttyService } from '../services/streamtty-service'
 import { aiDocsTools } from '../tools/docs-request-tool'
 import { aiMemoryTools } from '../tools/memory-search-tool'
 import { smartDocsTools } from '../tools/smart-docs-tool'
@@ -44,17 +42,15 @@ import { advancedUI } from '../ui/advanced-cli-ui'
 import { diffManager } from '../ui/diff-manager'
 import { DiffViewer, type FileDiff } from '../ui/diff-viewer'
 import { compactAnalysis, safeStringifyContext } from '../utils/analysis-utils'
-import { bunExec } from '../utils/bun-compat'
 import { CliUI } from '../utils/cli-ui'
 import { adaptiveModelRouter, type ModelScope } from './adaptive-model-router'
 import { openRouterRegistry } from './openrouter-model-registry'
 import { ReasoningDetector } from './reasoning-detector'
-import { workflowPatterns } from './workflow-patterns'
+import { docLibrary } from '../core/documentation-library'
 
 const cognitiveColor = chalk.hex('#3a3a3a')
 const blueColor = chalk.blue // For "Tools:", "Tokens:", and numbers
 const greenColor = chalk.green // For success results
-const redColor = chalk.red
 const darkGrayColor = chalk.hex('#3a3a3a')
 //  Command System Schemas with Zod
 const CommandSchema = z.object({
@@ -114,14 +110,14 @@ export interface StreamEvent {
   stepId?: string
   // Real token usage from AI SDK (not estimates)
   usage?: {
-    promptTokens: number
-    completionTokens: number
+    inputTokens: number
+    outputTokens: number
     totalTokens: number
   }
 }
 
 export interface AutonomousProvider {
-  streamChatWithFullAutonomy(messages: CoreMessage[], abortSignal?: AbortSignal): AsyncGenerator<StreamEvent>
+  streamChatWithFullAutonomy(messages: ModelMessage[], abortSignal?: AbortSignal): AsyncGenerator<StreamEvent>
   executeAutonomousTask(
     task: string,
     context?: any & {
@@ -138,7 +134,7 @@ export interface AutonomousProvider {
   ): AsyncGenerator<StreamEvent>
   // ⚡︎ Enhanced Cognitive Methods
   generateWithCognition(
-    messages: CoreMessage[],
+    messages: ModelMessage[],
     cognition?: TaskCognition,
     options?: {
       steps?: Array<{
@@ -152,7 +148,7 @@ export interface AutonomousProvider {
       }
     }
   ): AsyncGenerator<StreamEvent>
-  optimizePromptWithPlan(messages: CoreMessage[], plan?: OrchestrationPlan): CoreMessage[]
+  optimizePromptWithPlan(messages: ModelMessage[], plan?: OrchestrationPlan): ModelMessage[]
   adaptResponseToCognition(response: string, cognition?: TaskCognition): string
 }
 
@@ -172,7 +168,7 @@ export class AdvancedAIProvider implements AutonomousProvider {
   private requestCount: number = 0
   private cacheHits: number = 0
 
-  generateWithTools(_planningMessages: CoreMessage[]): Promise<{
+  generateWithTools(_planningMessages: ModelMessage[]): Promise<{
     text: string
     toolCalls: any[]
     toolResults: any[]
@@ -186,7 +182,7 @@ export class AdvancedAIProvider implements AutonomousProvider {
    *
    * This handler attempts to fix invalid tool calls by re-asking the model
    */
-  private createToolCallRepairHandler(model: any, tools: Record<string, CoreTool>) {
+  private createToolCallRepairHandler(model: any, tools: Record<string, Tool>) {
     return async ({
       toolCall,
       error,
@@ -195,7 +191,7 @@ export class AdvancedAIProvider implements AutonomousProvider {
     }: {
       toolCall: { toolName: string; args: unknown }
       error: Error
-      messages: CoreMessage[]
+      messages: ModelMessage[]
       system?: string
     }) => {
       try {
@@ -215,14 +211,19 @@ export class AdvancedAIProvider implements AutonomousProvider {
             ...messages,
             {
               role: 'user',
-              content: `The tool call "${toolCall.toolName}" failed with error: ${error.message}
+              content: [
+                {
+                  type: 'text',
+                  text: `The tool call "${toolCall.toolName}" failed with error: ${error.message}
 
-Invalid arguments: ${JSON.stringify(toolCall.args, null, 2)}
+    Invalid arguments: ${JSON.stringify(toolCall.args, null, 2)}
 
-Please provide corrected arguments for this tool. Only output the corrected JSON arguments, nothing else.`,
+    Please provide corrected arguments for this tool. Only output the corrected JSON arguments, nothing else.`
+                }
+              ]
             },
           ],
-          maxTokens: 2000,
+          maxOutputTokens: 2000,
         })
 
         // Try to parse the corrected arguments
@@ -242,7 +243,7 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
         advancedUI.logWarning(`[ToolRepair] Failed to repair tool call: ${repairError.message}`)
         return null
       }
-    }
+    };
   }
 
   /**
@@ -254,9 +255,9 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
    */
   private selectActiveTools(
     message: string,
-    allTools: Record<string, CoreTool>,
+    allTools: Record<string, Tool>,
     maxTools = 5
-  ): Record<string, CoreTool> {
+  ): Record<string, Tool> {
     const lowerMessage = message.toLowerCase()
 
     // Tool categories with priority keywords
@@ -550,7 +551,7 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
     })
 
     // Collect tools from top categories
-    const selectedTools: Record<string, CoreTool> = {}
+    const selectedTools: Record<string, Tool> = {}
     const selectedToolNames = new Set<string>()
 
     for (const { category } of categoryScores) {
@@ -642,7 +643,7 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
   }
 
   // Estimate total tokens in messages array
-  private estimateMessagesTokens(messages: CoreMessage[]): number {
+  private estimateMessagesTokens(messages: ModelMessage[]): number {
     let totalTokens = 0
     for (const message of messages) {
       const content =
@@ -659,7 +660,7 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
   }
 
   // Intelligent message truncation with token optimization - ULTRA AGGRESSIVE MODE
-  private async truncateMessages(messages: CoreMessage[], maxTokens: number = 60000): Promise<CoreMessage[]> {
+  private async truncateMessages(messages: ModelMessage[], maxTokens: number = 60000): Promise<ModelMessage[]> {
     // First apply token optimization to all messages
     const optimizedMessages = await this.optimizeMessages(messages)
     const currentTokens = this.estimateMessagesTokens(optimizedMessages)
@@ -671,7 +672,7 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
     // Messages too long - applying intelligent truncation
 
     // Strategy: Keep system messages, recent user/assistant, and important tool calls
-    const truncatedMessages: CoreMessage[] = []
+    const truncatedMessages: ModelMessage[] = []
     const systemMessages = messages.filter((m) => m.role === 'system')
     const nonSystemMessages = messages.filter((m) => m.role !== 'system')
 
@@ -746,7 +747,7 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
   private workingDirectory: string = process.cwd()
   private executionContext: Map<string, any> = new Map()
   private enhancedContext: Map<string, any> = new Map()
-  private conversationMemory: CoreMessage[] = []
+  private conversationMemory: ModelMessage[] = []
   private analysisCache: Map<string, any> = new Map()
   private contextEnhancer: ContextEnhancer
   private performanceOptimizer: PerformanceOptimizer
@@ -777,8 +778,8 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
   }
 
   // Optimize messages with token compression
-  private async optimizeMessages(messages: CoreMessage[]): Promise<CoreMessage[]> {
-    const optimizedMessages: CoreMessage[] = []
+  private async optimizeMessages(messages: ModelMessage[]): Promise<ModelMessage[]> {
+    const optimizedMessages: ModelMessage[] = []
 
     for (const message of messages) {
       if (typeof message.content === 'string') {
@@ -786,7 +787,7 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
         optimizedMessages.push({
           ...message,
           content: result.content,
-        } as CoreMessage)
+        } as ModelMessage)
       } else if (message.role === 'tool' && Array.isArray(message.content)) {
         // Handle tool messages with array content
         const optimizedContent = await Promise.all(
@@ -801,7 +802,7 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
         optimizedMessages.push({
           ...message,
           content: optimizedContent,
-        } as CoreMessage)
+        } as ModelMessage)
       } else {
         optimizedMessages.push(message)
       }
@@ -825,7 +826,7 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
   private maxRounds: number = 2
 
   // Advanced context enhancement system
-  private async enhanceContext(messages: CoreMessage[]): Promise<CoreMessage[]> {
+  private async enhanceContext(messages: ModelMessage[]): Promise<ModelMessage[]> {
     // Store enhanced context for reuse
     const contextKey = this.generateContextKey(messages)
     if (this.enhancedContext.has(contextKey)) {
@@ -872,7 +873,7 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
   /**
    * Generate context key for caching
    */
-  private generateContextKey(messages: CoreMessage[]): string {
+  private generateContextKey(messages: ModelMessage[]): string {
     const content = messages
       .map((m) => (typeof m.content === 'string' ? m.content : JSON.stringify(m.content)))
       .join('|')
@@ -1031,7 +1032,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
   }
 
   // Advanced file operations with context awareness
-  private getAdvancedTools(): Record<string, CoreTool> {
+  private getAdvancedTools(): Record<string, Tool> {
     return {
       // Enhanced file reading with analysis and chunking support
       read_file: tool({
@@ -1049,7 +1050,7 @@ USAGE EXAMPLES:
 - Read without comments: read_file("src/file.ts", { stripComments: true })
 
 The tool automatically handles chunking, token limits, and provides continuation hints when files are truncated.`,
-        parameters: z.object({
+        inputSchema: z.object({
           path: z.string().min(1).describe('File path to read (relative to project root). Example: "src/components/Button.tsx"'),
           analyze: z.boolean().optional().default(true).describe('Whether to analyze file structure and extract metadata (functions, imports, exports, etc.)'),
           encoding: z.string().optional().default('utf8').describe('File encoding (default: utf8). Use utf8 for text files, binary files will be detected automatically.'),
@@ -1254,7 +1255,7 @@ The tool automatically handles chunking, token limits, and provides continuation
       // Smart file writing with automatic LSP validation
       write_file: tool({
         description: 'Write content to file with automatic LSP validation, backup, and auto-fix capabilities',
-        parameters: z.object({
+        inputSchema: z.object({
           path: z.string().describe('File path to write'),
           content: z.string().describe('Content to write'),
           encoding: z.string().optional().default('utf8').describe('File encoding (default: utf8)'),
@@ -1267,9 +1268,9 @@ The tool automatically handles chunking, token limits, and provides continuation
           skipFormatting: z.boolean().optional().default(false).describe('Skip automatic code formatting'),
           validate: z.boolean().optional().default(true).describe('Use LSP validation before writing'),
           agentId: z.string().optional().describe('ID of the agent making this request'),
-          reasoning: z.string().optional().describe('Reasoning behind this file creation/modification'),
+          reasoningText: z.string().optional().describe('Reasoning behind this file creation/modification'),
         }),
-        execute: async ({ path, content, encoding = 'utf8', mode, createBackup = true, backup = true, autoRollback = false, verifyWrite = true, showDiff = true, skipFormatting = false, validate = true, agentId, reasoning }) => {
+        execute: async ({ path, content, encoding = 'utf8', mode, createBackup = true, backup = true, autoRollback = false, verifyWrite = true, showDiff = true, skipFormatting = false, validate = true, agentId, reasoningText }) => {
           try {
             // Load tool-specific prompt for context
             const toolPrompt = await this.getToolPrompt('write_file', {
@@ -1320,8 +1321,8 @@ The tool automatically handles chunking, token limits, and provides continuation
                     error: `File processing failed: ${validationResult.errors?.join(', ') || 'Unknown error'}`,
                     path,
                     validationErrors: validationResult.errors,
-                    reasoning: reasoning || 'Agent attempted to write file but processing failed',
-                  }
+                    reasoningText: reasoningText || 'Agent attempted to write file but processing failed',
+                  };
                 }
               } else {
                 // Use formatted content even if validation passed
@@ -1459,8 +1460,8 @@ The tool automatically handles chunking, token limits, and provides continuation
                   warnings: validationResult.warnings,
                 }
                 : null,
-              reasoning: reasoning || `File ${backedUp ? 'updated' : 'created'} by agent`,
-            }
+              reasoningText: reasoningText || `File ${backedUp ? 'updated' : 'created'} by agent`,
+            };
           } catch (error: any) {
             return { error: `Failed to write file: ${error.message}` }
           }
@@ -1470,7 +1471,7 @@ The tool automatically handles chunking, token limits, and provides continuation
       // Intelligent directory operations
       explore_directory: tool({
         description: 'Explore directory structure with intelligent filtering',
-        parameters: z.object({
+        inputSchema: z.object({
           path: z.string().default('.').describe('Directory to explore'),
           depth: z.number().default(2).describe('Maximum depth to explore'),
           includeHidden: z.boolean().default(false).describe('Include hidden files'),
@@ -1513,7 +1514,7 @@ The tool automatically handles chunking, token limits, and provides continuation
       // Autonomous command execution with intelligence
       execute_command: tool({
         description: 'Execute commands autonomously with context awareness and safety checks',
-        parameters: z.object({
+        inputSchema: z.object({
           command: z.string().describe('Command to execute'),
           args: z.array(z.string()).optional().default([]).describe('Command arguments'),
           cwd: z.string().optional().describe('Working directory for command execution (defaults to project root)'),
@@ -1621,7 +1622,7 @@ The tool automatically handles chunking, token limits, and provides continuation
       // Advanced project analysis
       analyze_project: tool({
         description: 'Comprehensive autonomous project analysis',
-        parameters: z.object({
+        inputSchema: z.object({
           includeMetrics: z.boolean().default(true).describe('Include code metrics'),
           analyzeDependencies: z.boolean().default(true).describe('Analyze dependencies'),
           securityScan: z.boolean().default(true).describe('Basic security analysis'),
@@ -1664,7 +1665,7 @@ The tool automatically handles chunking, token limits, and provides continuation
       // Autonomous package management
       manage_packages: tool({
         description: 'Autonomously manage project dependencies',
-        parameters: z.object({
+        inputSchema: z.object({
           action: z.enum(['install', 'add', 'remove', 'update', 'audit']).describe('Package action'),
           packages: z.array(z.string()).default([]).describe('Package names'),
           dev: z.boolean().default(false).describe('Development dependency'),
@@ -1737,7 +1738,7 @@ The tool automatically handles chunking, token limits, and provides continuation
       // Intelligent code generation
       generate_code: tool({
         description: 'Generate code with context awareness and best practices',
-        parameters: z.object({
+        inputSchema: z.object({
           type: z.enum(['component', 'function', 'class', 'test', 'config', 'docs']).describe('Code type'),
           description: z.string().describe('What to generate'),
           language: z.string().default('typescript').describe('Programming language'),
@@ -1817,7 +1818,7 @@ The tool automatically handles chunking, token limits, and provides continuation
       multi_read: tool({
         description:
           'Read multiple files safely with optional content search and context - preferred for batch operations',
-        parameters: z.object({
+        inputSchema: z.object({
           files: z
             .union([z.string(), z.array(z.string())])
             .optional()
@@ -1855,7 +1856,7 @@ The tool automatically handles chunking, token limits, and provides continuation
       grep: tool({
         description:
           'Search for text patterns in codebase - ripgrep-like search for finding specific strings, function names, TODOs, imports, etc. Always preferred over web_search for local code search. Examples: "search for TODO comments", "find all imports of React", "locate function definitions"',
-        parameters: z.object({
+        inputSchema: z.object({
           pattern: z
             .string()
             .describe(
@@ -1903,7 +1904,7 @@ The tool automatically handles chunking, token limits, and provides continuation
       // 3. MULTI-EDIT: Atomic batch edits (Priority 8)
       multi_edit: tool({
         description: 'Apply multiple edits atomically with rollback - preferred for batch modifications',
-        parameters: z.object({
+        inputSchema: z.object({
           edits: z
             .array(
               z.object({
@@ -1961,7 +1962,7 @@ The tool automatically handles chunking, token limits, and provides continuation
       // 4. FIND-FILES: Glob pattern matching (Priority 5)
       find_files: tool({
         description: 'Find files matching glob patterns with intelligent filtering',
-        parameters: z.object({
+        inputSchema: z.object({
           patterns: z
             .union([z.string(), z.array(z.string())])
             .describe(
@@ -1995,7 +1996,7 @@ The tool automatically handles chunking, token limits, and provides continuation
       // 5. EDIT-FILE: Edit with diff preview (Priority 6)
       edit_file: tool({
         description: 'Edit file with diff preview, validation and backup',
-        parameters: z.object({
+        inputSchema: z.object({
           file: z.string().min(1).describe('File path to edit'),
           search: z.string().min(1).describe('Exact text to find (oldString)'),
           replace: z.string().describe('Replacement text (newString)'),
@@ -2027,7 +2028,7 @@ The tool automatically handles chunking, token limits, and provides continuation
       // 6. REPLACE-IN-FILE: Regex replace with validation (Priority 6)
       replace_in_file: tool({
         description: 'Replace content in files with regex support and validation',
-        parameters: z.object({
+        inputSchema: z.object({
           file: z.string().describe('File path to modify'),
           pattern: z.string().describe('Search pattern (regex supported)'),
           replacement: z.string().describe('Replacement text'),
@@ -2054,7 +2055,7 @@ The tool automatically handles chunking, token limits, and provides continuation
       // 7. LIST: Advanced directory listing (Priority 4)
       list: tool({
         description: 'List files and directories with intelligent ignore patterns',
-        parameters: z.object({
+        inputSchema: z.object({
           path: z.string().default('.').describe('Directory path to list'),
           recursive: z.boolean().default(false).describe('List recursively'),
           includeHidden: z.boolean().default(false).describe('Include hidden files'),
@@ -2074,7 +2075,7 @@ The tool automatically handles chunking, token limits, and provides continuation
       rag_search: tool({
         description:
           'Perform semantic search in the RAG system to find relevant code and documentation using embeddings',
-        parameters: z.object({
+        inputSchema: z.object({
           query: z
             .string()
             .describe('What to search for semantically (e.g., "authentication logic", "error handling patterns")'),
@@ -2095,7 +2096,7 @@ The tool automatically handles chunking, token limits, and provides continuation
       // 9. GLOB: Fast glob pattern matching (Priority 6)
       glob: tool({
         description: 'Fast file pattern matching with glob support, sorting, and filtering',
-        parameters: z.object({
+        inputSchema: z.object({
           pattern: z
             .union([z.string(), z.array(z.string())])
             .describe('Glob pattern(s) (e.g., "**/*.ts", ["*.ts", "*.tsx"])'),
@@ -2138,7 +2139,7 @@ The tool automatically handles chunking, token limits, and provides continuation
       // 10. DIFF: File comparison tool (Priority 5)
       diff: tool({
         description: 'Compare files and content with multiple diff algorithms (line, word, character)',
-        parameters: z.object({
+        inputSchema: z.object({
           source: z.string().describe('Source file path or content'),
           target: z.string().describe('Target file path or content'),
           mode: z.enum(['lines', 'words', 'chars']).default('lines').describe('Diff algorithm mode'),
@@ -2160,7 +2161,7 @@ The tool automatically handles chunking, token limits, and provides continuation
       // 11. TREE: Directory tree visualization (Priority 4)
       tree: tool({
         description: 'Visualize directory structure as a tree with statistics',
-        parameters: z.object({
+        inputSchema: z.object({
           path: z.string().optional().describe('Directory path to visualize'),
           maxDepth: z.number().optional().describe('Maximum depth to traverse'),
           showHidden: z.boolean().default(false).describe('Include hidden files'),
@@ -2194,7 +2195,7 @@ The tool automatically handles chunking, token limits, and provides continuation
       // 12. WATCH: File system monitoring (Priority 3)
       watch: tool({
         description: 'Monitor file system changes in real-time with pattern filtering',
-        parameters: z.object({
+        inputSchema: z.object({
           path: z
             .union([z.string(), z.array(z.string())])
             .optional()
@@ -2246,7 +2247,7 @@ The tool automatically handles chunking, token limits, and provides continuation
       // 13. VISION_ANALYSIS: AI vision analysis (Priority 7)
       vision_analysis: tool({
         description: 'Analyze images with AI vision models (Claude, GPT-4V, Gemini)',
-        parameters: z.object({
+        inputSchema: z.object({
           imagePath: z.string().describe('Path to image file to analyze'),
           provider: z.enum(['claude', 'openai', 'google']).optional().describe('AI provider to use'),
           prompt: z.string().optional().describe('Custom analysis prompt'),
@@ -2268,7 +2269,7 @@ The tool automatically handles chunking, token limits, and provides continuation
       // 14. IMAGE_GENERATION: AI image generation (Priority 6)
       image_generation: tool({
         description: 'Generate images from text prompts using DALL-E 3, GPT-Image-1, or other AI models',
-        parameters: z.object({
+        inputSchema: z.object({
           prompt: z.string().min(1).describe('Text description of image to generate'),
           model: z
             .enum([
@@ -2302,7 +2303,7 @@ The tool automatically handles chunking, token limits, and provides continuation
       // 15. SKILL_EXECUTE: Execute Anthropic Skills (Priority 7)
       skill_execute: tool({
         description: 'Execute Anthropic Skills for document creation and manipulation (docx, pdf, pptx, xlsx)',
-        parameters: z.object({
+        inputSchema: z.object({
           skillName: z.string().describe('Name of skill: docx, pdf, pptx, xlsx'),
           context: z.record(z.unknown()).optional().describe('Context for skill execution'),
         }),
@@ -2320,7 +2321,7 @@ The tool automatically handles chunking, token limits, and provides continuation
       coinbase_agentkit: tool({
         description:
           'Execute blockchain operations using official Coinbase AgentKit (WETH, Pyth, ERC20, CDP Smart Wallet)',
-        parameters: z.object({
+        inputSchema: z.object({
           action: z.string().describe('Action: init, chat, wallet-info, transfer, balance, status, reset'),
           params: z.record(z.any()).optional().describe('Action-specific parameters'),
         }),
@@ -2336,7 +2337,7 @@ The tool automatically handles chunking, token limits, and provides continuation
       // 16. GOAT_TOOL: GOAT SDK blockchain operations (Priority 7)
       goat_tool: tool({
         description: 'Execute blockchain operations using GOAT SDK (Polymarket, ERC20) on Polygon and Base',
-        parameters: z.object({
+        inputSchema: z.object({
           action: z.string().describe('Action: init, chat, wallet-info, polymarket-*, erc20-*, status, reset'),
           params: z.record(z.any()).optional().describe('Action-specific parameters'),
         }),
@@ -2354,7 +2355,7 @@ The tool automatically handles chunking, token limits, and provides continuation
       // 17. BROWSERBASE: Browserbase web automation (Priority 6)
       browserbase: tool({
         description: 'Web browsing automation and AI-powered content analysis using Browserbase',
-        parameters: z.object({
+        inputSchema: z.object({
           action: z.string().describe('Action: create-session, navigate, analyze, get-content, close-session'),
           params: z.record(z.any()).optional().describe('Action-specific parameters'),
         }),
@@ -2370,7 +2371,7 @@ The tool automatically handles chunking, token limits, and provides continuation
       // 18. BROWSER_NAVIGATE: Navigate to URL (Priority 5)
       browser_navigate: tool({
         description: 'Navigate to a URL and wait for page to load',
-        parameters: z.object({
+        inputSchema: z.object({
           sessionId: z.string().describe('Browser session ID'),
           url: z.string().url().describe('URL to navigate to'),
           waitUntil: z.enum(['load', 'domcontentloaded', 'networkidle']).optional().describe('Wait condition'),
@@ -2387,7 +2388,7 @@ The tool automatically handles chunking, token limits, and provides continuation
       // 19. BROWSER_CLICK: Click elements (Priority 5)
       browser_click: tool({
         description: 'Click on an element using CSS selector or text',
-        parameters: z.object({
+        inputSchema: z.object({
           sessionId: z.string().describe('Browser session ID'),
           selector: z.string().describe('CSS selector or text to click'),
           button: z.enum(['left', 'right', 'middle']).optional().describe('Mouse button'),
@@ -2406,7 +2407,7 @@ The tool automatically handles chunking, token limits, and provides continuation
       // 20. BROWSER_TYPE: Type text (Priority 5)
       browser_type: tool({
         description: 'Type text into an input field or textarea',
-        parameters: z.object({
+        inputSchema: z.object({
           sessionId: z.string().describe('Browser session ID'),
           selector: z.string().describe('CSS selector of input element'),
           text: z.string().describe('Text to type'),
@@ -2424,7 +2425,7 @@ The tool automatically handles chunking, token limits, and provides continuation
       // 21. BROWSER_SCREENSHOT: Take screenshots (Priority 4)
       browser_screenshot: tool({
         description: 'Take a screenshot of the current page or viewport',
-        parameters: z.object({
+        inputSchema: z.object({
           sessionId: z.string().describe('Browser session ID'),
           fullPage: z.boolean().optional().describe('Capture full page or viewport only'),
           quality: z.number().min(0).max(100).optional().describe('JPEG quality (0-100)'),
@@ -2441,7 +2442,7 @@ The tool automatically handles chunking, token limits, and provides continuation
       // 22. BROWSER_EXTRACT_TEXT: Extract text content (Priority 4)
       browser_extract_text: tool({
         description: 'Extract text content from page or specific element',
-        parameters: z.object({
+        inputSchema: z.object({
           sessionId: z.string().describe('Browser session ID'),
           selector: z.string().optional().describe('CSS selector to extract text from (or entire page)'),
           attribute: z.string().optional().describe('Extract attribute value instead of text'),
@@ -2457,7 +2458,7 @@ The tool automatically handles chunking, token limits, and provides continuation
       // 23. BROWSER_WAIT_FOR_ELEMENT: Wait for elements (Priority 4)
       browser_wait_for_element: tool({
         description: 'Wait for an element to appear or change state',
-        parameters: z.object({
+        inputSchema: z.object({
           sessionId: z.string().describe('Browser session ID'),
           selector: z.string().describe('CSS selector to wait for'),
           state: z.enum(['visible', 'hidden', 'attached', 'detached']).optional().describe('Element state to wait for'),
@@ -2474,7 +2475,7 @@ The tool automatically handles chunking, token limits, and provides continuation
       // 24. BROWSER_SCROLL: Scroll page (Priority 3)
       browser_scroll: tool({
         description: 'Scroll the page or a specific element',
-        parameters: z.object({
+        inputSchema: z.object({
           sessionId: z.string().describe('Browser session ID'),
           direction: z.enum(['up', 'down', 'left', 'right']).describe('Scroll direction'),
           amount: z.number().optional().describe('Pixels to scroll (default: 500)'),
@@ -2491,7 +2492,7 @@ The tool automatically handles chunking, token limits, and provides continuation
       // 25. BROWSER_EXECUTE_SCRIPT: Execute JavaScript (Priority 5)
       browser_execute_script: tool({
         description: 'Execute custom JavaScript in the browser context',
-        parameters: z.object({
+        inputSchema: z.object({
           sessionId: z.string().describe('Browser session ID'),
           script: z.string().describe('JavaScript code to execute'),
           args: z.array(z.any()).optional().describe('Arguments to pass to script'),
@@ -2507,7 +2508,7 @@ The tool automatically handles chunking, token limits, and provides continuation
       // 26. BROWSER_GET_PAGE_INFO: Get page information (Priority 3)
       browser_get_page_info: tool({
         description: 'Get current page information (title, URL, navigation state)',
-        parameters: z.object({
+        inputSchema: z.object({
           sessionId: z.string().describe('Browser session ID'),
         }),
         execute: async (params) => {
@@ -2523,7 +2524,7 @@ The tool automatically handles chunking, token limits, and provides continuation
       // 27. TEXT_TO_CAD: Text to CAD conversion (Priority 5)
       text_to_cad: tool({
         description: 'Convert text descriptions into CAD elements and models with AI',
-        parameters: z.object({
+        inputSchema: z.object({
           description: z.string().min(1).describe('Text description of CAD model to generate'),
           outputFormat: z.enum(['stl', 'step', 'dwg', 'json', 'scad']).optional().describe('Output file format'),
           streaming: z.boolean().default(false).describe('Stream generation progress'),
@@ -2541,7 +2542,7 @@ The tool automatically handles chunking, token limits, and provides continuation
       // 28. TEXT_TO_GCODE: Text to G-code conversion (Priority 5)
       text_to_gcode: tool({
         description: 'Convert text descriptions into G-code for CNC machining and 3D printing',
-        parameters: z.object({
+        inputSchema: z.object({
           description: z.string().min(1).describe('Text description of machining operation to generate'),
         }),
         execute: async (params) => {
@@ -2557,7 +2558,7 @@ The tool automatically handles chunking, token limits, and provides continuation
       // 29. BASH: Bash command execution (Priority 6)
       bash: tool({
         description: 'Execute shell commands with analysis, confirmation and streaming',
-        parameters: z.object({
+        inputSchema: z.object({
           command: z.string().min(1).max(1000).describe('Shell command to execute'),
           timeout: z.number().int().positive().max(600000).optional().describe('Timeout in milliseconds'),
           description: z.string().max(500).optional().describe('Description of what the command does'),
@@ -2577,7 +2578,7 @@ The tool automatically handles chunking, token limits, and provides continuation
       // 30. JSON_PATCH: JSON patch operations (Priority 6)
       json_patch: tool({
         description: 'Apply RFC6902-like JSON patches with diff/backup to configuration files',
-        parameters: z.object({
+        inputSchema: z.object({
           filePath: z.string().describe('Path to JSON/YAML file to patch'),
           operations: z
             .array(
@@ -2604,7 +2605,7 @@ The tool automatically handles chunking, token limits, and provides continuation
       // 31. GIT_TOOLS: Git operations (Priority 6)
       git_tools: tool({
         description: 'Safe Git operations: status, diff, commit, applyPatch (no push)',
-        parameters: z.object({
+        inputSchema: z.object({
           action: z.enum(['status', 'diff', 'commit', 'applyPatch']).describe('Git action to perform'),
           args: z.record(z.any()).optional().describe('Action-specific arguments (e.g., {message: "..."} for commit)'),
         }),
@@ -2615,11 +2616,11 @@ The tool automatically handles chunking, token limits, and provides continuation
           return result.success ? result.data : { error: result.error }
         },
       }),
-    }
+    };
   }
 
   // Claude Code style streaming with full autonomy
-  async *streamChatWithFullAutonomy(messages: CoreMessage[], abortSignal?: AbortSignal): AsyncGenerator<StreamEvent> {
+  async *streamChatWithFullAutonomy(messages: ModelMessage[], abortSignal?: AbortSignal): AsyncGenerator<StreamEvent> {
     if (abortSignal && !(abortSignal instanceof AbortSignal)) {
       throw new TypeError('Invalid AbortSignal provided')
     }
@@ -2673,7 +2674,7 @@ The tool automatically handles chunking, token limits, and provides continuation
             ? lastUserMessage.content
             : Array.isArray(lastUserMessage.content)
               ? lastUserMessage.content
-                .map((part) => (typeof part === 'string' ? part : part.experimental_providerMetadata?.content || ''))
+                .map((part) => (typeof part === 'string' ? part : part.providerOptions?.content || ''))
                 .join('')
               : String(lastUserMessage.content)
 
@@ -2805,7 +2806,7 @@ The tool automatically handles chunking, token limits, and provides continuation
           typeof msg.content === 'string'
             ? this.progressiveTokenManager.emergencyTruncate(msg.content, 1200000)
             : msg.content,
-      })) as CoreMessage[]
+      })) as ModelMessage[]
 
       // Track step progress for loop control
       let stepCount = 0
@@ -2833,8 +2834,8 @@ The tool automatically handles chunking, token limits, and provides continuation
           toolCalls: Array<{ toolName: string; args: unknown }>
           toolResults: Array<{ toolName: string; result: unknown }>
           usage: {
-            promptTokens: number
-            completionTokens: number
+            inputTokens: number
+            outputTokens: number
             totalTokens: number
           }
           finishReason: 'stop' | 'length' | 'tool-calls' | 'content-filter' | 'error' | 'other'
@@ -2905,20 +2906,20 @@ The tool automatically handles chunking, token limits, and provides continuation
       if (provider !== 'openai') {
         if (provider === 'openrouter') {
           // All OpenRouter models require maxTokens parameter
-          streamOpts.maxTokens = params.maxTokens
+          streamOpts.maxOutputTokens = params.maxOutputTokens
 
           // Add reasoning metadata for OpenRouter using ReasoningDetector
           if (reasoningEnabled) {
-            const providerMetadata = ReasoningDetector.getReasoningProviderMetadata(
+            const providerOptions = ReasoningDetector.getReasoningProviderMetadata(
               provider,
               model,
               { enabled: true, effort: 'medium' }
             )
 
-            if (Object.keys(providerMetadata).length > 0) {
+            if (Object.keys(providerOptions).length > 0) {
               streamOpts.experimental_providerMetadata = {
                 ...streamOpts.experimental_providerMetadata,
-                ...providerMetadata,
+                ...providerOptions,
               }
             }
 
@@ -2949,38 +2950,38 @@ The tool automatically handles chunking, token limits, and provides continuation
             }
           }
         } else if (provider === 'anthropic') {
-          if (this.getCurrentModelInfo().config.maxTokens) {
-            streamOpts.maxTokens = params.maxTokens
+          if (this.getCurrentModelInfo().config.maxOutputTokens) {
+            streamOpts.maxOutputTokens = params.maxOutputTokens
           }
 
           // Add reasoning metadata for Anthropic using ReasoningDetector
           if (reasoningEnabled) {
-            const providerMetadata = ReasoningDetector.getReasoningProviderMetadata(
+            const providerOptions = ReasoningDetector.getReasoningProviderMetadata(
               provider,
               model,
               { enabled: true, budgetTokens: 10000 }
             )
 
-            if (Object.keys(providerMetadata).length > 0) {
+            if (Object.keys(providerOptions).length > 0) {
               streamOpts.experimental_providerMetadata = {
                 ...streamOpts.experimental_providerMetadata,
-                ...providerMetadata,
+                ...providerOptions,
               }
             }
           }
         } else {
           // Add reasoning metadata for other providers using ReasoningDetector
           if (reasoningEnabled) {
-            const providerMetadata = ReasoningDetector.getReasoningProviderMetadata(
+            const providerOptions = ReasoningDetector.getReasoningProviderMetadata(
               provider,
               model,
               { enabled: true, effort: 'medium' }
             )
 
-            if (Object.keys(providerMetadata).length > 0) {
+            if (Object.keys(providerOptions).length > 0) {
               streamOpts.experimental_providerMetadata = {
                 ...streamOpts.experimental_providerMetadata,
-                ...providerMetadata,
+                ...providerOptions,
               }
             }
           }
@@ -2995,7 +2996,7 @@ The tool automatically handles chunking, token limits, and provides continuation
 
       const approxCharLimit =
         provider === 'openai' && this.getCurrentModelInfo().config.provider === 'openai'
-          ? params.maxTokens * 4
+          ? params.maxOutputTokens * 4
           : Number.POSITIVE_INFINITY
       let truncatedByCap = false
       for await (const delta of (await result).fullStream) {
@@ -3010,14 +3011,16 @@ The tool automatically handles chunking, token limits, and provides continuation
             break
           }
 
-          switch (delta.type) {
-            case 'text-delta':
-              if (delta.textDelta) {
-                accumulatedText += delta.textDelta
+          const eventType = (delta as any).type
+          switch (eventType) {
+            case 'text-delta': {
+              const textDelta = delta as any
+              if (textDelta.text) {
+                accumulatedText += textDelta.text
                 // Yield raw markdown text - streamttyService will handle formatting
                 yield {
                   type: 'text_delta',
-                  content: delta.textDelta,
+                  content: textDelta.text,
                   metadata: {
                     accumulatedLength: accumulatedText.length,
                     provider: this.getCurrentModelInfo().config.provider,
@@ -3034,30 +3037,32 @@ The tool automatically handles chunking, token limits, and provides continuation
                 }
               }
               break
+            }
 
             case 'tool-call': {
+              const toolCallEvent = delta as any
               toolCallCount++
-              currentToolCalls.push(delta)
+              currentToolCalls.push(toolCallEvent)
 
               // 🛡️ TOKEN GUARD: Check tool call token usage
               const globalNikCLI = (global as any).__nikcli
               if (globalNikCLI?.manageToolchainTokens) {
-                const toolTokens = this.estimateToolCallTokens(delta)
-                const canProceed = globalNikCLI.manageToolchainTokens(delta.toolName, toolTokens)
+                const toolTokens = this.estimateToolCallTokens(toolCallEvent)
+                const canProceed = globalNikCLI.manageToolchainTokens(toolCallEvent.toolName, toolTokens)
 
                 if (!canProceed) {
                   yield {
                     type: 'thinking',
-                    content: `🛡️ Token limit for ${delta.toolName} - clearing context...`,
+                    content: `🛡️ Token limit for ${toolCallEvent.toolName} - clearing context...`,
                   }
-                  globalNikCLI.clearToolchainContext(delta.toolName)
+                  globalNikCLI.clearToolchainContext(toolCallEvent.toolName)
                 }
               }
 
               // Track this tool call in history (always track for intelligent analysis)
               this.toolCallHistory.push({
-                toolName: delta.toolName,
-                args: delta.args,
+                toolName: toolCallEvent.toolName,
+                args: toolCallEvent.args || toolCallEvent.input || {},
                 result: null, // Will be updated when result comes
                 timestamp: new Date(),
                 success: false, // Will be updated
@@ -3138,26 +3143,28 @@ The tool automatically handles chunking, token limits, and provides continuation
 
               yield {
                 type: 'tool_call',
-                toolName: delta.toolName,
-                toolArgs: delta.args,
-                content: `Executing ${delta.toolName}... (${toolCallCount}/${maxToolCallsForAnalysis})`,
-                metadata: { toolCallId: delta.toolCallId },
+                toolName: toolCallEvent.toolName,
+                toolArgs: toolCallEvent.args || toolCallEvent.input || {},
+                content: `Executing ${toolCallEvent.toolName}... (${toolCallCount}/${maxToolCallsForAnalysis})`,
+                metadata: { toolCallId: toolCallEvent.toolCallId },
               }
               break
             }
 
             case 'tool-call-delta': {
-              const toolCall = currentToolCalls.find((tc) => tc.toolCallId === delta.toolCallId)
+              const deltaEvent = delta as any
+              const toolCallId = deltaEvent.toolCallId
+              const toolCall = currentToolCalls.find((tc: any) => tc.toolCallId === toolCallId)
 
               // Update tool history with result
               const historyEntry = this.toolCallHistory.find((h) => h.toolName === toolCall?.toolName)
-              if (historyEntry) {
-                historyEntry.result = delta.argsTextDelta
-                historyEntry.success = !!delta.argsTextDelta
+              if (historyEntry && deltaEvent.argsTextDelta) {
+                historyEntry.result = deltaEvent.argsTextDelta
+                historyEntry.success = !!deltaEvent.argsTextDelta
               }
 
               // 🗜️ Compress tool result to prevent token overflow
-              const compressedResult = this.compressToolResult(delta.argsTextDelta, toolCall?.toolName || 'unknown')
+              const compressedResult = this.compressToolResult(deltaEvent.argsTextDelta || '', toolCall?.toolName || 'unknown')
 
               yield {
                 type: 'tool_result',
@@ -3165,15 +3172,16 @@ The tool automatically handles chunking, token limits, and provides continuation
                 toolResult: compressedResult,
                 content: `Completed ${toolCall?.toolName}`,
                 metadata: {
-                  toolCallId: delta.toolCallId,
-                  success: !delta.argsTextDelta,
+                  toolCallId: toolCallId,
+                  success: !!deltaEvent.argsTextDelta,
                 },
               }
               break
             }
 
-            case 'step-finish':
-              if (delta.isContinued) {
+            case 'reasoning-start': {
+              const stepEvent = delta as any
+              if (stepEvent.isContinued) {
                 yield {
                   type: 'thinking',
                   content: 'Step completed, continuing to next step...',
@@ -3187,8 +3195,10 @@ The tool automatically handles chunking, token limits, and provides continuation
                 }
               }
               break
+            }
 
-            case 'finish':
+            case 'finish': {
+              const finishEvent = delta as any
               // Salva nella cache adattiva
               if (lastUserMessage && accumulatedText.trim()) {
                 const userContentLength =
@@ -3196,7 +3206,7 @@ The tool automatically handles chunking, token limits, and provides continuation
                     ? lastUserMessage.content.length
                     : String(lastUserMessage.content).length
                 const tokensUsed =
-                  delta.usage?.totalTokens || Math.round((userContentLength + accumulatedText.length) / 4)
+                  (finishEvent.usage?.totalTokens || finishEvent.totalUsage?.totalTokens) || Math.round((userContentLength + accumulatedText.length) / 4)
 
                 // Extract user content as string for storage
                 const userContentStr =
@@ -3204,9 +3214,11 @@ The tool automatically handles chunking, token limits, and provides continuation
                     ? lastUserMessage.content
                     : Array.isArray(lastUserMessage.content)
                       ? lastUserMessage.content
-                        .map((part) =>
-                          typeof part === 'string' ? part : part.experimental_providerMetadata?.content || ''
-                        )
+                        .map((part) => {
+                          if (typeof part === 'string') return part
+                          const partAny = part as any
+                          return partAny.experimental_providerMetadata?.content || partAny.text || ''
+                        })
                         .join('')
                       : String(lastUserMessage.content)
 
@@ -3227,13 +3239,14 @@ The tool automatically handles chunking, token limits, and provides continuation
                 }
 
                 // Emit REAL token usage from AI SDK (not estimates)
-                if (delta.usage) {
+                const usage = finishEvent.usage || finishEvent.totalUsage
+                if (usage) {
                   yield {
                     type: 'usage',
                     usage: {
-                      promptTokens: delta.usage.promptTokens || 0,
-                      completionTokens: delta.usage.completionTokens || 0,
-                      totalTokens: delta.usage.totalTokens || 0,
+                      inputTokens: usage.inputTokens || 0,
+                      outputTokens: usage.outputTokens || 0,
+                      totalTokens: usage.totalTokens || 0,
                     },
                   }
                 }
@@ -3242,21 +3255,25 @@ The tool automatically handles chunking, token limits, and provides continuation
                   type: 'complete',
                   content: truncatedByCap ? 'Output truncated by local cap' : 'Task completed',
                   metadata: {
-                    finishReason: delta.finishReason,
-                    usage: delta.usage,
+                    finishReason: finishEvent.finishReason,
+                    usage: usage,
                     totalText: accumulatedText.length,
                     capped: truncatedByCap,
                   },
                 }
               }
               break
+            }
 
-            case 'error':
+            case 'error': {
+              const errorEvent = delta as any
               yield {
                 type: 'error',
-                error: delta?.error as any,
-                content: `Error: ${delta.error}`,
+                error: errorEvent.error as any,
+                content: `Error: ${errorEvent.error}`,
               }
+              break
+            }
               break
           }
         } catch (deltaError: any) {
@@ -3430,7 +3447,7 @@ The tool automatically handles chunking, token limits, and provides continuation
     try {
       // If prebuilt messages are provided, use them directly to avoid duplicating large prompts
       if (context && Array.isArray(context.messages)) {
-        const providedMessages: CoreMessage[] = context.messages
+        const providedMessages: ModelMessage[] = context.messages
         // Note: streamChatWithFullAutonomy will handle truncation internally
         for await (const event of this.streamChatWithFullAutonomy(providedMessages)) {
           yield event
@@ -3454,7 +3471,7 @@ The tool automatically handles chunking, token limits, and provides continuation
         return
       }
 
-      const planningMessages: CoreMessage[] = [
+      const planningMessages: ModelMessage[] = [
         {
           role: 'system',
           content: `AI dev assistant. CWD: ${this.workingDirectory}
@@ -3639,7 +3656,7 @@ Execute task autonomously with tools. Be direct. Stay within project directory.`
       workingDirectory: this.workingDirectory, // Mantieni directory del progetto
     }
 
-    const messages: CoreMessage[] = [
+    const messages: ModelMessage[] = [
       {
         role: 'system',
         content: `AI agent ${index + 1}. CWD: ${this.workingDirectory}
@@ -3741,7 +3758,7 @@ Stay within project directory.`,
       }
     }
     // Clean up extra whitespace
-    return content.replace(/\n\s*\n/g, '\n').trim()
+    return content.replace(/\n\s*\n/g, '\n').trim();
   }
 
   private analyzeFileContent(content: string, extension: string): any {
@@ -4052,20 +4069,20 @@ Requirements:
       if (provider !== 'openai') {
         if (provider === 'openrouter') {
           // All OpenRouter models require maxTokens
-          genOpts.maxTokens = Math.min(params.maxTokens, 2000)
+          genOpts.maxOutputTokens = Math.min(params.maxOutputTokens, 2000)
 
           // Add reasoning metadata for OpenRouter using ReasoningDetector
           if (reasoningEnabled) {
-            const providerMetadata = ReasoningDetector.getReasoningProviderMetadata(
+            const providerOptions = ReasoningDetector.getReasoningProviderMetadata(
               provider,
               model,
               { enabled: true, effort: 'medium' }
             )
 
-            if (Object.keys(providerMetadata).length > 0) {
+            if (Object.keys(providerOptions).length > 0) {
               genOpts.experimental_providerMetadata = {
                 ...genOpts.experimental_providerMetadata,
-                ...providerMetadata,
+                ...providerOptions,
               }
             }
 
@@ -4083,36 +4100,36 @@ Requirements:
             }
           }
         } else if (provider === 'anthropic') {
-          genOpts.maxTokens = Math.min(params.maxTokens, 2000)
+          genOpts.maxOutputTokens = Math.min(params.maxOutputTokens, 2000)
 
           // Add reasoning metadata for Anthropic using ReasoningDetector
           if (reasoningEnabled) {
-            const providerMetadata = ReasoningDetector.getReasoningProviderMetadata(
+            const providerOptions = ReasoningDetector.getReasoningProviderMetadata(
               provider,
               model,
               { enabled: true, budgetTokens: 5000 }
             )
 
-            if (Object.keys(providerMetadata).length > 0) {
+            if (Object.keys(providerOptions).length > 0) {
               genOpts.experimental_providerMetadata = {
                 ...genOpts.experimental_providerMetadata,
-                ...providerMetadata,
+                ...providerOptions,
               }
             }
           }
         } else {
           // Add reasoning metadata for other providers using ReasoningDetector
           if (reasoningEnabled) {
-            const providerMetadata = ReasoningDetector.getReasoningProviderMetadata(
+            const providerOptions = ReasoningDetector.getReasoningProviderMetadata(
               provider,
               model,
               { enabled: true, effort: 'medium' }
             )
 
-            if (Object.keys(providerMetadata).length > 0) {
+            if (Object.keys(providerOptions).length > 0) {
               genOpts.experimental_providerMetadata = {
                 ...genOpts.experimental_providerMetadata,
-                ...providerMetadata,
+                ...providerOptions,
               }
             }
           }
@@ -4141,7 +4158,7 @@ Requirements:
   }
 
   // Resolve adaptive model variant for given messages/scope using router
-  private async resolveAdaptiveModel(scope: ModelScope, coreMessages: CoreMessage[]): Promise<string> {
+  private async resolveAdaptiveModel(scope: ModelScope, coreMessages: ModelMessage[]): Promise<string> {
     try {
       const info = this.getCurrentModelInfo()
       const provider = info.config.provider as any
@@ -4361,7 +4378,7 @@ Requirements:
 
   // Get provider-specific parameters
   private getProviderParams(modelName?: string): {
-    maxTokens: number
+    maxOutputTokens: number
     temperature: number
   } {
     const model = modelName || this.currentModel || configManager.get('currentModel')
@@ -4369,7 +4386,7 @@ Requirements:
     const configData = allModels[model]
 
     if (!configData) {
-      return { maxTokens: 8000, temperature: 1 } // Further REDUCED for cost efficiency
+      return { maxOutputTokens: 8000, temperature: 1 }; // Further REDUCED for cost efficiency
     }
 
     // Provider-specific token limits and settings
@@ -4377,11 +4394,11 @@ Requirements:
       case 'openai':
         // OpenAI models - Further REDUCED for cost efficiency
         if (configData.model.includes('gpt-5')) {
-          return { maxTokens: 3000, temperature: 1 } // Further REDUCED from 4096
+          return { maxOutputTokens: 3000, temperature: 1 }; // Further REDUCED from 4096
         } else if (configData.model.includes('gpt-4')) {
-          return { maxTokens: 3000, temperature: 1 } // Further REDUCED from 4096
+          return { maxOutputTokens: 3000, temperature: 1 }; // Further REDUCED from 4096
         }
-        return { maxTokens: 3000, temperature: 1 }
+        return { maxOutputTokens: 3000, temperature: 1 };
 
       case 'anthropic':
         // Claude models - Further REDUCED for cost efficiency
@@ -4390,76 +4407,76 @@ Requirements:
           configData.model.includes('claude-4-sonnet') ||
           configData.model.includes('claude-sonnet-4')
         ) {
-          return { maxTokens: 6000, temperature: 0.8 } // Further REDUCED from 8192
+          return { maxOutputTokens: 6000, temperature: 0.8 }; // Further REDUCED from 8192
         }
-        return { maxTokens: 2500, temperature: 0.8 } // Further REDUCED from 3096
+        return { maxOutputTokens: 2500, temperature: 0.8 }; // Further REDUCED from 3096
 
       case 'google':
         // Gemini models - AUMENTATO per risposte più complete
-        return { maxTokens: 4096, temperature: 0.7 } // AUMENTATO da 1500
+        return { maxOutputTokens: 4096, temperature: 0.7 }; // AUMENTATO da 1500
 
       case 'ollama':
         // Local models - OPTIMIZED for efficiency
-        return { maxTokens: 3000, temperature: 0.6 } // REDUCED from 4000
+        return { maxOutputTokens: 3000, temperature: 0.6 }; // REDUCED from 4000
 
       case 'vercel':
         // v0 models - Further optimized for cost efficiency
         if (configData.model.includes('v0-1.5-lg')) {
-          return { maxTokens: 3000, temperature: 0.6 } // Reduced from 4000
+          return { maxOutputTokens: 3000, temperature: 0.6 }; // Reduced from 4000
         } else if (configData.model.includes('v0-1.5-md')) {
-          return { maxTokens: 2500, temperature: 0.6 } // Reduced from 4000
+          return { maxOutputTokens: 2500, temperature: 0.6 }; // Reduced from 4000
         } else if (configData.model.includes('v0-1.0-md')) {
-          return { maxTokens: 2000, temperature: 0.6 } // Reduced from 4000
+          return { maxOutputTokens: 2000, temperature: 0.6 }; // Reduced from 4000
         }
-        return { maxTokens: 2500, temperature: 0.6 }
+        return { maxOutputTokens: 2500, temperature: 0.6 };
 
       case 'cerebras':
         // Cerebras models - Optimized for cost efficiency
-        return { maxTokens: 4000, temperature: 0.6 } // Reduced from 8192
+        return { maxOutputTokens: 4000, temperature: 0.6 }; // Reduced from 8192
 
       case 'groq':
         // Groq models - Ultra-fast inference
-        return { maxTokens: 8192, temperature: 0.7 }
+        return { maxOutputTokens: 8192, temperature: 0.7 };
 
       case 'llamacpp':
         // LlamaCpp local models
-        return { maxTokens: 4096, temperature: 0.7 }
+        return { maxOutputTokens: 4096, temperature: 0.7 };
 
       case 'lmstudio':
         // LMStudio local models
-        return { maxTokens: 4096, temperature: 0.7 }
+        return { maxOutputTokens: 4096, temperature: 0.7 };
 
       case 'openrouter':
         // OpenRouter aggregates multiple providers - use temp 1 for compatibility
         if (configData.model.includes('gpt-5') || configData.model.startsWith('openai/')) {
-          return { maxTokens: 4000, temperature: 1 } // OpenAI models require temperature=1
+          return { maxOutputTokens: 4000, temperature: 1 }; // OpenAI models require temperature=1
         } else if (configData.model.includes('gemini') || configData.model.startsWith('google/')) {
-          return { maxTokens: 3000, temperature: 0.6 } // Google models - reduced
+          return { maxOutputTokens: 3000, temperature: 0.6 }; // Google models - reduced
         } else if (configData.model.startsWith('anthropic/')) {
-          return { maxTokens: 3000, temperature: 0.8 } // Anthropic models - reduced
+          return { maxOutputTokens: 3000, temperature: 0.8 }; // Anthropic models - reduced
         }
-        return { maxTokens: 8000, temperature: 1 } // Default - reduced
+        return { maxOutputTokens: 8000, temperature: 1 }; // Default - reduced
 
       case 'opencode':
         // OpenCode models - optimized for code generation
         if (configData.model.includes('grok-code')) {
-          return { maxTokens: 4000, temperature: 0.2 } // Lower temp for code consistency
+          return { maxOutputTokens: 4000, temperature: 0.2 }; // Lower temp for code consistency
         } else if (configData.model.includes('big-pickle')) {
-          return { maxTokens: 6000, temperature: 0.3 } // Slightly higher for complex reasoning
+          return { maxOutputTokens: 6000, temperature: 0.3 }; // Slightly higher for complex reasoning
         }
-        return { maxTokens: 4000, temperature: 0.3 } // Default OpenCode settings
+        return { maxOutputTokens: 4000, temperature: 0.3 }; // Default OpenCode settings
 
       default:
-        return { maxTokens: 8000, temperature: 1 } // Further reduced for cost efficiency
+        return { maxOutputTokens: 8000, temperature: 1 }; // Further reduced for cost efficiency
     }
   }
 
   // Build a provider-safe message array by enforcing hard character caps
-  private sanitizeMessagesForProvider(provider: string, messages: CoreMessage[]): CoreMessage[] {
+  private sanitizeMessagesForProvider(provider: string, messages: ModelMessage[]): ModelMessage[] {
     const maxTotalChars = provider === 'openai' ? 600_000 : 300_000 // Further reduced caps
     const maxPerMessage = provider === 'openai' ? 40_000 : 20_000 // Further reduced
 
-    const safeMessages: CoreMessage[] = []
+    const safeMessages: ModelMessage[] = []
     let total = 0
 
     const clamp = (text: string, limit: number): string => {
@@ -4737,7 +4754,7 @@ Requirements:
    * Enhanced generation method that uses task cognition for better responses
    */
   async *generateWithCognition(
-    messages: CoreMessage[],
+    messages: ModelMessage[],
     cognition?: TaskCognition,
     options?: {
       steps?: Array<{
@@ -4869,7 +4886,7 @@ Requirements:
    * 🎯 Optimize Prompts with Orchestration Plan
    * Enhances prompts based on orchestration plan for better alignment
    */
-  optimizePromptWithPlan(messages: CoreMessage[], plan?: OrchestrationPlan): CoreMessage[] {
+  optimizePromptWithPlan(messages: ModelMessage[], plan?: OrchestrationPlan): ModelMessage[] {
     if (!plan) return messages
 
     const optimizedMessages = [...messages]
@@ -4947,7 +4964,7 @@ Focus on the current execution phase and use the orchestration strategy for opti
    * 🎯 Private: Optimize Prompts with Cognition
    * Internal method to enhance prompts based on cognitive understanding
    */
-  private optimizePromptWithCognition(messages: CoreMessage[], cognition: TaskCognition): CoreMessage[] {
+  private optimizePromptWithCognition(messages: ModelMessage[], cognition: TaskCognition): ModelMessage[] {
     const optimizedMessages = [...messages]
 
     // Find system message or create one
@@ -5554,7 +5571,7 @@ Use this cognitive understanding to provide more targeted and effective response
 
     return matches
       .flatMap((match) => match[1].trim().split(/\s+/))
-      .filter((pkg) => pkg.length > 1 && !pkg.startsWith('-'))
+      .filter((pkg) => pkg.length > 1 && !pkg.startsWith('-'));
   }
 
   // ====================== 📊 COMMAND SYSTEM ANALYTICS ======================

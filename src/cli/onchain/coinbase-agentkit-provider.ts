@@ -45,7 +45,7 @@ try {
 }
 
 import * as fs from 'node:fs'
-import type { CoreTool } from 'ai'
+import type { Tool } from 'ai'
 import type { Address, Hex, LocalAccount } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 
@@ -236,7 +236,7 @@ export class CoinbaseAgentKitProvider {
   /**
    * Get the official Vercel AI SDK tools from AgentKit
    */
-  getTools(): Record<string, CoreTool> {
+  getTools(): Record<string, Tool> {
     if (!this.agentkit) {
       throw new Error('AgentKit not initialized. Call initialize() first.')
     }

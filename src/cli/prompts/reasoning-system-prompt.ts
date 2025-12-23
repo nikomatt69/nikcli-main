@@ -16,7 +16,7 @@ export interface ReasoningStep {
   step: number
   phase: 'analysis' | 'planning' | 'validation' | 'execution' | 'verification'
   description: string
-  reasoning: string
+  reasoningText: string
   output?: any
 }
 

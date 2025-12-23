@@ -9,16 +9,23 @@ import { createGroq } from '@ai-sdk/groq'
 import { createOpenAI } from '@ai-sdk/openai'
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import { createVercel } from '@ai-sdk/vercel'
-import { type CoreMessage, type CoreTool, experimental_wrapLanguageModel, generateText, streamText, tool } from 'ai'
+import {
+  type ModelMessage,
+  type Tool,
+  generateText,
+  streamText,
+  tool,
+  stepCountIs,
+} from 'ai';
 import { createOllama } from 'ollama-ai-provider'
-import { z } from 'zod'
+import { z } from 'zod/v3';
 import { simpleConfigManager } from '../core/config-manager'
 import { type PromptContext, PromptManager } from '../prompts/prompt-manager'
 import { streamttyService } from '../services/streamtty-service'
 import type { OutputStyle } from '../types/output-styles'
 import { openRouterRegistry } from './openrouter-model-registry'
 import { ReasoningDetector } from './reasoning-detector'
-import { type QualityEvaluation, type WorkflowResult, workflowPatterns } from './workflow-patterns'
+import { workflowPatterns } from './workflow-patterns'
 
 export interface ModelConfig {
   provider:
@@ -36,7 +43,7 @@ export interface ModelConfig {
   | 'openai-compatible'
   model: string
   temperature?: number
-  maxTokens?: number
+  maxOutputTokens?: number
   enableReasoning?: boolean
   reasoningMode?: 'auto' | 'explicit' | 'disabled'
   outputStyle?: OutputStyle
@@ -109,12 +116,12 @@ const TRANSFORMS_CONFIG = {
 
 /**
  * Calculate if context-aware transforms should be auto-enabled
- * @param promptTokens Estimated prompt token count
+ * @param inputTokens Estimated prompt token count
  * @param contextWindow Model's context window size
  * @param explicitTransforms User-specified transforms (overrides auto)
  */
 function getContextAwareTransforms(
-  promptTokens: number,
+  inputTokens: number,
   contextWindow: number,
   explicitTransforms?: string[]
 ): string[] | undefined {
@@ -124,7 +131,7 @@ function getContextAwareTransforms(
   }
 
   // Auto-enable middle-out if prompt exceeds threshold
-  const utilizationRatio = promptTokens / contextWindow
+  const utilizationRatio = inputTokens / contextWindow
   if (utilizationRatio > TRANSFORMS_CONFIG.autoEnableThreshold) {
     return TRANSFORMS_CONFIG.defaultTransforms
   }
@@ -157,7 +164,7 @@ function isGeminiModel(modelName: string): boolean {
  */
 function addGeminiThoughtSignatures(
   options: any,
-  tools: Record<string, CoreTool> | undefined,
+  tools: Record<string, Tool> | undefined,
   modelName: string,
   provider: string
 ): void {
@@ -183,7 +190,7 @@ function isZeroCompletionResponse(result: any): boolean {
   const finishReason = result?.finishReason || result?.finish_reason
 
   // Zero completion tokens with blank/null/error finish reason
-  if (usage?.completionTokens === 0 || usage?.completion_tokens === 0) {
+  if (usage?.outputTokens === 0 || usage?.completion_tokens === 0) {
     if (!finishReason || finishReason === '' || finishReason === 'error') {
       return true
     }
@@ -217,7 +224,7 @@ export class ModernAIProvider {
    * 1. Re-asking the model to correct the invalid parameters
    * 2. Using structured output to ensure valid tool call format
    */
-  private createToolCallRepairHandler(model: any, tools: Record<string, CoreTool>) {
+  private createToolCallRepairHandler(model: any, tools: Record<string, Tool>) {
     return async ({
       toolCall,
       error,
@@ -226,7 +233,7 @@ export class ModernAIProvider {
     }: {
       toolCall: { toolName: string; args: unknown }
       error: Error
-      messages: CoreMessage[]
+      messages: ModelMessage[]
       system?: string
     }) => {
       try {
@@ -247,14 +254,19 @@ export class ModernAIProvider {
             ...messages,
             {
               role: 'user',
-              content: `The tool call "${toolCall.toolName}" failed with error: ${error.message}
+              content: [
+                {
+                  type: 'text',
+                  text: `The tool call "${toolCall.toolName}" failed with error: ${error.message}
 
-Invalid arguments: ${JSON.stringify(toolCall.args, null, 2)}
+    Invalid arguments: ${JSON.stringify(toolCall.args, null, 2)}
 
-Please provide corrected arguments for this tool. Only output the corrected JSON arguments, nothing else.`,
+    Please provide corrected arguments for this tool. Only output the corrected JSON arguments, nothing else.`
+                }
+              ]
             },
           ],
-          maxTokens: 500,
+          maxOutputTokens: 500,
         })
 
         // Try to parse the corrected arguments
@@ -276,7 +288,7 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
         console.log(require('chalk').yellow(`[ToolRepair] Failed to repair tool call: ${repairError.message}`))
         return null // Return null to indicate repair failed
       }
-    }
+    };
   }
 
   /**
@@ -294,9 +306,9 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
    */
   private selectActiveTools(
     message: string,
-    allTools: Record<string, CoreTool>,
+    allTools: Record<string, Tool>,
     maxTools = 5
-  ): Record<string, CoreTool> {
+  ): Record<string, Tool> {
     const lowerMessage = message.toLowerCase()
 
     // Define tool categories with priority keywords
@@ -392,7 +404,7 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
     })
 
     // Collect tools from top categories
-    const selectedTools: Record<string, CoreTool> = {}
+    const selectedTools: Record<string, Tool> = {}
     const selectedToolNames = new Set<string>()
 
     for (const { category } of categoryScores) {
@@ -527,48 +539,7 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
   }
 
   /**
-   * Async version - uses OpenRouter API for dynamic capability detection
-   */
-  private async shouldEnableReasoningAsync(): Promise<boolean> {
-    const config = simpleConfigManager?.getCurrentModel() as any
-    if (!config) return false
-
-    if (config.enableReasoning !== undefined) {
-      return config.enableReasoning
-    }
-
-    // For OpenRouter, fetch actual model capabilities
-    if (config.provider === 'openrouter') {
-      return ReasoningDetector.shouldEnableReasoningAsync(config.provider, config.model)
-    }
-
-    return ReasoningDetector.shouldEnableReasoning(config.provider, config.model)
-  }
-
-  /**
    * Log reasoning status if enabled
-   * Uses async version for OpenRouter to get actual capabilities
-   */
-  private async logReasoningStatusAsync(enabled: boolean): Promise<void> {
-    const config = simpleConfigManager?.getCurrentModel() as any
-    if (!config) return
-
-    try {
-      let summary: string
-      if (config.provider === 'openrouter') {
-        summary = await ReasoningDetector.getModelReasoningSummaryAsync(config.provider, config.model)
-      } else {
-        summary = ReasoningDetector.getModelReasoningSummary(config.provider, config.model)
-      }
-      const msg = `[Reasoning] ${config.model}: ${summary} - ${enabled ? 'ENABLED' : 'DISABLED'}`
-      console.log(require('chalk').dim(msg))
-    } catch {
-      // Silent fail for logging
-    }
-  }
-
-  /**
-   * Sync version for backwards compatibility
    */
   private logReasoningStatus(enabled: boolean): void {
     const config = simpleConfigManager?.getCurrentModel() as any
@@ -584,11 +555,11 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
   }
 
   // Core file operations tools - Claude Code style
-  private getFileOperationsTools(): Record<string, CoreTool> {
-    const tools: Record<string, CoreTool> = {
+  private getFileOperationsTools(): Record<string, Tool> {
+    const tools: Record<string, Tool> = {
       read_file: tool({
         description: 'Read the contents of a file',
-        parameters: z.object({
+        inputSchema: z.object({
           path: z.string().describe('The file path to read'),
         }),
         execute: async ({ path }) => {
@@ -615,7 +586,7 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
 
       write_file: tool({
         description: 'Write content to a file',
-        parameters: z.object({
+        inputSchema: z.object({
           path: z.string().describe('The file path to write to'),
           content: z.string().describe('The content to write'),
         }),
@@ -648,7 +619,7 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
 
       list_directory: tool({
         description: 'List files and directories in a path',
-        parameters: z.object({
+        inputSchema: z.object({
           path: z.string().describe('The directory path to list').optional(),
           pattern: z.string().describe('Optional glob pattern to filter files').optional(),
         }),
@@ -696,7 +667,7 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
 
       execute_command: tool({
         description: 'Execute a shell command',
-        parameters: z.object({
+        inputSchema: z.object({
           command: z.string().describe('The command to execute'),
           args: z.array(z.string()).describe('Command arguments').optional(),
         }),
@@ -729,7 +700,7 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
 
       analyze_workspace: tool({
         description: 'Analyze the current workspace/project structure',
-        parameters: z.object({
+        inputSchema: z.object({
           depth: z.number().describe('Directory depth to analyze').optional(),
         }),
         execute: async ({ depth = 2 }) => {
@@ -745,7 +716,7 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
       coinbase_blockchain: tool({
         description:
           'Execute blockchain operations using Coinbase AgentKit - supports wallet info, transfers, balances, and DeFi operations',
-        parameters: z.object({
+        inputSchema: z.object({
           action: z
             .string()
             .describe('The blockchain action to perform: init, chat, wallet-info, transfer, balance, status, reset'),
@@ -788,7 +759,7 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
       goat_finance: tool({
         description:
           'Execute DeFi operations using GOAT SDK - supports Polymarket prediction markets and ERC20 tokens on Polygon and Base networks',
-        parameters: z.object({
+        inputSchema: z.object({
           plugin: z
             .enum(['polymarket', 'erc20'])
             .describe('The GOAT plugin to use: polymarket for prediction markets, erc20 for token operations'),
@@ -859,7 +830,7 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
       workflow_code_review: tool({
         description:
           'Run a parallel code review analyzing security, performance, and quality simultaneously. Uses multiple specialized AI reviewers.',
-        parameters: z.object({
+        inputSchema: z.object({
           code: z.string().describe('The code to review'),
         }),
         execute: async ({ code }) => {
@@ -879,7 +850,7 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
       workflow_optimize_code: tool({
         description:
           'Iteratively optimize code using an evaluator-optimizer pattern. Automatically improves code based on quality feedback.',
-        parameters: z.object({
+        inputSchema: z.object({
           code: z.string().describe('The code to optimize'),
         }),
         execute: async ({ code }) => {
@@ -900,7 +871,7 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
       workflow_smart_route: tool({
         description:
           'Intelligently route a query to the appropriate handler based on query type and complexity. Uses smaller models for simple tasks, larger models for complex ones.',
-        parameters: z.object({
+        inputSchema: z.object({
           query: z.string().describe('The query to route and process'),
         }),
         execute: async ({ query }) => {
@@ -921,7 +892,7 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
       workflow_implement_feature: tool({
         description:
           'Use orchestrator-worker pattern to plan and implement a feature. Creates implementation plan and generates code for each file.',
-        parameters: z.object({
+        inputSchema: z.object({
           featureRequest: z.string().describe('Description of the feature to implement'),
         }),
         execute: async ({ featureRequest }) => {
@@ -941,7 +912,7 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
       workflow_translate: tool({
         description:
           'Translate text with quality feedback loop. Iteratively improves translation based on tone, nuance, and cultural accuracy evaluation.',
-        parameters: z.object({
+        inputSchema: z.object({
           text: z.string().describe('The text to translate'),
           targetLanguage: z.string().describe('The target language (e.g., "Italian", "Spanish", "Japanese")'),
         }),
@@ -963,7 +934,7 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
       workflow_generate_code: tool({
         description:
           'Generate code using a sequential pipeline: analyze requirements, design architecture, create file structure.',
-        parameters: z.object({
+        inputSchema: z.object({
           requirements: z.string().describe('The requirements or description of what to build'),
         }),
         execute: async ({ requirements }) => {
@@ -1221,7 +1192,9 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
     switch (config.provider) {
       case 'openai': {
         // OpenAI provider is already response-API compatible via model options; no chainable helper here.
-        const openaiProvider = createOpenAI({ apiKey, compatibility: 'strict' })
+        const openaiProvider = createOpenAI({
+          apiKey
+        })
         baseModel = openaiProvider(config.model)
         break
       }
@@ -1359,7 +1332,7 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
   }
 
   // Claude Code style streaming with tool support
-  async *streamChatWithTools(messages: CoreMessage[]): AsyncGenerator<
+  async *streamChatWithTools(messages: ModelMessage[]): AsyncGenerator<
     {
       type: 'text' | 'tool_call' | 'tool_call_complete' | 'tool_result' | 'finish' | 'reasoning' | 'error' | 'usage'
       content?: string
@@ -1438,16 +1411,19 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
         messages,
         tools,
         temperature: 1,
-        maxTokens: 6000,
-        maxSteps: 10,
+        maxOutputTokens: 6000,
+        stopWhen: stepCountIs(10),
+
         // AI SDK toolChoice: 'auto' (default), 'none', 'required', or { type: 'tool', toolName: 'specific-tool' }
         // 'auto' - model decides whether to use tools
         // 'required' - model must use at least one tool
         // 'none' - model cannot use tools (text only response)
         toolChoice: 'auto',
+
         // AI SDK Tool Call Repair - automatically fix invalid tool calls
         // Reference: https://v4.ai-sdk.dev/docs/ai-sdk-core/tools-and-tool-calling#tool-call-repair
         experimental_repairToolCall: this.createToolCallRepairHandler(model, tools),
+
         // AI SDK Agent Loop Control - onStepFinish callback
         // Reference: https://ai-sdk.dev/docs/agents/loop-control
         onStepFinish: (step: {
@@ -1455,7 +1431,7 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
           text: string
           toolCalls: Array<{ toolName: string; args: unknown }>
           toolResults: Array<{ toolName: string; result: unknown }>
-          usage: { promptTokens: number; completionTokens: number; totalTokens: number }
+          usage: { inputTokens: number; outputTokens: number; totalTokens: number }
           finishReason: 'stop' | 'length' | 'tool-calls' | 'content-filter' | 'error' | 'other'
           isContinued: boolean
         }) => {
@@ -1476,7 +1452,7 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
               console.log(require('chalk').dim(`  ✓ ${result.toolName} completed`))
             }
           }
-        },
+        }
       }
 
       // Provider-specific parameters support - dynamic based on model capabilities
@@ -1497,16 +1473,16 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
       // Add reasoning metadata for ALL providers using ReasoningDetector
       // AI SDK v4 compatible - uses correct parameter names per provider
       if (reasoningEnabled && cfg?.provider) {
-        const providerMetadata = ReasoningDetector.getReasoningProviderMetadata(
+        const providerOptions = ReasoningDetector.getReasoningProviderMetadata(
           cfg.provider,
           cfg.model,
           { enabled: true, effort: 'medium', budgetTokens: 10000 }
         )
 
-        if (Object.keys(providerMetadata).length > 0) {
+        if (Object.keys(providerOptions).length > 0) {
           streamOptions.experimental_providerMetadata = {
             ...streamOptions.experimental_providerMetadata,
-            ...providerMetadata,
+            ...providerOptions,
           }
         }
       }
@@ -1535,7 +1511,7 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
               streamOptions.experimental_providerMetadata.openrouter.include_reasoning = true
             }
             if (modelCaps.supportsReasoningEffort) {
-              streamOptions.experimental_providerMetadata.openrouter.reasoning = {
+              streamOptions.experimental_providerMetadata.openrouter.reasoningText = {
                 effort: 'medium',
                 enabled: true,
               }
@@ -1562,7 +1538,7 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
         }
       }
 
-      const result = await streamText(streamOptions)
+      const result = streamText(streamOptions)
 
       // Use fullStream to support all chunk types including reasoning
       try {
@@ -1611,7 +1587,7 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
               // AI SDK reasoning events
               yield {
                 type: 'reasoning',
-                content: (event as any).textDelta || (event as any).text || (event as any).reasoning,
+                content: (event as any).textDelta || (event as any).text || (event as any).reasoningText,
               }
               break
             case 'error':
@@ -1704,11 +1680,10 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
   }
 
   // Generate complete response with tools
-  async generateWithTools(messages: CoreMessage[]): Promise<{
+  async generateWithTools(messages: ModelMessage[]): Promise<{
     text: string
     toolCalls: any[]
     toolResults: any[]
-    reasoning?: any
     reasoningText?: string
   }> {
     const model = this.getModel() as any
@@ -1740,20 +1715,23 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
         model,
         messages,
         tools,
-        maxSteps: 10,
+        stopWhen: stepCountIs(10),
         temperature: 1,
-        maxTokens: 6000,
+        maxOutputTokens: 6000,
+
         // AI SDK toolChoice: 'auto' (default), 'none', 'required', or { type: 'tool', toolName: 'specific-tool' }
         toolChoice: 'auto',
+
         // AI SDK Tool Call Repair - automatically fix invalid tool calls
         experimental_repairToolCall: this.createToolCallRepairHandler(model, tools),
+
         // AI SDK Agent Loop Control - onStepFinish callback
         onStepFinish: (step: {
           stepType: 'initial' | 'continue' | 'tool-result'
           text: string
           toolCalls: Array<{ toolName: string; args: unknown }>
           toolResults: Array<{ toolName: string; result: unknown }>
-          usage: { promptTokens: number; completionTokens: number; totalTokens: number }
+          usage: { inputTokens: number; outputTokens: number; totalTokens: number }
           finishReason: string
         }) => {
           stepCount++
@@ -1762,7 +1740,7 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
               `[Step ${stepCount}] ${step.stepType} | Tools: ${step.toolCalls?.length || 0} | Tokens: ${step.usage?.totalTokens || 0}`
             )
           )
-        },
+        }
       }
 
       // Provider-specific parameters support - dynamic based on model capabilities
@@ -1784,16 +1762,16 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
       // Add reasoning metadata for ALL providers using ReasoningDetector
       // AI SDK v4 compatible - uses correct parameter names per provider
       if (reasoningEnabled && cfg?.provider) {
-        const providerMetadata = ReasoningDetector.getReasoningProviderMetadata(
+        const providerOptions = ReasoningDetector.getReasoningProviderMetadata(
           cfg.provider,
           cfg.model,
           { enabled: true, effort: 'medium', budgetTokens: 10000 }
         )
 
-        if (Object.keys(providerMetadata).length > 0) {
+        if (Object.keys(providerOptions).length > 0) {
           generateOptions.experimental_providerMetadata = {
             ...generateOptions.experimental_providerMetadata,
-            ...providerMetadata,
+            ...providerOptions,
           }
         }
       }
@@ -1823,7 +1801,7 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
               generateOptions.experimental_providerMetadata.openrouter.include_reasoning = true
             }
             if (modelCaps.supportsReasoningEffort) {
-              generateOptions.experimental_providerMetadata.openrouter.reasoning = {
+              generateOptions.experimental_providerMetadata.openrouter.reasoningText = {
                 effort: 'medium',
                 exclude: false,
                 enabled: true,
@@ -1842,7 +1820,7 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
         } catch {
           // Fallback to default if registry fails
           if (reasoningEnabled) {
-            generateOptions.experimental_providerMetadata.openrouter.reasoning = {
+            generateOptions.experimental_providerMetadata.openrouter.reasoningText = {
               effort: 'medium',
               exclude: false,
               enabled: true,
@@ -1958,7 +1936,7 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
    * Enhanced streaming with output style support
    */
   async *streamChatWithStyle(
-    messages: CoreMessage[],
+    messages: ModelMessage[],
     options: AIProviderOptions = {}
   ): AsyncGenerator<{
     type:
@@ -2001,13 +1979,12 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
    * Enhanced generation with output style support
    */
   async generateWithStyle(
-    messages: CoreMessage[],
+    messages: ModelMessage[],
     options: AIProviderOptions = {}
   ): Promise<{
     text: string
     toolCalls: any[]
     toolResults: any[]
-    reasoning?: any
     reasoningText?: string
     outputStyle: OutputStyle
     enhancedPrompt?: string
@@ -2060,10 +2037,10 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
    * Enhance messages with output style prompts
    */
   private async enhanceMessagesWithStyle(
-    messages: CoreMessage[],
+    messages: ModelMessage[],
     outputStyle: OutputStyle,
     options: AIProviderOptions
-  ): Promise<CoreMessage[]> {
+  ): Promise<ModelMessage[]> {
     if (messages.length === 0) {
       return messages
     }
@@ -2115,7 +2092,7 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
     outputStyle?: OutputStyle,
     options: Omit<AIProviderOptions, 'outputStyle'> = {}
   ): Promise<string> {
-    const messages: CoreMessage[] = [{ role: 'user', content: prompt }]
+    const messages: ModelMessage[] = [{ role: 'user', content: prompt }]
 
     const result = await this.generateWithStyle(messages, {
       ...options,

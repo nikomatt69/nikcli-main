@@ -49,7 +49,7 @@ try {
 }
 
 import * as fs from 'node:fs'
-import type { CoreTool } from 'ai'
+import type { Tool } from 'ai'
 import type { Hex } from 'viem'
 import { createWalletClient, http } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
@@ -80,7 +80,7 @@ export interface GoatConfig {
  * Supports Polymarket and ERC20 operations on Polygon and Base
  */
 export class GoatProvider {
-  private tools: Record<string, CoreTool> = {}
+  private tools: Record<string, Tool> = {}
   private walletProvider: any = null
   private walletDataFile: string
   private supportedChains: ChainConfig[] = []
@@ -327,7 +327,7 @@ export class GoatProvider {
   /**
    * Get AI SDK compatible tools
    */
-  getTools(): Record<string, CoreTool> {
+  getTools(): Record<string, Tool> {
     return this.tools
   }
 

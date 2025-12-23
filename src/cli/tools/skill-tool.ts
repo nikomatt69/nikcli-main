@@ -1,4 +1,4 @@
-import { z } from 'zod'
+import { z } from 'zod/v3';
 import { type AnthropicSkill, skillProvider } from '../providers/skills'
 import { claudeAgentProvider, type SkillExecutionResult } from '../providers/claude-agents'
 import { BaseTool, type ToolExecutionResult } from './base-tool'

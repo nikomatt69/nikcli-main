@@ -72,7 +72,7 @@ export class SystemInitializer {
         workingDirectory: process.cwd(),
         currentModel: this.config.currentModel,
         temperature: this.config.temperature,
-        maxTokens: this.config.maxTokens,
+        maxOutputTokens: this.config.maxOutputTokens,
         chatHistory: this.config.chatHistory,
         maxHistoryLength: this.config.maxHistoryLength,
         models: this.config.models,

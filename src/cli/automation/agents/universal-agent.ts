@@ -755,14 +755,14 @@ export class UniversalAgent extends EventEmitter implements Agent {
 
   // Private methods for different task types
 
-  private async analyzeTask(task: AgentTask): Promise<{ category: string; confidence: number; reasoning: string }> {
+  private async analyzeTask(task: AgentTask): Promise<{ category: string; confidence: number; reasoningText: string }> {
     const description = task.description?.toLowerCase() || ''
     const title = task.title?.toLowerCase() || ''
     const combined = `${title} ${description}`
 
     // Determine task category based on content analysis
     if (combined.includes('react') || combined.includes('component') || combined.includes('jsx')) {
-      return { category: 'react-development', confidence: 0.9, reasoning: 'Contains React-related keywords' }
+      return { category: 'react-development', confidence: 0.9, reasoningText: 'Contains React-related keywords' };
     }
 
     if (
@@ -771,7 +771,7 @@ export class UniversalAgent extends EventEmitter implements Agent {
       combined.includes('server') ||
       combined.includes('database')
     ) {
-      return { category: 'backend-development', confidence: 0.85, reasoning: 'Contains backend-related keywords' }
+      return { category: 'backend-development', confidence: 0.85, reasoningText: 'Contains backend-related keywords' };
     }
 
     if (
@@ -780,31 +780,31 @@ export class UniversalAgent extends EventEmitter implements Agent {
       combined.includes('ci/cd') ||
       combined.includes('kubernetes')
     ) {
-      return { category: 'devops-operations', confidence: 0.9, reasoning: 'Contains DevOps-related keywords' }
+      return { category: 'devops-operations', confidence: 0.9, reasoningText: 'Contains DevOps-related keywords' };
     }
 
     if (combined.includes('analyze') || combined.includes('review') || combined.includes('audit')) {
-      return { category: 'code-analysis', confidence: 0.8, reasoning: 'Contains analysis-related keywords' }
+      return { category: 'code-analysis', confidence: 0.8, reasoningText: 'Contains analysis-related keywords' };
     }
 
     if (combined.includes('generate') || combined.includes('create') || combined.includes('build')) {
-      return { category: 'code-generation', confidence: 0.8, reasoning: 'Contains generation-related keywords' }
+      return { category: 'code-generation', confidence: 0.8, reasoningText: 'Contains generation-related keywords' };
     }
 
     if (combined.includes('optimize') || combined.includes('improve') || combined.includes('performance')) {
-      return { category: 'optimization', confidence: 0.85, reasoning: 'Contains optimization-related keywords' }
+      return { category: 'optimization', confidence: 0.85, reasoningText: 'Contains optimization-related keywords' };
     }
 
     if (combined.includes('file') || combined.includes('read') || combined.includes('write')) {
-      return { category: 'file-operations', confidence: 0.7, reasoning: 'Contains file operation keywords' }
+      return { category: 'file-operations', confidence: 0.7, reasoningText: 'Contains file operation keywords' };
     }
 
     if (combined.includes('autonomous') || combined.includes('full') || combined.includes('complete')) {
       return {
         category: 'autonomous-development',
         confidence: 0.75,
-        reasoning: 'Contains autonomous development keywords',
-      }
+        reasoningText: 'Contains autonomous development keywords',
+      };
     }
 
     // FIXED: Added missing task categories (ERR-020)
@@ -814,7 +814,7 @@ export class UniversalAgent extends EventEmitter implements Agent {
       combined.includes('jest') ||
       combined.includes('vitest')
     ) {
-      return { category: 'testing', confidence: 0.85, reasoning: 'Contains testing-related keywords' }
+      return { category: 'testing', confidence: 0.85, reasoningText: 'Contains testing-related keywords' };
     }
 
     if (
@@ -823,7 +823,7 @@ export class UniversalAgent extends EventEmitter implements Agent {
       combined.includes('doc') ||
       combined.includes('comment')
     ) {
-      return { category: 'documentation', confidence: 0.8, reasoning: 'Contains documentation-related keywords' }
+      return { category: 'documentation', confidence: 0.8, reasoningText: 'Contains documentation-related keywords' };
     }
 
     if (
@@ -832,7 +832,7 @@ export class UniversalAgent extends EventEmitter implements Agent {
       combined.includes('database design') ||
       combined.includes('table')
     ) {
-      return { category: 'database-design', confidence: 0.85, reasoning: 'Contains database design keywords' }
+      return { category: 'database-design', confidence: 0.85, reasoningText: 'Contains database design keywords' };
     }
 
     if (
@@ -841,7 +841,7 @@ export class UniversalAgent extends EventEmitter implements Agent {
       combined.includes('audit') ||
       combined.includes('penetration')
     ) {
-      return { category: 'security-audit', confidence: 0.9, reasoning: 'Contains security-related keywords' }
+      return { category: 'security-audit', confidence: 0.9, reasoningText: 'Contains security-related keywords' };
     }
 
     if (
@@ -850,10 +850,10 @@ export class UniversalAgent extends EventEmitter implements Agent {
       combined.includes('bottleneck') ||
       combined.includes('performance analysis')
     ) {
-      return { category: 'performance-profiling', confidence: 0.85, reasoning: 'Contains profiling keywords' }
+      return { category: 'performance-profiling', confidence: 0.85, reasoningText: 'Contains profiling keywords' };
     }
 
-    return { category: 'general', confidence: 0.5, reasoning: 'No specific category detected' }
+    return { category: 'general', confidence: 0.5, reasoningText: 'No specific category detected' };
   }
 
   private async performCodeAnalysis(task: AgentTask): Promise<any> {
@@ -1447,7 +1447,7 @@ export class UniversalAgent extends EventEmitter implements Agent {
       .trim()
       .replace(/\s+/g, ' ')
       .replace(/[^\w\s\-./]/g, ' ')
-      .replace(/\s+/g, ' ')
+      .replace(/\s+/g, ' ');
   }
 
   private identifyIntent(task: string): TaskCognition['intent'] {

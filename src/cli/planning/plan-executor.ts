@@ -730,7 +730,7 @@ export class PlanExecutor {
     // Simulate decision making
     await new Promise((resolve) => setTimeout(resolve, 500))
 
-    return { decision: 'proceed', reasoning: 'All criteria met' }
+    return { decision: 'proceed', reasoningText: 'All criteria met' };
   }
 
   /**

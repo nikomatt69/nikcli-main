@@ -27,7 +27,7 @@ interface CompressionMetrics {
 }
 
 interface CompressionConfig {
-  maxTokens: number
+  maxOutputTokens: number
   preserveFields: string[]
   priorityFields: string[]
   compressionRatio: number
@@ -113,7 +113,7 @@ export class ReadFileTool extends BaseTool {
 
   private getCompressionConfig(toolName: string): CompressionConfig {
     const baseConfig = {
-      maxTokens: 4000,
+      maxOutputTokens: 4000,
       preserveFields: ['success', 'error', 'filePath', 'size'],
       priorityFields: ['content', 'analysis', 'metadata'],
       compressionRatio: 0.7,
@@ -523,7 +523,7 @@ export class ReadFileTool extends BaseTool {
     }
 
     // Clean up extra whitespace
-    return content.replace(/\n\s*\n/g, '\n').trim()
+    return content.replace(/\n\s*\n/g, '\n').trim();
   }
 
   /**

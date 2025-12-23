@@ -1,5 +1,5 @@
 import chalk from 'chalk'
-import { z } from 'zod'
+import { z } from 'zod/v3';
 import { type ChatMessage, modelProvider } from '../../ai/model-provider'
 import type { AgentManager } from './agent-manager'
 import { BaseAgent } from './base-agent'
@@ -15,7 +15,7 @@ const TaskPlanSchema = z.object({
       estimatedTime: z.string().optional(),
     })
   ),
-  reasoning: z.string(),
+  reasoningText: z.string(),
   executionOrder: z.array(z.string()),
 })
 
@@ -104,7 +104,7 @@ Consider parallel execution where possible.`,
 
     console.log(chalk.blue.bold('\n🚀 Starting autonomous task execution'))
     console.log(chalk.gray(`Executing ${plan.tasks.length} tasks`))
-    console.log(chalk.gray(`Strategy: ${plan.reasoning}`))
+    console.log(chalk.gray(`Strategy: ${plan.reasoningText}`))
 
     const results: TaskResult[] = []
     const completedTasks = new Set<string>()
@@ -240,7 +240,7 @@ Consider parallel execution where possible.`,
         console.log(`${index + 1}. ${priority} ${t.description} → ${chalk.cyan(t.agent)}`)
       })
 
-      console.log(chalk.gray(`\nReasoning: ${plan.reasoning}`))
+      console.log(chalk.gray(`\nReasoning: ${plan.reasoningText}`))
 
       // Ask for confirmation in interactive mode
       const readline = require('readline').createInterface({

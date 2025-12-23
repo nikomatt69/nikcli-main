@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import chalk from 'chalk'
-import { z } from 'zod'
+import { z } from 'zod/v3';
 import { type ChatMessage, modelProvider } from '../ai/model-provider'
 import { workspaceContext } from '../context/workspace-context'
 import { completionCache } from '../core/completion-protocol-cache'
@@ -31,7 +31,7 @@ const CompletionContextSchema = z.object({
 const AICompletionSchema = z.object({
   completion: z.string(),
   confidence: z.number().min(0).max(1),
-  reasoning: z.string(),
+  reasoningText: z.string(),
   category: z.enum(['command', 'parameter', 'path', 'agent', 'tool', 'code', 'natural']),
   priority: z.number().min(0).max(10),
   requiresApproval: z.boolean().default(false),
@@ -91,7 +91,7 @@ export class AICompletionService {
           files: context.openFiles,
           agents: context.activeAgents,
         }),
-        maxTokens: 200,
+        maxOutputTokens: 200,
         temperature: 0,
         model: `${config.provider}:${config.model}`,
       })
@@ -102,7 +102,7 @@ export class AICompletionService {
             {
               completion: protocolHit.completion,
               confidence: protocolHit.confidence ?? 0.9,
-              reasoning: protocolHit.exactMatch ? 'protocol exact match' : 'protocol cache match',
+              reasoningText: protocolHit.exactMatch ? 'protocol exact match' : 'protocol cache match',
               category: 'natural',
               priority: 8,
               requiresApproval: false,
@@ -164,7 +164,7 @@ export class AICompletionService {
                 files: context.openFiles,
                 agents: context.activeAgents,
               }),
-              maxTokens: 200,
+              maxOutputTokens: 200,
               temperature: 0,
               model: `${config.provider}:${config.model}`,
             },
@@ -270,7 +270,7 @@ export class AICompletionService {
       const response = await modelProvider.generateResponse({
         messages,
         temperature: 0.1, // Low temperature for consistent completions
-        maxTokens: 4000,
+        maxOutputTokens: 4000,
         scope: 'tool_light', // Use lightweight model for completions
       })
 
@@ -374,7 +374,7 @@ Provide 3-8 most relevant completions, ranked by relevance and confidence.`
           const completion: AICompletion = {
             completion: comp.completion || '',
             confidence: Math.min(Math.max(comp.confidence || 0.5, 0), 1),
-            reasoning: comp.reasoning || 'AI suggestion',
+            reasoningText: comp.reasoningText || 'AI suggestion',
             category: this.validateCategory(comp.category) || 'natural',
             priority: Math.min(Math.max(comp.priority || 5, 0), 10),
             requiresApproval: this.shouldRequireApproval(comp.completion),
@@ -386,7 +386,7 @@ Provide 3-8 most relevant completions, ranked by relevance and confidence.`
         .filter(
           (comp: AICompletion) =>
             comp.completion && comp.completion.trim() !== context.partialInput && comp.completion.length > 0
-        )
+        );
     } catch (error) {
       console.warn(chalk.yellow(`[AI Completion] Parse error: ${error}`))
       return []

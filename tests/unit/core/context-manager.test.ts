@@ -104,7 +104,7 @@ describe('ContextManager', () => {
       }))
 
       const optimized = await contextManager.optimizeContext(messages, {
-        maxTokens: 10000,
+        maxOutputTokens: 10000,
       })
 
       expect(optimized).toBeDefined()
@@ -118,7 +118,7 @@ describe('ContextManager', () => {
       ]
 
       const optimized = await contextManager.optimizeContext(messages, {
-        maxTokens: 1000,
+        maxOutputTokens: 1000,
       })
 
       const systemMessages = optimized.filter((m) => m.role === 'system')
@@ -132,7 +132,7 @@ describe('ContextManager', () => {
       }))
 
       const optimized = await contextManager.optimizeContext(messages, {
-        maxTokens: 1000,
+        maxOutputTokens: 1000,
       })
 
       // Should keep at least MIN_MESSAGES recent messages
@@ -142,14 +142,14 @@ describe('ContextManager', () => {
 
   describe('Edge Cases', () => {
     it('should handle empty messages array', async () => {
-      const optimized = await contextManager.optimizeContext([], { maxTokens: 1000 })
+      const optimized = await contextManager.optimizeContext([], { maxOutputTokens: 1000 })
       expect(Array.isArray(optimized)).toBe(true)
       expect(optimized.length).toBe(0)
     })
 
     it('should handle very large messages', async () => {
       const largeMessage = { role: 'user' as const, content: 'x'.repeat(1000000) }
-      const optimized = await contextManager.optimizeContext([largeMessage], { maxTokens: 1000 })
+      const optimized = await contextManager.optimizeContext([largeMessage], { maxOutputTokens: 1000 })
       expect(optimized.length).toBeGreaterThan(0)
     })
 
@@ -158,7 +158,7 @@ describe('ContextManager', () => {
         { role: 'user' as const, content: null as any },
         { role: 'user' as const, content: undefined as any },
       ]
-      const optimized = await contextManager.optimizeContext(messages, { maxTokens: 1000 })
+      const optimized = await contextManager.optimizeContext(messages, { maxOutputTokens: 1000 })
       expect(Array.isArray(optimized)).toBe(true)
     })
 
@@ -170,7 +170,7 @@ describe('ContextManager', () => {
       }))
 
       const optimized = await contextManager.optimizeContext(messages, {
-        maxTokens: 1000,
+        maxOutputTokens: 1000,
       })
 
       expect(optimized).toBeDefined()
@@ -183,7 +183,7 @@ describe('ContextManager', () => {
       }))
 
       const optimized = await contextManager.optimizeContext(messages, {
-        maxTokens: 1000,
+        maxOutputTokens: 1000,
       })
 
       expect(optimized).toBeDefined()
@@ -197,7 +197,7 @@ describe('ContextManager', () => {
         content: `Message ${i}`,
       }))
 
-      await contextManager.optimizeContext(messages, { maxTokens: 10000 })
+      await contextManager.optimizeContext(messages, { maxOutputTokens: 10000 })
       const metrics = (contextManager as any).performanceMetrics
       expect(metrics).toBeDefined()
     })

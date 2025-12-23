@@ -3,7 +3,7 @@
  * Defines types and schemas for AI streaming, chat processing, and real-time data flow
  */
 
-import { z } from 'zod'
+import { z } from 'zod/v3';
 
 // Stream Event Schemas
 export const StreamEventTypeSchema = z.enum([
@@ -78,10 +78,17 @@ export const StreamProgressSchema = z.object({
 // Token Usage Schemas
 export const TokenUsageSchema = z.object({
   totalTokens: z.number().optional(),
-  promptTokens: z.number().optional(),
-  completionTokens: z.number().optional(),
   inputTokens: z.number().optional(),
   outputTokens: z.number().optional(),
+  inputTokenDetails: z.object({
+    noCacheTokens: z.number().optional(),
+    cacheReadTokens: z.number().optional(),
+    cacheWriteTokens: z.number().optional(),
+  }).optional(),
+  outputTokenDetails: z.object({
+    textTokens: z.number().optional(),
+    reasoningTokens: z.number().optional(),
+  }).optional(),
 })
 
 export const TokenTrackingInfoSchema = z.object({
@@ -118,7 +125,7 @@ export const AIStreamResponseSchema = z.object({
   content: z.string(),
   usage: TokenUsageSchema.optional(),
   toolCalls: z.array(ToolCallSchema).optional(),
-  finishReason: z.enum(['stop', 'length', 'tool_calls', 'error']).optional(),
+  finishReason: z.enum(['stop', 'length', 'content-filter', 'tool-calls', 'error', 'other']).optional(),
   metadata: z.record(z.unknown()).optional(),
 })
 

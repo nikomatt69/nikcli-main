@@ -87,7 +87,7 @@ export interface TaskMasterConfig {
   model: string
   apiKey?: string
   baseURL?: string
-  maxTokens?: number
+  maxOutputTokens?: number
   temperature?: number
   topP?: number
   profiles?: Record<string, any>

@@ -8,7 +8,7 @@ import { createOpenAI } from '@ai-sdk/openai'
 import { cosineSimilarity, embed, generateObject, tool } from 'ai'
 import chalk from 'chalk'
 import { createOllama } from 'ollama-ai-provider'
-import { z } from 'zod'
+import { z } from 'zod/v3';
 import { advancedUI } from '../ui/advanced-cli-ui'
 import { configManager } from './config-manager'
 
@@ -95,7 +95,7 @@ export class AdvancedTools {
         const apiKey = configManager.getApiKey('google') || process.env.GOOGLE_GENERATIVE_AI_API_KEY
         if (!apiKey) throw new Error('Google API key not found for embeddings')
         const googleProvider = createGoogleGenerativeAI({ apiKey })
-        return googleProvider.textEmbeddingModel('text-embedding-004')
+        return googleProvider.embeddingModel('text-embedding-004');
       }
       case 'openrouter': {
         const apiKey = configManager.getApiKey('openrouter') || process.env.OPENROUTER_API_KEY
@@ -155,7 +155,7 @@ export class AdvancedTools {
     return tool({
       description:
         'Search for semantically similar content in the codebase using embeddings with AI SDK support for OpenAI and Google providers',
-      parameters: z.object({
+      inputSchema: z.object({
         query: z.string().describe('Search query to find similar content'),
         searchPath: z.string().default('.').describe('Path to search in'),
         fileTypes: z.array(z.string()).default(['.ts', '.js', '.tsx', '.jsx']).describe('File types to search'),
@@ -221,14 +221,14 @@ export class AdvancedTools {
           }
         }
       },
-    })
+    });
   }
 
   // Tool to show available embedding providers
   getEmbeddingProvidersTool() {
     return tool({
       description: 'Show available embedding providers and their configuration status',
-      parameters: z.object({
+      inputSchema: z.object({
         showDetails: z.boolean().default(false).describe('Show detailed provider information'),
       }),
       execute: async ({ showDetails }) => {
@@ -271,14 +271,14 @@ export class AdvancedTools {
           }
         }
       },
-    })
+    });
   }
 
   // Code analysis and suggestions tool
   getCodeAnalysisTool() {
     return tool({
       description: 'Analyze code quality, patterns, and provide improvement suggestions',
-      parameters: z.object({
+      inputSchema: z.object({
         filePath: z.string().describe('Path to the file to analyze'),
         analysisType: z
           .enum(['quality', 'patterns', 'security', 'performance'])
@@ -346,14 +346,14 @@ Provide detailed analysis including:
           }
         }
       },
-    })
+    });
   }
 
   // Dependency analysis tool
   getDependencyAnalysisTool() {
     return tool({
       description: 'Analyze project dependencies, security vulnerabilities, and optimization opportunities',
-      parameters: z.object({
+      inputSchema: z.object({
         includeDevDeps: z.boolean().default(true).describe('Include dev dependencies in analysis'),
         checkSecurity: z.boolean().default(true).describe('Check for security vulnerabilities'),
         suggestOptimizations: z.boolean().default(true).describe('Suggest dependency optimizations'),
@@ -425,14 +425,14 @@ Provide:
           }
         }
       },
-    })
+    });
   }
 
   // Git workflow analysis tool
   getGitWorkflowTool() {
     return tool({
       description: 'Analyze Git repository, commit patterns, and suggest workflow improvements',
-      parameters: z.object({
+      inputSchema: z.object({
         analyzeCommits: z.boolean().default(true).describe('Analyze recent commit patterns'),
         checkBranching: z.boolean().default(true).describe('Check branching strategy'),
         suggestWorkflow: z.boolean().default(true).describe('Suggest workflow improvements'),
@@ -501,14 +501,14 @@ Provide:
           }
         }
       },
-    })
+    });
   }
 
   // NikDrive cloud storage tool
   getNikDriveTool() {
     return tool({
       description: 'Upload, download, sync, search, and manage files with NikDrive cloud storage',
-      parameters: z.object({
+      inputSchema: z.object({
         action: z
           .enum(['upload', 'download', 'sync', 'search', 'list', 'share', 'delete', 'mkdir', 'status'])
           .describe('NikDrive action to perform'),
@@ -650,7 +650,7 @@ Provide:
           }
         }
       },
-    })
+    });
   }
 
   // Helper function to find files

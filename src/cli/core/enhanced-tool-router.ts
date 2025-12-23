@@ -1,5 +1,5 @@
-import type { CoreMessage } from 'ai'
-import { z } from 'zod'
+import type { ModelMessage } from 'ai'
+import { z } from 'zod/v3';
 import { type ToolRecommendation, ToolRouter } from './tool-router'
 
 // ⚡︎ Enhanced Intent Analysis Schemas
@@ -72,7 +72,7 @@ export class EnhancedToolRouter extends ToolRouter {
   /**
    * 🎯 Enhanced Message Analysis with Context Awareness
    */
-  analyzeMessageEnhanced(message: CoreMessage, projectContext?: ProjectContext | null): EnhancedToolRecommendation[] {
+  analyzeMessageEnhanced(message: ModelMessage, projectContext?: ProjectContext | null): EnhancedToolRecommendation[] {
     // Cache project context for reuse
     if (projectContext) {
       this.projectContextCache = projectContext

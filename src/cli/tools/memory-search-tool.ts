@@ -1,6 +1,6 @@
-import { type CoreTool, tool } from 'ai'
+import { type Tool, tool } from 'ai'
 import chalk from 'chalk'
-import { z } from 'zod'
+import { z } from 'zod/v3';
 import type { MemorySearchResult } from '../providers/memory'
 import { memoryService } from '../services/memory-service'
 
@@ -34,10 +34,10 @@ type MemorySearchToolResult = {
  * hanno bisogno di recuperare informazioni da conversazioni precedenti
  * o contesto storico
  */
-export const memorySearchTool: CoreTool = tool({
+export const memorySearchTool: Tool = tool({
   description:
     'Search through persistent memories to retrieve information from previous conversations, user preferences, or historical context',
-  parameters: z.object({
+  inputSchema: z.object({
     query: z
       .string()
       .describe(
@@ -197,9 +197,9 @@ export const memorySearchTool: CoreTool = tool({
  * Tool per ottenere il contesto della conversazione corrente
  * dalle memorie della sessione
  */
-export const getConversationContextTool: CoreTool = tool({
+export const getConversationContextTool: Tool = tool({
   description: 'Get conversation context from current or specified session memories',
-  parameters: z.object({
+  inputSchema: z.object({
     sessionId: z.string().optional().describe('Specific session ID (defaults to current session)'),
     lookbackHours: z.number().min(1).max(168).default(24).describe('How many hours back to look for context'),
     limit: z.number().min(1).max(100).default(20).describe('Maximum number of memories to retrieve'),

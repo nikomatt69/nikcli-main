@@ -148,7 +148,7 @@ export interface ExecutionPlan {
     /** Files relevant to this plan */
     relevantFiles?: readonly string[]
     /** Planning reasoning (explanation of choices) */
-    reasoning?: string
+    reasoningText?: string
     /** Whether this is a simple plan (few steps) */
     simple?: boolean
   }
@@ -189,7 +189,7 @@ export interface MutableExecutionPlan {
     /** Files relevant to this plan */
     relevantFiles?: string[]
     /** Planning reasoning (explanation of choices) */
-    reasoning?: string
+    reasoningText?: string
     /** Whether this is a simple plan (few steps) */
     simple?: boolean
   }
@@ -420,7 +420,7 @@ export interface PlanTodo extends BaseTask {
   /** Agent assigned to this todo */
   readonly assignedAgent?: string
   /** Reasoning for this todo */
-  readonly reasoning?: string
+  readonly reasoningText?: string
   /** Tools needed to complete this todo */
   readonly tools?: readonly string[]
 }
@@ -458,7 +458,7 @@ export interface MutablePlanTodo {
   /** Agent assigned to this todo */
   assignedAgent?: string
   /** Reasoning for this todo */
-  reasoning?: string
+  reasoningText?: string
   /** Tools needed to complete this todo */
   tools?: string[]
 }

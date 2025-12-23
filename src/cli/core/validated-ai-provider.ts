@@ -5,7 +5,7 @@
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
-import type { CoreMessage } from 'ai'
+import type { ModelMessage } from 'ai'
 import chalk from 'chalk'
 import { advancedAIProvider } from '../ai/advanced-ai-provider'
 import {
@@ -21,7 +21,7 @@ export interface ValidatedWriteOptions {
   path: string
   content: string
   agentId?: string
-  reasoning?: string
+  reasoningText?: string
   skipValidation?: boolean
   skipFormatting?: boolean
 }
@@ -35,7 +35,7 @@ export interface ValidatedWriteResult {
   validated?: boolean
   errors?: string[]
   warnings?: string[]
-  reasoning?: string
+  reasoningText?: string
   executionTime?: number
 }
 
@@ -53,7 +53,7 @@ export class ValidatedAIProvider {
    * Scrivi file con validazione e formattazione automatica + coordinamento queue
    */
   async writeFileValidated(options: ValidatedWriteOptions): Promise<ValidatedWriteResult> {
-    const { path, content, agentId = 'unknown', reasoning, skipValidation = false, skipFormatting = false } = options
+    const { path, content, agentId = 'unknown', reasoningText, skipValidation = false, skipFormatting = false } = options
 
     // USA LA QUEUE per coordinamento
     return agentQueue.executeWithLock(
@@ -108,9 +108,9 @@ export class ValidatedAIProvider {
                     validated: false,
                     errors: validationResult.errors,
                     warnings: validationResult.warnings,
-                    reasoning: reasoning || 'Validation failed',
+                    reasoningText: 'Validation failed',
                     executionTime: Date.now() - startTime,
-                  }
+                  };
                 }
               } else {
                 // Usa contenuto formattato anche se validazione è passata
@@ -141,7 +141,7 @@ export class ValidatedAIProvider {
             validated: !skipValidation,
             errors: validationResult?.errors,
             warnings: validationResult?.warnings,
-            reasoning: reasoning || `File ${existsSync(fullPath) ? 'updated' : 'created'} with validation`,
+            reasoningText: `File ${existsSync(fullPath) ? 'updated' : 'created'} with validation`,
             executionTime: Date.now() - startTime,
           }
 
@@ -161,12 +161,12 @@ export class ValidatedAIProvider {
             path,
             validated: false,
             errors: [error.message],
-            reasoning: reasoning || 'File write failed',
+            reasoningText: 'File write failed',
             executionTime: Date.now() - startTime,
-          }
+          };
         }
       }
-    )
+    );
   }
 
   /**
@@ -199,7 +199,7 @@ export class ValidatedAIProvider {
         ? createUniversalAgentPrompt(reasoningContext)
         : createReasoningSystemPrompt(reasoningContext)
 
-    const messages: CoreMessage[] = [
+    const messages: ModelMessage[] = [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userRequest },
     ]
@@ -236,7 +236,7 @@ export class ValidatedAIProvider {
   async generateResponse(request: { messages: any[] }) {
     // Use modernAIProvider for response generation if available
     const { modernAIProvider } = await import('../ai/modern-ai-provider')
-    return modernAIProvider.generateWithTools(request.messages as CoreMessage[])
+    return modernAIProvider.generateWithTools(request.messages as ModelMessage[]);
   }
 
   /**

@@ -106,17 +106,17 @@ function validateParams(params: unknown): GenerateGCodeParams {
  * Uses generate method to create GCode from prompt.
  */
 interface AIProvider {
-  generate(prompt: string, options?: { model?: string; maxTokens?: number }): Promise<string>
+  generate(prompt: string, options?: { model?: string; maxOutputTokens?: number }): Promise<string>
 }
 
 const aiProvider: AIProvider = {
   // Placeholder: In production, this would be the real NikCLI AI service (e.g., OpenAI/Groq integration).
-  async generate(prompt: string, options = { model: 'gpt-4', maxTokens: 2000 }): Promise<string> {
+  async generate(prompt: string, options = { model: 'gpt-4', maxOutputTokens: 2000 }): Promise<string> {
     // Simulated AI call; replace with actual aiProvider.generate() in NikCLI.
     // For demo: Returns mock GCode based on prompt.
     advancedUI.logInfo(`AI Prompt: ${prompt}`) // Logging for traceability
     // Real impl: await actualAI.generate(prompt, options);
-    return `G1 X${options.maxTokens} ; Mock GCode from AI for prompt: ${prompt.substring(0, 50)}...`
+    return `G1 X${options.maxOutputTokens} ; Mock GCode from AI for prompt: ${prompt.substring(0, 50)}...`;
   },
 }
 
@@ -155,7 +155,7 @@ const generateGCodeTool: Tool = {
       // Step 3: Call AI Provider (async, with options for production efficiency)
       // Complex logic: Streaming-capable, but await full response here for simplicity.
       // Fallback: If AI fails, return error GCode stub (graceful degradation).
-      const gcode = await aiProvider.generate(prompt, { model: 'gpt-4', maxTokens: 4000 })
+      const gcode = await aiProvider.generate(prompt, { model: 'gpt-4', maxOutputTokens: 4000 })
 
       // Step 4: Post-process (basic validation: Ensure GCode starts with safe init)
       if (!gcode.includes('G') && !gcode.includes('M')) {

@@ -14,7 +14,7 @@ export interface DecisionContext {
 export interface DecisionRecommendation {
   recommendedTool: string
   confidence: number
-  reasoning: string
+  reasoningText: string
   alternatives: Array<{
     tool: string
     confidence: number
@@ -82,10 +82,10 @@ export class AgentLearningSystem {
     return {
       recommendedTool: topTool.tool,
       confidence: topTool.score,
-      reasoning: this.generateReasoning(topTool.tool, learningData, context),
+      reasoningText: this.generateReasoning(topTool.tool, learningData, context),
       alternatives,
       preventiveActions: this.generatePreventiveActions(learningData, context),
-    }
+    };
   }
 
   /**
@@ -236,7 +236,7 @@ export class AgentLearningSystem {
    */
   getAdaptiveStrategy(context: DecisionContext): {
     strategy: 'conservative' | 'aggressive' | 'exploratory'
-    reasoning: string
+    reasoningText: string
     toolPreferences: string[]
   } {
     const pattern = this.extractPattern(context)
@@ -246,9 +246,9 @@ export class AgentLearningSystem {
     if (!learningData || learningData.successfulChoices.length < 5) {
       return {
         strategy: 'exploratory',
-        reasoning: 'Limited historical data available - exploring different approaches',
+        reasoningText: 'Limited historical data available - exploring different approaches',
         toolPreferences: this.getExploratoryTools(context),
-      }
+      };
     }
 
     const recentChoices = learningData.successfulChoices.slice(-10)
@@ -258,21 +258,21 @@ export class AgentLearningSystem {
     if (successRate > 0.8 && avgExecutionTime < 5000) {
       return {
         strategy: 'conservative',
-        reasoning: 'High success rate with good performance - stick to proven approaches',
+        reasoningText: 'High success rate with good performance - stick to proven approaches',
         toolPreferences: this.getProvenTools(learningData),
-      }
+      };
     } else if (context.urgency === 'high' && successRate > 0.6) {
       return {
         strategy: 'aggressive',
-        reasoning: 'High urgency context - use fastest reliable tools',
+        reasoningText: 'High urgency context - use fastest reliable tools',
         toolPreferences: this.getFastestReliableTools(learningData),
-      }
+      };
     } else {
       return {
         strategy: 'exploratory',
-        reasoning: 'Mixed results or new patterns - trying alternative approaches',
+        reasoningText: 'Mixed results or new patterns - trying alternative approaches',
         toolPreferences: this.getAlternativeTools(learningData, context),
-      }
+      };
     }
   }
 
@@ -366,10 +366,10 @@ export class AgentLearningSystem {
     return {
       recommendedTool,
       confidence: 0.6,
-      reasoning,
+      reasoningText: reasoning,
       alternatives: [],
       preventiveActions: ['Verify tool availability', 'Check required parameters'],
-    }
+    };
   }
 
   private generateReasoning(tool: string, learningData: LearningData, _context: DecisionContext): string {

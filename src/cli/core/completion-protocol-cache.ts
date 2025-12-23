@@ -9,7 +9,7 @@ export interface CompletionPattern {
   prefix: string
   suffix: string
   contextHash: string
-  completionTokens: string[]
+  outputTokens: string[]
   confidence: number
   frequency: number
   lastUsed: Date
@@ -20,7 +20,7 @@ export interface CompletionPattern {
 export interface CompletionRequest {
   prefix: string
   context: string
-  maxTokens: number
+  maxOutputTokens: number
   temperature: number
   model: string
 }
@@ -57,7 +57,7 @@ export class CompletionProtocolCache {
    * Generate completion from cache using protocol matching
    */
   async getCompletion(request: CompletionRequest): Promise<CompletionResponse | null> {
-    const { prefix, context, maxTokens, model } = request
+    const { prefix, context, maxOutputTokens, model } = request
 
     // Fast prefix lookup
     const normalizedPrefix = this.normalizePrefix(prefix)
@@ -114,7 +114,7 @@ export class CompletionProtocolCache {
     const bestPattern = candidates[0]
 
     // Generate completion from pattern
-    const completion = this.generateCompletionFromPattern(bestPattern, prefix, maxTokens)
+    const completion = this.generateCompletionFromPattern(bestPattern, prefix, maxOutputTokens)
 
     // Update usage stats
     bestPattern.frequency++
@@ -157,7 +157,7 @@ export class CompletionProtocolCache {
       prefix: normalizedPrefix,
       suffix,
       contextHash,
-      completionTokens: this.tokenizeCompletion(completion),
+      outputTokens: this.tokenizeCompletion(completion),
       confidence: 0.9, // High initial confidence for new patterns
       frequency: 1,
       lastUsed: new Date(),
@@ -179,7 +179,7 @@ export class CompletionProtocolCache {
    * Generate completion from stored pattern
    */
   private generateCompletionFromPattern(pattern: CompletionPattern, actualPrefix: string, maxTokens: number): string {
-    const tokens = pattern.completionTokens.slice(0, maxTokens)
+    const tokens = pattern.outputTokens.slice(0, maxTokens)
 
     // Apply context-aware adjustments
     let completion = tokens.join('')
@@ -201,7 +201,7 @@ export class CompletionProtocolCache {
       .toLowerCase()
       .replace(/\s+/g, ' ')
       .trim()
-      .substring(Math.max(0, prefix.length - 200)) // Keep last 200 chars
+      .substring(Math.max(0, prefix.length - 200)); // Keep last 200 chars
   }
 
   /**
@@ -224,7 +224,7 @@ export class CompletionProtocolCache {
     return completion
       .split(/(\s+|[.!?;,])/g)
       .filter((token) => token.trim().length > 0)
-      .slice(0, 100) // Limit token storage
+      .slice(0, 100); // Limit token storage
   }
 
   /**

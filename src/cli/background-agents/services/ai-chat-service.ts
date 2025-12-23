@@ -5,22 +5,23 @@
 
 import { EventEmitter } from 'node:events'
 import { createOpenRouter } from '@openrouter/ai-sdk-provider'
-import { type CoreMessage, type LanguageModelV1, streamText } from 'ai'
+import { type LanguageModelV2 } from '@ai-sdk/provider';
+import { type ModelMessage, streamText } from 'ai';
 import { ExternalServiceError, retryOperation, withTimeout } from '../middleware/error-handler'
 import type { ChatMessage, ChatSession } from '../types'
 
 export interface AIChatServiceConfig {
   model?: string
   apiKey?: string
-  maxTokens?: number
+  maxOutputTokens?: number
   temperature?: number
 }
 
 export class AIChatService extends EventEmitter {
   private model: string
   private openrouter: ReturnType<typeof createOpenRouter>
-  private maxTokens: number
-  private temperature: number
+  private maxOutputTokens: number = 6000
+  private temperature: number = 1
 
   // Circuit breaker state
   private failureCount: number = 0
@@ -35,7 +36,7 @@ export class AIChatService extends EventEmitter {
     // Previous: minimax/minimax-m2 requires mandatory reasoning which causes streaming errors
     this.model = config?.model || process.env.OPENROUTER_MODEL || 'openai/gpt-5'
     const apiKey = config?.apiKey || process.env.OPENROUTER_API_KEY || ''
-    this.maxTokens = config?.maxTokens || 6000
+    this.maxOutputTokens = config?.maxOutputTokens || 6000
     this.temperature = config?.temperature || 1
 
     if (!apiKey) {
@@ -60,7 +61,7 @@ export class AIChatService extends EventEmitter {
     this.checkCircuitBreaker()
 
     // Convert chat messages to AI SDK format
-    const messages: CoreMessage[] = this.convertMessagesToAIFormat(session.messages, userMessage)
+    const messages: ModelMessage[] = this.convertMessagesToAIFormat(session.messages, userMessage)
     const systemPrompt = this.buildSystemPrompt(session)
 
     try {
@@ -97,23 +98,23 @@ export class AIChatService extends EventEmitter {
    * Stream response from AI model
    */
   private async streamResponse(
-    messages: CoreMessage[],
+    messages: ModelMessage[],
     systemPrompt: string,
     onTextDelta?: (delta: string, accumulated: string) => void,
     onComplete?: (fullText: string) => void
   ): Promise<string> {
     let fullText = ''
 
-    const result = await streamText({
-      model: this.openrouter.languageModel(this.model) as unknown as LanguageModelV1,
+    const result = streamText({
+      model: this.openrouter.languageModel(this.model) as unknown as LanguageModelV2,
       system: systemPrompt,
       messages,
-      maxTokens: this.maxTokens,
+      maxOutputTokens: this.maxOutputTokens,
       temperature: this.temperature,
       // Disabilita reasoning chunks per evitare errori "Unhandled chunk type: reasoning"
-      experimental_providerMetadata: {
+      providerOptions: {
         openrouter: {
-          reasoning: {
+          reasoningText: {
             exclude: true,
             enabled: false,
           },
@@ -185,8 +186,8 @@ export class AIChatService extends EventEmitter {
   /**
    * Convert chat messages to AI SDK CoreMessage format
    */
-  private convertMessagesToAIFormat(messages: ChatMessage[], newUserMessage: string): CoreMessage[] {
-    const coreMessages: CoreMessage[] = []
+  private convertMessagesToAIFormat(messages: ChatMessage[], newUserMessage: string): ModelMessage[] {
+    const coreMessages: ModelMessage[] = []
 
     // Add existing messages
     for (const msg of messages) {

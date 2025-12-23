@@ -5,7 +5,7 @@ import { bunFile, bunGlob, fileExistsSync, readTextSync } from '../utils/bun-com
 
 import { tool } from 'ai'
 import chalk from 'chalk'
-import { z } from 'zod'
+import { z } from 'zod/v3';
 import { toolsManager } from '../tools/tools-manager'
 import { advancedUI } from '../ui/advanced-cli-ui'
 // Import new unified components

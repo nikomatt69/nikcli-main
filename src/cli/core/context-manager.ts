@@ -1,5 +1,5 @@
 import path from 'node:path'
-import type { CoreMessage } from 'ai'
+import type { ModelMessage } from 'ai'
 import chalk from 'chalk'
 import { calculateTokenCost, getModelPricing, TOKEN_LIMITS } from '../config/token-limits'
 import { unifiedEmbeddingInterface } from '../context/unified-embedding-interface'
@@ -82,7 +82,7 @@ interface OptimizationStrategy {
 }
 
 interface ContextOptimizationResult {
-  optimizedMessages: CoreMessage[]
+  optimizedMessages: ModelMessage[]
   metrics: ContextMetrics
   smartContext?: SmartContext
   optimizationSteps: string[]
@@ -179,7 +179,7 @@ export class ContextManager {
   private estimateTokens(content: string): number {
     return Math.ceil(content.length / 4)
   }
-  private hashMessage(message: CoreMessage): string {
+  private hashMessage(message: ModelMessage): string {
     const content = typeof message.content === 'string' ? message.content : JSON.stringify(message.content)
     // Simple hash function - consider using crypto.createHash for production
     let hash = 0
@@ -193,7 +193,7 @@ export class ContextManager {
   /**
    * Calculate importance score for a message
    */
-  private calculateImportance(message: CoreMessage, index: number, total: number): number {
+  private calculateImportance(message: ModelMessage, index: number, total: number): number {
     let importance = 0
 
     // Recent messages are more important
@@ -223,7 +223,7 @@ export class ContextManager {
    * Enhanced context optimization with RAG integration and smart compression
    */
   async optimizeContextAdvanced(
-    messages: CoreMessage[],
+    messages: ModelMessage[],
     strategy?: Partial<OptimizationStrategy>,
     model?: string
   ): Promise<ContextOptimizationResult> {
@@ -345,7 +345,7 @@ export class ContextManager {
   /**
    * Legacy method for backward compatibility - calls advanced method internally
    */
-  optimizeContext(messages: CoreMessage[]): { optimizedMessages: CoreMessage[]; metrics: ContextMetrics } {
+  optimizeContext(messages: ModelMessage[]): { optimizedMessages: ModelMessage[]; metrics: ContextMetrics } {
     // For sync compatibility, use a simplified version without RAG integration
     advancedUI.logInfo(chalk.blue('⚡︎ Using legacy context optimization (consider upgrading to optimizeContextAdvanced)'))
 
@@ -426,9 +426,9 @@ export class ContextManager {
 
   // RAG Integration Methods
   private async integrateRAGContext(
-    messages: CoreMessage[],
+    messages: ModelMessage[],
     strategy: OptimizationStrategy
-  ): Promise<{ enhancedMessages: CoreMessage[]; smartContext?: SmartContext }> {
+  ): Promise<{ enhancedMessages: ModelMessage[]; smartContext?: SmartContext }> {
     try {
       const contextOptions = {
         workingDirectory: process.cwd(),
@@ -456,7 +456,7 @@ export class ContextManager {
     }
   }
 
-  private calculateAdvancedMetrics(messages: CoreMessage[], model?: string): ContextMetrics {
+  private calculateAdvancedMetrics(messages: ModelMessage[], model?: string): ContextMetrics {
     const totalTokens = this.calculateTotalTokens(messages)
     const baseMetrics: ContextMetrics = {
       totalMessages: messages.length,
@@ -484,9 +484,9 @@ export class ContextManager {
   }
 
   private async performIntelligentCompression(
-    messages: CoreMessage[],
+    messages: ModelMessage[],
     _strategy: OptimizationStrategy
-  ): Promise<{ messages: CoreMessage[]; steps: string[] }> {
+  ): Promise<{ messages: ModelMessage[]; steps: string[] }> {
     const steps: string[] = []
     let optimized = [...messages]
 
@@ -504,15 +504,15 @@ export class ContextManager {
    * FIXED: Added timeout mechanism to prevent deadlocks
    */
   private async performSemanticCompression(
-    messages: CoreMessage[],
+    messages: ModelMessage[],
     _strategy: OptimizationStrategy
-  ): Promise<{ messages: CoreMessage[]; steps: string[] }> {
+  ): Promise<{ messages: ModelMessage[]; steps: string[] }> {
     const steps: string[] = []
     let optimized = [...messages]
 
     // Wrap in timeout to prevent deadlocks
     try {
-      const timeoutPromise = new Promise<CoreMessage[]>((_, reject) =>
+      const timeoutPromise = new Promise<ModelMessage[]>((_, reject) =>
         setTimeout(() => reject(new Error('Semantic compression timeout')), this.OPTIMIZATION_TIMEOUT)
       )
 
@@ -532,7 +532,7 @@ export class ContextManager {
     return { messages: optimized, steps }
   }
 
-  private calculateSemanticPreservation(original: CoreMessage[], optimized: CoreMessage[]): number {
+  private calculateSemanticPreservation(original: ModelMessage[], optimized: ModelMessage[]): number {
     // Simple heuristic: ratio of preserved content keywords
     const originalKeywords = this.extractKeywords(original)
     const optimizedKeywords = this.extractKeywords(optimized)
@@ -541,7 +541,7 @@ export class ContextManager {
     return originalKeywords.length > 0 ? intersection.length / originalKeywords.length : 1.0
   }
 
-  private extractKeywords(messages: CoreMessage[]): string[] {
+  private extractKeywords(messages: ModelMessage[]): string[] {
     const keywords = new Set<string>()
     const importantWords =
       /\b(implement|create|fix|bug|error|file|function|class|method|variable|import|export|async|await|return|if|for|while|try|catch)\b/gi
@@ -560,7 +560,7 @@ export class ContextManager {
   /**
    * FIXED: Improved cache key generation using content hash of all messages
    */
-  private generateContextCacheKey(messages: CoreMessage[], strategy: OptimizationStrategy): string {
+  private generateContextCacheKey(messages: ModelMessage[], strategy: OptimizationStrategy): string {
     // Hash last N messages for better cache key specificity
     const recentMessages = messages.slice(-5) // Last 5 messages
     const messagesHash = this.hashString(recentMessages.map((m) => this.hashMessage(m)).join('-'))
@@ -638,7 +638,7 @@ export class ContextManager {
   }
 
   // Enhanced compression methods
-  private compressContextIntelligent(messages: CoreMessage[]): CoreMessage[] {
+  private compressContextIntelligent(messages: ModelMessage[]): ModelMessage[] {
     // Use the enhanced version with better strategies
     return this.compressContext(messages)
   }
@@ -646,14 +646,14 @@ export class ContextManager {
   /**
    * FIXED: Added cycle detection and depth limits to prevent infinite loops
    */
-  private groupSimilarMessages(messages: CoreMessage[], depth = 0): CoreMessage[] {
+  private groupSimilarMessages(messages: ModelMessage[], depth = 0): ModelMessage[] {
     // Prevent infinite recursion
     if (depth > this.MAX_RECURSION_DEPTH) {
       advancedUI.logFunctionUpdate('warning', `⚠︎ Max recursion depth reached in groupSimilarMessages`)
       return messages
     }
 
-    const grouped: CoreMessage[] = []
+    const grouped: ModelMessage[] = []
     const processed = new Set<number>()
     const visited = new Set<string>() // Cycle detection
 
@@ -670,7 +670,7 @@ export class ContextManager {
       }
       visited.add(currentHash)
 
-      const similar: CoreMessage[] = [current]
+      const similar: ModelMessage[] = [current]
       processed.add(i)
 
       // Find similar messages with cycle detection (simple content similarity)
@@ -705,7 +705,7 @@ export class ContextManager {
     return grouped
   }
 
-  private areMessagesSimilar(msg1: CoreMessage, msg2: CoreMessage): boolean {
+  private areMessagesSimilar(msg1: ModelMessage, msg2: ModelMessage): boolean {
     if (msg1.role !== msg2.role) return false
 
     const content1 = typeof msg1.content === 'string' ? msg1.content : JSON.stringify(msg1.content)
@@ -720,7 +720,7 @@ export class ContextManager {
     return similarity > 0.4 // 40% similarity threshold
   }
 
-  private compressMessageGroup(messages: CoreMessage[]): CoreMessage {
+  private compressMessageGroup(messages: ModelMessage[]): ModelMessage {
     const first = messages[0]
     const contents = messages.map((msg) =>
       typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content)
@@ -732,7 +732,7 @@ export class ContextManager {
     return {
       role: first.role as 'user' | 'assistant' | 'system' | 'tool',
       content: `[COMPRESSED ${messages.length} messages]: ${summary}`,
-    } as CoreMessage
+    } as ModelMessage;
   }
 
   private createMessageGroupSummary(contents: string[]): string {
@@ -742,11 +742,8 @@ export class ContextManager {
 
     // Keep most important sentences (first and last, plus any with keywords)
     const important = sentences.filter((sentence, idx) => {
-      return (
-        idx === 0 ||
-        idx === sentences.length - 1 ||
-        /\b(error|bug|fix|implement|create|important|critical)\b/i.test(sentence)
-      )
+      return (idx === 0 ||
+      idx === sentences.length - 1 || /\b(error|bug|fix|implement|create|important|critical)\b/i.test(sentence));
     })
 
     return important.slice(0, 3).join('. ').substring(0, 300) + (important.length > 3 ? '...' : '')
@@ -951,8 +948,8 @@ export class ContextManager {
   /**
    * Enhanced legacy compress context method
    */
-  private compressContext(messages: CoreMessage[]): CoreMessage[] {
-    const optimized: CoreMessage[] = []
+  private compressContext(messages: ModelMessage[]): ModelMessage[] {
+    const optimized: ModelMessage[] = []
     let currentTokens = 0
 
     // Always keep system messages with enhanced handling
@@ -1003,7 +1000,7 @@ export class ContextManager {
     return optimized
   }
 
-  private calculateSemanticValue(message: CoreMessage): number {
+  private calculateSemanticValue(message: ModelMessage): number {
     const content = typeof message.content === 'string' ? message.content : JSON.stringify(message.content)
     let value = 0
 
@@ -1021,7 +1018,7 @@ export class ContextManager {
     return Math.min(value, 1.0)
   }
 
-  private createEnhancedSummaryContext(messages: CoreMessage[]): CoreMessage[] {
+  private createEnhancedSummaryContext(messages: ModelMessage[]): ModelMessage[] {
     const systemMessages = messages.filter((m) => m.role === 'system')
     const nonSystemMessages = messages.filter((m) => m.role !== 'system')
 
@@ -1039,7 +1036,7 @@ export class ContextManager {
 
     // Enhanced summary creation
     const summaryContent = this.createEnhancedMiddleSummary(middleMessages)
-    const summaryMessage: CoreMessage = {
+    const summaryMessage: ModelMessage = {
       role: 'system',
       content: `[ENHANCED CONTEXT SUMMARY] ${middleMessages.length} messages: ${summaryContent}`,
     }
@@ -1047,7 +1044,7 @@ export class ContextManager {
     return [...systemMessages, ...startMessages, summaryMessage, ...endMessages]
   }
 
-  private createEnhancedMiddleSummary(messages: CoreMessage[]): string {
+  private createEnhancedMiddleSummary(messages: ModelMessage[]): string {
     const summary: string[] = []
     const codeBlocks: string[] = []
     const questions: string[] = []
@@ -1084,14 +1081,14 @@ export class ContextManager {
   /**
    * Calculate total tokens for message array
    */
-  private calculateTotalTokens(messages: CoreMessage[]): number {
+  private calculateTotalTokens(messages: ModelMessage[]): number {
     return messages.reduce((total, msg) => total + this.getMessageTokens(msg), 0)
   }
 
   /**
    * Get token count for a single message
    */
-  private getMessageTokens(message: CoreMessage): number {
+  private getMessageTokens(message: ModelMessage): number {
     const content = typeof message.content === 'string' ? message.content : JSON.stringify(message.content)
     return this.estimateTokens(content)
   }
@@ -1099,7 +1096,7 @@ export class ContextManager {
   /**
    * Get context metrics (enhanced)
    */
-  getContextMetrics(messages: CoreMessage[]): ContextMetrics {
+  getContextMetrics(messages: ModelMessage[]): ContextMetrics {
     const totalTokens = this.calculateTotalTokens(messages)
     return {
       totalMessages: messages.length,

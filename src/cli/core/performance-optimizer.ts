@@ -1,5 +1,5 @@
 import { performance } from 'node:perf_hooks'
-import type { CoreMessage } from 'ai'
+import type { ModelMessage } from 'ai'
 
 export interface PerformanceMetrics {
   tokenCount: number
@@ -119,7 +119,7 @@ export class TokenOptimizer {
     return text
       .replace(/\s+/g, ' ') // Normalize whitespace
       .replace(/\b(um|uh|well)\b/gi, '') // Remove obvious filler
-      .trim()
+      .trim();
   }
 
   private balancedOptimization(text: string): string {
@@ -138,7 +138,7 @@ export class TokenOptimizer {
       .replace(/\bfor example\b/gi, 'e.g.')
       .replace(/\bthat is\b/gi, 'i.e.')
 
-    return optimized.replace(/\s+/g, ' ').trim()
+    return optimized.replace(/\s+/g, ' ').trim();
   }
 
   private aggressiveOptimization(text: string): string {
@@ -152,7 +152,7 @@ export class TokenOptimizer {
       .replace(/\bin order to\b/gi, 'to')
       .replace(/\band so on\b/gi, 'etc.')
 
-    return optimized.replace(/\s+/g, ' ').trim()
+    return optimized.replace(/\s+/g, ' ').trim();
   }
 
   private estimateTokens(text: string): number {
@@ -252,7 +252,7 @@ export class PerformanceOptimizer {
   }
 
   // Optimize messages for better performance with token optimization
-  async optimizeMessages(messages: CoreMessage[]): Promise<CoreMessage[]> {
+  async optimizeMessages(messages: ModelMessage[]): Promise<ModelMessage[]> {
     const optimized = [...messages]
 
     // Remove redundant system messages

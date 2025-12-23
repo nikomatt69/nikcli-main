@@ -4,7 +4,7 @@ import { extname, join, relative } from 'node:path'
 import { promisify } from 'node:util'
 import { tool } from 'ai'
 import chalk from 'chalk'
-import { z } from 'zod'
+import { z } from 'zod/v3';
 import { advancedUI } from '../ui/advanced-cli-ui'
 
 const execAsync = promisify(exec)
@@ -25,7 +25,7 @@ export class IDEContextEnricher {
     return tool({
       description:
         'Analyze and enrich IDE context including editor, workspace, project structure, and development environment',
-      parameters: z.object({
+      inputSchema: z.object({
         includeDependencies: z.boolean().default(true).describe('Include package.json and dependency analysis'),
         includeGitInfo: z.boolean().default(true).describe('Include Git repository information'),
         includeRecentFiles: z.boolean().default(true).describe('Include recently modified files'),
@@ -61,7 +61,7 @@ export class IDEContextEnricher {
           }
         }
       },
-    })
+    });
   }
 
   // Detect current editor/IDE

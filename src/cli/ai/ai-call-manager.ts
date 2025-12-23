@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto'
 import chalk from 'chalk'
 import ora from 'ora'
-import { z } from 'zod'
+import { z } from 'zod/v3';
 import * as ragSystem from '../context/rag-system'
 import { type BatchSession, secureTools } from '../tools/secure-tools-registry'
 import { advancedUI } from '../ui/advanced-cli-ui'
@@ -14,7 +14,7 @@ export interface ToolCall {
   id: string
   name: string
   arguments: Record<string, any>
-  reasoning?: string
+  reasoningText?: string
 }
 
 /**
@@ -52,7 +52,7 @@ const ExecutionPlanSchema = z.object({
       id: z.string().describe('Unique identifier for this tool call'),
       name: z.string().describe('Name of the tool to call'),
       arguments: z.record(z.any()).describe('Arguments to pass to the tool'),
-      reasoning: z.string().optional().describe('Why this tool call is needed'),
+      reasoningText: z.string().optional().describe('Why this tool call is needed'),
     })
   ),
   estimatedDuration: z.number().describe('Estimated duration in minutes'),
@@ -372,7 +372,7 @@ Estimate realistic durations and assess risk levels accurately.`
     if (plan.requiresApproval && !options.skipApproval) {
       console.log(chalk.yellow.bold('\n⚠︎ This plan requires your approval to proceed.'))
       plan.toolCalls.forEach((toolCall, index) => {
-        console.log(`  ${index + 1}. ${toolCall.name}: ${toolCall.reasoning || ''}`)
+        console.log(`  ${index + 1}. ${toolCall.name}: ${toolCall.reasoningText || ''}`)
         console.log(`     Arguments: ${JSON.stringify(toolCall.arguments)}`)
       })
 
@@ -463,8 +463,8 @@ Estimate realistic durations and assess risk levels accurately.`
             const logPrefix = isParallel ? ` (parallel ${idx + 1}/${groupSize})` : ''
 
             console.log(chalk.blue(`\n[${displayIndex}/${plan.toolCalls.length}${logPrefix}] ${toolCall.name}`))
-            if (toolCall.reasoning) {
-              console.log(chalk.gray(`   Reasoning: ${toolCall.reasoning}`))
+            if (toolCall.reasoningText) {
+              console.log(chalk.gray(`   Reasoning: ${toolCall.reasoningText}`))
             }
 
             try {

@@ -3,7 +3,7 @@ import { promisify } from 'node:util'
 import { createOpenAI, openai } from '@ai-sdk/openai'
 import { tool } from 'ai'
 import chalk from 'chalk'
-import { z } from 'zod'
+import { z } from 'zod/v3';
 import { webSearch } from '@exalabs/ai-sdk'
 import { modelProvider } from '../ai/model-provider'
 import { configManager } from './config-manager'
@@ -42,7 +42,7 @@ export class WebSearchProvider {
 
         // Check if the default openai export has the webSearchPreview tool
         if (openai?.tools?.webSearchPreview) {
-          return openai.tools.webSearchPreview()
+          return openai.tools.webSearchPreview({})
         }
       }
 
@@ -57,7 +57,7 @@ export class WebSearchProvider {
   getWebSearchTool() {
     return tool({
       description: 'Search the web for current information, documentation, or solutions',
-      parameters: z.object({
+      inputSchema: z.object({
         query: z.string().describe('Search query to find relevant information'),
         maxResults: z.number().default(5).describe('Maximum number of results to return'),
         searchType: z
@@ -127,7 +127,7 @@ export class WebSearchProvider {
           }
         }
       },
-    })
+    });
   }
 
   private supportsNativeOpenAIWebSearch(): boolean {
@@ -239,7 +239,10 @@ export class WebSearchProvider {
         })
 
         // Execute the tool directly - the tool's execute method accepts { query: string }
-        const result = await exaSearchTool.execute({ query })
+        if (!exaSearchTool?.execute) {
+          throw new Error('Exa search tool execute method is not available')
+        }
+        const result = await (exaSearchTool.execute as any)({ query }, undefined)
 
         // Transform Exa results to WebSearchResult format
         const results: WebSearchResult[] = []
@@ -251,11 +254,12 @@ export class WebSearchProvider {
           items = result
         } else if (result && typeof result === 'object') {
           // Try common property names
-          items = result.results || result.items || result.data || []
+          const resultAny = result as any
+          items = resultAny.results || resultAny.items || resultAny.data || []
 
           // If result itself looks like a single item, wrap it
-          if (result.url || result.title) {
-            items = [result]
+          if (resultAny.url || resultAny.title) {
+            items = [resultAny]
           }
         }
 
@@ -450,7 +454,7 @@ export class WebSearchProvider {
       .replace(/&lt;/g, '<')
       .replace(/&gt;/g, '>')
       .replace(/\s+/g, ' ')
-      .trim()
+      .trim();
   }
 
   private concatUint8(chunks: Uint8Array[]): Uint8Array {

@@ -11,7 +11,7 @@
  * - minimal-efficient: Minimalist output, only the essentials
  */
 
-import { z } from 'zod'
+import { z } from 'zod/v3';
 
 // Core output style enumeration
 export const OutputStyleEnum = z.enum([

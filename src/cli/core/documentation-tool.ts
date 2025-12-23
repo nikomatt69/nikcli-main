@@ -1,11 +1,11 @@
-import { type CoreTool, tool } from 'ai'
+import { type Tool, tool } from 'ai'
 import chalk from 'chalk'
-import { z } from 'zod'
+import { z } from 'zod/v3';
 import { docLibrary } from './documentation-library'
 
-export const documentationSearchTool: CoreTool = tool({
+export const documentationSearchTool: Tool = tool({
   description: 'Search documentation library and web for technical information, with automatic caching',
-  parameters: z.object({
+  inputSchema: z.object({
     query: z.string().describe('Search query for documentation'),
     category: z.string().optional().describe('Optional category filter (e.g., "api", "deployment", "testing")'),
     includeWeb: z.boolean().default(true).describe('Include web search if local docs not found'),
@@ -74,9 +74,9 @@ export const documentationSearchTool: CoreTool = tool({
   },
 })
 
-export const addDocumentationTool: CoreTool = tool({
+export const addDocumentationTool: Tool = tool({
   description: 'Add documentation from URL to the library for future reference',
-  parameters: z.object({
+  inputSchema: z.object({
     url: z.string().describe('URL of the documentation to add'),
     category: z.string().default('general').describe('Category for the documentation'),
     tags: z.array(z.string()).default([]).describe('Tags for better searchability'),
@@ -116,9 +116,9 @@ export const addDocumentationTool: CoreTool = tool({
   },
 })
 
-export const documentationStatsTool: CoreTool = tool({
+export const documentationStatsTool: Tool = tool({
   description: 'Get statistics and status of the documentation library',
-  parameters: z.object({
+  inputSchema: z.object({
     detailed: z.boolean().default(false).describe('Include detailed statistics'),
   }),
   execute: async ({ detailed }) => {

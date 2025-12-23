@@ -74,9 +74,9 @@ export class TaskMasterAdapter extends EventEmitter {
       context: {
         userRequest: taskMasterPlan.userRequest,
         projectPath: process.cwd(),
-        reasoning: 'Generated via TaskMaster AI',
+        reasoningText: 'Generated via TaskMaster AI',
       },
-    }
+    };
   }
 
   /**
@@ -124,9 +124,9 @@ export class TaskMasterAdapter extends EventEmitter {
       estimatedDuration: agentTodo.estimatedDuration,
       actualDuration: agentTodo.actualDuration,
       progress: agentTodo.progress || 0,
-      reasoning: agentTodo.context?.reasoning,
+      reasoningText: agentTodo.context?.reasoningText,
       tools: agentTodo.tags,
-    }
+    };
   }
 
   /**
@@ -147,9 +147,9 @@ export class TaskMasterAdapter extends EventEmitter {
       tags: (planTodo.tools?.slice() as string[]) || [],
       progress: planTodo.progress,
       context: {
-        reasoning: planTodo.reasoning,
+        reasoningText: planTodo.reasoningText,
       },
-    }
+    };
   }
 
   /**

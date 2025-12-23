@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events'
-import type { CoreMessage } from 'ai'
+import type { ModelMessage } from 'ai'
 import chalk from 'chalk'
 import { nanoid } from 'nanoid'
 import { advancedAIProvider } from '../ai/advanced-ai-provider'
@@ -171,7 +171,7 @@ export class AutonomousPlanner extends EventEmitter {
     })
 
     // Use AI to break down the goal into actionable todos
-    const planningMessages: CoreMessage[] = [
+    const planningMessages: ModelMessage[] = [
       {
         role: 'system',
         content: `You are an expert autonomous planner that breaks down development goals into executable todos.
@@ -261,7 +261,7 @@ IMPORTANT: Only use tools that are actually available. Be specific about file pa
       tools: todo.tools || [],
       dependencies: todo.dependencies || [],
       status: 'pending' as const,
-      reasoning: todo.reasoning || '',
+      reasoningText: todo.reasoningText || '',
       priority: todo.priority || 'medium',
     }))
 
@@ -284,7 +284,7 @@ IMPORTANT: Only use tools that are actually available. Be specific about file pa
       context: {
         userRequest: goal,
         projectPath: workspaceContext.projectPath || process.cwd(),
-        reasoning: planData.reasoning,
+        reasoningText: planData.reasoningText,
       },
     }
 
@@ -449,7 +449,7 @@ IMPORTANT: Only use tools that are actually available. Be specific about file pa
           id: nanoid(),
           title: 'Locate and read file',
           description: goal,
-          reasoning: 'Extract relevant file path from user goal',
+          reasoningText: 'Extract relevant file path from user goal',
           tools: ['read_file'],
           estimatedDuration: 5,
           status: 'pending' as const,
@@ -470,7 +470,7 @@ IMPORTANT: Only use tools that are actually available. Be specific about file pa
           id: nanoid(),
           title: 'Search for content',
           description: goal,
-          reasoning: 'Find matching content using search/grep',
+          reasoningText: 'Find matching content using search/grep',
           tools: ['grep'],
           estimatedDuration: 10,
           status: 'pending' as const,
@@ -491,7 +491,7 @@ IMPORTANT: Only use tools that are actually available. Be specific about file pa
           id: nanoid(),
           title: 'Gather information',
           description: goal,
-          reasoning: 'Retrieve requested information using available tools',
+          reasoningText: 'Retrieve requested information using available tools',
           tools: ['read_file', 'analyze_project'],
           estimatedDuration: 15,
           status: 'pending' as const,
@@ -516,7 +516,7 @@ IMPORTANT: Only use tools that are actually available. Be specific about file pa
           id: nanoid(),
           title: 'Execute task',
           description: goal,
-          reasoning: 'Execute simple task using appropriate tools',
+          reasoningText: 'Execute simple task using appropriate tools',
           tools: ['read_file', 'execute_command'],
           estimatedDuration: 10,
           status: 'pending' as const,
@@ -572,14 +572,14 @@ IMPORTANT: Only use tools that are actually available. Be specific about file pa
     })
 
     // Create execution context for the todo
-    const executionMessages: CoreMessage[] = [
+    const executionMessages: ModelMessage[] = [
       {
         role: 'system',
         content: `You are an autonomous executor that completes specific development tasks.
 
 CURRENT TASK: ${todo.title}
 TASK DESCRIPTION: ${todo.description}
-REASONING: ${todo.reasoning}
+REASONING: ${todo.reasoningText}
 AVAILABLE TOOLS: ${todo?.tools?.join(', ')}
 
 WORKSPACE CONTEXT:
@@ -649,7 +649,7 @@ Execute the task now using the available tools.`,
           updatedAt: new Date(),
           progress: 0,
           tools: this.suggestToolsForGoal(goal),
-          reasoning: 'Direct execution of user goal',
+          reasoningText: 'Direct execution of user goal',
         },
       ],
       estimatedTotalDuration: 30000,

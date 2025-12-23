@@ -381,8 +381,8 @@ export class SecureVirtualizedAgent extends EventEmitter implements Agent {
       this.maxConcurrentTasks = config.maxConcurrentTasks
     }
 
-    if (config.maxTokens) {
-      this.tokenBudget = config.maxTokens
+    if (config.maxOutputTokens) {
+      this.tokenBudget = config.maxOutputTokens
     }
 
     advancedUI.logInfo(`VM agent ${this.id} configuration updated`)

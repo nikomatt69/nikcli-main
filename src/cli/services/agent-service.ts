@@ -462,7 +462,7 @@ export class AgentService extends EventEmitter {
               this.emit('task_progress', agentTask, update)
             } else if (update.type === 'reasoning') {
               console.log(chalk.magenta.bold(`\n⚡︎ Step ${update.step}: ${update.title}`))
-              console.log(chalk.dim(`   Reasoning: ${update.reasoning}`))
+              console.log(chalk.dim(`   Reasoning: ${update.reasoningText}`))
               if (update.toolchain) {
                 console.log(chalk.cyan(`   Toolchain: ${update.toolchain.join(', ')}`))
               }
@@ -640,7 +640,7 @@ export class AgentService extends EventEmitter {
         type: 'reasoning',
         step: 1,
         title: 'Task Analysis & Planning',
-        reasoning: `Analyzing task: "${task}". Breaking down into systematic analysis steps with appropriate toolchain selection.`,
+        reasoningText: `Analyzing task: "${task}". Breaking down into systematic analysis steps with appropriate toolchain selection.`,
         toolchain: ['analyze_project', 'find_files', 'read_file', 'git_status'],
         estimatedDuration: '30-60 seconds',
       }
@@ -651,7 +651,7 @@ export class AgentService extends EventEmitter {
         type: 'reasoning',
         step: 2,
         title: 'Project Structure Discovery',
-        reasoning:
+        reasoningText:
           'Starting with high-level project analysis to understand architecture, build system, and overall structure. This provides context for subsequent detailed analysis.',
         nextAction: 'Execute analyze_project tool',
       }
@@ -664,7 +664,7 @@ export class AgentService extends EventEmitter {
         type: 'reasoning',
         step: 3,
         title: 'TypeScript Codebase Exploration',
-        reasoning:
+        reasoningText:
           'Scanning for TypeScript files to understand code organization, modules, and architectural patterns. TypeScript files indicate type safety maturity.',
         nextAction: 'Search for all TypeScript files with pattern matching',
       }
@@ -677,7 +677,7 @@ export class AgentService extends EventEmitter {
         type: 'reasoning',
         step: 4,
         title: 'Configuration & Tooling Assessment',
-        reasoning:
+        reasoningText:
           'Identifying configuration files to understand build tools, linting setup, CI/CD, and development workflow. Configuration completeness indicates project maturity.',
         nextAction: 'Scan for configuration files across multiple formats',
       }
@@ -692,7 +692,7 @@ export class AgentService extends EventEmitter {
         type: 'reasoning',
         step: 5,
         title: 'Dependency & Package Analysis',
-        reasoning:
+        reasoningText:
           'Reading package.json to understand dependencies, scripts, and project metadata. This reveals technology stack, framework choices, and maintenance status.',
         nextAction: 'Parse package.json for comprehensive dependency analysis',
       }
@@ -708,7 +708,7 @@ export class AgentService extends EventEmitter {
           type: 'reasoning',
           step: 5.1,
           title: 'Package Info Fallback',
-          reasoning: 'package.json not found or invalid. Proceeding with alternative dependency discovery methods.',
+          reasoningText: 'package.json not found or invalid. Proceeding with alternative dependency discovery methods.',
           nextAction: 'Continue analysis without package metadata',
         }
       }
@@ -719,7 +719,7 @@ export class AgentService extends EventEmitter {
         type: 'reasoning',
         step: 6,
         title: 'Test Coverage Assessment',
-        reasoning:
+        reasoningText:
           'Searching for test files to evaluate testing strategy and code quality practices. Test presence indicates development maturity and reliability focus.',
         nextAction: 'Locate test files with common naming conventions',
       }
@@ -732,7 +732,7 @@ export class AgentService extends EventEmitter {
         type: 'reasoning',
         step: 7,
         title: 'Git Repository Status',
-        reasoning:
+        reasoningText:
           'Checking git status to understand current development state, branch information, and pending changes. This provides context about active development.',
         nextAction: 'Query git status for repository state',
       }
@@ -745,7 +745,7 @@ export class AgentService extends EventEmitter {
           type: 'reasoning',
           step: 7.1,
           title: 'Git Analysis Fallback',
-          reasoning: 'Not a git repository or git access error. Proceeding without version control analysis.',
+          reasoningText: 'Not a git repository or git access error. Proceeding without version control analysis.',
           nextAction: 'Continue with available data',
         }
       }
@@ -756,7 +756,7 @@ export class AgentService extends EventEmitter {
         type: 'reasoning',
         step: 8,
         title: 'Data Synthesis & Analysis',
-        reasoning:
+        reasoningText:
           'Combining all gathered information to create comprehensive project assessment. Analyzing patterns, identifying strengths/weaknesses, and generating actionable recommendations.',
         nextAction: 'Process collected data through analysis algorithms',
       }
@@ -811,7 +811,7 @@ export class AgentService extends EventEmitter {
         type: 'reasoning',
         step: 9,
         title: 'Analysis Complete',
-        reasoning: `Analysis completed successfully. Discovered ${analysis.projectStructure.totalFiles.typescript} TypeScript files, identified ${analysis.projectStructure.framework} framework, and generated ${analysis.recommendations.length} recommendations.`,
+        reasoningText: `Analysis completed successfully. Discovered ${analysis.projectStructure.totalFiles.typescript} TypeScript files, identified ${analysis.projectStructure.framework} framework, and generated ${analysis.recommendations.length} recommendations.`,
         nextAction: 'Present formatted results to user',
       }
       yield { type: 'progress', progress: 100 }
@@ -940,7 +940,7 @@ export class AgentService extends EventEmitter {
         type: 'reasoning',
         step: 1,
         title: 'Code Review Planning',
-        reasoning: `Initiating code review for: "${task}". Establishing systematic review process focusing on git changes, code quality, security, and best practices.`,
+        reasoningText: `Initiating code review for: "${task}". Establishing systematic review process focusing on git changes, code quality, security, and best practices.`,
         toolchain: ['git_status', 'git_diff', 'find_files', 'read_file'],
         estimatedDuration: '15-30 seconds',
       }
@@ -951,7 +951,7 @@ export class AgentService extends EventEmitter {
         type: 'reasoning',
         step: 2,
         title: 'Git Changes Assessment',
-        reasoning:
+        reasoningText:
           'Analyzing git status to identify modified, added, and deleted files. This provides the scope of changes for targeted review.',
         nextAction: 'Query git status for pending changes',
       }
@@ -964,7 +964,7 @@ export class AgentService extends EventEmitter {
         type: 'reasoning',
         step: 3,
         title: 'Code Changes Review',
-        reasoning:
+        reasoningText:
           'Examining code diffs to understand specific changes, additions, and deletions. This enables targeted feedback on actual modifications.',
         nextAction: 'Retrieve and analyze code differences',
       }
@@ -981,7 +981,7 @@ export class AgentService extends EventEmitter {
           type: 'reasoning',
           step: 3.1,
           title: 'No Changes Detected',
-          reasoning: 'No git changes found. Switching to general codebase review mode.',
+          reasoningText: 'No git changes found. Switching to general codebase review mode.',
           nextAction: 'Perform general code quality assessment',
         }
         reviewFindings = ['No pending git changes - performed general codebase assessment']
@@ -993,7 +993,7 @@ export class AgentService extends EventEmitter {
         type: 'reasoning',
         step: 4,
         title: 'Security & Quality Review',
-        reasoning:
+        reasoningText:
           'Conducting security scan and code quality assessment. Looking for potential vulnerabilities, anti-patterns, and maintainability issues.',
         nextAction: 'Execute security and quality checks',
       }
@@ -1021,7 +1021,7 @@ export class AgentService extends EventEmitter {
         type: 'reasoning',
         step: 5,
         title: 'Review Complete',
-        reasoning: `Code review completed. Analyzed ${reviewReport.changedFiles} files and generated ${reviewReport.suggestions.length} actionable suggestions for improvement.`,
+        reasoningText: `Code review completed. Analyzed ${reviewReport.changedFiles} files and generated ${reviewReport.suggestions.length} actionable suggestions for improvement.`,
         nextAction: 'Present comprehensive review report',
       }
       yield { type: 'progress', progress: 100 }
@@ -1461,7 +1461,7 @@ export class AgentService extends EventEmitter {
         type: 'reasoning',
         step: 1,
         title: 'Cognitive Task Analysis',
-        reasoning: `Analyzing task: "${task}". Applying cognitive processing to understand requirements, context, and optimal execution strategy.`,
+        reasoningText: `Analyzing task: "${task}". Applying cognitive processing to understand requirements, context, and optimal execution strategy.`,
         toolchain: ['analysis', 'planning', 'context-evaluation'],
         estimatedDuration: '10-15 seconds',
       }
@@ -1472,7 +1472,7 @@ export class AgentService extends EventEmitter {
         type: 'reasoning',
         step: 2,
         title: 'Context & Environment Assessment',
-        reasoning: `Evaluating workspace context, available tools, and agent capabilities. Agent type: ${agentType}. Working directory: ${context.workingDirectory}.`,
+        reasoningText: `Evaluating workspace context, available tools, and agent capabilities. Agent type: ${agentType}. Working directory: ${context.workingDirectory}.`,
         nextAction: 'Identify required tools and dependencies',
       }
 
@@ -1484,7 +1484,7 @@ export class AgentService extends EventEmitter {
         type: 'reasoning',
         step: 3,
         title: 'Strategic Execution Planning',
-        reasoning: `Creating autonomous execution plan. Identified ${workspaceFiles.length} relevant files. Planning multi-step approach with error recovery.`,
+        reasoningText: `Creating autonomous execution plan. Identified ${workspaceFiles.length} relevant files. Planning multi-step approach with error recovery.`,
         toolchain: ['strategic-planning', 'step-decomposition', 'risk-assessment'],
         nextAction: 'Execute planned steps with real-time monitoring',
       }
@@ -1497,7 +1497,7 @@ export class AgentService extends EventEmitter {
         type: 'reasoning',
         step: 4,
         title: 'Autonomous Task Execution',
-        reasoning: `Beginning autonomous execution of ${executionPlan.steps.length} planned steps. Each step will be monitored for success and adapted as needed.`,
+        reasoningText: `Beginning autonomous execution of ${executionPlan.steps.length} planned steps. Each step will be monitored for success and adapted as needed.`,
         toolchain: executionPlan.requiredTools,
         estimatedDuration: `${executionPlan.estimatedDuration} seconds`,
       }
@@ -1514,7 +1514,7 @@ export class AgentService extends EventEmitter {
           type: 'reasoning',
           step: 4.1,
           title: `Executing Step ${currentStep}: ${step.title}`,
-          reasoning: step.reasoning,
+          reasoningText: step.reasoningText,
           nextAction: step.action,
         }
 
@@ -1535,7 +1535,7 @@ export class AgentService extends EventEmitter {
         type: 'reasoning',
         step: 5,
         title: 'Results Analysis & Synthesis',
-        reasoning: `Autonomous execution completed. Processed ${results.length} successful steps with ${errors.length} errors. Synthesizing comprehensive results.`,
+        reasoningText: `Autonomous execution completed. Processed ${results.length} successful steps with ${errors.length} errors. Synthesizing comprehensive results.`,
         nextAction: 'Generate formatted results and recommendations',
       }
       yield { type: 'progress', progress: 95 }
@@ -1588,7 +1588,7 @@ export class AgentService extends EventEmitter {
     if (task.toLowerCase().includes('analyze') || task.toLowerCase().includes('review')) {
       steps.push({
         title: 'Code Analysis',
-        reasoning: 'Performing comprehensive code analysis to understand structure and identify areas for improvement',
+        reasoningText: 'Performing comprehensive code analysis to understand structure and identify areas for improvement',
         action: 'Analyze codebase structure and patterns',
         tool: 'analysis',
         description: 'Analyzing codebase for insights',
@@ -1603,14 +1603,14 @@ export class AgentService extends EventEmitter {
     ) {
       steps.push({
         title: 'Implementation Planning',
-        reasoning: 'Creating implementation strategy based on requirements and existing codebase structure',
+        reasoningText: 'Creating implementation strategy based on requirements and existing codebase structure',
         action: 'Plan and execute implementation steps',
         tool: 'implementation',
         description: 'Planning implementation approach',
       })
       steps.push({
         title: 'Code Implementation',
-        reasoning: 'Implementing solution with proper error handling and following best practices',
+        reasoningText: 'Implementing solution with proper error handling and following best practices',
         action: 'Write code implementation',
         tool: 'write_file',
         description: 'Implementing solution',
@@ -1621,7 +1621,7 @@ export class AgentService extends EventEmitter {
     if (task.toLowerCase().includes('test') || task.toLowerCase().includes('verify')) {
       steps.push({
         title: 'Testing & Verification',
-        reasoning: 'Running tests to verify implementation correctness and identify any issues',
+        reasoningText: 'Running tests to verify implementation correctness and identify any issues',
         action: 'Execute tests and verify results',
         tool: 'test',
         description: 'Running tests and verification',
@@ -1633,14 +1633,14 @@ export class AgentService extends EventEmitter {
     if (steps.length === 0) {
       steps.push({
         title: 'Task Analysis',
-        reasoning: 'Analyzing task requirements and determining optimal approach',
+        reasoningText: 'Analyzing task requirements and determining optimal approach',
         action: 'Understand and break down task requirements',
         tool: 'analysis',
         description: 'Analyzing task requirements',
       })
       steps.push({
         title: 'Task Execution',
-        reasoning: 'Executing task using autonomous decision-making and available tools',
+        reasoningText: 'Executing task using autonomous decision-making and available tools',
         action: 'Execute primary task objectives',
         tool: 'execution',
         description: 'Executing main task',

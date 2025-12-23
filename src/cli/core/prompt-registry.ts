@@ -1,7 +1,7 @@
 import { readdir, readFile } from 'node:fs/promises'
 import { extname, join } from 'node:path'
 import chalk from 'chalk'
-import { z } from 'zod'
+import { z } from 'zod/v3';
 import { advancedUI } from '../ui/advanced-cli-ui'
 import { structuredLogger } from '../utils/structured-logger'
 

@@ -633,7 +633,7 @@ describe('CompletionProtocolCache', () => {
       const request = {
         prefix: 'const x = ',
         context: 'test context',
-        maxTokens: 100,
+        maxOutputTokens: 100,
         temperature: 0.7,
         model: 'claude-3',
       }
@@ -645,7 +645,7 @@ describe('CompletionProtocolCache', () => {
       const request = {
         prefix: 'const x = ',
         context: 'test context',
-        maxTokens: 100,
+        maxOutputTokens: 100,
         temperature: 0.7,
         model: 'claude-3',
       }
@@ -663,7 +663,7 @@ describe('CompletionProtocolCache', () => {
       const request = {
         prefix: 'const x = ',
         context: 'test',
-        maxTokens: 100,
+        maxOutputTokens: 100,
         temperature: 0.7,
         model: 'claude-3',
       }
@@ -678,7 +678,7 @@ describe('CompletionProtocolCache', () => {
       const request = {
         prefix: '',
         context: 'test',
-        maxTokens: 100,
+        maxOutputTokens: 100,
         temperature: 0.7,
         model: 'claude-3',
       }
@@ -696,7 +696,7 @@ describe('CompletionProtocolCache', () => {
       const request = {
         prefix: 'const x = ',
         context: 'test',
-        maxTokens: 100,
+        maxOutputTokens: 100,
         temperature: 0.7,
         model: 'claude-3',
       }

@@ -12,7 +12,7 @@ export interface EmbeddingConfig {
   provider: 'openai' | 'google' | 'anthropic' | 'openrouter' | 'local'
   model: string
   batchSize: number
-  maxTokens: number
+  maxOutputTokens: number
   costPer1KTokens: number
   baseURL?: string
   headers?: Record<string, string>
@@ -138,13 +138,13 @@ export class AiSdkEmbeddingProvider {
             model: cfg.model || name,
             dimensions: cfg.dimensions || this.getDefaultDimensions(provider),
             batchSize: cfg.batchSize || Number(process.env.EMBED_BATCH_SIZE || 300),
-            maxTokens: cfg.maxTokens || 8191,
+            maxOutputTokens: cfg.maxOutputTokens || 8191,
             costPer1KTokens: cfg.costPer1KTokens ?? 0,
             baseURL: cfg.baseURL,
             headers: cfg.headers,
           },
-        }
-      })
+        };
+      });
   }
 
   private hasApiKey(provider: string): boolean {
@@ -330,12 +330,12 @@ export class AiSdkEmbeddingProvider {
   private async generateWithModel(texts: string[], config: ResolvedEmbeddingModel['config']): Promise<EmbeddingResult> {
     // Truncate texts to fit within token limits with safety margin
     const processedTexts = texts.map((text) => {
-      const truncated = this.truncateText(text, config.maxTokens)
+      const truncated = this.truncateText(text, config.maxOutputTokens)
       // Double-check the truncation worked
       const estimatedTokens = Math.ceil(truncated.length / 3.5)
-      if (estimatedTokens > config.maxTokens) {
+      if (estimatedTokens > config.maxOutputTokens) {
         // Emergency truncation if still too long
-        const safeMaxChars = Math.floor(config.maxTokens * 0.7 * 3.5)
+        const safeMaxChars = Math.floor(config.maxOutputTokens * 0.7 * 3.5)
         return truncated.substring(0, safeMaxChars) + '\n[truncated]'
       }
       return truncated
@@ -493,7 +493,7 @@ export class AiSdkEmbeddingProvider {
             }
 
             const googleProvider = createGoogleGenerativeAI({ apiKey })
-            const model = googleProvider.textEmbeddingModel(config.model)
+            const model = googleProvider.embeddingModel(config.model)
 
             // For multiple texts, use embedMany
             if (texts.length > 1) {

@@ -5,8 +5,8 @@ import { createAnthropic } from '@ai-sdk/anthropic'
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import { createOpenAI } from '@ai-sdk/openai'
 import { createOpenRouter } from '@openrouter/ai-sdk-provider'
-import { generateText, type LanguageModelV1 } from 'ai'
-import { z } from 'zod'
+import { generateText } from 'ai';
+import { z } from 'zod/v3';
 import { type CADCamFunBridge, createCADCamFunBridge } from '../../integrations/cadcamfun-bridge'
 import { TextToGCodeTool } from '../../tools/text-to-gcode-tool'
 
@@ -30,7 +30,7 @@ export interface GcodeResult {
 
 const CadInputSchema = z.object({
   description: z.string().min(1, 'Description must not be empty'),
-  parameters: z.record(z.any()).optional(),
+  inputSchema: z.record(z.any()).optional(),
 })
 
 const GcodeInputSchema = z.object({
@@ -75,7 +75,8 @@ export class CadGcodeProvider extends EventEmitter {
   }
 
   async generateCad(description: string, parameters?: Record<string, any>): Promise<CadResult> {
-    const { description: desc, parameters: params } = CadInputSchema.parse({ description, parameters })
+    const { description: desc } = CadInputSchema.parse({ description })
+    const params = parameters
     this.emit('generationStart', { type: 'cad' })
 
     if (!this.initialized) {
@@ -99,11 +100,11 @@ export class CadGcodeProvider extends EventEmitter {
     if (!model) {
       // Fallback to AI SDK generation of OpenSCAD-like script
       const { text } = await generateText({
-        model: this.pickAiModel() as LanguageModelV1,
+        model: this.pickAiModel() as unknown as any,
         system:
           'You are a senior CAD CAM engineer. Generate a valid OpenSCAD script for the given description. Include parameters when appropriate. Output only code without explanations.',
         prompt: `${desc}\n\nConstraints: ${params ? JSON.stringify(params) : '{}'}\nEnsure metric units (mm) and pragmatic manufacturable design.`,
-        maxTokens: 2000,
+        maxOutputTokens: 2000,
       })
       model = text
       // Save SCAD fallback to .nikcli/cad
@@ -133,11 +134,11 @@ export class CadGcodeProvider extends EventEmitter {
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '_')
       .replace(/^_+|_+$/g, '')
-      .substring(0, max)
+      .substring(0, max);
   }
 
   private timestamp(): string {
-    return new Date().toISOString().replace(/[:.]/g, '-').replace('T', '_').split('Z')[0]
+    return new Date().toISOString().replace(/[:.]/g, '-').replace('T', '_').split('Z')[0];
   }
 
   private async saveCadJson(elements: any[], description: string, metadata?: Record<string, any>): Promise<string> {
@@ -185,11 +186,11 @@ export class CadGcodeProvider extends EventEmitter {
     let usedAiSdkForGcode = false
     try {
       const { text } = await generateText({
-        model: this.pickAiModel() as LanguageModelV1,
+        model: this.pickAiModel() as unknown as any,
         system:
           'You are an expert CNC/3D printing programmer. Generate safe, efficient G-code for the described operation. Output only G-code lines with comments where helpful.',
         prompt: combinedDescription,
-        maxTokens: 2000,
+        maxOutputTokens: 2000,
       })
       // Basic sanity check: must include at least one G0/G1
       if (/\bG0\b|\bG1\b/.test(text)) {

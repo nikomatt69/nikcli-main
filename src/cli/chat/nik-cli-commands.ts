@@ -5,7 +5,7 @@ import { generateText } from 'ai'
 import boxen from 'boxen'
 import chalk from 'chalk'
 import { parse as parseDotenv } from 'dotenv'
-import { z } from 'zod'
+import { z } from 'zod/v3';
 import { themeManager } from '../ui/theme-manager'
 import { modelProvider } from '../ai/model-provider'
 import { modernAIProvider } from '../ai/modern-ai-provider'
@@ -91,7 +91,7 @@ const EmbeddingModelCommandSchema = z.object({
   model: z.string().min(1),
   provider: z.enum(['openai', 'google', 'anthropic', 'openrouter']).optional(),
   dimensions: z.number().int().positive().optional(),
-  maxTokens: z.number().int().positive().optional(),
+  maxOutputTokens: z.number().int().positive().optional(),
   batchSize: z.number().int().positive().optional(),
   costPer1KTokens: z.number().nonnegative().optional(),
   baseURL: z.string().url().optional(),
@@ -840,7 +840,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
             name: 'email',
             message: 'Email address',
             validate: (input) => {
-              return input.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/) ? true : 'Please enter a valid email address'
+              return input.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/) ? true : 'Please enter a valid email address';
             },
           },
           {
@@ -1643,7 +1643,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       model: args[0],
       provider: modelArgs.provider,
       dimensions: modelArgs.dimensions ? Number(modelArgs.dimensions) : undefined,
-      maxTokens: modelArgs.maxTokens ? Number(modelArgs.maxTokens) : undefined,
+      maxOutputTokens: modelArgs.maxOutputTokens ? Number(modelArgs.maxOutputTokens) : undefined,
       batchSize: modelArgs.batchSize ? Number(modelArgs.batchSize) : undefined,
       costPer1KTokens: modelArgs.costPer1KTokens ? Number(modelArgs.costPer1KTokens) : undefined,
       baseURL: modelArgs.baseURL,
@@ -1659,7 +1659,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       configManager.setCurrentEmbeddingModel(validated.model, {
         provider: validated.provider,
         dimensions: validated.dimensions,
-        maxTokens: validated.maxTokens,
+        maxOutputTokens: validated.maxOutputTokens,
         batchSize: validated.batchSize,
         costPer1KTokens: validated.costPer1KTokens,
         baseURL: validated.baseURL,
@@ -3264,7 +3264,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         console.log(chalk.blue('\n🧪 Testing AI Generation...'))
         const testResponse = await modelProvider.generateResponse({
           messages: [{ role: 'user', content: 'Say "test successful"' }],
-          maxTokens: 20,
+          maxOutputTokens: 20,
         })
         console.log(chalk.green(`✓ Test Generation: ${testResponse.trim()}`))
       } catch (error: any) {
@@ -6883,15 +6883,15 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       color: string
     }>
     totalTokens: number
-    maxTokens: number
+    maxOutputTokens: number
   } {
     const session = contextTokenManager.getCurrentSession()
     if (!session) {
       return {
         categories: [],
         totalTokens: 0,
-        maxTokens: 0,
-      }
+        maxOutputTokens: 0,
+      };
     }
 
     const totalTokens = session.totalInputTokens + session.totalOutputTokens
@@ -6978,8 +6978,8 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     return {
       categories,
       totalTokens,
-      maxTokens,
-    }
+      maxOutputTokens: maxTokens,
+    };
   }
 
   /**
@@ -12835,7 +12835,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
     try {
       const themeName = args[0]
-      const editor = new (await import('../ui/theme-editor')).ThemeEditor(themeName)
+      const editor = new ((await import('../ui/theme-editor')).ThemeEditor)(themeName)
       const success = await editor.start()
       if (success) {
         this.printPanel(
@@ -12884,7 +12884,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         return { shouldExit: false, shouldUpdatePrompt: false }
       }
 
-      const preview = new (await import('../ui/live-theme-preview')).LiveThemePreview(themeName)
+      const preview = new ((await import('../ui/live-theme-preview')).LiveThemePreview)(themeName)
       await preview.startPreview()
 
       return { shouldExit: false, shouldUpdatePrompt: false }
@@ -13340,8 +13340,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         // Add current chat messages
         const messages = chatManager.getMessages()
         currentSession.messages = messages.map((msg) => ({
-          role: msg.role,
-          content: msg.content,
+          role: msg.role === 'tool' ? 'assistant' : msg.role,
+          content: typeof msg.content === 'string'
+            ? msg.content
+            : msg.content.map((c) => c.text || '').join(''),
           timestamp: msg.timestamp?.toISOString() || new Date().toISOString(),
           metadata: {},
         }))

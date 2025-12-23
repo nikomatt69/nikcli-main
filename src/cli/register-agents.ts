@@ -266,7 +266,7 @@ export function registerAgents(agentManager: AgentManager): void {
         'token-budget-enforcement',
       ],
       // VM-specific configuration moved to metadata
-      maxTokens: 50000,
+      maxOutputTokens: 50000,
     },
   })
 }

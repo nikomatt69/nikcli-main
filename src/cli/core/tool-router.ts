@@ -1,7 +1,7 @@
 import { EventEmitter } from 'node:events'
-import type { CoreMessage } from 'ai'
+import type { ModelMessage } from 'ai'
 import chalk from 'chalk'
-import { z } from 'zod'
+import { z } from 'zod/v3';
 // 🚀 Import Lightweight Inference Layer
 import { getLightweightInference } from '../ai/lightweight-inference-layer'
 // ⚡︎ Import Cognitive Types
@@ -553,7 +553,7 @@ export class ToolRouter extends EventEmitter {
 
   // Analyze user message and recommend tools
   // 🚀 OPTIMIZED: Uses lightweight inference pre-selection to filter tools before full analysis
-  analyzeMessage(message: CoreMessage): ToolRecommendation[] {
+  analyzeMessage(message: ModelMessage): ToolRecommendation[] {
     const content = typeof message.content === 'string' ? message.content : String(message.content)
     const lowerContent = content.toLowerCase()
     const recommendations: ToolRecommendation[] = []

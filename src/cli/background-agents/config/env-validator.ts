@@ -21,7 +21,7 @@ export interface EnvironmentConfig {
 
   // AI Configuration
   openrouterModel: string
-  maxTokens: number
+  maxOutputTokens: number
   temperature: number
 
   // Queue
@@ -67,7 +67,7 @@ class EnvironmentValidator {
 
       // AI Configuration
       openrouterModel: this.getOptional('OPENROUTER_MODEL') || '@preset/nikcli',
-      maxTokens: this.getNumber('MAX_TOKENS', 6000),
+      maxOutputTokens: this.getNumber('MAX_TOKENS', 6000),
       temperature: this.getNumber('TEMPERATURE', 1),
 
       // Queue

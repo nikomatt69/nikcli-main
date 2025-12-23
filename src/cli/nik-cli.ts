@@ -323,7 +323,7 @@ export class NikCLI {
       status: 'pending' | 'in_progress' | 'completed' | 'failed'
       priority?: string
       progress?: number
-      reasoning?: string
+      reasoningText?: string
       tools?: string[]
     }>
   }
@@ -4748,14 +4748,14 @@ new_content = content.replace(old_text, new_text)
 with open('${params.file_path}', 'w') as f:
     f.write(new_content)
 print('File updated successfully')
-"`
+"`;
         } else {
           return `echo "Error: Missing old_string or new_string for edit operation" >&2`
         }
 
       case 'replace-in-file-tool':
       case 'replace_in_file':
-        return `cd /workspace/repo && sed -i 's/${params.pattern.replace(/\//g, '\\/')}/${params.replacement.replace(/\//g, '\\/')}/g' "${params.file_path || params.path}"`
+        return `cd /workspace/repo && sed -i 's/${params.pattern.replace(/\//g, '\\/')}/${params.replacement.replace(/\//g, '\\/')}/g' "${params.file_path || params.path}"`;
 
       case 'multi-edit-tool':
       case 'multi_edit':
@@ -4789,7 +4789,7 @@ for edit in edits:
 
       case 'run-command-tool':
       case 'run_command':
-        return params.command || originalInput.replace(/^(run|execute)\s+/i, '').trim()
+        return params.command || originalInput.replace(/^(run|execute)\s+/i, '').trim();
 
       case 'list-tool':
       case 'explore_directory':
@@ -4804,7 +4804,7 @@ for edit in edits:
 
       case 'git-tools':
       case 'git_workflow':
-        return params.command || originalInput.replace(/^git\s+/i, '')
+        return params.command || originalInput.replace(/^git\s+/i, '');
 
       case 'json-patch-tool':
       case 'config_patch':
@@ -4855,7 +4855,7 @@ EOF`
         // For unknown tools, try to execute the original input as a command
         return originalInput
           .replace(/^(run|execute|do|make|create|edit|write|read|list|find|search|grep)\s+/i, '')
-          .trim()
+          .trim();
     }
   }
 
@@ -6209,7 +6209,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
         status: (todo.status || 'pending') as 'pending' | 'in_progress' | 'completed' | 'failed',
         priority: todo.priority,
         progress: todo.progress,
-        reasoning: todo.reasoning,
+        reasoningText: todo.reasoningText,
         tools: todo.tools,
       })),
     }
@@ -6662,7 +6662,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       'create', 'build', 'implement', 'develop', 'generate', 'setup', 'configure',
       'refactor', 'migrate', 'deploy', 'install', 'integrate', 'design', 'architect',
       'optimize', 'debug', 'fix', 'repair', 'maintain', 'update', 'upgrade',
-      'explore', 'plan', 'research', 'analyze', 'investigate', 'discover',
+      'plan', 'research', 'investigate', 'discover',
     ]
 
     // Keywords that indicate simple tasks
@@ -6810,8 +6810,8 @@ RULES:
         if (parsed.agents && Array.isArray(parsed.agents) && parsed.agents.length > 0) {
           agentConfigs = parsed.agents
           console.log(chalk.green(`✓ AI determined ${agentConfigs.length} agent(s) needed`))
-          if (parsed.reasoning) {
-            console.log(chalk.gray(`   Reasoning: ${parsed.reasoning}`))
+          if (parsed.reasoningText) {
+            console.log(chalk.gray(`   Reasoning: ${parsed.reasoningText}`))
           }
         } else {
           throw new Error('Invalid agents array')
@@ -6895,7 +6895,7 @@ RULES:
     const hasDoc = /\b(doc|documentation|readme|comment)\b/.test(lowerTask)
     const hasRefactor = /\b(refactor|optimize|improve|clean)\b/.test(lowerTask)
     const hasDebug = /\b(debug|fix|error|bug|issue)\b/.test(lowerTask)
-    const hasAnalysis = /\b(analyze|review|audit|check)\b/.test(lowerTask)
+    const hasAnalysis = /\b(review|audit|check)\b/.test(lowerTask)
 
     // Primary agent always present
     if (hasDebug) {
@@ -7184,11 +7184,10 @@ RULES:
         // Record user message in session
         chatManager.addMessage(input, 'user')
 
-        // Build model-ready messages from session history (respects history setting)
-        let messages = chatManager.getContextMessages().map((m) => ({
-          role: m.role as 'system' | 'user' | 'assistant',
-          content: m.content,
-        }))
+        // Build model-ready messages using AI SDK's convertToModelMessages
+        const contextMessages = chatManager.getContextMessages()
+        const { convertToModelMessages } = await import('ai')
+        let messages = await convertToModelMessages(contextMessages as any)
 
         // Handle VM mode execution for generic commands
         if (this.currentMode === 'vm' && this.activeVMContainer) {
@@ -7224,11 +7223,9 @@ RULES:
           console.log(chalk.yellow(`⚠︎ Token usage: ${estimatedTokens.toLocaleString()}, auto-compacting...`))
           await this.compactSession()
 
-          // Rebuild messages after compaction
-          messages = chatManager.getContextMessages().map((m) => ({
-            role: m.role as 'system' | 'user' | 'assistant',
-            content: m.content,
-          }))
+          // Rebuild messages after compaction using AI SDK's convertToModelMessages
+          const compactedContextMessages = chatManager.getContextMessages()
+          messages = await convertToModelMessages(compactedContextMessages as any)
 
           // Re-check token count after compaction
           const newTotalChars = messages.reduce((sum, msg) => sum + msg.content.length, 0)
@@ -7252,6 +7249,7 @@ RULES:
         const { streamttyService } = await import('./services/streamtty-service')
         const streamController = new AbortController()
         this.currentStreamControllers.add(streamController)
+
         try {
           for await (const ev of advancedAIProvider.streamChatWithFullAutonomy(messages, streamController.signal)) {
             if (ev.type === 'text_delta' && ev.content) {
@@ -11584,8 +11582,11 @@ RULES:
 
       // Additional token optimization: truncate long messages
       session.messages.forEach((msg) => {
-        if (msg.content.length > 2000) {
-          msg.content = `${msg.content.substring(0, 2000)}...[truncated]`
+        const contentStr = Array.isArray(msg.content)
+          ? msg.content.map((c) => c.text || '').join('')
+          : msg.content
+        if (contentStr.length > 2000) {
+          msg.content = `${contentStr.substring(0, 2000)}...[truncated]`
         }
       })
 
@@ -11684,10 +11685,20 @@ RULES:
       }
 
       const userTokens = Math.round(
-        session.messages.filter((m) => m.role === 'user').reduce((sum, m) => sum + m.content.length, 0) / 4
+        session.messages.filter((m) => m.role === 'user').reduce((sum, m) => {
+          const contentStr = Array.isArray(m.content)
+            ? m.content.map((c) => c.text || '').join('')
+            : m.content
+          return sum + contentStr.length
+        }, 0) / 4
       )
       const assistantTokens = Math.round(
-        session.messages.filter((m) => m.role === 'assistant').reduce((sum, m) => sum + m.content.length, 0) / 4
+        session.messages.filter((m) => m.role === 'assistant').reduce((sum, m) => {
+          const contentStr = Array.isArray(m.content)
+            ? m.content.map((c) => c.text || '').join('')
+            : m.content
+          return sum + contentStr.length
+        }, 0) / 4
       )
 
       const { calculateTokenCost, MODEL_COSTS } = await import('./config/token-limits')
@@ -12055,7 +12066,12 @@ RULES:
         }
       } else if (chatSession) {
         // Fallback to legacy analysis with improved precision
-        const totalChars = chatSession.messages.reduce((sum, msg) => sum + msg.content.length, 0)
+        const totalChars = chatSession.messages.reduce((sum, msg) => {
+          const contentStr = Array.isArray(msg.content)
+            ? msg.content.map((c) => c.text || '').join('')
+            : msg.content
+          return sum + contentStr.length
+        }, 0)
         const currentModel = this.configManager.getCurrentModel()
         const currentProvider = 'anthropic' // Fallback for now
 
@@ -12065,8 +12081,10 @@ RULES:
         try {
           const coreMessages = chatSession.messages.map((m) => ({
             role: m.role as any,
-            content: m.content,
-          }))
+            content: Array.isArray(m.content)
+              ? m.content.map((c) => c.text || '').join('')
+              : m.content,
+          })) as unknown as import('ai').ModelMessage[]
           preciseTokens = await universalTokenizer.countMessagesTokens(coreMessages, currentModel, currentProvider)
           isPrecise = true
         } catch (_error) {
@@ -12079,10 +12097,20 @@ RULES:
 
         // Calculate precise costs
         const userTokens = Math.round(
-          chatSession.messages.filter((m) => m.role === 'user').reduce((sum, m) => sum + m.content.length, 0) / 4
+          chatSession.messages.filter((m) => m.role === 'user').reduce((sum, m) => {
+            const contentStr = Array.isArray(m.content)
+              ? m.content.map((c) => c.text || '').join('')
+              : m.content
+            return sum + contentStr.length
+          }, 0) / 4
         )
         const assistantTokens = Math.round(
-          chatSession.messages.filter((m) => m.role === 'assistant').reduce((sum, m) => sum + m.content.length, 0) / 4
+          chatSession.messages.filter((m) => m.role === 'assistant').reduce((sum, m) => {
+            const contentStr = Array.isArray(m.content)
+              ? m.content.map((c) => c.text || '').join('')
+              : m.content
+            return sum + contentStr.length
+          }, 0) / 4
         )
 
         const currentCost = universalTokenizer.calculateCost(userTokens, assistantTokens, currentModel)
@@ -14158,7 +14186,7 @@ RULES:
    */
   private _stripAnsi(str: string): string {
     // More comprehensive ANSI escape sequence removal
-    return str.replace(/\x1b\[[0-9;]*[mGK]|\x1b\[[\d;]*[A-Za-z]|\x1b\[[0-9;]*[JKHJIS]/g, '')
+    return str.replace(/\x1b\[[0-9;]*[mGK]|\x1b\[[\d;]*[A-Za-z]|\x1b\[[0-9;]*[JKHJIS]/g, '');
   }
 
   /**
@@ -16052,10 +16080,20 @@ RULES:
           const currentProvider = 'anthropic' // Fallback for now
 
           const userTokens = Math.round(
-            chatSession.messages.filter((m) => m.role === 'user').reduce((sum, m) => sum + m.content.length, 0) / 4
+            chatSession.messages.filter((m) => m.role === 'user').reduce((sum, m) => {
+              const contentStr = Array.isArray(m.content)
+                ? m.content.map((c) => c.text || '').join('')
+                : m.content
+              return sum + contentStr.length
+            }, 0) / 4
           )
           const assistantTokens = Math.round(
-            chatSession.messages.filter((m) => m.role === 'assistant').reduce((sum, m) => sum + m.content.length, 0) / 4
+            chatSession.messages.filter((m) => m.role === 'assistant').reduce((sum, m) => {
+              const contentStr = Array.isArray(m.content)
+                ? m.content.map((c) => c.text || '').join('')
+                : m.content
+              return sum + contentStr.length
+            }, 0) / 4
           )
           const totalTokens = userTokens + assistantTokens
           const cost = universalTokenizer.calculateCost(userTokens, assistantTokens, currentModel).totalCost
@@ -16078,10 +16116,20 @@ RULES:
       if (session) {
         // Calculate tokens the same way as /tokens command
         const userTokens = Math.round(
-          session.messages.filter((m) => m.role === 'user').reduce((sum, m) => sum + m.content.length, 0) / 4
+          session.messages.filter((m) => m.role === 'user').reduce((sum, m) => {
+            const contentStr = Array.isArray(m.content)
+              ? m.content.map((c) => c.text || '').join('')
+              : m.content
+            return sum + contentStr.length
+          }, 0) / 4
         )
         const assistantTokens = Math.round(
-          session.messages.filter((m) => m.role === 'assistant').reduce((sum, m) => sum + m.content.length, 0) / 4
+          session.messages.filter((m) => m.role === 'assistant').reduce((sum, m) => {
+            const contentStr = Array.isArray(m.content)
+              ? m.content.map((c) => c.text || '').join('')
+              : m.content
+            return sum + contentStr.length
+          }, 0) / 4
         )
 
         // Update session tokens
@@ -18051,9 +18099,12 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         if (chatMessages.length > 0) {
           chatMessages.forEach((msg) => {
             try {
+              const contentStr = Array.isArray(msg.content)
+                ? msg.content.map((c) => c.text || '').join('')
+                : msg.content || ''
               workSessionManager.addMessage({
                 role: msg.role as 'user' | 'assistant',
-                content: msg.content || '',
+                content: contentStr,
                 timestamp: msg.timestamp instanceof Date ? msg.timestamp.toISOString() : new Date().toISOString(),
                 metadata: {},
               })
@@ -18092,9 +18143,12 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           const newMessages = chatMessages.slice(existingMessageCount)
           newMessages.forEach((msg) => {
             try {
+              const contentStr = Array.isArray(msg.content)
+                ? msg.content.map((c) => c.text || '').join('')
+                : msg.content || ''
               workSessionManager.addMessage({
                 role: msg.role as 'user' | 'assistant',
-                content: msg.content || '',
+                content: contentStr,
                 timestamp: msg.timestamp instanceof Date ? msg.timestamp.toISOString() : new Date().toISOString(),
                 metadata: {},
               })
@@ -20794,7 +20848,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       lines.push(chalk.green('1) General'))
       lines.push(`   Current Model: ${chalk.yellow(cfg.currentModel)}`)
       lines.push(`   Temperature: ${chalk.cyan(String(cfg.temperature))}`)
-      lines.push(`   Max Tokens: ${chalk.cyan(String(cfg.maxTokens))}`)
+      lines.push(`   Max Tokens: ${chalk.cyan(String(cfg.maxOutputTokens))}`)
       lines.push(
         `   Chat History: ${cfg.chatHistory ? chalk.green('on') : chalk.gray('off')} (max ${cfg.maxHistoryLength})`
       )
@@ -21063,7 +21117,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       // 20) Reasoning Configuration
       lines.push('')
       lines.push(chalk.green('20) Reasoning Configuration'))
-      const reasoning = (cfg as any).reasoning || {}
+      const reasoning = (cfg as any).reasoningText || {}
       lines.push(
         `   Global Reasoning: ${reasoning.enabled !== false ? chalk.green('enabled') : chalk.gray('disabled')}`
       )
@@ -21203,7 +21257,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
                 type: 'input',
                 name: 'maxTokens',
                 message: 'Max tokens',
-                default: cfg.maxTokens,
+                default: cfg.maxOutputTokens,
                 validate: (v: any) => asNumber(v, 1, 800000),
               },
               {
@@ -21221,7 +21275,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
               },
             ])
             this.configManager.set('temperature', Number(ans.temperature) as any)
-            this.configManager.set('maxTokens', Number(ans.maxTokens) as any)
+            this.configManager.set('maxOutputTokens', Number(ans.maxOutputTokens) as any)
             this.configManager.set('chatHistory', Boolean(ans.chatHistory) as any)
             this.configManager.set('maxHistoryLength', Number(ans.maxHistoryLength) as any)
             console.log(chalk.green('✓ Updated General settings'))
@@ -21516,7 +21570,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
             break
           }
           case 'reasoning': {
-            const r = cfg.reasoning
+            const r = cfg.reasoningText
             const ans = await inquirer.prompt([
               {
                 type: 'confirm',
@@ -21543,7 +21597,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
                 default: r.logReasoning,
               },
             ])
-            this.configManager.set('reasoning', ans as any)
+            this.configManager.set('reasoningText', ans as any)
             console.log(chalk.green('✓ Updated Reasoning settings'))
             break
           }
@@ -22381,12 +22435,12 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         break
       }
       case 'limits': {
-        const { maxTokens, maxHistory } = await inquirer.prompt([
+        const { maxOutputTokens, maxHistory } = await inquirer.prompt([
           {
             type: 'number',
             name: 'maxTokens',
             message: 'Max tokens for responses:',
-            default: this.configManager.get('maxTokens'),
+            default: this.configManager.get('maxOutputTokens'),
           },
           {
             type: 'number',
@@ -22396,7 +22450,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           },
         ])
 
-        this.configManager.set('maxTokens', maxTokens)
+        this.configManager.set('maxOutputTokens', maxOutputTokens)
         this.configManager.set('maxHistoryLength', maxHistory)
 
         console.log(chalk.green('\n✓ Context limits updated\n'))
@@ -22630,7 +22684,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
             type: 'number',
             name: 'maxTokens',
             message: 'Max Tokens:',
-            default: config.maxTokens,
+            default: config.maxOutputTokens,
           },
           {
             type: 'number',
@@ -22639,7 +22693,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
             default: config.maxHistoryLength,
           },
         ])
-        this.configManager.set('maxTokens', ans.maxTokens)
+        this.configManager.set('maxOutputTokens', ans.maxOutputTokens)
         this.configManager.set('maxHistoryLength', ans.maxHistoryLength)
         console.log(chalk.green('\n✓ Token settings updated\n'))
         await inquirer.prompt([
@@ -23139,7 +23193,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     const modelName = args[0]
     const provider = kvArgs.provider as any
     const dimensions = kvArgs.dimensions ? Number(kvArgs.dimensions) : undefined
-    const maxTokens = kvArgs.maxTokens ? Number(kvArgs.maxTokens) : undefined
+    const maxTokens = kvArgs.maxOutputTokens ? Number(kvArgs.maxOutputTokens) : undefined
     const batchSize = kvArgs.batchSize ? Number(kvArgs.batchSize) : undefined
     const costPer1KTokens = kvArgs.costPer1KTokens ? Number(kvArgs.costPer1KTokens) : undefined
     const baseURL = kvArgs.baseURL
@@ -23148,7 +23202,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       configManager.setCurrentEmbeddingModel(modelName, {
         provider,
         dimensions,
-        maxTokens,
+        maxOutputTokens: configManager.get('maxOutputTokens'),
         batchSize,
         costPer1KTokens,
         baseURL,
@@ -24553,8 +24607,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         content += `**Tools:** ${todo.tools.join(', ')}\n\n`
       }
 
-      if (todo.reasoning) {
-        content += `**Reasoning:** ${todo.reasoning}\n\n`
+      if (todo.reasoningText) {
+        content += `**Reasoning:** ${todo.reasoningText}\n\n`
       }
 
       content += `**Status:** ${todo.status}\n`

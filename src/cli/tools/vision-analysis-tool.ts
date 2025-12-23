@@ -1,4 +1,4 @@
-import { z } from 'zod'
+import { z } from 'zod/v3';
 import { type VisionAnalysisResult, visionProvider } from '../providers/vision'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
 import { sanitizePath, validateIsFile } from './secure-file-tools'

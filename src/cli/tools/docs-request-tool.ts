@@ -1,6 +1,6 @@
-import { type CoreTool, tool } from 'ai'
+import { type Tool, tool } from 'ai'
 import chalk from 'chalk'
-import { z } from 'zod'
+import { z } from 'zod/v3';
 import { docsContextManager } from '../context/docs-context-manager'
 import { getCloudDocsProvider } from '../core/cloud-docs-provider'
 import { docLibrary } from '../core/documentation-library'
@@ -42,10 +42,10 @@ type DocsRequestResult = {
  * Tool per richiedere automaticamente documentazione quando gli agenti
  * incontrano concetti, tecnologie o implementazioni che non conoscono
  */
-export const docsRequestTool: CoreTool = tool({
+export const docsRequestTool: Tool = tool({
   description:
     'Request documentation when you encounter unknown concepts, technologies, or need implementation guidance',
-  parameters: z.object({
+  inputSchema: z.object({
     concept: z.string().describe('The concept, technology, or implementation you need help with'),
     context: z.string().describe('What you are trying to do or where you encountered this'),
     urgency: z.enum(['low', 'medium', 'high']).default('medium').describe('How urgently you need this information'),
@@ -307,9 +307,9 @@ export const docsRequestTool: CoreTool = tool({
 /**
  * Tool per segnalare gap nella documentazione che gli agenti incontrano frequentemente
  */
-export const docsGapReportTool: CoreTool = tool({
+export const docsGapReportTool: Tool = tool({
   description: 'Report documentation gaps when you repeatedly encounter unknown concepts that block your progress',
-  parameters: z.object({
+  inputSchema: z.object({
     missingConcept: z.string().describe('The concept or technology that is missing documentation'),
     frequency: z
       .enum(['first-time', 'occasional', 'frequent', 'blocking'])

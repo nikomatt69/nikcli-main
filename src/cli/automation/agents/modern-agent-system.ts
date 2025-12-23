@@ -1,4 +1,4 @@
-import type { CoreMessage } from 'ai'
+import type { ModelMessage } from 'ai'
 import chalk from 'chalk'
 import { nanoid } from 'nanoid'
 import { modernAIProvider } from '../../ai/modern-ai-provider'
@@ -44,7 +44,7 @@ export class ModernAgent {
     try {
       console.log(chalk.blue(`🔌 ${this.name} starting task: ${task}`))
 
-      const messages: CoreMessage[] = [
+      const messages: ModelMessage[] = [
         {
           role: 'system',
           content: this.capability.systemPrompt,
@@ -89,7 +89,7 @@ export class ModernAgent {
     yield { type: 'start', execution }
 
     try {
-      const messages: CoreMessage[] = [
+      const messages: ModelMessage[] = [
         {
           role: 'system',
           content: this.capability.systemPrompt,

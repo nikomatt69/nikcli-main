@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events'
-import type { CoreMessage } from 'ai'
+import type { ModelMessage, LanguageModelUsage } from 'ai'
 import chalk from 'chalk'
 import { structuredLogger } from '../utils/structured-logger'
 import { type ModelLimits, type TokenUsage, universalTokenizer } from './universal-tokenizer-service'
@@ -29,7 +29,7 @@ export interface MessageTokenInfo {
 export interface ContextOptimization {
   shouldTrim: boolean
   currentUsage: number
-  maxTokens: number
+  maxOutputTokens: number
   usagePercentage: number
   recommendation: 'continue' | 'trim_context' | 'switch_model' | 'summarize'
   reason: string
@@ -42,7 +42,7 @@ export interface ContextOptimization {
 export class ContextTokenManager extends EventEmitter {
   private currentSession: SessionContext | null = null
   private messageHistory: Map<string, MessageTokenInfo> = new Map()
-  private conversationMessages: CoreMessage[] = []
+  private conversationMessages: ModelMessage[] = []
 
   // Configuration
   private readonly WARNING_THRESHOLD = 0.8 // 80%
@@ -67,8 +67,14 @@ export class ContextTokenManager extends EventEmitter {
 
   /**
    * Extract text content from complex content types
+   * Handles: string, array of parts, object with .parts, object with .text
    */
   private extractTextContent(content: any): string {
+    // Handle null/undefined
+    if (content == null) {
+      return ''
+    }
+
     if (typeof content === 'string') {
       return content
     }
@@ -81,6 +87,13 @@ export class ContextTokenManager extends EventEmitter {
           if (part?.type === 'text' && part?.text) return part.text
           return ''
         })
+        .join('')
+    }
+
+    // Support for object with .parts (UIMessage format from SDK responses)
+    if (content?.parts && Array.isArray(content.parts)) {
+      return content.parts
+        .map((part: any) => part?.text || '')
         .join('')
     }
 
@@ -136,7 +149,7 @@ export class ContextTokenManager extends EventEmitter {
   /**
    * Track a new message and update session context
    */
-  async trackMessage(message: CoreMessage, messageId?: string, isOutput: boolean = false): Promise<MessageTokenInfo> {
+  async trackMessage(message: ModelMessage, messageId?: string, isOutput: boolean = false): Promise<MessageTokenInfo> {
     if (!this.currentSession) {
       throw new Error('No active session. Call startSession() first.')
     }
@@ -209,7 +222,7 @@ export class ContextTokenManager extends EventEmitter {
   /**
    * Track multiple messages (conversation context)
    */
-  async trackConversation(messages: CoreMessage[]): Promise<TokenUsage> {
+  async trackConversation(messages: ModelMessage[]): Promise<LanguageModelUsage> {
     if (!this.currentSession) {
       throw new Error('No active session. Call startSession() first.')
     }
@@ -222,8 +235,7 @@ export class ContextTokenManager extends EventEmitter {
     )
 
     // Update session
-    this.currentSession.totalInputTokens = usage.promptTokens
-    this.currentSession.totalCost = usage.estimatedCost
+    this.currentSession.totalInputTokens = usage.inputTokens || 0
     this.currentSession.lastActivity = new Date()
 
     // Update conversation messages
@@ -242,12 +254,12 @@ export class ContextTokenManager extends EventEmitter {
    * Pre-request token validation - Hard guard against context overflow
    */
   validateRequestTokens(
-    messages: CoreMessage[],
+    messages: ModelMessage[],
     maxOutputTokens: number = 4000
   ): {
     isValid: boolean
     totalTokens: number
-    maxTokens: number
+    maxOutputTokens: number
     error?: string
     recommendation: ContextOptimization
   } {
@@ -255,17 +267,17 @@ export class ContextTokenManager extends EventEmitter {
       return {
         isValid: false,
         totalTokens: 0,
-        maxTokens: 0,
+        maxOutputTokens: 0,
         error: 'No active session',
         recommendation: {
           shouldTrim: false,
           currentUsage: 0,
-          maxTokens: 0,
+          maxOutputTokens: 0,
           usagePercentage: 0,
           recommendation: 'continue',
           reason: 'No active session',
         },
-      }
+      };
     }
 
     // Count tokens for all messages
@@ -298,10 +310,10 @@ export class ContextTokenManager extends EventEmitter {
     return {
       isValid,
       totalTokens,
-      maxTokens,
+      maxOutputTokens,
       error,
       recommendation,
-    }
+    };
   }
 
   /**
@@ -320,11 +332,11 @@ export class ContextTokenManager extends EventEmitter {
       return {
         shouldTrim: false,
         currentUsage: 0,
-        maxTokens: 0,
+        maxOutputTokens: 0,
         usagePercentage: 0,
         recommendation: 'continue',
         reason: 'No active session',
-      }
+      };
     }
 
     const totalTokens = this.currentSession.totalInputTokens + this.currentSession.totalOutputTokens
@@ -350,18 +362,18 @@ export class ContextTokenManager extends EventEmitter {
     return {
       shouldTrim,
       currentUsage: totalTokens,
-      maxTokens,
+      maxOutputTokens: maxTokens,
       usagePercentage,
       recommendation,
       reason,
-    }
+    };
   }
 
   /**
    * Get optimized message context (smart trimming)
    */
   async getOptimizedContext(maxTokens?: number): Promise<{
-    messages: CoreMessage[]
+    messages: ModelMessage[]
     removedCount: number
     tokensSaved: number
     strategy: 'none' | 'trim_oldest' | 'trim_middle' | 'summarize'
@@ -395,7 +407,7 @@ export class ContextTokenManager extends EventEmitter {
     const systemMessages = this.conversationMessages.filter((m) => m.role === 'system')
     const nonSystemMessages = this.conversationMessages.filter((m) => m.role !== 'system')
 
-    const optimizedMessages: CoreMessage[] = [...systemMessages]
+    const optimizedMessages: ModelMessage[] = [...systemMessages]
     let tokensUsed = 0
 
     // Add system message tokens

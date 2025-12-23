@@ -72,7 +72,7 @@ export interface PlanTodo {
   dependencies: string[]
   status: 'pending' | 'running' | 'completed' | 'failed'
   result?: any
-  reasoning: string
+  reasoningText: string
   priority: 'low' | 'medium' | 'high' | 'critical'
 }
 

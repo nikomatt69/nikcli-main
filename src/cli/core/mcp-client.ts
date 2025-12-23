@@ -230,7 +230,7 @@ export class McpClient extends EventEmitter {
         const cachedResponse = await completionCache.getCompletion({
           prefix: cacheKey,
           context: JSON.stringify(request.params || {}),
-          maxTokens: 1000,
+          maxOutputTokens: 1000,
           temperature: 0,
           model: 'mcp-cache',
         })
@@ -267,7 +267,7 @@ export class McpClient extends EventEmitter {
           {
             prefix: cacheKey,
             context: JSON.stringify(request.params || {}),
-            maxTokens: 1000,
+            maxOutputTokens: 1000,
             temperature: 0,
             model: 'mcp-cache',
           },

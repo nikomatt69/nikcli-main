@@ -160,7 +160,7 @@ export class APIKeyProxy extends EventEmitter {
       const aiResponse = await advancedAIProvider.executeAutonomousTask(request.prompt, {
         model: request.model || 'claude-4-sonnet-20250514',
         temperature: request.temperature || 0.7,
-        maxTokens: Math.min(request.maxTokens || 2000, this.MAX_TOKENS_PER_REQUEST),
+        maxOutputTokens: Math.min(request.maxOutputTokens || 2000, this.MAX_TOKENS_PER_REQUEST),
         context: request.context,
       })
 
@@ -247,7 +247,7 @@ export class APIKeyProxy extends EventEmitter {
         for await (const streamEvent of advancedAIProvider.executeAutonomousTask(request.prompt, {
           model: request.model || 'claude-4-sonnet-20250514',
           temperature: request.temperature || 1,
-          maxTokens: Math.min(request.maxTokens || 2000, this.MAX_TOKENS_PER_REQUEST),
+          maxOutputTokens: Math.min(request.maxOutputTokens || 2000, this.MAX_TOKENS_PER_REQUEST),
           context: request.context,
         })) {
           advancedUI.logInfo(
@@ -526,7 +526,7 @@ export class APIKeyProxy extends EventEmitter {
    */
   private async handleAIRequest(req: Request, res: Response): Promise<void> {
     try {
-      const { prompt, model, temperature, maxTokens, context } = req.body
+      const { prompt, model, temperature, maxOutputTokens, context } = req.body
       const agentId = (req as any).agentId
       const sessionToken = req.headers.authorization?.slice(7)
 
@@ -541,7 +541,7 @@ export class APIKeyProxy extends EventEmitter {
         prompt,
         model,
         temperature,
-        maxTokens,
+        maxOutputTokens,
         context,
       })
 
@@ -556,7 +556,7 @@ export class APIKeyProxy extends EventEmitter {
    */
   private async handleStreamingAIRequest(req: Request, res: Response): Promise<void> {
     try {
-      const { prompt, model, temperature, maxTokens, context } = req.body
+      const { prompt, model, temperature, maxOutputTokens, context } = req.body
       const agentId = (req as any).agentId
       const sessionToken = req.headers.authorization?.slice(7)
 
@@ -579,7 +579,7 @@ export class APIKeyProxy extends EventEmitter {
           prompt,
           model,
           temperature,
-          maxTokens,
+          maxOutputTokens,
           context,
         })) {
           // Send chunk as JSON line
@@ -733,7 +733,7 @@ export interface AIProxyRequest {
   prompt: string
   model?: string
   temperature?: number
-  maxTokens?: number
+  maxOutputTokens?: number
   context?: any
 }
 

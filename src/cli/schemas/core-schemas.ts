@@ -1,4 +1,4 @@
-import { z } from 'zod'
+import { z } from 'zod/v3';
 
 export const AgentStatusSchema = z.enum(['initializing', 'ready', 'busy', 'error', 'offline'])
 export const TaskStatusSchema = z.enum(['pending', 'in_progress', 'completed', 'failed', 'cancelled'])
@@ -143,6 +143,15 @@ export const AgentSchema = z.object({
   maxConcurrentTasks: z.number().int().min(1),
 })
 
+// Chat Message Schema - Coerente con ai-sdk ModelMessage
+export const ChatMessageSchema = z.object({
+  role: z.enum(['user', 'assistant', 'system']),
+  content: z.union([z.string(), z.array(z.any())]),
+  name: z.string().optional(),
+  timestamp: z.string().optional(),
+  tokenCount: z.number().int().min(0).optional(),
+})
+
 export type AgentStatus = z.infer<typeof AgentStatusSchema>
 export type TaskStatus = z.infer<typeof TaskStatusSchema>
 export type TaskPriority = z.infer<typeof TaskPrioritySchema>
@@ -153,3 +162,4 @@ export type AgentTask = z.infer<typeof AgentTaskSchema>
 export type AgentTaskResult = z.infer<typeof AgentTaskResultSchema>
 export type AgentTodo = z.infer<typeof AgentTodoSchema>
 export type Agent = z.infer<typeof AgentSchema>
+export type ChatMessage = z.infer<typeof ChatMessageSchema>

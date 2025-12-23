@@ -174,7 +174,7 @@ export interface ResourceLimits {
   maxMemoryMB: number
   maxCpuPercent: number
   maxExecutionTime: number
-  maxTokens: number
+  maxOutputTokens: number
   maxToolCalls: number
   maxFileSize: number
   maxNetworkRequests: number
@@ -186,7 +186,7 @@ export interface HeadlessOptions {
   jsonlLogs: boolean
   cwd: string
   outputFile?: string
-  maxTokens?: number
+  maxOutputTokens?: number
   timeout?: number
   allowCommands?: string[]
   denyCommands?: string[]

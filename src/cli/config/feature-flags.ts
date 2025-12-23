@@ -1,4 +1,4 @@
-import { z } from 'zod'
+import { z } from 'zod/v3';
 
 /**
  * Feature flags configuration for NikCLI enhanced features

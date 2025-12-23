@@ -1,4 +1,4 @@
-import type { CoreMessage } from 'ai'
+import type { ModelMessage } from 'ai'
 import chalk from 'chalk'
 import { create } from 'zustand'
 
@@ -36,7 +36,7 @@ export interface AgentState {
 
 export interface ChatSession {
   id: string
-  messages: CoreMessage[]
+  messages: ModelMessage[]
   workingDirectory: string
   createdAt: Date
   agentMode?: string
@@ -82,8 +82,8 @@ interface AIStoreState {
 
   // Actions - Chat
   setCurrentSession: (session: ChatSession) => void
-  addMessage: (message: CoreMessage) => void
-  updateMessages: (messages: CoreMessage[]) => void
+  addMessage: (message: ModelMessage) => void
+  updateMessages: (messages: ModelMessage[]) => void
   clearMessages: () => void
 
   // Actions - Agents

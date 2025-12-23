@@ -28,7 +28,7 @@ describe('CLI Basic Operations', () => {
         apiKey: 'test-api-key',
         model: 'claude-3-sonnet',
         temperature: 0.7,
-        maxTokens: 4000,
+        maxOutputTokens: 4000,
         features: {
           autoSave: true,
           syntaxHighlighting: true,
@@ -64,7 +64,7 @@ describe('CLI Basic Operations', () => {
           apiKey: 'another-key',
           model: 'claude-3-haiku',
           temperature: 1.0,
-          maxTokens: 2000,
+          maxOutputTokens: 2000,
         },
       ]
 

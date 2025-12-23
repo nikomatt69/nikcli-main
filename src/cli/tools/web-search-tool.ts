@@ -1,5 +1,5 @@
 import chalk from 'chalk'
-import { z } from 'zod'
+import { z } from 'zod/v3';
 import { WebSearchProvider } from '../core/web-search-provider'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
 

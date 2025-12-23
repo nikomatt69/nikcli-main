@@ -234,7 +234,7 @@ export class AgentRouter {
           agentId,
           agent,
           score,
-          reasoning: this.generateReasoningForScore(agent, task, analysis, score),
+          reasoningText: this.generateReasoningForScore(agent, task, analysis, score),
         })
       }
     }
@@ -251,8 +251,8 @@ export class AgentRouter {
             agentId: selectedCandidate.agentId,
             agent: selectedCandidate.agent,
             score: selectedCandidate.score,
-            reasoning: `Selected by rule: ${rule.name}. ${selectedCandidate.reasoning}`,
-          }
+            reasoningText: `Selected by rule: ${rule.name}. ${selectedCandidate.reasoningText}`,
+          };
         }
       }
     }
@@ -264,9 +264,9 @@ export class AgentRouter {
           agentId: bestCandidate.agentId,
           agent: bestCandidate.agent,
           score: bestCandidate.score,
-          reasoning: bestCandidate.reasoning,
+          reasoningText: bestCandidate.reasoningText,
         }
-      : null
+      : null;
   }
 
   /**
@@ -313,7 +313,7 @@ export class AgentRouter {
     await this.eventBus.publish(EventTypes.TASK_ASSIGNED, {
       taskId: task.id,
       agentId: selection.agentId,
-      reasoning: selection.reasoning,
+      reasoningText: selection.reasoningText,
       score: selection.score,
     })
 
@@ -732,14 +732,14 @@ export interface AgentCandidate {
   agentId: string
   agent: AgentInstance
   score: number
-  reasoning: string
+  reasoningText: string
 }
 
 export interface AgentSelection {
   agentId: string
   agent: AgentInstance
   score: number
-  reasoning: string
+  reasoningText: string
 }
 
 export interface TaskRoutingResult {

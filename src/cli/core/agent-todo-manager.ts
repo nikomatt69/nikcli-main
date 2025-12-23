@@ -19,7 +19,7 @@ export interface AgentTodo {
   context?: {
     files?: string[]
     commands?: string[]
-    reasoning?: string
+    reasoningText?: string
   }
   subtasks?: AgentTodo[]
   progress?: number // 0-100
@@ -328,9 +328,9 @@ export class AgentTodoManager {
       updatedAt: new Date(),
       estimatedDuration: todoBase.estimatedDuration,
       tags: todoBase.tags || [],
-      context: context ? { reasoning: `Generated for goal: ${goal}` } : undefined,
+      context: context ? { reasoningText: `Generated for goal: ${goal}` } : undefined,
       progress: 0,
-    }))
+    }));
   }
 
   // Start executing todos for an agent

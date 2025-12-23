@@ -1,6 +1,6 @@
 import chalk from 'chalk'
 import { nanoid } from 'nanoid'
-import { z } from 'zod'
+import { z } from 'zod/v3';
 import { type ChatMessage, modelProvider } from '../../ai/model-provider'
 import { toolsManager } from '../../tools/tools-manager'
 import { advancedUI } from '../../ui/advanced-cli-ui'
@@ -20,7 +20,7 @@ const SystemCommandSchema = z.object({
       timeout: z.number().optional(),
     })
   ),
-  reasoning: z.string(),
+  reasoningText: z.string(),
   warnings: z.array(z.string()).optional(),
 })
 
@@ -177,7 +177,7 @@ Generate a structured plan with commands to execute.`,
       const planResult = plan as z.infer<typeof SystemCommandSchema>
 
       console.log(chalk.blue.bold('\n📋 Command Execution Plan:'))
-      console.log(chalk.gray(`Reasoning: ${planResult.reasoning || 'No reasoning provided'}`))
+      console.log(chalk.gray(`Reasoning: ${planResult.reasoningText || 'No reasoning provided'}`))
 
       if (planResult.warnings && planResult.warnings.length > 0) {
         console.log(chalk.yellow.bold('\n⚠︎  Warnings:'))

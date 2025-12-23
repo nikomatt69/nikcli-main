@@ -2,7 +2,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import chalk from 'chalk'
-import { z } from 'zod'
+import { z } from 'zod/v3';
 import { type ChatMessage, modelProvider } from '../ai/model-provider'
 import { advancedUI } from '../ui/advanced-cli-ui'
 
@@ -381,7 +381,7 @@ export class CommandPredictor {
       const response = await modelProvider.generateResponse({
         messages,
         temperature: 0.3,
-        maxTokens: 300,
+        maxOutputTokens: 300,
         scope: 'tool_light',
       })
 

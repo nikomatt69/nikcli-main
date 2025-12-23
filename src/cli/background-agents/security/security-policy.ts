@@ -435,13 +435,13 @@ export class SecurityPolicy {
       noTty: true,
       jsonlLogs: true,
       cwd: '/workspace/repo',
-      maxTokens: job.limits.maxToolCalls * 1000, // Estimate tokens per tool call
+      maxOutputTokens: job.limits.maxToolCalls * 1000, // Estimate tokens per tool call
       timeout: job.limits.timeMin * 60 * 1000,
       allowCommands: policies.allowedCommands,
       denyCommands: policies.blockedCommands || SecurityPolicy.BLOCKED_COMMANDS,
       allowNetwork: policies.allowedDomains || SecurityPolicy.DEFAULT_ALLOWED_DOMAINS,
       safeMode: true,
-    }
+    };
   }
 }
 

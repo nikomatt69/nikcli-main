@@ -1,11 +1,11 @@
 import * as crypto from 'node:crypto'
-import type { CoreMessage } from 'ai'
+import type { ModelMessage } from 'ai'
 import { simpleConfigManager } from '../core/config-manager'
 import { universalTokenizer } from '../core/universal-tokenizer-service'
 import { structuredLogger } from '../utils/structured-logger'
 import type { ChatMessage } from './model-provider'
 import { type OpenRouterModel, openRouterRegistry } from './openrouter-model-registry'
-import { MODEL_ALIASES, resolveModelAlias } from './provider-registry'
+import { resolveModelAlias } from './provider-registry'
 
 export type ModelScope = 'chat_default' | 'planning' | 'code_gen' | 'tool_light' | 'tool_heavy' | 'vision'
 
@@ -161,7 +161,7 @@ async function estimateTokensPrecise(
 ): Promise<{ tokens: number; method: 'precise' | 'fallback' }> {
   try {
     // Convert to CoreMessage format for tokenizer
-    const coreMessages: CoreMessage[] = messages.map((m) => ({
+    const coreMessages: ModelMessage[] = messages.map((m) => ({
       role: m.role as any,
       content: m.content,
     }))
@@ -297,71 +297,41 @@ function calculateEstimatedCost(
 
 function pickAnthropic(
   baseModel: string,
-  tier: 'light' | 'medium' | 'heavy',
+  _tier: 'light' | 'medium' | 'heavy',
   _needsVision?: boolean,
-  totalEstimatedTokens?: number
+  _totalEstimatedTokens?: number
 ): string {
   // NO ROUTING: Always return the baseModel without any routing
   return baseModel
 }
 
-function classifyAnthropicModel(modelName: string, contextTokens?: number): 'light' | 'medium' | 'heavy' {
-  const name = modelName.toLowerCase()
-
-  // Direct Anthropic models only (not OpenRouter prefixed)
-  if (name.startsWith('claude-')) {
-    if (name.includes('haiku')) return 'light'
-    if (name.includes('opus')) return 'heavy'
-    if (name.includes('sonnet-4') || name.includes('claude-3-7')) return 'heavy'
-  }
-
-  if (contextTokens && contextTokens >= 200000) return 'heavy'
-
+function classifyAnthropicModel(_modelName: string, _contextTokens?: number): 'light' | 'medium' | 'heavy' {
+  // Placeholder for future Anthropic model classification
   return 'medium'
 }
 
 function pickOpenAI(
   baseModel: string,
-  tier: 'light' | 'medium' | 'heavy',
+  _tier: 'light' | 'medium' | 'heavy',
   _needsVision?: boolean,
-  totalEstimatedTokens?: number
+  _totalEstimatedTokens?: number
 ): string {
   // NO ROUTING: Always return the baseModel without any routing
   return baseModel
 }
 
-function classifyOpenAIModel(modelName: string, contextTokens?: number): 'light' | 'medium' | 'heavy' {
-  const name = modelName.toLowerCase()
-
-  // Direct OpenAI models only (not OpenRouter prefixed like openai/gpt-5)
-  if (name.startsWith('gpt-') || name.startsWith('o1-') || name.startsWith('o3-')) {
-    if (name.includes('mini') || name.includes('nano')) return 'light'
-    if (name.includes('o1') || name.includes('o3') || name.includes('gpt-5') || name.includes('gpt-4.1')) return 'heavy'
-  }
-
-  if (contextTokens && contextTokens >= 200000) return 'heavy'
-  if (contextTokens && contextTokens < 100000) return 'light'
-
+function classifyOpenAIModel(_modelName: string, _contextTokens?: number): 'light' | 'medium' | 'heavy' {
+  // Placeholder for future OpenAI model classification
   return 'medium'
 }
 
-function pickGoogle(baseModel: string, tier: 'light' | 'medium' | 'heavy', totalEstimatedTokens?: number): string {
+function pickGoogle(baseModel: string, _tier: 'light' | 'medium' | 'heavy', _totalEstimatedTokens?: number): string {
   // NO ROUTING: Always return the baseModel without any routing
   return baseModel
 }
 
-function classifyGoogleModel(modelName: string, contextTokens?: number): 'light' | 'medium' | 'heavy' {
-  const name = modelName.toLowerCase()
-
-  // Direct Google models only (not OpenRouter prefixed like google/gemini-2.5-pro)
-  if (name.startsWith('gemini-')) {
-    if (name.includes('lite') || name.includes('flash-lite')) return 'light'
-    if (name.includes('pro')) return 'heavy'
-  }
-
-  if (contextTokens && contextTokens >= 2000000) return 'heavy'
-  if (contextTokens && contextTokens < 500000) return 'light'
-
+function classifyGoogleModel(_modelName: string, _contextTokens?: number): 'light' | 'medium' | 'heavy' {
+  // Placeholder for future Google model classification
   return 'medium'
 }
 
@@ -678,7 +648,7 @@ export class AdaptiveModelRouter {
       .filter((m) => m.role && m.content)
       .map((m) => ({
         role: m.role!,
-        content: m.content!,
+        content: typeof m.content === 'string' ? m.content : m.content.map((p: any) => p.text || '').join(' '),
       }))
 
     // Get precise token count with memoization
@@ -699,7 +669,10 @@ export class AdaptiveModelRouter {
 
     const totalEstimatedTokens = tokens + toolchainReserve
 
-    const lastUser = [...input.messages].reverse().find((m) => m.role === 'user')?.content || ''
+    const lastUserMsg = [...input.messages].reverse().find((m) => m.role === 'user')
+    const lastUser = typeof lastUserMsg?.content === 'string'
+      ? lastUserMsg.content
+      : lastUserMsg?.content?.map((p: any) => p.text || '').join(' ') || ''
     let tier = determineTier(tokens, input.scope, lastUser)
 
     // Ottieni limiti modello base
@@ -894,11 +867,14 @@ export class AdaptiveModelRouter {
     const validMessages = input.messages
       .filter((m) => m.role && m.content)
       .map((m) => ({
-        content: m.content!,
+        content: typeof m.content === 'string' ? m.content : m.content.map((p: any) => p.text || '').join(' '),
       }))
 
     const tokens = estimateTokens(validMessages)
-    const lastUser = [...input.messages].reverse().find((m) => m.role === 'user')?.content || ''
+    const lastUserMsg = [...input.messages].reverse().find((m) => m.role === 'user')
+    const lastUser = typeof lastUserMsg?.content === 'string'
+      ? lastUserMsg.content
+      : lastUserMsg?.content?.map((p: any) => p.text || '').join(' ') || ''
     const tier = determineTier(tokens, input.scope, lastUser)
 
     let selected = input.baseModel
