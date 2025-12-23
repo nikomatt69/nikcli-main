@@ -7,17 +7,17 @@ class Nikcli < Formula
   on_macos do
     if Hardware::CPU.arm?
       url "https://github.com/nikomatt69/nikcli-main/releases/download/v#{version}/nikcli-macos-arm64.tar.gz"
-      sha256 "d0a69454bb2f42b388704f3cd4cfd4b881a5bd1e7615292970ce07195a3b7065"
+      sha256 "9110fede0113efab8d30761594f583fd91db149faf5275a49bd7a93b35493acb"
     else
       url "https://github.com/nikomatt69/nikcli-main/releases/download/v#{version}/nikcli-macos-x64.tar.gz"
-      sha256 "d0a69454bb2f42b388704f3cd4cfd4b881a5bd1e7615292970ce07195a3b7065"
+      sha256 "9110fede0113efab8d30761594f583fd91db149faf5275a49bd7a93b35493acb"
     end
   end
 
   on_linux do
     if Hardware::CPU.intel?
       url "https://github.com/nikomatt69/nikcli-main/releases/download/v#{version}/nikcli-linux-x64.tar.gz"
-      sha256 "d0a69454bb2f42b388704f3cd4cfd4b881a5bd1e7615292970ce07195a3b7065"
+      sha256 "9110fede0113efab8d30761594f583fd91db149faf5275a49bd7a93b35493acb"
     end
   end
 
