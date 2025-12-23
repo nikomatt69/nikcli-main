@@ -40,6 +40,7 @@ export class ToolService {
   private workingDirectory: string = process.cwd()
   private policyManager: ExecutionPolicyManager
   private approvalSystem: ApprovalSystem
+  private sessionApprovals: Set<string> = new Set() // Track approved operations for session
 
   constructor() {
     this.policyManager = new ExecutionPolicyManager(simpleConfigManager)
@@ -58,6 +59,29 @@ export class ToolService {
       timeout: 30000, // 30 seconds timeout
     })
     this.registerDefaultTools()
+  }
+
+  /**
+   * Check if an operation has been approved for this session
+   */
+  isOperationApproved(toolName: string, operation: string): boolean {
+    return this.sessionApprovals.has(`${toolName}:${operation}`)
+  }
+
+  /**
+   * Add an operation to session approvals
+   */
+  addSessionApproval(toolName: string, operation: string): void {
+    this.sessionApprovals.add(`${toolName}:${operation}`)
+    advancedUI.logInfo(`[Approval] Remembered: ${toolName}:${operation}`)
+  }
+
+  /**
+   * Clear all session approvals
+   */
+  clearSessionApprovals(): void {
+    this.sessionApprovals.clear()
+    advancedUI.logInfo('[Approval] Session approvals cleared')
   }
 
   setWorkingDirectory(dir: string): void {
@@ -319,24 +343,52 @@ export class ToolService {
   }
 
   /**
-   * Execute tool with security checks and approval process
+   * Execute tool with security checks and interactive approval process
+   * Uses inquirer-based approval with pause/resume of input queue
    */
   async executeToolSafely(toolName: string, operation: string, args: any): Promise<any> {
     try {
-      // Check if approval is needed
+      // Step 1: Check if already approved in this session
+      if (this.isOperationApproved(toolName, operation)) {
+        advancedUI.logInfo(`[Approval] Using cached approval: ${toolName}:${operation}`)
+        return await this.executeTool(toolName, args)
+      }
+
+      // Step 2: Check if approval is needed
       const approvalRequest = await this.policyManager.shouldApproveToolOperation(toolName, operation, args)
 
       if (approvalRequest) {
-        // Request user approval
-        const approval = await this.requestToolApproval(approvalRequest)
+        // Step 3: Request interactive user approval with inquirer
+        const approval = await this.approvalSystem.requestToolApprovalInteractive(
+          toolName,
+          operation,
+          approvalRequest.riskAssessment.level === 'low'
+            ? 'low'
+            : approvalRequest.riskAssessment.level === 'medium'
+              ? 'medium'
+              : approvalRequest.riskAssessment.level === 'high'
+                ? 'high'
+                : 'critical',
+          {
+            description: approvalRequest.riskAssessment.reasons.join('\n• '),
+            path: args.path || args.filePath || undefined,
+            args: args,
+            preview: args.content ? String(args.content).substring(0, 200) : undefined,
+          }
+        )
 
         if (!approval.approved) {
           await this.policyManager.logPolicyDecision(`tool:${toolName}`, 'denied', {
             operation,
             args,
-            userComments: approval.userComments,
+            reason: 'user cancelled',
           })
           throw new Error(`Operation cancelled by user: ${toolName} - ${operation}`)
+        }
+
+        // Step 4: Add to session approvals if user chose "remember"
+        if (approval.remember) {
+          this.addSessionApproval(toolName, operation)
         }
 
         // Log approval decision
@@ -344,13 +396,8 @@ export class ToolService {
           operation,
           args,
           approved: true,
-          userComments: approval.userComments,
+          remembered: approval.remember,
         })
-
-        // Add to session approvals if requested
-        if (approval.userComments?.includes('approve-session')) {
-          this.policyManager.addSessionApproval(toolName, operation)
-        }
       } else {
         // Log auto-approval
         await this.policyManager.logPolicyDecision(`tool:${toolName}`, 'allowed', {
@@ -360,7 +407,7 @@ export class ToolService {
         })
       }
 
-      // Execute the tool
+      // Step 5: Execute the tool
       return await this.executeTool(toolName, args)
     } catch (error: any) {
       // Log execution error

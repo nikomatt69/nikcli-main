@@ -13,6 +13,7 @@ import { agentTodoManager } from './agent-todo-manager'
 import { blueprintStorage } from './blueprint-storage'
 import { configManager } from './config-manager'
 import { advancedUI } from '../ui/advanced-cli-ui'
+import { taskChainManager } from './task-chain-manager'
 
 // ====================== ⚡︎ ZOD VALIDATION SCHEMAS ======================
 
@@ -110,6 +111,7 @@ export class DynamicAgent extends BaseAgent {
   private blueprint: AgentBlueprint
   private isRunning: boolean = false
   private currentTodos: string[] = []
+  private taskchainId?: string = undefined
 
   constructor(blueprint: AgentBlueprint, workingDirectory: string = process.cwd()) {
     super(workingDirectory)
@@ -657,6 +659,14 @@ Autonomy level: ${this.blueprint.autonomyLevel}`,
   }
 
   async cleanup(): Promise<void> {
+    // Notify taskchain manager that agent is stopping
+    if (this.taskchainId) {
+      try {
+        taskChainManager.removeAgentFromChain(this.id)
+      } catch {
+        // TaskChainManager may not be loaded
+      }
+    }
     await super.cleanup?.()
     agentStream.stopAgentStream(this.id)
 
@@ -669,9 +679,14 @@ Autonomy level: ${this.blueprint.autonomyLevel}`,
     )
   }
 
-  // Check if agent is currently running
+  // Check if agent is currently running or protected by an active taskchain
   isActive(): boolean {
-    return this.isRunning
+    if (this.isRunning) return true
+    if (this.taskchainId) {
+      const chain = taskChainManager.getChainForAgent(this.id)
+      return chain !== undefined && chain.status === 'running'
+    }
+    return false
   }
 
   // Get agent blueprint
@@ -1262,6 +1277,11 @@ Execute tasks step-by-step and verify results before proceeding.`
 
     const agent = new DynamicAgent(blueprint)
 
+    // Auto-create taskchain for the agent
+    const chain = taskChainManager.createChain({ name: `Chain-${blueprint.name}` })
+    taskChainManager.addAgentToChain(chain.id, agent.id, 'primary')
+    agent.taskchainId = chain.id
+
     try {
       await agent.initialize()
       this.instances.set(blueprint.name, agent)
@@ -1511,15 +1531,29 @@ Execute tasks step-by-step and verify results before proceeding.`
 
   /**
    * Auto-cleanup inactive agents to prevent memory leaks
+   * NOTE: Agents protected by active taskchains are NOT cleaned up
    */
   private async autoCleanupInactiveAgents(): Promise<void> {
     const inactiveAgents: string[] = []
+    const protectedFromTaskchain: string[] = []
 
     for (const [name, agent] of this.instances.entries()) {
+      // Check if agent is protected by an active taskchain
+      const isProtected = taskChainManager.isAgentInActiveChain(agent.id)
+
+      if (isProtected) {
+        protectedFromTaskchain.push(name)
+        continue
+      }
+
       // Check if agent is not active
       if (!agent.isActive()) {
         inactiveAgents.push(name)
       }
+    }
+
+    if (protectedFromTaskchain.length > 0) {
+      advancedUI.logInfo(chalk.cyan(`🛡 Protected ${protectedFromTaskchain.length} agents from cleanup (active taskchains)`))
     }
 
     if (inactiveAgents.length > 0) {

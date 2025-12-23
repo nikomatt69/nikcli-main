@@ -392,4 +392,13 @@ export const EventTypes = {
   FILE_CHANGED: 'file.changed',
   FILE_CREATED: 'file.created',
   FILE_DELETED: 'file.deleted',
+
+  // TaskChain lifecycle
+  TASKCHAIN_CREATED: 'taskchain.created',
+  TASKCHAIN_STARTED: 'taskchain.started',
+  TASKCHAIN_PROGRESS: 'taskchain.progress',
+  TASKCHAIN_COMPLETED: 'taskchain.completed',
+  TASKCHAIN_FAILED: 'taskchain.failed',
+  TASKCHAIN_MEMBER_ADDED: 'taskchain.member_added',
+  TASKCHAIN_MEMBER_REMOVED: 'taskchain.member_removed',
 } as const

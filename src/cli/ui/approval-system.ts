@@ -796,6 +796,163 @@ export class ApprovalSystem extends EventEmitter {
   }
 
   /**
+   * Request interactive tool approval with Inquirer.
+   * Pauses input queue, shows approval panel, handles remember choice.
+   * Uses existing confirm pattern but adds tool-specific details.
+   */
+  async requestToolApprovalInteractive(
+    toolName: string,
+    operation: string,
+    riskLevel: 'low' | 'medium' | 'high' | 'critical',
+    details: {
+      description: string
+      path?: string
+      args?: Record<string, any>
+      preview?: string
+    }
+  ): Promise<{ approved: boolean; remember: boolean }> {
+    // Track original input queue state
+    const wasEnabled = inputQueue.isBypassEnabled()
+    let inquirerInstance: any = null
+    const configuredTimeout = this.getApprovalTimeout()
+
+    try {
+      // Spacing before the panel
+      console.log()
+      console.log(chalk.gray('─'.repeat(60)))
+
+      // Show risk indicator and title
+      const riskColor = this.getRiskColor(riskLevel)
+      const riskIcon = this.getRiskIcon(riskLevel)
+      console.log()
+
+      // Build the panel content
+      const panelContent = [
+        `${riskIcon} ${chalk.bold('Tool Operation Approval Required')}`,
+        '',
+        `${chalk.gray('Tool:')} ${chalk.white(toolName)}`,
+        `${chalk.gray('Operation:')} ${chalk.white(operation)}`,
+        `${chalk.gray('Risk Level:')} ${riskColor(riskLevel.toUpperCase())}`,
+        '',
+        `${chalk.gray('Description:')} ${details.description}`,
+      ]
+
+      if (details.path) {
+        panelContent.push(`${chalk.gray('Path:')} ${chalk.cyan(details.path)}`)
+      }
+
+      if (details.preview) {
+        panelContent.push('')
+        panelContent.push(`${chalk.gray('Preview:')}`)
+        panelContent.push(chalk.dim(details.preview.substring(0, 500)))
+      }
+
+      // Display the panel using boxen
+      this.cliInstance?.printPanel(
+        boxen(panelContent.join('\n'), {
+          padding: 1,
+          margin: { top: 0, bottom: 1, left: 0, right: 0 },
+          borderStyle: 'round',
+          borderColor: riskLevel === 'critical' ? 'red' : riskLevel === 'high' ? 'yellow' : 'blue',
+        })
+      )
+
+      // Ensure output is flushed and terminal is ready for Inquirer
+      await Promise.race([
+        new Promise((resolve) => {
+          process.stdout.write('', () => {
+            setTimeout(resolve, 50)
+          })
+        }),
+        new Promise((resolve) => setTimeout(resolve, 150)),
+      ])
+
+      // Suspend main prompt and enable bypass only if not already enabled
+      try {
+        ;(global as any).__nikCLI?.suspendPrompt?.()
+      } catch {}
+
+      if (!wasEnabled) {
+        inputQueue.enableBypass()
+      }
+
+      // Create inquirer prompt with timeout and remember option
+      const promptPromise = inquirer.prompt([
+        {
+          type: 'list',
+          name: 'approval',
+          message: chalk.cyan.bold('Approve this operation?'),
+          choices: [
+            { name: '✓ Yes', value: 'yes' },
+            { name: '✓ Yes, remember for session', value: 'remember' },
+            { name: '✖ No', value: 'no' },
+          ],
+          default: 1, // Default to "Yes, remember"
+          prefix: '  ',
+        },
+      ])
+
+      inquirerInstance = promptPromise
+
+      // Add timeout - defaults to approved with remember=false
+      const timeoutPromise = new Promise((resolve) => {
+        setTimeout(() => {
+          advancedUI.addLiveUpdate({
+            type: 'warning',
+            content: `⏰ Approval timeout after ${configuredTimeout / 1000}s, operation denied`,
+          })
+          resolve({ approval: 'timeout' })
+        }, configuredTimeout)
+      })
+
+      const answers = await Promise.race([promptPromise, timeoutPromise])
+      console.log()
+
+      const approval = (answers as any).approval
+
+      if (approval === 'timeout') {
+        console.log(chalk.yellow('⚠︎ Operation denied due to timeout'))
+        return { approved: false, remember: false }
+      }
+
+      if (approval === 'no') {
+        console.log(chalk.yellow('✖ Operation cancelled by user'))
+        return { approved: false, remember: false }
+      }
+
+      const remember = approval === 'remember'
+      console.log(chalk.green.bold(`✓ Operation approved${remember ? ' (remembered for session)' : ''}`))
+
+      return { approved: true, remember }
+    } catch (error: any) {
+      console.log(chalk.red(`✖ Approval request failed: ${error.message}`))
+      return { approved: false, remember: false }
+    } finally {
+      // CRITICAL: Always restore original input queue state
+      try {
+        if (!wasEnabled && inputQueue.isBypassEnabled()) {
+          inputQueue.disableBypass()
+        }
+      } catch (error) {
+        console.error('Failed to restore input queue state:', error)
+        inputQueue.forceCleanup()
+      }
+
+      // Clean up inquirer instance
+      if (inquirerInstance) {
+        try {
+          inquirerInstance.removeAllListeners?.()
+        } catch {}
+      }
+
+      // Restore prompt after approval interaction
+      try {
+        ;(global as any).__nikCLI?.resumePromptAndRender?.()
+      } catch {}
+    }
+  }
+
+  /**
    * Generic text input prompt using Inquirer.
    * Uses inputQueue bypass to avoid interference with the main input loop.
    */

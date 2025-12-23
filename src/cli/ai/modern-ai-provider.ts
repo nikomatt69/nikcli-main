@@ -210,6 +210,52 @@ export class ModernAIProvider {
   }
 
   /**
+   * Get the shared tool service singleton for approval integration
+   */
+  private getToolService() {
+    try {
+      const { toolService } = require('../services/tool-service')
+      return toolService // This is the singleton instance
+    } catch {
+      return null
+    }
+  }
+
+  /**
+   * Wrap a tool definition with approval checking.
+   * The tool will go through executeToolSafely which handles:
+   * - Session approval caching
+   * - Interactive inquirer approval
+   * - Input queue pause/resume
+   */
+  protected wrapWithApproval<P extends Record<string, any>, R>(
+    toolName: string,
+    operation: string,
+    toolDefinition: {
+      description: string
+      parameters: z.ZodType<P>
+      execute: (params: P) => Promise<R>
+    }
+  ): {
+    description: string
+    parameters: z.ZodType<P>
+    execute: (params: P) => Promise<R>
+  } {
+    return {
+      ...toolDefinition,
+      execute: async (params: P) => {
+        const ts = this.getToolService()
+        if (ts && ts.executeToolSafely) {
+          // Use tool service with approval
+          return ts.executeToolSafely(toolName, operation, params)
+        }
+        // Fallback: execute directly without approval
+        return toolDefinition.execute(params)
+      },
+    }
+  }
+
+  /**
    * Create a tool call repair handler for AI SDK
    * Reference: https://v4.ai-sdk.dev/docs/ai-sdk-core/tools-and-tool-calling#tool-call-repair
    *
