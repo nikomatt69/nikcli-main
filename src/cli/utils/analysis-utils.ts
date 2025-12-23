@@ -42,7 +42,7 @@ export function chunkArray<T>(arr: T[], size: number): T[][] {
 export function compactAnalysis(analysis: any, opts: CompactOptions = {}) {
   const maxDirs = opts.maxDirs ?? 500
   const maxFiles = opts.maxFiles ?? 1000
-  const maxChars = opts.maxChars ?? 80000
+  const maxChars = opts.maxChars ?? 120000
 
   const header: any = {
     name: analysis?.name,
@@ -52,10 +52,10 @@ export function compactAnalysis(analysis: any, opts: CompactOptions = {}) {
     fileCount: analysis?.fileCount,
     dependencies: analysis?.dependencies
       ? {
-          production: analysis.dependencies.production?.length ?? 0,
-          development: analysis.dependencies.development?.length ?? 0,
-          total: analysis.dependencies.total ?? 0,
-        }
+        production: analysis.dependencies.production?.length ?? 0,
+        development: analysis.dependencies.development?.length ?? 0,
+        total: analysis.dependencies.total ?? 0,
+      }
       : undefined,
     directory: analysis?.directory,
     timestamp: analysis?.timestamp,

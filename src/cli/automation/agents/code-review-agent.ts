@@ -182,7 +182,7 @@ export class CodeReviewAgent extends CognitiveAgentBase {
   }
 
   private getCodeReviewCapabilities(cognition: TaskCognition): string[] {
-    const capabilities = []
+    const capabilities: string[] = []
 
     if (cognition.intent.primary === 'analyze') capabilities.push('code-review')
     if (cognition.normalizedTask.includes('security')) capabilities.push('security-analysis')
@@ -230,7 +230,7 @@ Provide specific suggestions for improvement with detailed explanations.`
   }
 
   private extractReviewRecommendations(aiResponse: string): string[] {
-    const recommendations = []
+    const recommendations: string[] = []
 
     if (aiResponse.includes('security')) recommendations.push('Security improvements needed')
     if (aiResponse.includes('performance')) recommendations.push('Performance optimizations required')

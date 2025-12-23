@@ -60,7 +60,7 @@ export class ProgressiveTokenManager {
   constructor(config?: Partial<ProgressiveTokenConfig>) {
     this.config = {
       maxTokensPerChunk: TOKEN_LIMITS.PROGRESSIVE?.MAX_TOKENS_PER_CHUNK ?? 6000, // ULTRA reduced
-      maxTokensTotal: 80000, // DRASTICALLY reduced to 120k (80k safety margin)
+      maxTokensTotal: 120000, // DRASTICALLY reduced to 120k (80k safety margin)
       compressionRatio: TOKEN_LIMITS.PROMPT_CAPS?.TARGET_CONTEXT_COMPRESSION_RATIO ?? 0.2, // ULTRA aggressive compression
       enableCheckpointing: true,
       checkpointDir: './.checkpoints',
@@ -100,7 +100,7 @@ export class ProgressiveTokenManager {
   /**
    * EMERGENCY: Truncate content if it exceeds hard limits
    */
-  public emergencyTruncate(content: string, maxTokens: number = 180000): string {
+  public emergencyTruncate(content: string, maxTokens: number = 120000): string {
     const estimatedTokens = this.estimateTokens(content)
 
     if (estimatedTokens <= maxTokens) {

@@ -31,22 +31,45 @@ Perform comprehensive project analysis including technology detection, dependenc
 
 <Tabs>
   <Tab title="Basic Analysis">
-    ```bash # Analyze current directory /analyze # Analyze specific directory
-    /analyze src/ /analyze components/ /analyze backend/ # Quick analysis
-    summary /analyze --summary /analyze --quick ```
+    ```bash
+# Analyze current directory
+/analyze
+# Analyze specific directory
+/analyze src/
+/analyze components/
+/analyze backend/
+# Quick analysis summary
+/analyze --summary
+/analyze --quick
+```
   </Tab>
 
   <Tab title="Technology Detection">
-    ```bash # Detect project technologies /analyze tech /analyze --technologies
-    # Framework detection /analyze frameworks /analyze --react --vue --angular #
-    Language analysis /analyze languages /analyze --typescript --python --go ```
+    ```bash
+# Detect project technologies
+/analyze tech
+/analyze --technologies
+# Framework detection
+/analyze frameworks
+/analyze --react --vue --angular
+# Language analysis
+/analyze languages
+/analyze --typescript --python --go
+```
   </Tab>
 
   <Tab title="Deep Analysis">
-    ```bash # Full project scan /analyze --deep /analyze --recursive
-    --include-tests # Performance analysis /analyze performance /analyze
-    --metrics --complexity # Security analysis /analyze security /analyze
-    --vulnerabilities --dependencies ```
+    ```bash
+# Full project scan
+/analyze --deep
+/analyze --recursive --include-tests
+# Performance analysis
+/analyze performance
+/analyze --metrics --complexity
+# Security analysis
+/analyze security
+/analyze --vulnerabilities --dependencies
+```
   </Tab>
 </Tabs>
 
@@ -56,27 +79,57 @@ Analyze and visualize project structure and architecture patterns.
 
 <AccordionGroup>
   <Accordion title="Directory Structure">
-    ```bash # Show project tree /structure tree /structure --tree --depth 3 #
-    Analyze directory organization /structure dirs /structure --directories
-    --patterns # Component structure (React/Vue) /structure components
-    /structure --components --depth 2 ``` **Output Example:** ``` src/ ├──
-    components/ │ ├── ui/ # UI primitives │ ├── forms/ # Form components │ └──
-    layout/ # Layout components ├── hooks/ # Custom React hooks ├── utils/ #
-    Utility functions └── types/ # TypeScript definitions ```
-  </Accordion>
+    ```bash
+# Show project tree
+/structure tree
+/structure --tree --depth 3
+# Analyze directory organization
+/structure dirs
+/structure --directories --patterns
+# Component structure (React/Vue)
+/structure components
+/structure --components --depth 2
+```
 
-  <Accordion title="File Analysis">
-    ```bash # File type distribution /structure files /structure --file-types
-    --statistics # Large file analysis /structure --large-files --threshold 1000
-    # File relationships /structure dependencies /structure --imports --exports
+    **Output Example:**
+
+    ```
+    src/
+    ├── components/
+    │   ├── ui/           # UI primitives
+    │   ├── forms/        # Form components
+    │   └── layout/       # Layout components
+    ├── hooks/            # Custom React hooks
+    ├── utils/            # Utility functions
+    └── types/            # TypeScript definitions
     ```
   </Accordion>
 
+  <Accordion title="File Analysis">
+    ```bash
+# File type distribution
+/structure files
+/structure --file-types --statistics
+# Large file analysis
+/structure --large-files --threshold 1000
+# File relationships
+/structure dependencies
+/structure --imports --exports
+```
+  </Accordion>
+
   <Accordion title="Architecture Patterns">
-    ```bash # Detect architecture patterns /structure patterns /structure --mvc
-    --mvvm --clean # Monorepo analysis /structure monorepo /structure
-    --workspaces --packages # Microservices detection /structure microservices
-    /structure --services --apis ```
+    ```bash
+# Detect architecture patterns
+/structure patterns
+/structure --mvc --mvvm --clean
+# Monorepo analysis
+/structure monorepo
+/structure --workspaces --packages
+# Microservices detection
+/structure microservices
+/structure --services --apis
+```
   </Accordion>
 </AccordionGroup>
 
@@ -86,33 +139,41 @@ Comprehensive dependency analysis and management across all supported package ma
 
 <Tabs>
   <Tab title="Dependency Overview">
-    ```bash # Show all dependencies /dependencies /dependencies list #
-    Production vs development /dependencies --prod /dependencies --dev
-    /dependencies --peer # Show dependency tree /dependencies tree /dependencies
-    --tree --depth 3 ```
+    ```bash
+# Show all dependencies /dependencies /dependencies list #
+# Production vs development /dependencies --prod /dependencies --dev
+/dependencies --peer # Show dependency tree /dependencies tree /dependencies
+# --tree --depth 3
+```
   </Tab>
 
   <Tab title="Package Manager Support">
-    ```bash # NPM dependencies /dependencies npm /dependencies --package-json #
-    Yarn dependencies /dependencies yarn /dependencies --yarn-lock # PNPM
-    dependencies /dependencies pnpm /dependencies --pnpm-lock # Multiple package
-    managers /dependencies --all-managers ```
+    ```bash
+# NPM dependencies /dependencies npm /dependencies --package-json #
+# Yarn dependencies /dependencies yarn /dependencies --yarn-lock # PNPM
+# dependencies /dependencies pnpm /dependencies --pnpm-lock # Multiple package
+# managers /dependencies --all-managers
+```
   </Tab>
 
   <Tab title="Dependency Health">
-    ```bash # Outdated packages /dependencies outdated /dependencies
-    --check-updates # Security vulnerabilities /dependencies audit /dependencies
-    --security-scan # Duplicate dependencies /dependencies duplicates
-    /dependencies --find-duplicates # Unused dependencies /dependencies unused
-    /dependencies --find-unused ```
+    ```bash
+# Outdated packages /dependencies outdated /dependencies
+# --check-updates # Security vulnerabilities /dependencies audit /dependencies
+# --security-scan # Duplicate dependencies /dependencies duplicates
+/dependencies --find-duplicates # Unused dependencies /dependencies unused
+/dependencies --find-unused
+```
   </Tab>
 
   <Tab title="Cross-Language Dependencies">
-    ```bash # Python requirements /dependencies python /dependencies
-    --requirements-txt --pipfile # Go modules /dependencies go /dependencies
-    --go-mod # Rust dependencies /dependencies rust /dependencies --cargo-toml #
-    Docker dependencies /dependencies docker /dependencies --dockerfile
-    --compose ```
+    ```bash
+# Python requirements /dependencies python /dependencies
+# --requirements-txt --pipfile # Go modules /dependencies go /dependencies
+# --go-mod # Rust dependencies /dependencies rust /dependencies --cargo-toml #
+# Docker dependencies /dependencies docker /dependencies --dockerfile
+# --compose
+```
   </Tab>
 </Tabs>
 
@@ -122,24 +183,30 @@ Generate comprehensive code quality metrics and complexity analysis.
 
 <AccordionGroup>
   <Accordion title="Code Complexity">
-    ```bash # Cyclomatic complexity /metrics complexity /metrics --complexity
-    --threshold 10 # Cognitive complexity /metrics cognitive /metrics
-    --cognitive-load # Maintainability index /metrics maintainability /metrics
-    --maintainability --files ```
+    ```bash
+# Cyclomatic complexity /metrics complexity /metrics --complexity
+# --threshold 10 # Cognitive complexity /metrics cognitive /metrics
+# --cognitive-load # Maintainability index /metrics maintainability /metrics
+# --maintainability --files
+```
   </Accordion>
 
   <Accordion title="Code Statistics">
-    ```bash # Lines of code /metrics loc /metrics --lines-of-code --by-language
-    # Function/class metrics /metrics functions /metrics --functions --methods
-    --classes # Test coverage analysis /metrics coverage /metrics --coverage
-    --test-files ```
+    ```bash
+# Lines of code /metrics loc /metrics --lines-of-code --by-language
+# Function/class metrics /metrics functions /metrics --functions --methods
+# --classes # Test coverage analysis /metrics coverage /metrics --coverage
+# --test-files
+```
   </Accordion>
 
   <Accordion title="Quality Metrics">
-    ```bash # Code duplication /metrics duplication /metrics --duplicates
-    --threshold 5 # Technical debt /metrics debt /metrics --technical-debt
-    --todo --fixme # Documentation coverage /metrics documentation /metrics
-    --docs --comments --coverage ```
+    ```bash
+# Code duplication /metrics duplication /metrics --duplicates
+# --threshold 5 # Technical debt /metrics debt /metrics --technical-debt
+# --todo --fixme # Documentation coverage /metrics documentation /metrics
+# --docs --comments --coverage
+```
   </Accordion>
 </AccordionGroup>
 
@@ -151,35 +218,43 @@ Initialize new projects with intelligent scaffolding and best practices.
 
 <Tabs>
   <Tab title="Framework Initialization">
-    ```bash # React projects /init react my-react-app /init react --typescript
-    --tailwind # Vue projects /init vue my-vue-app /init vue --composition-api
-    --pinia # Angular projects /init angular my-angular-app /init angular
-    --standalone --material # Next.js projects /init nextjs my-next-app /init
-    nextjs --app-router --typescript ```
+    ```bash
+# React projects /init react my-react-app /init react --typescript
+# --tailwind # Vue projects /init vue my-vue-app /init vue --composition-api
+# --pinia # Angular projects /init angular my-angular-app /init angular
+# --standalone --material # Next.js projects /init nextjs my-next-app /init
+# nextjs --app-router --typescript
+```
   </Tab>
 
   <Tab title="Backend Initialization">
-    ```bash # Node.js/Express /init express api-server /init express
-    --typescript --prisma --auth # FastAPI (Python) /init fastapi my-api /init
-    fastapi --async --database --auth # Go projects /init go my-go-app /init go
-    --gin --gorm --migrate # Spring Boot (Java) /init spring my-spring-app /init
-    spring --web --data-jpa --security ```
+    ```bash
+# Node.js/Express /init express api-server /init express
+# --typescript --prisma --auth # FastAPI (Python) /init fastapi my-api /init
+# fastapi --async --database --auth # Go projects /init go my-go-app /init go
+# --gin --gorm --migrate # Spring Boot (Java) /init spring my-spring-app /init
+# spring --web --data-jpa --security
+```
   </Tab>
 
   <Tab title="Full-Stack Initialization">
-    ```bash # MEAN stack /init mean my-app /init mean --mongodb --express
-    --angular --node # MERN stack /init mern my-app /init mern --mongodb
-    --express --react --node # T3 stack /init t3 my-t3-app /init t3 --nextjs
-    --typescript --tailwind --prisma # Custom stack /init custom my-app --react
-    --fastapi --postgres ```
+    ```bash
+# MEAN stack /init mean my-app /init mean --mongodb --express
+# --angular --node # MERN stack /init mern my-app /init mern --mongodb
+# --express --react --node # T3 stack /init t3 my-t3-app /init t3 --nextjs
+# --typescript --tailwind --prisma # Custom stack /init custom my-app --react
+# --fastapi --postgres
+```
   </Tab>
 
   <Tab title="Specialized Projects">
-    ```bash # Monorepo initialization /init monorepo my-workspace /init monorepo
-    --nx --turborepo --lerna # Micro-frontend /init microfrontend my-mf /init
-    microfrontend --module-federation # CLI application /init cli my-cli /init
-    cli --typescript --commander --inquirer # Desktop application /init desktop
-    my-desktop-app /init desktop --electron --tauri --flutter ```
+    ```bash
+# Monorepo initialization /init monorepo my-workspace /init monorepo
+# --nx --turborepo --lerna # Micro-frontend /init microfrontend my-mf /init
+# microfrontend --module-federation # CLI application /init cli my-cli /init
+# cli --typescript --commander --inquirer # Desktop application /init desktop
+# my-desktop-app /init desktop --electron --tauri --flutter
+```
   </Tab>
 </Tabs>
 
@@ -189,32 +264,40 @@ Generate code scaffolding for common patterns and components.
 
 <AccordionGroup>
   <Accordion title="Component Scaffolding">
-    ```bash # React components /scaffold react-component UserProfile /scaffold
-    react-component --hooks --typescript # Vue components /scaffold
-    vue-component ProductCard /scaffold vue-component --composition
-    --script-setup # Angular components /scaffold angular-component user-list
-    /scaffold angular-component --standalone --signals ```
+    ```bash
+# React components /scaffold react-component UserProfile /scaffold
+# react-component --hooks --typescript # Vue components /scaffold
+# vue-component ProductCard /scaffold vue-component --composition
+# --script-setup # Angular components /scaffold angular-component user-list
+/scaffold angular-component --standalone --signals
+```
   </Accordion>
 
   <Accordion title="API Scaffolding">
-    ```bash # REST API endpoints /scaffold api users /scaffold api --crud
-    --validation --auth # GraphQL schema /scaffold graphql User /scaffold
-    graphql --resolvers --mutations # Database models /scaffold model User
-    /scaffold model --prisma --relations --validation ```
+    ```bash
+# REST API endpoints /scaffold api users /scaffold api --crud
+# --validation --auth # GraphQL schema /scaffold graphql User /scaffold
+# graphql --resolvers --mutations # Database models /scaffold model User
+/scaffold model --prisma --relations --validation
+```
   </Accordion>
 
   <Accordion title="Testing Scaffolding">
-    ```bash # Unit tests /scaffold test UserService /scaffold test --jest
-    --mocks --coverage # Integration tests /scaffold integration-test api/users
-    /scaffold integration-test --supertest --database # E2E tests /scaffold
-    e2e-test login-flow /scaffold e2e-test --playwright --cypress ```
+    ```bash
+# Unit tests /scaffold test UserService /scaffold test --jest
+# --mocks --coverage # Integration tests /scaffold integration-test api/users
+/scaffold integration-test --supertest --database # E2E tests /scaffold
+# e2e-test login-flow /scaffold e2e-test --playwright --cypress
+```
   </Accordion>
 
   <Accordion title="Configuration Scaffolding">
-    ```bash # Development configuration /scaffold config development /scaffold
-    config --eslint --prettier --husky # CI/CD pipelines /scaffold ci
-    github-actions /scaffold ci --build --test --deploy # Docker configuration
-    /scaffold docker /scaffold docker --multi-stage --compose --production ```
+    ```bash
+# Development configuration /scaffold config development /scaffold
+# config --eslint --prettier --husky # CI/CD pipelines /scaffold ci
+# github-actions /scaffold ci --build --test --deploy # Docker configuration
+/scaffold docker /scaffold docker --multi-stage --compose --production
+```
   </Accordion>
 </AccordionGroup>
 
@@ -226,33 +309,41 @@ Advanced code search with semantic understanding and pattern matching.
 
 <Tabs>
   <Tab title="Text Search">
-    ```bash # Basic text search /search "function getUserData" /search --text
-    "authentication" # Case-sensitive search /search --case "userID" # Whole
-    word search /search --word "user" # Regular expression search /search
-    --regex "function\s+\w+\(" ```
+    ```bash
+# Basic text search /search "function getUserData" /search --text
+# "authentication" # Case-sensitive search /search --case "userID" # Whole
+# word search /search --word "user" # Regular expression search /search
+# --regex "function\s+\w+\("
+```
   </Tab>
 
   <Tab title="Code Pattern Search">
-    ```bash # Function definitions /search functions "handle.*" /search
-    --functions --pattern "^get" # Class definitions /search classes "User.*"
-    /search --classes --extends "BaseClass" # Variable declarations /search
-    variables "config" /search --variables --type "string" # Import statements
-    /search imports "react" /search --imports --from "lodash" ```
+    ```bash
+# Function definitions /search functions "handle.*" /search
+# --functions --pattern "^get" # Class definitions /search classes "User.*"
+/search --classes --extends "BaseClass" # Variable declarations /search
+# variables "config" /search --variables --type "string" # Import statements
+/search imports "react" /search --imports --from "lodash"
+```
   </Tab>
 
   <Tab title="Semantic Search">
-    ```bash # Search by concept /search concept "user authentication" /search
-    --semantic "error handling" # Search by functionality /search functionality
-    "data validation" /search --behavior "async operations" # Search similar
-    code /search similar --file component.tsx /search --similar --function
-    processData ```
+    ```bash
+# Search by concept /search concept "user authentication" /search
+# --semantic "error handling" # Search by functionality /search functionality
+# "data validation" /search --behavior "async operations" # Search similar
+# code /search similar --file component.tsx /search --similar --function
+# processData
+```
   </Tab>
 
   <Tab title="Advanced Filters">
-    ```bash # File type filters /search "component" --js --ts --jsx --tsx
-    /search "model" --py --go --rs # Directory filters /search "test" --in src/
-    /search "config" --exclude node_modules/ # Size and date filters /search
-    "TODO" --files-changed-today /search "FIXME" --large-files-only ```
+    ```bash
+# File type filters /search "component" --js --ts --jsx --tsx
+/search "model" --py --go --rs # Directory filters /search "test" --in src/
+/search "config" --exclude node_modules/ # Size and date filters /search
+# "TODO" --files-changed-today /search "FIXME" --large-files-only
+```
   </Tab>
 </Tabs>
 
@@ -262,29 +353,35 @@ Intelligent code refactoring with AST-based transformations.
 
 <AccordionGroup>
   <Accordion title="Symbol Refactoring">
-    ```bash # Rename symbols /refactor rename "oldFunctionName"
-    "newFunctionName" /refactor rename --symbol "UserService" "AccountService" #
-    Move symbols /refactor move --function "utility" --to "utils/helpers.ts"
-    /refactor move --class "User" --to "models/user.ts" # Extract symbols
-    /refactor extract --function --from "longFunction" --name "helper" /refactor
-    extract --component --from "App.tsx" --name "Header" ```
+    ```bash
+# Rename symbols /refactor rename "oldFunctionName"
+# "newFunctionName" /refactor rename --symbol "UserService" "AccountService" #
+# Move symbols /refactor move --function "utility" --to "utils/helpers.ts"
+/refactor move --class "User" --to "models/user.ts" # Extract symbols
+/refactor extract --function --from "longFunction" --name "helper" /refactor
+# extract --component --from "App.tsx" --name "Header"
+```
   </Accordion>
 
   <Accordion title="Code Transformation">
-    ```bash # Convert function syntax /refactor convert --arrow-functions
-    /refactor convert --class-to-hooks /refactor convert --promises-to-async #
-    Modernize code /refactor modernize --es6-imports /refactor modernize
-    --optional-chaining /refactor modernize --nullish-coalescing # Framework
-    migration /refactor migrate --class-components-to-hooks /refactor migrate
-    --vue2-to-vue3 /refactor migrate --js-to-ts ```
+    ```bash
+# Convert function syntax /refactor convert --arrow-functions
+/refactor convert --class-to-hooks /refactor convert --promises-to-async #
+# Modernize code /refactor modernize --es6-imports /refactor modernize
+# --optional-chaining /refactor modernize --nullish-coalescing # Framework
+# migration /refactor migrate --class-components-to-hooks /refactor migrate
+# --vue2-to-vue3 /refactor migrate --js-to-ts
+```
   </Accordion>
 
   <Accordion title="Structure Refactoring">
-    ```bash # Reorganize imports /refactor imports --sort --group
-    --remove-unused /refactor imports --absolute-to-relative # Split files
-    /refactor split --file "largeComponent.tsx" /refactor split
-    --by-functionality --threshold 200 # Merge files /refactor merge --files
-    "util1.ts,util2.ts" --output "utils.ts" ```
+    ```bash
+# Reorganize imports /refactor imports --sort --group
+# --remove-unused /refactor imports --absolute-to-relative # Split files
+/refactor split --file "largeComponent.tsx" /refactor split
+# --by-functionality --threshold 200 # Merge files /refactor merge --files
+# "util1.ts,util2.ts" --output "utils.ts"
+```
   </Accordion>
 </AccordionGroup>
 
@@ -294,22 +391,28 @@ Comprehensive code quality analysis with multiple linting tools.
 
 <Tabs>
   <Tab title="JavaScript/TypeScript">
-    ```bash # ESLint analysis /lint eslint /lint --eslint --fix --typescript #
-    TypeScript compiler check /lint tsc /lint --typescript-check --strict #
-    Prettier formatting /lint prettier /lint --format --check --write ```
+    ```bash
+# ESLint analysis /lint eslint /lint --eslint --fix --typescript #
+# TypeScript compiler check /lint tsc /lint --typescript-check --strict #
+# Prettier formatting /lint prettier /lint --format --check --write
+```
   </Tab>
 
   <Tab title="Multi-Language">
-    ```bash # Python linting /lint python /lint --flake8 --black --mypy # Go
-    linting /lint go /lint --golint --gofmt --vet # Rust linting /lint rust
-    /lint --clippy --rustfmt ```
+    ```bash
+# Python linting /lint python /lint --flake8 --black --mypy # Go
+# linting /lint go /lint --golint --gofmt --vet # Rust linting /lint rust
+/lint --clippy --rustfmt
+```
   </Tab>
 
   <Tab title="Custom Rules">
-    ```bash # Custom ESLint rules /lint --rules
-    "no-console:error,no-debugger:error" # Configuration-based linting /lint
-    --config .eslintrc.custom.js # Project-specific rules /lint --project-rules
-    --strict-mode ```
+    ```bash
+# Custom ESLint rules /lint --rules
+# "no-console:error,no-debugger:error" # Configuration-based linting /lint
+# --config .eslintrc.custom.js # Project-specific rules /lint --project-rules
+# --strict-mode
+```
   </Tab>
 </Tabs>
 
@@ -321,25 +424,30 @@ Intelligent build system integration with optimization and analysis.
 
 <AccordionGroup>
   <Accordion title="Framework Builds">
-    ```bash # React builds /build react /build --react --production --analyze #
-    Vue builds /build vue /build --vue --mode production --report # Angular
-    builds /build angular /build --angular --prod --aot --build-optimizer #
-    Next.js builds /build nextjs /build --nextjs --production --static-export
-    ```
+    ```bash
+# React builds /build react /build --react --production --analyze #
+# Vue builds /build vue /build --vue --mode production --report # Angular
+# builds /build angular /build --angular --prod --aot --build-optimizer #
+# Next.js builds /build nextjs /build --nextjs --production --static-export
+```
   </Accordion>
 
   <Accordion title="Backend Builds">
-    ```bash # TypeScript compilation /build typescript /build --tsc
-    --declaration --source-maps # Go builds /build go /build --go --ldflags
-    --race-detection # Docker builds /build docker /build --docker
-    --multi-platform --cache ```
+    ```bash
+# TypeScript compilation /build typescript /build --tsc
+# --declaration --source-maps # Go builds /build go /build --go --ldflags
+# --race-detection # Docker builds /build docker /build --docker
+# --multi-platform --cache
+```
   </Accordion>
 
   <Accordion title="Build Analysis">
-    ```bash # Bundle analysis /build analyze /build --bundle-analyzer
-    --size-report # Performance analysis /build performance /build --lighthouse
-    --web-vitals # Build optimization /build optimize /build --tree-shake
-    --code-split --compress ```
+    ```bash
+# Bundle analysis /build analyze /build --bundle-analyzer
+# --size-report # Performance analysis /build performance /build --lighthouse
+# --web-vitals # Build optimization /build optimize /build --tree-shake
+# --code-split --compress
+```
   </Accordion>
 </AccordionGroup>
 
@@ -349,30 +457,38 @@ Comprehensive testing operations with intelligent test discovery and execution.
 
 <Tabs>
   <Tab title="Unit Testing">
-    ```bash # Run all tests /test /test --coverage --watch # Run specific tests
-    /test UserService /test --pattern "auth.*" /test --file user.test.ts # Test
-    with options /test --verbose --bail --parallel ```
+    ```bash
+# Run all tests /test /test --coverage --watch # Run specific tests
+/test UserService /test --pattern "auth.*" /test --file user.test.ts # Test
+# with options /test --verbose --bail --parallel
+```
   </Tab>
 
   <Tab title="Integration Testing">
-    ```bash # API integration tests /test integration /test --integration
-    --database --api # Database integration /test database /test
-    --db-integration --migrations --seeds # External service tests /test
-    services /test --external-apis --mock-services ```
+    ```bash
+# API integration tests /test integration /test --integration
+# --database --api # Database integration /test database /test
+# --db-integration --migrations --seeds # External service tests /test
+# services /test --external-apis --mock-services
+```
   </Tab>
 
   <Tab title="End-to-End Testing">
-    ```bash # E2E test execution /test e2e /test --e2e --headless --parallel #
-    Browser testing /test browser /test --playwright --chrome --firefox # Visual
-    regression testing /test visual /test --screenshots --compare --threshold
-    0.1 ```
+    ```bash
+# E2E test execution /test e2e /test --e2e --headless --parallel #
+# Browser testing /test browser /test --playwright --chrome --firefox # Visual
+# regression testing /test visual /test --screenshots --compare --threshold
+# 0.1
+```
   </Tab>
 
   <Tab title="Test Analysis">
-    ```bash # Test coverage analysis /test coverage /test --coverage --report
-    --threshold 80 # Test performance /test performance /test --performance
-    --memory --time # Test quality metrics /test quality /test
-    --mutation-testing --test-effectiveness ```
+    ```bash
+# Test coverage analysis /test coverage /test --coverage --report
+# --threshold 80 # Test performance /test performance /test --performance
+# --memory --time # Test quality metrics /test quality /test
+# --mutation-testing --test-effectiveness
+```
   </Tab>
 </Tabs>
 
@@ -381,26 +497,17 @@ Comprehensive testing operations with intelligent test discovery and execution.
 ### Project Analysis Workflow
 
     ```bash
-
 # Complete project analysis
-
 /analyze --deep --recursive --include-tests
-
 # Technology stack detection
-
 /analyze tech --frameworks --languages --tools
-
 # Architecture analysis
-
 /structure patterns --mvc --mvvm --clean
 /structure microservices --services --apis
-
 # Dependency health check
-
 /dependencies audit --security-scan
 /dependencies outdated --check-updates
-
-````
+```
 
 ### Code Quality Assessment
 
@@ -409,34 +516,25 @@ Comprehensive testing operations with intelligent test discovery and execution.
 /metrics complexity --threshold 10
 /metrics duplication --threshold 5
 /metrics maintainability --files
-
 # Code quality analysis
 /lint eslint --fix --typescript
 /lint prettier --format --write
-
 # Security and performance analysis
 /analyze security --vulnerabilities
 /analyze performance --metrics
-````
+```
 
 ### Project Initialization
 
     ```bash
-
 # Full-stack project setup
-
 /init t3 my-fullstack-app --nextjs --typescript --tailwind --prisma
-
 # Component library setup
-
 /scaffold react-component Button --hooks --typescript --storybook
 /scaffold react-component Input --hooks --typescript --validation
-
 # API development setup
-
 /scaffold api users --crud --validation --auth
 /scaffold api products --crud --validation --pagination
-
 ```
 
 ## Next Steps

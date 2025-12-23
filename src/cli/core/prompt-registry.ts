@@ -495,7 +495,7 @@ Error Context:
 
     // Validate template variables
     const variablePattern = /\{\{(\w+)\}\}/g
-    const foundVariables = []
+    const foundVariables: string[] = []
     let match
 
     while ((match = variablePattern.exec(prompt.template)) !== null) {

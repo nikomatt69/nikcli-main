@@ -43,6 +43,15 @@ export interface UnifiedRAGConfig {
   enableReranking: boolean
   rerankingModel?: string | null
   rerankingTopK?: number
+  cacheConfig?: {
+    analysisTTL: number      // Default: 24h (era 5min)
+    embeddingsTTL: number    // Default: 24h
+    fileHashTTL: number      // Default: 7gg
+    maxMemoryCache: number   // Default: 200MB
+    enablePersistentCache: boolean // Default: true
+    incrementalIndexing: boolean   // Default: true
+    forceRefreshOnConfigChange: boolean // Default: true
+  }
 }
 
 export interface RAGSearchResult {
@@ -109,7 +118,7 @@ function estimateCost(input: string[] | number, provider: string = 'openai'): nu
 
 // Initialize vector store configurations based on environment
 function createVectorStoreConfigs() {
-  const configs = []
+  const configs: any[] = []
 
   // Check if local-first mode is enabled (default: true for fast startup)
   const useLocalFirst = 'false'
@@ -265,7 +274,7 @@ export class UnifiedRAGSystem {
   private embeddingsCache: CacheProvider
   private analysisCache: CacheProvider
   private fileHashCache: CacheProvider
-  private readonly CACHE_TTL = 300000 // 5 minutes
+  private readonly DEFAULT_CACHE_TTL = 24 * 60 * 60 * 1000 // 24 hours (era 5min)
 
   // Performance monitoring
   private searchMetrics = {
@@ -314,20 +323,22 @@ export class UnifiedRAGSystem {
       })
     }
 
-    // Initialize cache providers
+    // Initialize cache providers with extended TTL
+    const cacheConfig = config?.cacheConfig as any || {}
+
     this.embeddingsCache = globalCacheManager.getCache('rag-embeddings', {
-      defaultTTL: 24 * 60 * 60 * 1000, // 24 hours for embeddings
-      maxMemorySize: 200 * 1024 * 1024, // 200MB for embeddings
+      defaultTTL: (cacheConfig as any).embeddingsTTL || 24 * 60 * 60 * 1000, // 24 hours
+      maxMemorySize: (cacheConfig as any).maxMemoryCache || 200 * 1024 * 1024,
     })
 
     this.analysisCache = globalCacheManager.getCache('rag-analysis', {
-      defaultTTL: this.CACHE_TTL,
-      maxMemorySize: 50 * 1024 * 1024, // 50MB for analysis results
+      defaultTTL: (cacheConfig as any).analysisTTL || this.DEFAULT_CACHE_TTL, // 24 hours (era 5min)
+      maxMemorySize: 50 * 1024 * 1024,
     })
 
     this.fileHashCache = globalCacheManager.getCache('rag-file-hashes', {
-      defaultTTL: 7 * 24 * 60 * 60 * 1000, // 7 days for file hashes
-      maxMemorySize: 10 * 1024 * 1024, // 10MB for hashes
+      defaultTTL: (cacheConfig as any).fileHashTTL || 7 * 24 * 60 * 60 * 1000, // 7 days
+      maxMemorySize: 10 * 1024 * 1024,
     })
 
     // DON'T initialize automatically - wait for explicit call after onboarding
@@ -446,18 +457,31 @@ export class UnifiedRAGSystem {
   /**
    * Unified project analysis combining workspace and vector approaches
    */
-  async analyzeProject(projectPath: string): Promise<RAGAnalysisResult> {
+  async analyzeProject(projectPath: string, options?: { forceRefresh?: boolean; incremental?: boolean }): Promise<RAGAnalysisResult> {
     await this.ensureInitialized()
 
     const startTime = Date.now()
+    const cacheKey = `analysis-v2-${projectPath}` // Increment version for cache break
     advancedUI.logFunctionCall('unifiedraganalysis')
     advancedUI.logFunctionUpdate('info', 'Starting unified RAG analysis...', 'ℹ')
 
-    // Check cache
-    const cacheKey = `analysis - ${projectPath}`
-    const cached = await this.analysisCache.get<RAGAnalysisResult>(cacheKey)
-    if (cached) {
-      return cached
+    // Check cache first (unless forceRefresh)
+    if (!options?.forceRefresh) {
+      const cached = await this.analysisCache.get<RAGAnalysisResult>(cacheKey)
+
+      if (cached) {
+        // Check if we need incremental update
+        if (options?.incremental && this.config.cacheConfig?.incrementalIndexing !== false) {
+          const needsUpdate = await this.checkIfUpdateNeeded(projectPath)
+          if (!needsUpdate) {
+            advancedUI.logFunctionUpdate('success', '✓ RAG analysis cache valid, skipping update')
+            return cached
+          }
+        } else {
+          advancedUI.logFunctionUpdate('success', '✓ Using cached RAG analysis')
+          return cached
+        }
+      }
     }
 
     let workspaceContext: WorkspaceContext
@@ -465,9 +489,9 @@ export class UnifiedRAGSystem {
     let embeddingsCost = 0
     let indexedFiles = 0
 
-    // 1. Workspace Analysis (always run)
+    // 1. Workspace Analysis
     if (this.config.enableWorkspaceAnalysis && this.workspaceRAG) {
-      workspaceContext = await this.workspaceRAG.analyzeWorkspace()
+      workspaceContext = await this.workspaceRAG.analyzeWorkspace({ incremental: options?.incremental })
       indexedFiles = workspaceContext?.files?.size || indexedFiles
     } else {
       // Fallback minimal analysis
@@ -508,6 +532,76 @@ export class UnifiedRAGSystem {
     )
 
     return result
+  }
+
+  /**
+   * Verifica se è necessario un aggiornamento del progetto
+   */
+  private async checkIfUpdateNeeded(projectPath: string): Promise<boolean> {
+    try {
+      // Check file changes using WorkspaceRAG
+      if (this.workspaceRAG?.getCacheStats) {
+        const cacheStats = this.workspaceRAG.getCacheStats()
+        if (!cacheStats.exists) {
+          return true // No cache available
+        }
+      }
+
+      // Check config changes
+      if (this.config.cacheConfig?.forceRefreshOnConfigChange !== false) {
+        const configChanged = await this.hasConfigChanged()
+        if (configChanged) {
+          advancedUI.logFunctionUpdate('info', 'Configuration changed, forcing rebuild')
+          return true
+        }
+      }
+
+      // Check if workspaceRAG has changes
+      if (this.workspaceRAG?.incrementalUpdate) {
+        const changes = await this.workspaceRAG.cacheManager?.detectFileChanges()
+        if (changes && (changes.changed.length > 0 || changes.added.length > 0)) {
+          return true
+        }
+      }
+
+      return false
+    } catch (error) {
+      advancedUI.logFunctionUpdate('warning', `Error checking update status: ${error}`)
+      return true // Default to update on error
+    }
+  }
+
+  /**
+   * Verifica se la configurazione è cambiata
+   */
+  private async hasConfigChanged(): Promise<boolean> {
+    try {
+      const cacheKey = `config-hash-${this.workspaceRAG?.context?.rootPath || 'unknown'}`
+      const cachedConfigHash = await this.fileHashCache.get<string>(cacheKey)
+
+      const currentConfig = JSON.stringify({
+        useVectorDB: this.config.useVectorDB,
+        hybridMode: this.config.hybridMode,
+        maxIndexFiles: this.config.maxIndexFiles,
+        chunkSize: this.config.chunkSize,
+        cacheConfig: this.config.cacheConfig,
+      })
+
+      const newConfigHash = createHash('md5').update(currentConfig).digest('hex')
+
+      if (cachedConfigHash && cachedConfigHash === newConfigHash) {
+        return false // Config unchanged
+      }
+
+      // Update cached config hash
+      await this.fileHashCache.set(cacheKey, newConfigHash, {
+        tags: ['config', 'hash'],
+      })
+
+      return true // Config changed
+    } catch (error) {
+      return false // Don't block on error
+    }
   }
 
   /**

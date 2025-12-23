@@ -3,6 +3,7 @@ import { EventEmitter } from 'node:events'
 import chalk from 'chalk'
 import { advancedUI } from '../ui/advanced-cli-ui'
 import { MemoryManager } from '../utils/memory-manager'
+import { taskChainManager } from './task-chain-manager'
 
 export interface StreamEvent {
   type: 'thinking' | 'planning' | 'executing' | 'progress' | 'result' | 'error' | 'info'
@@ -290,14 +291,32 @@ export class AgentStreamManager extends EventEmitter {
   // Display live dashboard for all active agents
   showLiveDashboard(): void {
     const activeAgents = this.getActiveAgents()
+    const chainStatus = taskChainManager.getChainStatus()
 
-    if (activeAgents.length === 0) {
+    // Show taskchain info at top if there are active chains
+    let taskchainInfo = ''
+    if (chainStatus.activeChains > 0) {
+      taskchainInfo = chalk.cyan(` | TaskChains: ${chainStatus.activeChains} active, ${chainStatus.protectedAgents} protected`)
+    }
+
+    if (activeAgents.length === 0 && chainStatus.activeChains === 0) {
       advancedUI.logInfo(chalk.yellow('📊 No active agents'))
       return
     }
 
     advancedUI.logInfo(chalk.blue.bold('\n📺 Live Agent Dashboard'))
-    advancedUI.logInfo(chalk.gray('═'.repeat(60)))
+    advancedUI.logInfo(chalk.gray('═'.repeat(60)) + taskchainInfo)
+
+    // Show active taskchains first
+    const activeChains = taskChainManager.getActiveChains()
+    if (activeChains.length > 0) {
+      advancedUI.logInfo(chalk.blue.bold('\n⚡ Active TaskChains:'))
+      for (const chain of activeChains) {
+        const bar = '█'.repeat(Math.round(chain.progress / 5)) + '░'.repeat(20 - Math.round(chain.progress / 5))
+        advancedUI.logInfo(`  ${chalk.cyan('⚡')} ${chalk.bold(chain.name)} [${bar}] ${chain.progress}%`)
+        advancedUI.logInfo(chalk.gray(`     Agents: ${chain.agents.join(', ')}`))
+      }
+    }
 
     activeAgents.forEach((agentId) => {
       const recentEvents = this.getAgentStream(agentId, 3)

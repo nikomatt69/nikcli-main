@@ -32,6 +32,10 @@ export abstract class BaseAgent implements AgentInstance {
   protected performanceOptimized: boolean = true
   protected batchSize: number = 5 // Process tasks in batches for better performance
 
+  // TaskChain support
+  public taskchainId?: string = undefined
+  public taskchainRole?: 'primary' | 'secondary' | 'coordinator' = undefined
+
   // Default sandbox permissions for all agents (can be overridden by specific agents)
   protected defaultPermissions = {
     canReadFiles: true,
@@ -212,6 +216,40 @@ export abstract class BaseAgent implements AgentInstance {
   }
 
   /**
+   * Set the taskchain this agent belongs to
+   */
+  setTaskChain(chainId: string, role: 'primary' | 'secondary' | 'coordinator'): void {
+    this.taskchainId = chainId
+    this.taskchainRole = role
+    advancedUI.logInfo(`[${this.id}] Joined taskchain ${chainId} as ${role}`)
+  }
+
+  /**
+   * Clear taskchain association
+   */
+  clearTaskChain(): void {
+    if (this.taskchainId) {
+      advancedUI.logInfo(`[${this.id}] Left taskchain ${this.taskchainId}`)
+    }
+    this.taskchainId = undefined
+    this.taskchainRole = undefined
+  }
+
+  /**
+   * Check if agent is in an active taskchain
+   */
+  isInActiveTaskChain(): boolean {
+    if (!this.taskchainId) return false
+    try {
+      const { taskChainManager } = require('../../core/task-chain-manager')
+      const chain = taskChainManager.getChainForAgent(this.id)
+      return chain !== undefined && chain.status === 'running'
+    } catch {
+      return false
+    }
+  }
+
+  /**
    * Get agent metrics
    */
   getMetrics(): AgentMetrics {
@@ -384,14 +422,14 @@ export abstract class BaseAgent implements AgentInstance {
    * Enhanced batch processing for better performance
    */
   protected async processBatch<T>(items: T[], processor: (item: T) => Promise<any>): Promise<any[]> {
-    const results = []
+    const results: any = []
 
     for (let i = 0; i < items.length; i += this.batchSize) {
       const batch = items.slice(i, i + this.batchSize)
       const batchResults = await Promise.allSettled(batch.map((item) => processor(item)))
 
       results.push(
-        ...batchResults.map((result) => (result.status === 'fulfilled' ? result.value : { error: result.reason }))
+        ...(batchResults as PromiseSettledResult<any>[]).map((result) => (result.status === 'fulfilled' ? result.value : { error: result.reason }))
       )
 
       // Small delay between batches to prevent overwhelming

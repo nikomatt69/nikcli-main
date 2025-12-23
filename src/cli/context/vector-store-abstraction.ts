@@ -13,7 +13,12 @@ export interface VectorDocument {
   id: string
   content: string
   embedding?: number[]
-  metadata: Record<string, any>
+  metadata: Record<string, any> & {
+    fileHash?: string      // MD5 hash of file content
+    lastModified?: string  // ISO string
+    fileSize?: number      // File size in bytes
+    cached?: boolean       // Whether this was loaded from cache
+  }
   timestamp: Date
 }
 
@@ -240,19 +245,49 @@ class ChromaDBVectorStore extends VectorStore {
     try {
       if (!this.collection) return false
 
-      const ids = documents.map((doc) => doc.id)
-      const texts = documents.map((doc) => doc.content)
-      const metadatas = documents.map((doc) => ({
+      // OPTIMIZATION: Check if document already exists with same hash
+      const documentsToIndex: VectorDocument[] = []
+      const skippedCount = { skipped: 0 }
+
+      for (const doc of documents) {
+        try {
+          const existingDoc = await this.getDocument(doc.id)
+
+          // Skip if document exists and hash matches
+          if (existingDoc && existingDoc.metadata?.fileHash === doc.metadata?.fileHash) {
+            skippedCount.skipped++
+            continue
+          }
+
+          documentsToIndex.push(doc)
+        } catch {
+          // Document doesn't exist or error, proceed with indexing
+          documentsToIndex.push(doc)
+        }
+      }
+
+      if (skippedCount.skipped > 0) {
+        advancedUI.logFunctionUpdate('info', `⏭ Skipped ${skippedCount.skipped} unchanged documents`)
+      }
+
+      if (documentsToIndex.length === 0) {
+        advancedUI.logFunctionUpdate('success', '✓ All documents up to date')
+        return true
+      }
+
+      const ids = documentsToIndex.map((doc) => doc.id)
+      const texts = documentsToIndex.map((doc) => doc.content)
+      const metadatas = documentsToIndex.map((doc) => ({
         ...doc.metadata,
         timestamp: doc.timestamp.toISOString(),
       }))
 
       // Check if documents have pre-computed embeddings
-      const hasEmbeddings = documents.some((doc) => doc.embedding && doc.embedding.length > 0)
+      const hasEmbeddings = documentsToIndex.some((doc) => doc.embedding && doc.embedding.length > 0)
 
       if (hasEmbeddings) {
         // Use pre-computed embeddings
-        const embeddings = documents.map((doc) => doc.embedding || [])
+        const embeddings = documentsToIndex.map((doc) => doc.embedding || [])
         await this.collection.add({
           ids,
           documents: texts,
@@ -268,7 +303,8 @@ class ChromaDBVectorStore extends VectorStore {
         })
       }
 
-      this.stats.indexedDocuments += documents.length
+      this.stats.indexedDocuments += documentsToIndex.length
+      advancedUI.logFunctionUpdate('success', `✓ Indexed ${documentsToIndex.length} documents`)
       return true
     } catch (error) {
       console.error(chalk.red(`✖ Failed to add documents: ${error}`))
@@ -1212,6 +1248,64 @@ export class VectorStoreManager {
         }
       }
     }, this.config.healthCheckInterval)
+  }
+
+  /**
+   * Pulisce i documenti scaduti dal vector store
+   */
+  async clearExpiredDocuments(maxAge: number = 7 * 24 * 60 * 60 * 1000): Promise<number> {
+    let cleared = 0
+
+    for (const store of this.stores) {
+      try {
+        const count = await this.clearStoreExpiredDocuments(store, maxAge)
+        cleared += count
+      } catch (error) {
+        advancedUI.logWarning(`Failed to clear expired docs from ${store.getStats().provider}: ${error}`)
+      }
+    }
+
+    return cleared
+  }
+
+  /**
+   * Pulisce i documenti scaduti da un singolo store
+   */
+  private async clearStoreExpiredDocuments(store: VectorStore, maxAge: number): Promise<number> {
+    // Implementazione specifica per ogni tipo di store
+    // Questo è un placeholder - l'implementazione dipende dal provider
+    return 0
+  }
+
+  /**
+   * Ottiene statistiche dell'indice
+   */
+  async getIndexStats(): Promise<{
+    totalDocuments: number
+    cachedDocuments: number
+    lastUpdate: Date | null
+    cacheHitRate: number
+    provider: string
+  }> {
+    if (!this.activeStore) {
+      return {
+        totalDocuments: 0,
+        cachedDocuments: 0,
+        lastUpdate: null,
+        cacheHitRate: 0,
+        provider: 'none',
+      }
+    }
+
+    const stats = this.activeStore.getStats()
+
+    return {
+      totalDocuments: stats.documentsCount,
+      cachedDocuments: stats.indexedDocuments,
+      lastUpdate: stats.lastHealthCheck,
+      cacheHitRate: 0, // TODO: Implementare tracking reale
+      provider: stats.provider,
+    }
   }
 }
 

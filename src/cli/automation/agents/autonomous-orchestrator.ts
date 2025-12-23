@@ -440,11 +440,11 @@ Consider parallel execution where possible.`,
 
     // Return in execution order: critical -> high -> normal -> low
     const ordered = new Map<string, any[]>()
-    ;['critical', 'high', 'normal', 'low'].forEach((priority) => {
-      if (groups.has(priority)) {
-        ordered.set(priority, groups.get(priority)!)
-      }
-    })
+      ;['critical', 'high', 'normal', 'low'].forEach((priority) => {
+        if (groups.has(priority)) {
+          ordered.set(priority, groups.get(priority)!)
+        }
+      })
 
     return ordered
   }
@@ -454,7 +454,7 @@ Consider parallel execution where possible.`,
    */
   private async executeBatch(items: Array<{ item: any; processor: (item: any) => Promise<any> }>): Promise<any[]> {
     const batchSize = Math.min(3, items.length) // Max 3 parallel tasks
-    const results = []
+    const results: any = []
 
     for (let i = 0; i < items.length; i += batchSize) {
       const batch = items.slice(i, i + batchSize)
@@ -466,13 +466,13 @@ Consider parallel execution where possible.`,
       console.log(chalk.gray(`⚡ Batch ${Math.floor(i / batchSize) + 1} completed in ${batchDuration}ms`))
 
       results.push(
-        ...batchResults.map((result) =>
+        ...(batchResults as PromiseSettledResult<any>[]).map((result) =>
           result.status === 'fulfilled'
             ? result.value
             : {
-                success: false,
-                error: result.reason?.message || 'Unknown error',
-              }
+              success: false,
+              error: result.reason?.message || 'Unknown error',
+            }
         )
       )
 

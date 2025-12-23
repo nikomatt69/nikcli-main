@@ -463,7 +463,7 @@ export class SecureVirtualizedAgent extends EventEmitter implements Agent {
       // Additional autonomous commands will be added by the AI agent
     ]
 
-    const results = []
+    const results: any[] = []
     for (const command of workflow) {
       const result = await this.vmOrchestrator.executeCommand(this.containerId, command)
       results.push(result)
@@ -933,7 +933,7 @@ export class SecureVirtualizedAgent extends EventEmitter implements Agent {
         'cd /workspace/repo && if [ -f README.md ]; then head -10 README.md; fi',
       ]
 
-      const results = []
+      const results: any[] = []
       for (const command of commands) {
         try {
           const result = await this.vmOrchestrator.executeCommand(this.containerId, command)

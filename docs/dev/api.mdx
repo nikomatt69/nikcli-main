@@ -201,7 +201,9 @@ interface CliExecuteError {
 
 The server proxies requests to the NIKOCLI web UI (served at `/ui/*`). Routes defined in `api/routes/uiProxy.ts` using `http-proxy-middleware`. Authentication bypassed for public UI assets; private routes require auth.
 
-### `GET|POST|PUT|DELETE` /api/v1/ui/{path*}
+### `/api/v1/ui/{path*}` - All HTTP Methods
+
+Supports GET, POST, PUT, DELETE methods
 
 Proxies to `http://localhost:3001/{path*}` (configurable via `UI_PROXY_TARGET` env).
 

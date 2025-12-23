@@ -29,6 +29,7 @@ import { TreeTool } from './tree-tool'
 import { VisionAnalysisTool } from './vision-analysis-tool'
 import { WatchTool } from './watch-tool'
 import { WebSearchTool } from './web-search-tool'
+import { SkillTool } from './skill-tool'
 import { WriteFileTool } from './write-file-tool'
 
 /**
@@ -477,6 +478,18 @@ export class ToolRegistry {
       requiredPermissions: ['write'],
       supportedFileTypes: ['png', 'jpg'],
       tags: ['ai', 'generation', 'image', 'dall-e', 'creative'],
+    })
+
+    // Anthropic Skills Tool
+    this.registerTool('skill-tool', new SkillTool(workingDirectory), {
+      description: 'Execute Anthropic Skills for document creation (docx, pdf, pptx, xlsx)',
+      category: 'ai',
+      riskLevel: 'medium',
+      reversible: true,
+      estimatedDuration: 10000,
+      requiredPermissions: ['read', 'write', 'network'],
+      supportedFileTypes: ['*'],
+      tags: ['skill', 'anthropic', 'docx', 'pdf', 'pptx', 'xlsx', 'document'],
     })
 
     this.registerTool('coinbase-agentkit-tool', new CoinbaseAgentKitTool(workingDirectory), {

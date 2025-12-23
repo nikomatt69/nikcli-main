@@ -29,24 +29,20 @@ The NikCLI chat interface is your primary tool for interacting with AI agents. I
 
 ```bash
 # Start NikCLI
-nikcli
-
+# nikcli
 # You'll see the welcome screen
-╭─────────────────────────────────────────────────────╮
-│                                                     │
-│                   🚀 NikCLI v0.2.3                  │
-│          Context-Aware AI Development Assistant     │
-│                                                     │
-╰─────────────────────────────────────────────────────╯
-
-✅ Node.js 18.17.0 (compatible)
-✅ Git 2.42.0 (detected)
-✅ Anthropic API (configured)
-✅ Project context (auto-detected)
-
-Ready for autonomous development! Type /help for commands.
-
->
+# ╭─────────────────────────────────────────────────────╮
+# │                                                     │
+# │                   🚀 NikCLI v0.2.3                  │
+# │          Context-Aware AI Development Assistant     │
+# │                                                     │
+# ╰─────────────────────────────────────────────────────╯
+# ✅ Node.js 18.17.0 (compatible)
+# ✅ Git 2.42.0 (detected)
+# ✅ Anthropic API (configured)
+# ✅ Project context (auto-detected)
+# Ready for autonomous development! Type /help for commands.
+# >
 ```
 
 ### Chat Modes
@@ -62,7 +58,6 @@ Ready for autonomous development! Type /help for commands.
     requests - Manual approval for changes - Learning-friendly explanations
   </Tab>
 
-{" "}
 
 <Tab title="📋 Planning Mode">
   **Strategic Planning** - Create detailed plans before execution ``` > /plan >
@@ -100,7 +95,6 @@ Ready for autonomous development! Type /help for commands.
     included
   </Accordion>
 
-{" "}
 
 <Accordion title="Provide Context and Constraints">
   **Context Examples:** ``` > Following the same pattern as UserCard.tsx, create
@@ -134,7 +128,6 @@ Ready for autonomous development! Type /help for commands.
     ```
   </Tab>
 
-{" "}
 
 <Tab title="Iterative Development">
   Build features incrementally: ``` > Start with a basic search component that
@@ -187,7 +180,6 @@ Current: Implementing secure payment processing...
     dependencies Do you want to proceed? (y/n/details) ```
   </Accordion>
 
-{" "}
 
 <Accordion title="Command Execution Approvals">
   ``` 🔧 Ready to execute the following commands: 1. npm install
@@ -215,7 +207,6 @@ Current: Implementing secure payment processing...
     styles temporarily How would you like to proceed? (1/2/3/manual) ```
   </Tab>
 
-{" "}
 
 <Tab title="Conflict Resolution">
   ``` ⚠️ Merge conflict detected: File: src/components/Header.tsx Conflict:
@@ -243,14 +234,12 @@ Current: Implementing secure payment processing...
     **ESC**: Return to default chat mode
   </Card>
 
-{" "}
 
 <Card title="Command Access" icon="terminal">
   **/**: Open command menu **Ctrl + C**: Stop current operation **↑/↓**:
   Navigate command history
 </Card>
 
-{" "}
 
 <Card title="Quick Actions" icon="bolt">
   **Tab**: Auto-complete commands/paths **Ctrl + L**: Clear screen **Ctrl + D**:
@@ -275,7 +264,6 @@ NikCLI provides intelligent auto-completion:
     backend-agent - API development ```
   </Tab>
 
-{" "}
 
 <Tab title="File Path Completion">
   ```bash > /read src/[Tab] Available paths: src/components/ src/hooks/
@@ -285,9 +273,14 @@ NikCLI provides intelligent auto-completion:
 </Tab>
 
   <Tab title="Context-Aware Suggestions">
-    ```bash > Create a component for [Tab] Suggestions based on project: - user
-    authentication (missing) - shopping cart (in progress) - product catalog
-    (planned) - payment form (discussed earlier) ```
+    Request context-aware suggestions:
+    ```
+    > Create a component for user suggestions based on project:
+    - user authentication (missing)
+    - shopping cart (in progress)
+    - product catalog (planned)
+    - payment form (discussed earlier)
+    ```
   </Tab>
 </Tabs>
 
@@ -297,25 +290,44 @@ NikCLI provides intelligent auto-completion:
 
 <AccordionGroup>
   <Accordion title="Color Themes">
-    ```bash # Set color scheme nikcli config set color-scheme dark nikcli config
-    set color-scheme light nikcli config set color-scheme auto # Custom color
-    configuration nikcli config set colors.primary "#4EC5F1" nikcli config set
-    colors.success "#00D4AA" nikcli config set colors.warning "#FFB800" ```
+    ```bash
+    # Set color scheme
+    nikcli config set color-scheme dark
+    nikcli config set color-scheme light
+    nikcli config set color-scheme auto
+
+    # Custom color configuration
+    nikcli config set colors.primary "#4EC5F1"
+    nikcli config set colors.success "#00D4AA"
+    nikcli config set colors.warning "#FFB800"
+    ```
   </Accordion>
 
-{" "}
+  <Accordion title="Display Preferences">
+  ```bash
+  # Enable/disable animations
+  nikcli config set animations true
 
-<Accordion title="Display Preferences">
-  ```bash # Enable/disable animations nikcli config set animations true # Set
-  verbose output nikcli config set verbose-output true # Configure progress
-  indicators nikcli config set show-progress true nikcli config set
-  progress-style detailed ```
+  # Set verbose output
+  nikcli config set verbose-output true
+
+  # Configure progress indicators
+  nikcli config set show-progress true
+  nikcli config set progress-style detailed
+  ```
 </Accordion>
 
   <Accordion title="Interaction Settings">
-    ```bash # Auto-approval settings nikcli config set auto-approve-low-risk
-    true # Confirmation preferences nikcli config set require-confirmation false
-    # Timeout settings nikcli config set response-timeout 120 ```
+    ```bash
+    # Auto-approval settings
+    nikcli config set auto-approve-low-risk true
+
+    # Confirmation preferences
+    nikcli config set require-confirmation false
+
+    # Timeout settings
+    nikcli config set response-timeout 120
+    ```
   </Accordion>
 </AccordionGroup>
 
@@ -323,23 +335,38 @@ NikCLI provides intelligent auto-completion:
 
 <Tabs>
   <Tab title="Session Persistence">
-    ```bash # Enable chat history /history on # Save current session
-    /save-session "authentication-implementation" # Load previous session
-    /load-session "authentication-implementation" # List all sessions /sessions
-    ```
+    ```bash
+# Enable chat history
+/history on
+# Save current session
+/save-session "authentication-implementation"
+# Load previous session
+/load-session "authentication-implementation"
+# List all sessions
+/sessions
+```
   </Tab>
 
-{" "}
-
-<Tab title="Context Management">
-  ```bash # Set project context /context src/ tests/ # Clear context cache
-  /context clear # Auto-detect project type /context analyze ```
-</Tab>
+  <Tab title="Context Management">
+    ```bash
+# Set project context
+/context src/ tests/
+# Clear context cache
+/context clear
+# Auto-detect project type
+/context analyze
+```
+  </Tab>
 
   <Tab title="Export and Sharing">
-    ```bash # Export session to markdown /export session-summary.md # Export
-    with code snippets /export --include-code implementation-guide.md # Share
-    session (anonymous) /share --anonymous ```
+    ```bash
+# Export session to markdown
+/export session-summary.md
+# Export with code snippets
+/export --include-code implementation-guide.md
+# Share session (anonymous)
+/share --anonymous
+```
   </Tab>
 </Tabs>
 
@@ -353,14 +380,12 @@ NikCLI provides intelligent auto-completion:
     features"
   </Card>
 
-{" "}
 
 <Card title="Use Planning Mode" icon="clipboard-list">
   For complex features, use planning mode first ```bash /plan create "user
   authentication system" # Review the plan /plan execute ```
 </Card>
 
-{" "}
 
 <Card title="Provide Feedback" icon="comment">
   Help NikCLI learn your preferences "This looks good, but can you make the
@@ -369,9 +394,11 @@ NikCLI provides intelligent auto-completion:
 </Card>
 
   <Card title="Review Changes" icon="eye">
-    Always review generated code before final approval ```bash # Review diffs
-    are shown automatically in the UI # To clear cached approvals in this
-    session: /clear-approvals ```
+    Always review generated code before final approval ```bash
+# Review diffs
+# are shown automatically in the UI # To clear cached approvals in this
+# session: /clear-approvals
+```
   </Card>
 </CardGroup>
 

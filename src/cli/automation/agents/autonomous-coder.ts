@@ -222,7 +222,7 @@ Follow the project's existing patterns and conventions.`,
 
     console.log(chalk.red(`Found ${allErrors.length} errors to fix`))
 
-    const fixes = []
+    const fixes: any[] = []
 
     for (const error of allErrors.slice(0, 10)) {
       // Limit to first 10 errors
@@ -339,7 +339,7 @@ Return empty array [] if no new dependencies needed.`,
     console.log(chalk.blue('⚡ Optimizing code...'))
 
     const files = filePath ? [filePath] : await toolsManager.listFiles('.', /\.(ts|tsx|js|jsx)$/)
-    const optimizations = []
+    const optimizations: any[] = []
 
     for (const file of files.slice(0, 5)) {
       // Limit to first 5 files

@@ -260,7 +260,7 @@ export class GoatProvider {
       throw new Error('GOAT Vercel AI adapter not available')
     }
 
-    const pluginInstances = []
+    const pluginInstances: any = []
 
     // Get primary chain for token configuration
     const primaryChain = this.supportedChains[0]
@@ -442,10 +442,10 @@ For any blockchain transaction, provide a clear summary including:
 
       const builderCreds = process.env.POLYMARKET_BUILDER_API_KEY
         ? {
-            apiKey: process.env.POLYMARKET_BUILDER_API_KEY,
-            secret: process.env.POLYMARKET_BUILDER_SECRET || '',
-            passphrase: process.env.POLYMARKET_BUILDER_PASSPHRASE || '',
-          }
+          apiKey: process.env.POLYMARKET_BUILDER_API_KEY,
+          secret: process.env.POLYMARKET_BUILDER_SECRET || '',
+          passphrase: process.env.POLYMARKET_BUILDER_PASSPHRASE || '',
+        }
         : undefined
 
       return new PolymarketNativeClient({

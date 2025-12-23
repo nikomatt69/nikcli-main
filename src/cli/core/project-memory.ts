@@ -24,7 +24,7 @@ const ProjectPreferences = z
       .object({
         preferredModel: z.string().optional(),
         temperature: z.number().min(0).max(2).default(0.7),
-        maxTokens: z.number().min(100).max(80000).default(6000),
+        maxTokens: z.number().min(100).max(120000).default(6000),
         autoApprove: z.boolean().default(false),
         verbosity: z.enum(['quiet', 'normal', 'verbose']).default('normal'),
         explainActions: z.boolean().default(true),

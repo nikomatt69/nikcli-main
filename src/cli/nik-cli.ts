@@ -8,6 +8,7 @@ import inquirer from 'inquirer'
 import { nanoid } from 'nanoid'
 import ora, { type Ora } from 'ora'
 import readline from 'readline'
+import { themeManager } from './ui/theme-manager'
 import { advancedAIProvider } from './ai/advanced-ai-provider'
 import { modelProvider } from './ai/model-provider'
 import type { ModernAIProvider } from './ai/modern-ai-provider'
@@ -51,6 +52,7 @@ import { tokenCache } from './core/token-cache'
 import { toolRouter } from './core/tool-router'
 import { universalTokenizer } from './core/universal-tokenizer-service'
 import { validatorManager } from './core/validator-manager'
+import { ExecutionPolicyManager } from './policies/execution-policy'
 import { ideDiagnosticIntegration } from './integrations/ide-diagnostic-integration'
 import { EvaluationPipeline } from './ml/evaluation-pipeline'
 import { FeatureExtractor } from './ml/feature-extractor'
@@ -3087,9 +3089,13 @@ export class NikCLI {
     const trimmed = content.trim()
     if (!trimmed) return
 
-
     // Process through paste handler for display formatting
     const pasteResult = this.pasteHandler.processPastedText(trimmed)
+
+    // If not detected as paste (short text), skip - readline already has the content
+    if (!pasteResult.shouldTruncate) {
+      return
+    }
 
     // Store the content - will be submitted when user presses Enter
     this.pendingPasteContent = pasteResult.originalText
@@ -3098,6 +3104,8 @@ export class NikCLI {
     // Clear the line (which now contains existing + pasted text visible)
     // Then rewrite ONLY: pre-paste content + indicator
     if (this?.rl) {
+      // Clear current line first to avoid duplication
+      this.rl.write('', { ctrl: true, name: 'u' })
       // Write the indicator as the current line content (user sees this before pressing Enter)
       this.rl?.write(existingContent + pasteResult.displayText)
     }
@@ -4383,11 +4391,18 @@ export class NikCLI {
       await this.cleanupPlanArtifacts()
       // Start progress indicator using our new methods
       const planningId = `planning-${Date.now()}`
-      this.createStatusIndicator(planningId, 'Generating comprehensive plan with TaskMaster AI', input)
-      this.startAdvancedSpinner(planningId, 'Analyzing requirements and generating plan...')
+      this.createStatusIndicator(
+        planningId,
+        'Generating comprehensive plan with TaskMaster AI',
+        input
+      )
+      this.startAdvancedSpinner(
+        planningId,
+        chalk.gray('Analyzing requirements and generating plan...')
+      );
 
-      // Try TaskMaster first, fallback to enhanced planning
-      let plan: any
+      // Try TaskMaster AI first, fallback to enhanced planning if needed
+      let plan: any = null
       let usedTaskMaster = false
 
       try {
@@ -6542,6 +6557,21 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
   private assessTaskComplexity(input: string): boolean {
     const lowerInput = input.toLowerCase()
 
+    // Keywords that FORCE very_complex (parallel agents) - user explicitly wants deep/parallel execution
+    const forceParallelKeywords = [
+      // Explicit parallel/multi-agent requests
+      'deep', 'parallel', 'agents', 'multiagents', 'multi-agents',
+      'parallel agents', 'multi-agent', 'multiagent', 'multiple agents',
+      // Italian equivalentszw
+      'in parallelo', 'agenti paralleli', 'agenti multipli', 'analisi profonda',
+      // Deep analysis requests
+      'deep analysis', 'comprehensive analysis', 'thorough', 'exhaustive', 'in-depth',
+      'analisi completa', 'analisi approfondita',
+    ]
+    if (forceParallelKeywords.some((keyword) => lowerInput.includes(keyword))) {
+      return true
+    }
+
     // Keywords that indicate complex tasks
     const complexKeywords = [
       // Development actions
@@ -6608,7 +6638,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     const hasMultipleSentences = input.split(/[.!?]/).filter((s) => s.trim().length > 0).length > 2
     const hasMultipleTechnicalTerms = technicalTermCount >= 2
 
-    // More aggressive detection: task is complex if it has 1+ complex indicators
+    // Count complexity indicators
     const complexIndicators = [
       hasComplexKeywords && !hasSimpleKeywords,
       isLongTask,
@@ -6638,7 +6668,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
 
     // Keywords that indicate simple tasks
     const simpleKeywords = [
-      'show', 'list', 'check', 'status', 'help', 'what', 'how', 'explain', 'describe',
+
     ]
 
     const hasComplexKeywords = complexKeywords.some((keyword) => lowerInput.includes(keyword))
@@ -13139,6 +13169,19 @@ RULES:
         ],
       },
       {
+        title: '🎨 Themes & Appearance',
+        commands: [
+          ['/theme', 'List all available themes'],
+          ['/theme set <name>', 'Apply a theme'],
+          ['/theme info <name>', 'Show theme details'],
+          ['/theme create', 'Create new theme with wizard'],
+          ['/theme edit <name>', 'Edit existing theme'],
+          ['/theme test <name>', 'Preview theme in real-time'],
+          ['/theme-validate <name>', 'Validate theme accessibility'],
+          ['/themes', 'List all themes (alias)'],
+        ],
+      },
+      {
         title: '🔑 API Keys & Authentication',
         commands: [
           ['/set-key <model> <key>', 'Set API key for AI models'],
@@ -13346,6 +13389,18 @@ RULES:
           ['/generate-image "prompt"', 'Generate image with AI'],
           ['/images', 'Discover and analyze images'],
           ['/create-image "prompt"', 'Generate image with AI'],
+        ],
+      },
+      {
+        title: '🎯 Anthropic Skills',
+        commands: [
+          ['/skill list', 'List available skills'],
+          ['/skill run <name> [context]', 'Execute a skill'],
+          ['/skill info <name>', 'Show skill details'],
+          ['/skill install <name>', 'Install skill from Anthropic repo'],
+          ['/skill sync', 'Sync all skills from repository'],
+          ['/skill remove <name>', 'Remove installed skill'],
+          ['/skills', 'List all available skills'],
         ],
       },
       {
@@ -13899,7 +13954,9 @@ RULES:
     const queueStatus = inputQueue.getStatus()
     const queueCount = queueStatus.queueLength
     const _statusDot = this.assistantProcessing ? chalk.blue('●') : chalk.gray('●')
-    const readyText = this.assistantProcessing ? chalk.blue(`Loading ${this.renderLoadingBar()}`) : 'Ready'
+    const readyText = this.assistantProcessing
+      ? themeManager.applyChalk(this.currentMode, 'modeText', `Loading ${this.renderLoadingBar(12, this.currentMode)}`, themeManager.getCurrentTheme().name)
+      : 'Ready'
 
     // Model/provider
     const currentModel = this.configManager.getCurrentModel()
@@ -13932,7 +13989,7 @@ RULES:
     } catch {
       /* ignore auth lookup errors */
     }
-    const userDisplay = `${chalk.hex('#666666')('User:')} ${chalk.white(userLabel)} ${chalk.hex('#777777')(`(${userTier})`)}`
+    const userDisplay = `${chalk.white(userLabel)} ${chalk.hex('#777777')(`(${userTier})`)}`
     const pad2 = (value: number) => value.toString().padStart(2, '0')
     const now = new Date()
     const dateTimeDisplay = chalk.hex('#666666')(
@@ -13991,7 +14048,16 @@ RULES:
 
     // Display status bar using process.stdout.write to avoid extra lines
     if (!this.isPrintingPanel) {
-      const verticalBar = chalk.blue('█')
+      // Color vertical bar based on current mode
+      let verticalBar: string
+      if (this.currentMode === 'plan') {
+        verticalBar = chalk.yellow('█')
+      } else if (this.currentMode === 'vm') {
+        verticalBar = chalk.magenta('█')
+      } else {
+        verticalBar = chalk.blue('█')
+      }
+
       // Subtle dark background
       const bgColor = chalk.bgHex('#1a1a1a')
 
@@ -14008,7 +14074,14 @@ RULES:
       process.stdout.write(bgColor(`${verticalBar}${emptyPadding}`) + '\n')
 
       // ZONA 2: Info Line - Left (Mode + Model) | Right (Statusbar)
-      const modeDisplay = chalk.cyan(this.currentMode.toUpperCase())
+      let modeDisplay: string
+      if (this.currentMode === 'plan') {
+        modeDisplay = chalk.yellow(this.currentMode.toUpperCase())
+      } else if (this.currentMode === 'vm') {
+        modeDisplay = chalk.magenta(this.currentMode.toUpperCase())
+      } else {
+        modeDisplay = chalk.cyan(this.currentMode.toUpperCase())
+      }
       const leftInfo = ` ${modeDisplay} ${chalk.hex('#666666')('NikCLI')} ${responsiveModelDisplay}`
 
       const infoPadding = Math.max(
@@ -14023,15 +14096,19 @@ RULES:
       process.stdout.write(bgColor(`${verticalBar}${emptyPadding}`) + '\n')
 
       // ZONA 4: Controls (Progress Bar + Shortcuts)
-      const progressBar = this.assistantProcessing ? chalk.blue(this.renderLoadingBar(12)) : ' '.repeat(14)
+      // Color progress bar based on theme when processing
+      const loadingBar = this.renderLoadingBar(12, this.currentMode)
+      const progressBar = this.assistantProcessing
+        ? themeManager.getProgressBar(this.currentMode, loadingBar)
+        : ' '.repeat(14)
 
-      const escShortcut = chalk.hex('#666666')('Interrupt:Esc')
-      const ctrlpShortcut = chalk.hex('#666666')('Ctrl+B:Commands')
+
+      const ctrlpShortcut = chalk.hex('#666666')('Ctrl+B:?')
 
       const controlsLeft = ` ${progressBar}  ${userDisplay}`
-      const controlsCenterPieces = [dateTimeDisplay]
+      const controlsCenterPieces = []
       const controlsCenter = controlsCenterPieces.join('   ')
-      const controlsRight = `${escShortcut}   ${ctrlpShortcut}`
+      const controlsRight = `${ctrlpShortcut}`
 
       const centerPadding = Math.max(
         1,
@@ -14336,7 +14413,7 @@ RULES:
   }
 
   // Inline loading bar for status area (fake progress)
-  private renderLoadingBar(width: number = 12): string {
+  private renderLoadingBar(width: number = 12, mode: 'default' | 'plan' | 'vm' = 'default'): string {
     // Calcola posizione del blocco animato (ping-pong)
     const totalPositions = width - 2 // Posizioni possibili per un blocco di 3 caratteri
     const cycle = Math.floor(this.statusBarStep / 7) % (totalPositions * 2)
@@ -14345,20 +14422,25 @@ RULES:
     // Dimensione del blocco animato
     const blockSize = 3
 
-    // Costruisci la barra con gradient effect
+    // Get theme colors for the current mode
+    const theme = themeManager.getTheme()
+    const colors = theme.colors[mode]
+
+    // Costruisci la barra con gradient effect usando i colori del tema
     let bar = ''
     for (let i = 0; i < width; i++) {
       const distance = Math.abs(i - position - 1) // Distanza dal centro del blocco
 
       if (distance === 0) {
         // Centro del blocco: massima intensità
-        bar += chalk.cyan('█')
+        bar += themeManager.applyChalk(mode, 'modeText', '█', theme.name)
       } else if (distance === 1 && i >= position && i < position + blockSize) {
         // Bordi del blocco: media intensità
-        bar += chalk.blue('█')
+        bar += themeManager.applyChalk(mode, 'verticalBar', '█', theme.name)
       } else if (distance === 2 && (i === position - 1 || i === position + blockSize)) {
         // Alone/scia: bassa intensità
-        bar += chalk.dim.blue('░')
+        const dimColor = themeManager.applyChalk(mode, 'progressBar', '░', theme.name)
+        bar += chalk.dim(dimColor)
       } else {
         // Spazio vuoto
         bar += chalk.dim('░')
@@ -14601,7 +14683,7 @@ RULES:
     } catch {
       /* ignore auth lookup errors */
     }
-    const userDisplay = `${chalk.hex('#666666')('User:')} ${chalk.white(userLabel)} ${chalk.hex('#777777')(`(${userTier})`)}`
+    const userDisplay = ` ${chalk.blue(userLabel)} ${chalk.hex('#777777')(`(${userTier})`)}`
 
     const terminalHeight = process.stdout.rows || 24
     const hudExtraLines = planHudLines.length > 0 ? planHudLines.length + 2 : 0
@@ -14674,12 +14756,13 @@ RULES:
       }
     }
 
-    // Build prompt area components
-    const verticalBar = chalk.blue('█')
+    // Build prompt area components with theme-based colors
+    const modeDisplay = themeManager.getModeDisplay(this.currentMode)
+    const verticalBar = themeManager.getVerticalBar(this.currentMode)
+
     const bgColor = chalk.bgHex('#1a1a1a')
     const emptyPadding = ' '.repeat(Math.max(0, terminalWidth - 2))
 
-    const modeDisplay = chalk.cyan(modeText)
     const modelDisplay = `${chalk.hex('#666666')('Model:')} ${providerIcon} ${modelColor(truncatedModel)}`
     const leftInfo = ` ${modeDisplay} ${chalk.hex('#666666')('NikCLI')} ${modelDisplay}`
 
@@ -14690,7 +14773,11 @@ RULES:
 
     const statusbarContent = `${costDisplay} ${chalk.yellow(`${sessionDuration}m`)} ${contextInfo}${queueCount > 0 ? ` 📥${queueCount}` : ''}${runningAgents > 0 ? ` 🔌${runningAgents}` : ''}${visionPart}${imgPart}`
 
-    const progressBar = this.assistantProcessing ? chalk.blue(this.renderLoadingBar(12)) : ' '.repeat(14)
+    // Color progress bar based on theme when processing
+    const loadingBar = this.renderLoadingBar(12, this.currentMode)
+    const progressBar = this.assistantProcessing
+      ? themeManager.getProgressBar(this.currentMode, loadingBar)
+      : ' '.repeat(14)
 
     let dynamicInfo = ''
     if (taskInfo) {
@@ -14706,13 +14793,13 @@ RULES:
       } catch { }
     }
 
-    const escShortcut = chalk.hex('#666666')('Interrupt:Esc')
-    const ctrlpShortcut = chalk.hex('#666666')('Ctrl+B:Commands')
+
+    const ctrlpShortcut = chalk.hex('#666666')('Ctrl+B:?')
 
     const controlsLeft = ` ${progressBar}  ${userDisplay}${dynamicInfo ? `  ${dynamicInfo}` : ''}`
-    const controlsCenterPieces = [dateTimeDisplay]
+    const controlsCenterPieces = []
     const controlsCenter = controlsCenterPieces.join('   ')
-    const controlsRight = `${escShortcut}   ${ctrlpShortcut}`
+    const controlsRight = `${ctrlpShortcut}`
 
     // Check if fixed prompt is enabled
     if (terminalOutputManager.isFixedPromptEnabled()) {
@@ -21118,7 +21205,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
                 name: 'maxTokens',
                 message: 'Max tokens',
                 default: cfg.maxTokens,
-                validate: (v: any) => asNumber(v, 1, 800000),
+                validate: (v: any) => asNumber(v, 1, 120000),
               },
               {
                 type: 'confirm',

@@ -12,3 +12,12 @@ export {
   type StreamEvent,
   type SkillExecutionResult,
 } from './claude-agents'
+
+// Anthropic Skills Provider
+export {
+  skillProvider,
+  SkillProvider,
+  type AnthropicSkill,
+  type AnthropicSkillMetadata,
+  type SkillProviderConfig,
+} from './skills'

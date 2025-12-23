@@ -16,6 +16,10 @@ import { adaptiveModelRouter, type ModelScope } from './adaptive-model-router'
 import { openRouterRegistry } from './openrouter-model-registry'
 import { ReasoningDetector } from './reasoning-detector'
 
+// Static import for provider registry (replaces dynamic require for performance)
+import { getLanguageModel } from './provider-registry'
+import chalk from 'chalk'
+
 // ====================== ⚡︎ ZOD VALIDATION SCHEMAS ======================
 
 // Chat Message Schema
@@ -29,7 +33,7 @@ export const ChatMessageSchema = z.object({
 export const GenerateOptionsSchema = z.object({
   messages: z.array(ChatMessageSchema).min(1),
   temperature: z.number().min(0).max(2).optional(),
-  maxTokens: z.number().int().min(1).max(80000).optional(),
+  maxTokens: z.number().int().min(1).max(120000).optional(),
   stream: z.boolean().optional(),
   // Routing hints (optional)
   scope: z.enum(['chat_default', 'planning', 'code_gen', 'tool_light', 'tool_heavy', 'vision']).optional(),
@@ -237,13 +241,14 @@ export class ModelProvider {
   private getModel(config: ModelConfig) {
     const currentModelName = configManager.get('currentModel')
 
-    // Try provider registry first (optional, experimental)
+    // Try provider registry first (optional, experimental) - now uses static import
     if (process.env.USE_PROVIDER_REGISTRY === 'true') {
       try {
-        const { getLanguageModel } = require('./provider-registry')
+        // Lazy initialization - only load when needed
         return getLanguageModel(config.provider, config.model)
       } catch (error) {
         // Fall through to legacy implementation
+        console.log(chalk.yellow(`⚠︎ Provider registry failed, using legacy provider: ${error}`))
       }
     }
 

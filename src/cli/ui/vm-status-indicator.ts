@@ -161,7 +161,7 @@ export class VMStatusIndicator extends EventEmitter {
       return ''
     }
 
-    const indicators = []
+    const indicators: string[] = []
 
     // Agent count indicator
     if (activeCount === 1) {
@@ -189,7 +189,7 @@ export class VMStatusIndicator extends EventEmitter {
       return chalk.dim('No active VM agents')
     }
 
-    const lines = []
+    const lines: string[] = []
     lines.push(chalk.cyan.bold(`🔌 Active VM Agents (${this.activeAgents.size})`))
     lines.push(chalk.gray('─'.repeat(60)))
 
@@ -211,7 +211,7 @@ export class VMStatusIndicator extends EventEmitter {
       return chalk.red(`Agent ${agentId} not found`)
     }
 
-    const logLines = []
+    const logLines: string[] = []
     logLines.push(chalk.cyan.bold(`📋 Logs for VM Agent: ${agentId}`))
     logLines.push(chalk.gray('─'.repeat(60)))
 
@@ -235,7 +235,7 @@ export class VMStatusIndicator extends EventEmitter {
    * Generate security dashboard
    */
   getSecurityDashboard(): string {
-    const lines = []
+    const lines: string[] = []
     lines.push(chalk.cyan.bold('🔐 VM Security Dashboard'))
     lines.push(chalk.gray('─'.repeat(60)))
 
@@ -349,7 +349,7 @@ export class VMStatusIndicator extends EventEmitter {
     const uptime = Math.floor((Date.now() - status.startTime.getTime()) / 1000)
     const tokenPercent = Math.round((status.tokenUsage.used / status.tokenUsage.budget) * 100)
 
-    const lines = []
+    const lines: string[] = []
 
     // Main status line
     lines.push(
@@ -414,7 +414,7 @@ export class VMStatusIndicator extends EventEmitter {
    * Check for security issues in agent
    */
   private checkAgentSecurity(status: VMAgentStatus): string[] {
-    const issues = []
+    const issues: string[] = []
 
     // Check token usage
     const tokenPercent = (status.tokenUsage.used / status.tokenUsage.budget) * 100

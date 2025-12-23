@@ -6,6 +6,7 @@ import boxen from 'boxen'
 import chalk from 'chalk'
 import { parse as parseDotenv } from 'dotenv'
 import { z } from 'zod'
+import { themeManager } from '../ui/theme-manager'
 import { modelProvider } from '../ai/model-provider'
 import { modernAIProvider } from '../ai/modern-ai-provider'
 import { backgroundAgentService } from '../background-agents/background-agent-service'
@@ -23,6 +24,7 @@ import { WebSearchProvider } from '../core/web-search-provider'
 import { ideDiagnosticIntegration } from '../integrations/ide-diagnostic-integration'
 import { enhancedPlanning } from '../planning/enhanced-planning'
 import { claudeAgentProvider } from '../providers/claude-agents'
+import { skillProvider } from '../providers/skills'
 import { imageGenerator } from '../providers/image'
 import { visionProvider } from '../providers/vision'
 import { registerAgents } from '../register-agents'
@@ -41,6 +43,10 @@ import { renderAdPanel } from '../ui/ad-panel'
 import { advancedUI } from '../ui/advanced-cli-ui'
 import { approvalSystem } from '../ui/approval-system'
 import { DiffViewer } from '../ui/diff-viewer'
+import { themeCreationWizard } from '../ui/theme-creation-wizard'
+import { themeEditor } from '../ui/theme-editor'
+import { LiveThemePreview } from '../ui/live-theme-preview'
+import { themeValidator } from '../ui/theme-validator'
 import { ContainerManager } from '../virtualized-agents/container-manager'
 import { VMOrchestrator } from '../virtualized-agents/vm-orchestrator'
 import { initializeVMSelector, vmSelector } from '../virtualized-agents/vm-selector'
@@ -251,6 +257,15 @@ export class SlashCommandHandler {
     // Output Style Commands
     this.commands.set('style', this.styleCommand.bind(this))
     this.commands.set('styles', this.stylesCommand.bind(this))
+    // UI Theme Commands
+    this.commands.set('theme', this.themeCommand.bind(this))
+    this.commands.set('themes', this.themesCommand.bind(this))
+    this.commands.set('theme-info', this.themeInfoCommand.bind(this))
+    this.commands.set('theme-create', this.themeCreateCommand.bind(this))
+    this.commands.set('theme-wizard', this.themeWizardCommand.bind(this))
+    this.commands.set('theme-edit', this.themeEditCommand.bind(this))
+    this.commands.set('theme-test', this.themeTestCommand.bind(this))
+    this.commands.set('theme-validate', this.themeValidateCommand.bind(this))
     this.commands.set('new', this.newSessionCommand.bind(this))
     this.commands.set('sessions', this.sessionsCommand.bind(this))
     this.commands.set('export', this.exportCommand.bind(this))
@@ -12543,6 +12558,431 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
   }
 
   /**
+   * Handle theme command - list or set themes
+   */
+  private async themeCommand(args: string[]): Promise<{ shouldExit: boolean; shouldUpdatePrompt: boolean }> {
+    // If no args, show themes panel
+    if (args.length === 0) {
+      return this.showThemesPanel()
+    }
+
+    // Handle 'set' subcommand
+    if (args[0] === 'set' && args[1]) {
+      const themeName = args[1]
+      const success = themeManager.setTheme(themeName)
+
+      if (success) {
+        this.printPanel(
+          boxen(
+            `${chalk.green('✓ Theme Applied Successfully!')}\n\n` +
+            `${chalk.cyan('Theme:')} ${chalk.yellow(themeName)}\n\n` +
+            `${chalk.gray('Changes are applied immediately to:')}\n` +
+            `• ${chalk.white('Mode indicators')}\n` +
+            `• ${chalk.white('Progress bars')}\n` +
+            `• ${chalk.white('UI elements')}`,
+            {
+              title: '🎨 Theme Changed',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'green',
+            }
+          )
+        )
+        return { shouldExit: false, shouldUpdatePrompt: true }
+      } else {
+        this.printPanel(
+          boxen(
+            `${chalk.red('✖ Theme Not Found')}\n\n` +
+            `${chalk.gray('Theme:')} ${chalk.yellow(themeName)}\n\n` +
+            `${chalk.cyan('Available Themes:')}\n` +
+            `${themeManager.listThemes().map(t => chalk.white(`• ${t.name}`)).join('\n')}\n\n` +
+            `${chalk.gray('Use /theme to view all themes')}`,
+            {
+              title: '❌ Error',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'red',
+            }
+          )
+        )
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
+    }
+
+    // Handle 'info' subcommand
+    if (args[0] === 'info' && args[1]) {
+      const themeName = args[1]
+      const theme = themeManager.getTheme(themeName)
+
+      if (!theme) {
+        this.printPanel(
+          boxen(
+            `${chalk.red('✖ Theme not found')}\n\n${chalk.gray(`Theme: ${themeName}`)}`,
+            {
+              title: '❌ Error',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'red',
+            }
+          )
+        )
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
+
+      const colors = theme.colors
+      const colorPreview = (mode: string, colorSet: any) =>
+        `${chalk.cyan(mode)}: ${chalk.white(colorSet.modeText)} | ${chalk.white(colorSet.verticalBar)} | ${chalk.white(colorSet.progressBar)}`
+
+      this.printPanel(
+        boxen(
+          `${chalk.yellow(theme.name)}\n${chalk.gray(theme.description)}\n\n` +
+          `${chalk.cyan('Mode Colors:')}\n` +
+          `${colorPreview('Default', colors.default)}\n` +
+          `${colorPreview('Plan', colors.plan)}\n` +
+          `${colorPreview('VM', colors.vm)}\n\n` +
+          `${chalk.gray('Use /theme set ' + theme.name + ' to apply')}`,
+          {
+            title: '🎨 Theme Info',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'cyan',
+          }
+        )
+      )
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+
+    // Handle 'create' subcommand
+    if (args[0] === 'create') {
+      try {
+        const theme = await themeCreationWizard.start()
+        if (theme) {
+          this.printPanel(
+            boxen(
+              `${chalk.green('✓ Theme Created Successfully!')}\n\n` +
+              `${chalk.cyan('Theme:')} ${chalk.yellow(theme.name)}\n` +
+              `${chalk.gray('Description:')} ${theme.description}\n\n` +
+              `${chalk.gray('Use /theme set ' + theme.name + ' to apply it')}`,
+              {
+                title: '🎨 Theme Created',
+                padding: 1,
+                margin: 1,
+                borderStyle: 'round',
+                borderColor: 'green',
+              }
+            )
+          )
+          return { shouldExit: false, shouldUpdatePrompt: true }
+        }
+      } catch (error: any) {
+        console.log(chalk.red(`\n✗ Error: ${error.message}\n`))
+      }
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+
+    // Invalid command
+    this.printPanel(
+      boxen(
+        `${chalk.red('✖ Invalid theme command')}\n\n` +
+        `${chalk.cyan('Usage:')}\n` +
+        `${chalk.white('/theme              - List all themes')}\n` +
+        `${chalk.white('/theme set <name>   - Set theme')}\n` +
+        `${chalk.white('/theme info <name>  - Show theme details')}\n` +
+        `${chalk.white('/theme create       - Create new theme')}\n\n` +
+        `${chalk.gray('Example: /theme set ocean')}`,
+        {
+          title: '❌ Error',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        }
+      )
+    )
+    return { shouldExit: false, shouldUpdatePrompt: false }
+  }
+
+  /**
+   * Show themes panel with all available themes
+   */
+  private async showThemesPanel(): Promise<{ shouldExit: boolean; shouldUpdatePrompt: boolean }> {
+    const themes = themeManager.listThemes()
+    const currentTheme = themeManager.getCurrentTheme()
+
+    const themeList = themes.map((theme) => {
+      const isCurrent = theme.name === currentTheme.name
+      const marker = isCurrent ? chalk.green('→') : ' '
+      return `${marker} ${chalk.yellow(theme.name)} ${chalk.gray('- ' + theme.description)}`
+    }).join('\n')
+
+    this.printPanel(
+      boxen(
+        `${chalk.cyan('Current Theme:')} ${chalk.green(currentTheme.name)}\n\n` +
+        `${chalk.cyan('Available Themes:')}\n${themeList}\n\n` +
+        `${chalk.gray('Commands:')}\n` +
+        `${chalk.white('/theme set <name>   - Apply theme')}\n` +
+        `${chalk.white('/theme info <name>  - Show details')}\n\n` +
+        `${chalk.gray('Example: /theme set cyberpunk')}`,
+        {
+          title: '🎨 Theme Manager',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'cyan',
+        }
+      )
+    )
+    return { shouldExit: false, shouldUpdatePrompt: false }
+  }
+
+  /**
+   * Handle themes command - alias for theme
+   */
+  private async themesCommand(args: string[]): Promise<{ shouldExit: boolean; shouldUpdatePrompt: boolean }> {
+    return this.themeCommand(args)
+  }
+
+  /**
+   * Handle theme-info command - show theme details
+   */
+  private async themeInfoCommand(args: string[]): Promise<{ shouldExit: boolean; shouldUpdatePrompt: boolean }> {
+    if (args.length === 0) {
+      this.printPanel(
+        boxen(
+          `${chalk.red('✖ Please specify a theme name')}\n\n` +
+          `${chalk.cyan('Usage:')}\n` +
+          `${chalk.white('/theme-info <theme-name>')}\n\n` +
+          `${chalk.gray('Example: /theme-info cyberpunk')}`,
+          {
+            title: '❌ Error',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'red',
+          }
+        )
+      )
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+
+    const themeName = args[0]
+    return this.themeCommand(['info', themeName])
+  }
+
+  /**
+   * Handle theme-create command - start theme creation wizard
+   */
+  private async themeCreateCommand(args: string[]): Promise<{ shouldExit: boolean; shouldUpdatePrompt: boolean }> {
+    try {
+      const theme = await themeCreationWizard.start()
+      if (theme) {
+        this.printPanel(
+          boxen(
+            `${chalk.green('✓ Theme Created Successfully!')}\n\n` +
+            `${chalk.cyan('Theme:')} ${chalk.yellow(theme.name)}\n` +
+            `${chalk.gray('Description:')} ${theme.description}\n\n` +
+            `${chalk.gray('Use /theme set ' + theme.name + ' to apply it')}`,
+            {
+              title: '🎨 Theme Created',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'green',
+            }
+          )
+        )
+        return { shouldExit: false, shouldUpdatePrompt: true }
+      }
+    } catch (error: any) {
+      console.log(chalk.red(`\n✗ Error: ${error.message}\n`))
+    }
+    return { shouldExit: false, shouldUpdatePrompt: false }
+  }
+
+  /**
+   * Handle theme-wizard command - alias for theme-create
+   */
+  private async themeWizardCommand(args: string[]): Promise<{ shouldExit: boolean; shouldUpdatePrompt: boolean }> {
+    return this.themeCreateCommand(args)
+  }
+
+  /**
+   * Handle theme-edit command - edit existing theme
+   */
+  private async themeEditCommand(args: string[]): Promise<{ shouldExit: boolean; shouldUpdatePrompt: boolean }> {
+    if (args.length === 0) {
+      this.printPanel(
+        boxen(
+          `${chalk.red('✖ Please specify a theme name')}\n\n` +
+          `${chalk.cyan('Usage:')}\n` +
+          `${chalk.white('/theme-edit <theme-name>')}\n\n` +
+          `${chalk.gray('Example: /theme-edit cyberpunk')}`,
+          {
+            title: '❌ Error',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'red',
+          }
+        )
+      )
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+
+    try {
+      const themeName = args[0]
+      const editor = new (await import('../ui/theme-editor')).ThemeEditor(themeName)
+      const success = await editor.start()
+      if (success) {
+        this.printPanel(
+          boxen(
+            `${chalk.green('✓ Theme Edited Successfully!')}\n\n` +
+            `${chalk.cyan('Theme:')} ${chalk.yellow(themeName)}\n\n` +
+            `${chalk.gray('Changes are applied immediately')}`,
+            {
+              title: '🎨 Theme Updated',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'green',
+            }
+          )
+        )
+        return { shouldExit: false, shouldUpdatePrompt: true }
+      }
+    } catch (error: any) {
+      console.log(chalk.red(`\n✗ Error: ${error.message}\n`))
+    }
+    return { shouldExit: false, shouldUpdatePrompt: false }
+  }
+
+  /**
+   * Handle theme-test command - live preview theme
+   */
+  private async themeTestCommand(args: string[]): Promise<{ shouldExit: boolean; shouldUpdatePrompt: boolean }> {
+    const themeName = args[0] || themeManager.getCurrentTheme().name
+
+    try {
+      const theme = themeManager.getTheme(themeName)
+      if (!theme) {
+        this.printPanel(
+          boxen(
+            `${chalk.red('✖ Theme not found')}\n\n${chalk.gray(`Theme: ${themeName}`)}`,
+            {
+              title: '❌ Error',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'red',
+            }
+          )
+        )
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
+
+      const preview = new (await import('../ui/live-theme-preview')).LiveThemePreview(themeName)
+      await preview.startPreview()
+
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    } catch (error: any) {
+      console.log(chalk.red(`\n✗ Error: ${error.message}\n`))
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+  }
+
+  /**
+   * Handle theme-validate command - validate theme accessibility
+   */
+  private async themeValidateCommand(args: string[]): Promise<{ shouldExit: boolean; shouldUpdatePrompt: boolean }> {
+    if (args.length === 0) {
+      this.printPanel(
+        boxen(
+          `${chalk.red('✖ Please specify a theme name')}\n\n` +
+          `${chalk.cyan('Usage:')}\n` +
+          `${chalk.white('/theme-validate <theme-name>')}\n\n` +
+          `${chalk.gray('Example: /theme-validate cyberpunk')}`,
+          {
+            title: '❌ Error',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'red',
+          }
+        )
+      )
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+
+    const themeName = args[0]
+    try {
+      const theme = themeManager.getTheme(themeName)
+      if (!theme) {
+        this.printPanel(
+          boxen(
+            `${chalk.red('✖ Theme not found')}\n\n${chalk.gray(`Theme: ${themeName}`)}`,
+            {
+              title: '❌ Error',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'red',
+            }
+          )
+        )
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
+
+      const validation = themeValidator.validateTheme(theme)
+
+      this.printPanel(
+        boxen(
+          `${chalk.yellow(theme.name)} - Validation Results\n\n` +
+          `${chalk.cyan('Completeness:')} ${validation.completeness}%\n` +
+          `${chalk.cyan('Accessibility Score:')} ${validation.accessibility.score}/100\n\n` +
+          `${validation.accessibility.passesWCAG_AA ? chalk.green('✓') : chalk.red('✖')} WCAG AA Compliance\n` +
+          `${validation.accessibility.passesWCAG_AAA ? chalk.green('✓') : chalk.yellow('○')} WCAG AAA Compliance\n\n` +
+          `${chalk.gray(`Issues found: ${validation.issues.length}`)}\n` +
+          `${chalk.gray(`Suggestions: ${validation.accessibility.suggestions.length}`)}`,
+          {
+            title: '♿ Theme Validation',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: validation.valid ? 'green' : 'yellow',
+          }
+        )
+      )
+
+      // Show top 5 issues if any
+      if (validation.issues.length > 0) {
+        console.log(chalk.yellow('\nTop Issues:'))
+        for (const issue of validation.issues.slice(0, 5)) {
+          const icon = issue.type === 'error' ? '✗' : issue.type === 'warning' ? '⚠' : 'ℹ'
+          console.log(`  ${icon} ${issue.message}`)
+        }
+      }
+
+      // Show suggestions
+      const suggestions = themeValidator.getImprovementSuggestions(theme)
+      if (suggestions.length > 0) {
+        console.log(chalk.cyan('\nSuggestions:'))
+        for (const suggestion of suggestions) {
+          console.log(`  • ${suggestion}`)
+        }
+      }
+
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    } catch (error: any) {
+      console.log(chalk.red(`\n✗ Error: ${error.message}\n`))
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+  }
+
+  /**
    * Handle style set command
    */
   private async handleStyleSet(args: string[]): Promise<{ shouldExit: boolean; shouldUpdatePrompt: boolean }> {
@@ -13355,10 +13795,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       logs.forEach((log) => {
         const levelIcon = {
-          info: 'ℹ️',
+          info: 'ℹ︎',
           warn: '⚠︎',
           error: '✖',
-          debug: '🐛',
+
         }[log.level]
 
         const timestamp = new Date(log.timestamp).toLocaleTimeString()
@@ -14271,9 +14711,55 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         console.log(chalk.cyan('/skill list') + chalk.gray(' - List available skills'))
         console.log(chalk.cyan('/skill run <name> [context]') + chalk.gray(' - Execute a skill'))
         console.log(chalk.cyan('/skill info <name>') + chalk.gray(' - Show skill details'))
+        console.log(chalk.cyan('/skill install <name>') + chalk.gray(' - Install skill from Anthropic repo'))
+        console.log(chalk.cyan('/skill sync') + chalk.gray(' - Sync all skills from repository'))
+        console.log(chalk.cyan('/skill remove <name>') + chalk.gray(' - Remove installed skill'))
         console.log('')
         console.log(chalk.gray('Example: /skill run code-analysis filePath=./src'))
+        console.log(chalk.gray('Available: docx, pdf, pptx, xlsx'))
         return { shouldExit: false, shouldUpdatePrompt: false }
+
+      case 'install': {
+        const skillName = args[1]
+        if (!skillName) {
+          console.log(chalk.red('Usage: /skill install <skill-name>'))
+          console.log(chalk.gray('Available: docx, pdf, pptx, xlsx'))
+          return { shouldExit: false, shouldUpdatePrompt: false }
+        }
+        try {
+          console.log(chalk.blue(`⬇️  Installing skill: ${skillName}...`))
+          await skillProvider.installSkill(skillName)
+          console.log(chalk.green(`✓ Skill '${skillName}' installed successfully`))
+        } catch (error: any) {
+          console.log(chalk.red(`✖ ${error.message}`))
+        }
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
+
+      case 'sync': {
+        try {
+          await skillProvider.syncSkills()
+        } catch (error: any) {
+          console.log(chalk.red(`✖ Sync failed: ${error.message}`))
+        }
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
+
+      case 'remove':
+      case 'uninstall': {
+        const skillName = args[1]
+        if (!skillName) {
+          console.log(chalk.red('Usage: /skill remove <skill-name>'))
+          return { shouldExit: false, shouldUpdatePrompt: false }
+        }
+        const removed = skillProvider.removeSkill(skillName)
+        if (removed) {
+          console.log(chalk.green(`✓ Skill '${skillName}' removed`))
+        } else {
+          console.log(chalk.yellow(`⚠️  Skill '${skillName}' not found`))
+        }
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
     }
   }
 

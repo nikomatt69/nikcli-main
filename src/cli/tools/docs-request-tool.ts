@@ -100,7 +100,7 @@ export const docsRequestTool: CoreTool = tool({
         `${concept} best practices`,
       ]
 
-      const bestMatches = []
+      const bestMatches: any[] = []
       const cloudProvider = getCloudDocsProvider()
 
       // Search through different queries to find the best matches

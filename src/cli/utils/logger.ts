@@ -365,10 +365,10 @@ export class Logger {
         userId: entry.userId,
         error: entry.error
           ? {
-              message: entry.error.message,
-              stack: entry.error.stack,
-              name: entry.error.name,
-            }
+            message: entry.error.message,
+            stack: entry.error.stack,
+            name: entry.error.name,
+          }
           : undefined,
       })
     } else {

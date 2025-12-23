@@ -134,6 +134,47 @@ function getContextAwareTransforms(
 }
 
 /**
+ * Generates a unique thought signature for Gemini tool calls
+ * Required for Gemini models through OpenRouter
+ */
+function generateThoughtSignature(): string {
+  const timestamp = Date.now()
+  const random = Math.random().toString(36).substring(2, 10)
+  return `thought_${timestamp}_${random}`
+}
+
+/**
+ * Checks if the model is a Gemini model (case-insensitive)
+ */
+function isGeminiModel(modelName: string): boolean {
+  const lowerModel = modelName.toLowerCase()
+  return lowerModel.includes('gemini') || lowerModel.startsWith('google/')
+}
+
+/**
+ * Adds thought_signature to tools for Gemini models through OpenRouter
+ * This is required by Google Gemini models when using OpenRouter's tool calling
+ */
+function addGeminiThoughtSignatures(
+  options: any,
+  tools: Record<string, CoreTool> | undefined,
+  modelName: string,
+  provider: string
+): void {
+  // Only apply for Gemini models through OpenRouter with tools
+  if (provider !== 'openrouter' || !isGeminiModel(modelName) || !tools) {
+    return
+  }
+
+  // Build tools array with thought_signature for each tool
+  const toolNames = Object.keys(tools)
+  options.experimental_providerMetadata.openrouter.tools = toolNames.map(name => ({
+    name,
+    thought_signature: generateThoughtSignature(),
+  }))
+}
+
+/**
  * Check if response qualifies for Zero Completion Insurance (no charge)
  * Conditions: zero completion tokens AND (blank finish_reason OR error finish_reason)
  */
@@ -166,6 +207,52 @@ export class ModernAIProvider {
   constructor() {
     this.currentModel = simpleConfigManager.get('currentModel')
     this.promptManager = PromptManager.getInstance(process.cwd())
+  }
+
+  /**
+   * Get the shared tool service singleton for approval integration
+   */
+  private getToolService() {
+    try {
+      const { toolService } = require('../services/tool-service')
+      return toolService // This is the singleton instance
+    } catch {
+      return null
+    }
+  }
+
+  /**
+   * Wrap a tool definition with approval checking.
+   * The tool will go through executeToolSafely which handles:
+   * - Session approval caching
+   * - Interactive inquirer approval
+   * - Input queue pause/resume
+   */
+  protected wrapWithApproval<P extends Record<string, any>, R>(
+    toolName: string,
+    operation: string,
+    toolDefinition: {
+      description: string
+      parameters: z.ZodType<P>
+      execute: (params: P) => Promise<R>
+    }
+  ): {
+    description: string
+    parameters: z.ZodType<P>
+    execute: (params: P) => Promise<R>
+  } {
+    return {
+      ...toolDefinition,
+      execute: async (params: P) => {
+        const ts = this.getToolService()
+        if (ts && ts.executeToolSafely) {
+          // Use tool service with approval
+          return ts.executeToolSafely(toolName, operation, params)
+        }
+        // Fallback: execute directly without approval
+        return toolDefinition.execute(params)
+      },
+    }
   }
 
   /**
@@ -1481,6 +1568,9 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
         // Parallel tool calls control
         streamOptions.experimental_providerMetadata.openrouter.parallel_tool_calls = parallelToolCalls
 
+        // Add thought_signature for Gemini models (required by OpenRouter)
+        addGeminiThoughtSignatures(streamOptions, tools, cfg.model, cfg.provider)
+
         // Fetch model capabilities and build parameters dynamically
         try {
           const modelCaps = await openRouterRegistry.getCapabilities(cfg.model)
@@ -1765,6 +1855,9 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
         // Parallel tool calls control
         // Reference: https://openrouter.ai/docs/guides/features/tool-calling
         generateOptions.experimental_providerMetadata.openrouter.parallel_tool_calls = parallelToolCalls
+
+        // Add thought_signature for Gemini models (required by OpenRouter)
+        addGeminiThoughtSignatures(generateOptions, tools, cfg.model, cfg.provider)
 
         // Fetch model capabilities and build parameters dynamically
         try {

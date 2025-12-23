@@ -666,7 +666,11 @@ export class ToolRouter extends EventEmitter {
       writefile: 'write-file-tool',
       todo_tools: 'todo-tools',
       generateTasksWithAI: 'todowrite',
-      analyzeTasksWithAI: 'todoread'
+      analyzeTasksWithAI: 'todoread',
+      skill_tool: 'skill-tool',
+      skill: 'skill-tool',
+      execute_skill: 'skill-tool',
+      anthropic_skill: 'skill-tool',
     }
     return map[name] || name
   }

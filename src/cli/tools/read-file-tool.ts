@@ -190,7 +190,7 @@ export class ReadFileTool extends BaseTool {
     // Smart sampling: take first 3, middle 2, and last 3
     const sampleSize = 8
     const step = Math.floor(array.length / sampleSize)
-    const sampled = []
+    const sampled: any[] = []
 
     for (let i = 0; i < sampleSize && i * step < array.length; i++) {
       sampled.push(array[i * step])
@@ -648,7 +648,7 @@ export class ReadFileTool extends BaseTool {
       // LSP Analysis (only for code files)
       let lspContext = null
       if (this.isCodeFile(filePath)) {
-        lspContext = await lspManager.analyzeFile(filePath)
+        const lspContext = await lspManager.analyzeFile(filePath)
 
         if (lspContext.diagnostics.length > 0) {
           const errors = lspContext.diagnostics.filter((d) => d.severity === 1)

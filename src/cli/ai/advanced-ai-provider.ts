@@ -32,9 +32,12 @@ import {
 import { ProgressiveTokenManager } from '../core/progressive-token-manager'
 import { smartCache } from '../core/smart-cache-manager'
 import { ToolRouter } from '../core/tool-router'
+import { permissionStorage } from '../core/permission-storage'
 import { type ValidationContext, validatorManager } from '../core/validator-manager'
+import { ExecutionPolicyManager } from '../policies/execution-policy'
 import { WebSearchProvider } from '../core/web-search-provider'
 import { PromptManager } from '../prompts/prompt-manager'
+import { ApprovalSystem } from '../ui/approval-system'
 import { streamttyService } from '../services/streamtty-service'
 import { aiDocsTools } from '../tools/docs-request-tool'
 import { aiMemoryTools } from '../tools/memory-search-tool'
@@ -172,12 +175,60 @@ export class AdvancedAIProvider implements AutonomousProvider {
   private requestCount: number = 0
   private cacheHits: number = 0
 
+  // Approval system
+  private policyManager: ExecutionPolicyManager
+  private approvalSystem: ApprovalSystem
+
   generateWithTools(_planningMessages: CoreMessage[]): Promise<{
     text: string
     toolCalls: any[]
     toolResults: any[]
   }> {
     throw new Error('Method not implemented.')
+  }
+
+  /**
+   * Get or lazy-load the tool service for approval integration
+   */
+  private getToolService() {
+    try {
+      const { toolService } = require('../services/tool-service')
+      return toolService // This is the singleton instance exported at the end of the file
+    } catch {
+      return null
+    }
+  }
+
+  /**
+   * Wrap a tool definition with approval checking.
+   * The tool will go through executeToolSafely which handles:
+   * - Session approval caching
+   * - Interactive inquirer approval
+   * - Input queue pause/resume
+   */
+  protected wrapWithApproval<P extends Record<string, any>, R>(
+    toolName: string,
+    operation: string,
+    toolDefinition: {
+      description: string
+      parameters: z.ZodType<P>
+      execute: (params: P) => Promise<R>
+    }
+  ): {
+    description: string
+    parameters: z.ZodType<P>
+    execute: (params: P) => Promise<R>
+  } {
+    return {
+      ...toolDefinition,
+      execute: async (params: P) => {
+        const ts = this.getToolService()
+        if (ts && ts.executeToolSafely) {
+          return ts.executeToolSafely(toolName, operation, params)
+        }
+        return toolDefinition.execute(params)
+      },
+    }
   }
 
   /**
@@ -774,6 +825,63 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
     this.promptManager = PromptManager.getInstance(process.cwd(), optimizationConfig)
     this.smartCache = smartCache
     this.docLibrary = docLibrary
+    this.policyManager = new ExecutionPolicyManager(configManager)
+    this.approvalSystem = new ApprovalSystem({
+      autoApprove: {
+        lowRisk: false,
+        mediumRisk: false,
+        fileOperations: false,
+      },
+    })
+  }
+
+  /**
+   * Check and request approval for tool operations
+   * ALWAYS requests approval when called - bypasses policy manager's skip decision
+   */
+  private async checkApproval(toolName: string, operation: string, args: any): Promise<void> {
+    const approvalRequest = await this.policyManager.shouldApproveToolOperation(toolName, operation, args)
+
+    // Check if already approved in persistent storage first
+    if (permissionStorage.isApproved(toolName, operation)) {
+      return // Already approved persistently
+    }
+
+    // Check if already approved in session
+    const ts = this.getToolService()
+    if (ts && ts.isOperationApproved && ts.isOperationApproved(toolName, operation)) {
+      return // Already approved in session
+    }
+
+    const riskLevel = (approvalRequest?.riskAssessment?.level || 'low') as 'low' | 'medium' | 'high' | 'critical'
+    const description = approvalRequest?.riskAssessment?.reasons?.join('\n• ') || `Execute ${toolName} with ${operation}`
+
+    // Use interactive approval with inquirer
+    const approval = await this.approvalSystem.requestToolApprovalInteractive(
+      toolName,
+      operation,
+      riskLevel,
+      {
+        description,
+        path: args.path || args.filePath || undefined,
+        args,
+        preview: args.content ? String(args.content).substring(0, 200) : undefined,
+      }
+    )
+
+    if (!approval.approved) {
+      throw new Error(`Operation cancelled by user: ${toolName} - ${operation}`)
+    }
+
+    // Remember persistently if requested
+    if (approval.remember) {
+      permissionStorage.approve(toolName, operation)
+    }
+
+    // Also remember for session if requested
+    if (approval.remember && ts && ts.addSessionApproval) {
+      ts.addSessionApproval(toolName, operation)
+    }
   }
 
   // Optimize messages with token compression
@@ -1074,6 +1182,11 @@ The tool automatically handles chunking, token limits, and provides continuation
           tokenBudget = 3000
         }) => {
           try {
+            // Check approval before execution
+            await this.checkApproval('read_file', 'read', {
+              path, analyze, encoding, maxSize, maxLines, stripComments, parseJson, startLine, maxLinesPerChunk, tokenBudget
+            })
+
             // Load tool-specific prompt for context
             const toolPrompt = await this.getToolPrompt('read_file', {
               path,
@@ -1271,6 +1384,11 @@ The tool automatically handles chunking, token limits, and provides continuation
         }),
         execute: async ({ path, content, encoding = 'utf8', mode, createBackup = true, backup = true, autoRollback = false, verifyWrite = true, showDiff = true, skipFormatting = false, validate = true, agentId, reasoning }) => {
           try {
+            // Check approval before execution
+            await this.checkApproval('write_file', 'write', {
+              path, content: `${content.substring(0, 100)}...`, encoding, createBackup, validate
+            })
+
             // Load tool-specific prompt for context
             const toolPrompt = await this.getToolPrompt('write_file', {
               path,
@@ -1288,7 +1406,7 @@ The tool automatically handles chunking, token limits, and provides continuation
             }
 
             // ⚡︎ VALIDATION WITH LSP - Before writing anything
-            let validationResult = null
+            let validationResult: any = null
             let finalContent = content
 
             if (validate) {
@@ -1305,7 +1423,10 @@ The tool automatically handles chunking, token limits, and provides continuation
 
               validationResult = await validatorManager.validateContent(validationContext)
 
-              if (!validationResult.isValid) {
+              if (!validationResult) {
+                // Validation failed or returned null
+                advancedUI.logFunctionUpdate('warning', 'Validation returned null, proceeding without validation', '⚠')
+              } else if (!validationResult.isValid) {
                 // Auto-fix was attempted in ValidatorManager
                 if (validationResult.fixedContent) {
                   finalContent = validationResult.fixedContent
@@ -1314,7 +1435,7 @@ The tool automatically handles chunking, token limits, and provides continuation
                   // If validation fails and no auto-fix available, return error
                   return {
                     success: false,
-                    error: `File processing failed: ${validationResult.errors?.join(', ')}`,
+                    error: `File processing failed: ${validationResult.errors?.join(', ') || 'Unknown error'}`,
                     path,
                     validationErrors: validationResult.errors,
                     reasoning: reasoning || 'Agent attempted to write file but processing failed',
@@ -1475,6 +1596,9 @@ The tool automatically handles chunking, token limits, and provides continuation
         }),
         execute: async ({ path, depth, includeHidden, filterBy }) => {
           try {
+            // Check approval before execution
+            await this.checkApproval('explore_directory', 'explore', { path, depth, includeHidden, filterBy })
+
             // Load tool-specific prompt for context
             const toolPrompt = await this.getToolPrompt('explore_directory', {
               path,
@@ -1526,6 +1650,9 @@ The tool automatically handles chunking, token limits, and provides continuation
           const startTime = Date.now()
 
           try {
+            // Check approval before execution
+            await this.checkApproval('execute_command', 'execute', { command, args, cwd, timeout, autonomous })
+
             // Load tool-specific prompt for context
             const toolPrompt = await this.getToolPrompt('execute_command', {
               command,
@@ -1625,6 +1752,9 @@ The tool automatically handles chunking, token limits, and provides continuation
         }),
         execute: async ({ includeMetrics, analyzeDependencies, securityScan }) => {
           try {
+            // Check approval before execution
+            await this.checkApproval('analyze_project', 'analyze', { includeMetrics, analyzeDependencies, securityScan })
+
             // Load tool-specific prompt for context
             const toolPrompt = await this.getToolPrompt('analyze_project', {
               includeMetrics,
@@ -1669,6 +1799,9 @@ The tool automatically handles chunking, token limits, and provides continuation
         }),
         execute: async ({ action, packages, dev, global }) => {
           try {
+            // Check approval before execution (CRITICAL - modifies system packages)
+            await this.checkApproval('manage_packages', 'package', { action, packages, dev, global })
+
             // Load tool-specific prompt for context
             const toolPrompt = await this.getToolPrompt('manage_packages', {
               action,
@@ -1743,6 +1876,9 @@ The tool automatically handles chunking, token limits, and provides continuation
         }),
         execute: async ({ type, description, language, framework, outputPath }) => {
           try {
+            // Check approval before execution (HIGH risk - writes files)
+            await this.checkApproval('generate_code', 'generate', { type, description, language, framework, outputPath })
+
             // Load tool-specific prompt for context
             const toolPrompt = await this.getToolPrompt('generate_code', {
               type,
@@ -1843,6 +1979,8 @@ The tool automatically handles chunking, token limits, and provides continuation
             globs: params.globs ? (Array.isArray(params.globs) ? params.globs : [params.globs]) : undefined,
             exclude: params.exclude ? (Array.isArray(params.exclude) ? params.exclude : [params.exclude]) : undefined,
           }
+          // Check approval before execution
+          await this.checkApproval('multi_read_tool', 'read', normalizedParams)
           const result = await multiReadTool.execute(normalizedParams)
           return result.success ? result.data : { error: result.error }
         },
@@ -1892,6 +2030,8 @@ The tool automatically handles chunking, token limits, and provides continuation
         execute: async (params) => {
           const grepTool = this.toolRegistry.getTool('grep-tool')
           if (!grepTool) return { error: 'Grep tool not available' }
+          // Check approval before execution
+          await this.checkApproval('grep_tool', 'search', params)
           const result = await grepTool.execute(params)
           return result.success ? result.data : { error: result.error }
         },
@@ -1984,6 +2124,8 @@ The tool automatically handles chunking, token limits, and provides continuation
             patterns: Array.isArray(params.patterns) ? params.patterns : [params.patterns],
             exclude: params.exclude ? (Array.isArray(params.exclude) ? params.exclude : [params.exclude]) : undefined,
           }
+          // Check approval before execution
+          await this.checkApproval('find_tool', 'search', normalizedParams)
           const result = await findTool.execute(normalizedParams)
           return result.success ? result.data : { error: result.error }
         },
@@ -2010,13 +2152,18 @@ The tool automatically handles chunking, token limits, and provides continuation
 
           const shouldBackup = params.createBackup !== undefined ? params.createBackup : params.backup
 
-          const result = await editTool.execute({
+          const editParams = {
             filePath: params.file,
             oldString: params.search,
             newString: params.replace,
             replaceAll: params.replaceAll ?? true,
             createBackup: shouldBackup,
-          })
+          }
+
+          // Check approval before execution (edit is a write operation)
+          await this.checkApproval('edit_tool', 'edit', editParams)
+
+          const result = await editTool.execute(editParams)
           return result.success ? result.data : { error: result.error }
         },
       }),
@@ -2040,6 +2187,17 @@ The tool automatically handles chunking, token limits, and provides continuation
           }
 
           const searchPattern = params.useRegex ? new RegExp(params.pattern, 'g') : params.pattern
+          const replaceParams = {
+            file: params.file,
+            pattern: params.pattern,
+            replacement: params.replacement,
+            useRegex: params.useRegex,
+            createBackup: params.backup,
+          }
+
+          // Check approval before execution (replace is a write operation)
+          await this.checkApproval('replace_in_file_tool', 'edit', replaceParams)
+
           const result = await replaceTool.execute(params.file, searchPattern, params.replacement, {
             createBackup: params.backup,
             requireMatch: true,
@@ -2060,6 +2218,8 @@ The tool automatically handles chunking, token limits, and provides continuation
         execute: async (params) => {
           const listTool = this.toolRegistry.getTool('list-tool')
           if (!listTool) return { error: 'List tool not available' }
+          // Check approval before execution
+          await this.checkApproval('list_tool', 'list', params)
           const result = await listTool.execute(params)
           return result.success ? result.data : { error: result.error }
         },
@@ -2084,6 +2244,8 @@ The tool automatically handles chunking, token limits, and provides continuation
         execute: async (params) => {
           const ragSearchTool = this.toolRegistry.getTool('rag-search-tool')
           if (!ragSearchTool) return { error: 'RAG search tool not available' }
+          // Check approval before execution
+          await this.checkApproval('rag_search_tool', 'search', params)
           const result = await ragSearchTool.execute(params)
           return result.success ? result.data : { error: result.error }
         },
@@ -2127,6 +2289,8 @@ The tool automatically handles chunking, token limits, and provides continuation
                 : [params.ignorePatterns]
               : undefined,
           }
+          // Check approval before execution
+          await this.checkApproval('glob_tool', 'search', normalizedParams)
           const result = await globTool.execute(normalizedParams)
           return result.success ? result.data : { error: result.error }
         },
@@ -2149,6 +2313,8 @@ The tool automatically handles chunking, token limits, and provides continuation
         execute: async (params) => {
           const diffTool = this.toolRegistry.getTool('diff-tool')
           if (!diffTool) return { error: 'Diff tool not available' }
+          // Check approval before execution
+          await this.checkApproval('diff_tool', 'compare', params)
           const result = await diffTool.execute(params)
           return result.success ? result.data : { error: result.error }
         },
@@ -2183,6 +2349,8 @@ The tool automatically handles chunking, token limits, and provides continuation
                 : [params.ignorePatterns]
               : undefined,
           }
+          // Check approval before execution
+          await this.checkApproval('tree_tool', 'list', normalizedParams)
           const result = await treeTool.execute(normalizedParams)
           return result.success ? result.data : { error: result.error }
         },
@@ -2233,6 +2401,8 @@ The tool automatically handles chunking, token limits, and provides continuation
                 : [params.ignorePatterns]
               : undefined,
           }
+          // Check approval before execution
+          await this.checkApproval('watch_tool', 'monitor', normalizedParams)
           const result = await watchTool.execute(normalizedParams)
           return result.success ? result.data : { error: result.error }
         },
@@ -2252,6 +2422,8 @@ The tool automatically handles chunking, token limits, and provides continuation
         execute: async (params) => {
           const visionTool = this.toolRegistry.getTool('vision-analysis-tool')
           if (!visionTool) return { error: 'Vision analysis tool not available' }
+          // Check approval before execution
+          await this.checkApproval('vision_analysis_tool', 'analyze', params)
           // Vision tool takes imagePath as first param, options as second
           const result = await visionTool.execute(params.imagePath, {
             provider: params.provider,
@@ -2291,7 +2463,26 @@ The tool automatically handles chunking, token limits, and provides continuation
         execute: async (params) => {
           const imageGenTool = this.toolRegistry.getTool('image-generation-tool')
           if (!imageGenTool) return { error: 'Image generation tool not available' }
+          // Check approval before execution
+          await this.checkApproval('image_generation_tool', 'create', params)
           const result = await imageGenTool.execute(params)
+          return result.success ? result.data : { error: result.error }
+        },
+      }),
+
+      // 15. SKILL_EXECUTE: Execute Anthropic Skills (Priority 7)
+      skill_execute: tool({
+        description: 'Execute Anthropic Skills for document creation and manipulation (docx, pdf, pptx, xlsx)',
+        parameters: z.object({
+          skillName: z.string().describe('Name of skill: docx, pdf, pptx, xlsx'),
+          context: z.record(z.unknown()).optional().describe('Context for skill execution'),
+        }),
+        execute: async (params) => {
+          const skillTool = this.toolRegistry.getTool('skill-tool')
+          if (!skillTool) return { error: 'Skill tool not available' }
+          // Check approval before execution
+          await this.checkApproval('skill_tool', 'execute', params)
+          const result = await skillTool.execute(params.skillName, { context: params.context })
           return result.success ? result.data : { error: result.error }
         },
       }),
@@ -2309,6 +2500,8 @@ The tool automatically handles chunking, token limits, and provides continuation
         execute: async (params) => {
           const coinbaseTool = this.toolRegistry.getTool('coinbase-agentkit-tool')
           if (!coinbaseTool) return { error: 'Coinbase AgentKit tool not available' }
+          // Check approval before execution (blockchain operations are high risk)
+          await this.checkApproval('coinbase_agentkit', 'execute', params)
           // Coinbase tool takes action as first param, params as second
           const result = await coinbaseTool.execute(params.action, params.params || {})
           return result.success ? result.data : { error: result.error }
@@ -2325,6 +2518,8 @@ The tool automatically handles chunking, token limits, and provides continuation
         execute: async (params) => {
           const goatTool = this.toolRegistry.getTool('goat-tool')
           if (!goatTool) return { error: 'GOAT tool not available' }
+          // Check approval before execution (blockchain operations are high risk)
+          await this.checkApproval('goat_tool', 'execute', params)
           // GOAT tool takes action as first param, params as second
           const result = await goatTool.execute(params.action, params.params || {})
           return result.success ? result.data : { error: result.error }
@@ -2343,6 +2538,8 @@ The tool automatically handles chunking, token limits, and provides continuation
         execute: async (params) => {
           const browserbaseTool = this.toolRegistry.getTool('browserbase-tool')
           if (!browserbaseTool) return { error: 'Browserbase tool not available' }
+          // Check approval before execution (browser automation is high risk)
+          await this.checkApproval('browserbase', 'automate', params)
           // Browserbase tool takes action as first param, params as second
           const result = await browserbaseTool.execute(params.action, params.params || {})
           return result.success ? result.data : { error: result.error }
@@ -2361,6 +2558,8 @@ The tool automatically handles chunking, token limits, and provides continuation
         execute: async (params) => {
           const browserNavTool = this.toolRegistry.getTool('browser_navigate')
           if (!browserNavTool) return { error: 'Browser navigate tool not available' }
+          // Check approval before execution
+          await this.checkApproval('browser_navigate', 'navigate', params)
           const result = await browserNavTool.execute(params)
           return result.success ? result.data : { error: result.error }
         },
@@ -2380,6 +2579,8 @@ The tool automatically handles chunking, token limits, and provides continuation
         execute: async (params) => {
           const browserClickTool = this.toolRegistry.getTool('browser_click')
           if (!browserClickTool) return { error: 'Browser click tool not available' }
+          // Check approval before execution
+          await this.checkApproval('browser_click', 'click', params)
           const result = await browserClickTool.execute(params)
           return result.success ? result.data : { error: result.error }
         },
@@ -2398,6 +2599,8 @@ The tool automatically handles chunking, token limits, and provides continuation
         execute: async (params) => {
           const browserTypeTool = this.toolRegistry.getTool('browser_type')
           if (!browserTypeTool) return { error: 'Browser type tool not available' }
+          // Check approval before execution
+          await this.checkApproval('browser_type', 'type', params)
           const result = await browserTypeTool.execute(params)
           return result.success ? result.data : { error: result.error }
         },
@@ -2415,6 +2618,8 @@ The tool automatically handles chunking, token limits, and provides continuation
         execute: async (params) => {
           const browserScreenshotTool = this.toolRegistry.getTool('browser_screenshot')
           if (!browserScreenshotTool) return { error: 'Browser screenshot tool not available' }
+          // Check approval before execution
+          await this.checkApproval('browser_screenshot', 'screenshot', params)
           const result = await browserScreenshotTool.execute(params)
           return result.success ? result.data : { error: result.error }
         },
@@ -2431,6 +2636,8 @@ The tool automatically handles chunking, token limits, and provides continuation
         execute: async (params) => {
           const browserExtractTool = this.toolRegistry.getTool('browser_extract_text')
           if (!browserExtractTool) return { error: 'Browser extract text tool not available' }
+          // Check approval before execution
+          await this.checkApproval('browser_extract_text', 'extract', params)
           const result = await browserExtractTool.execute(params)
           return result.success ? result.data : { error: result.error }
         },
@@ -2448,6 +2655,8 @@ The tool automatically handles chunking, token limits, and provides continuation
         execute: async (params) => {
           const browserWaitTool = this.toolRegistry.getTool('browser_wait_for_element')
           if (!browserWaitTool) return { error: 'Browser wait for element tool not available' }
+          // Check approval before execution
+          await this.checkApproval('browser_wait_for_element', 'wait', params)
           const result = await browserWaitTool.execute(params)
           return result.success ? result.data : { error: result.error }
         },
@@ -2465,6 +2674,8 @@ The tool automatically handles chunking, token limits, and provides continuation
         execute: async (params) => {
           const browserScrollTool = this.toolRegistry.getTool('browser_scroll')
           if (!browserScrollTool) return { error: 'Browser scroll tool not available' }
+          // Check approval before execution
+          await this.checkApproval('browser_scroll', 'scroll', params)
           const result = await browserScrollTool.execute(params)
           return result.success ? result.data : { error: result.error }
         },
@@ -2481,6 +2692,8 @@ The tool automatically handles chunking, token limits, and provides continuation
         execute: async (params) => {
           const browserScriptTool = this.toolRegistry.getTool('browser_execute_script')
           if (!browserScriptTool) return { error: 'Browser execute script tool not available' }
+          // Check approval before execution (JavaScript execution is high risk)
+          await this.checkApproval('browser_execute_script', 'execute', params)
           const result = await browserScriptTool.execute(params)
           return result.success ? result.data : { error: result.error }
         },
@@ -2495,6 +2708,8 @@ The tool automatically handles chunking, token limits, and provides continuation
         execute: async (params) => {
           const browserInfoTool = this.toolRegistry.getTool('browser_get_page_info')
           if (!browserInfoTool) return { error: 'Browser get page info tool not available' }
+          // Check approval before execution
+          await this.checkApproval('browser_get_page_info', 'info', params)
           const result = await browserInfoTool.execute(params)
           return result.success ? result.data : { error: result.error }
         },
@@ -2515,6 +2730,8 @@ The tool automatically handles chunking, token limits, and provides continuation
         execute: async (params) => {
           const cadTool = this.toolRegistry.getTool('text-to-cad-tool')
           if (!cadTool) return { error: 'Text to CAD tool not available' }
+          // Check approval before execution
+          await this.checkApproval('text_to_cad', 'create', params)
           const result = await cadTool.execute(params)
           return result.success ? result.data : { error: result.error }
         },
@@ -2529,6 +2746,8 @@ The tool automatically handles chunking, token limits, and provides continuation
         execute: async (params) => {
           const gcodeTool = this.toolRegistry.getTool('text-to-gcode-tool')
           if (!gcodeTool) return { error: 'Text to G-code tool not available' }
+          // Check approval before execution
+          await this.checkApproval('text_to_gcode', 'create', params)
           const result = await gcodeTool.execute(params)
           return result.success ? result.data : { error: result.error }
         },
@@ -2551,6 +2770,8 @@ The tool automatically handles chunking, token limits, and provides continuation
         execute: async (params) => {
           const bashTool = this.toolRegistry.getTool('bash-tool')
           if (!bashTool) return { error: 'Bash tool not available' }
+          // Check approval before execution (bash commands can be dangerous)
+          await this.checkApproval('bash_tool', 'execute', params)
           const result = await bashTool.execute(params)
           return result.success ? result.data : { error: result.error }
         },
@@ -2578,6 +2799,8 @@ The tool automatically handles chunking, token limits, and provides continuation
         execute: async (params) => {
           const jsonPatchTool = this.toolRegistry.getTool('json-patch-tool')
           if (!jsonPatchTool) return { error: 'JSON patch tool not available' }
+          // Check approval before execution (modifies files)
+          await this.checkApproval('json_patch_tool', 'edit', params)
           const result = await jsonPatchTool.execute(params)
           return result.success ? result.data : { error: result.error }
         },
@@ -2593,6 +2816,8 @@ The tool automatically handles chunking, token limits, and provides continuation
         execute: async (params) => {
           const gitTools = this.toolRegistry.getTool('git-tools')
           if (!gitTools) return { error: 'Git tools not available' }
+          // Check approval before execution (git operations modify repository)
+          await this.checkApproval('git_tools', 'execute', params)
           const result = await gitTools.execute(params)
           return result.success ? result.data : { error: result.error }
         },
@@ -2730,7 +2955,7 @@ The tool automatically handles chunking, token limits, and provides continuation
       }
 
       // Check if we're approaching token limits and need to create a summary
-      const tokenLimit = 80000 // Conservative limit
+      const tokenLimit = 120000 // Conservative limit
       const isAnalysisRequest =
         lastUserMessage &&
         typeof lastUserMessage.content === 'string' &&
@@ -2915,6 +3140,19 @@ The tool automatically handles chunking, token limits, and provides continuation
               }
             } catch {
               // Silently fail if we can't get capabilities
+            }
+
+            // Add thought_signature for Gemini models (required by OpenRouter)
+
+            if (tools && Object.keys(tools).length > 0) {
+              if (!streamOpts.experimental_providerMetadata.openrouter) {
+                streamOpts.experimental_providerMetadata.openrouter = {}
+              }
+              const toolNames = Object.keys(tools)
+              streamOpts.experimental_providerMetadata.openrouter.tools = toolNames.map(name => ({
+                name,
+                thought_signature: `thought_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`,
+              }))
             }
           }
         } else if (provider === 'anthropic') {
@@ -4647,7 +4885,7 @@ Requirements:
     if (failed > 0) analysis += `${failed} failed. `
 
     // Suggest missing tools based on query
-    const missing = []
+    const missing: string[] = []
     if (
       (queryLower.includes('search') ||
         queryLower.includes('find') ||
@@ -5507,7 +5745,7 @@ Use this cognitive understanding to provide more targeted and effective response
   }
 
   private summarizeWorkspaceChanges(workspaceState: any): string {
-    const parts = []
+    const parts: string[] = []
     if (workspaceState.filesCreated?.length) {
       parts.push(`${workspaceState.filesCreated.length} files created`)
     }

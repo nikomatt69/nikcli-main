@@ -212,7 +212,7 @@ Generate a structured plan with commands to execute.`,
       }
 
       // Execute commands
-      const results = []
+      const results: any[] = []
       for (const cmd of planResult.commands || []) {
         console.log(chalk.blue(`\n⚡︎ Executing: ${cmd.command}`))
 
@@ -262,7 +262,7 @@ Generate a structured plan with commands to execute.`,
   ): Promise<any> {
     console.log(chalk.blue(`📦 Installing packages: ${packages.join(', ')}`))
 
-    const results = []
+    const results: any[] = []
     const manager = options.manager || 'npm'
 
     for (const pkg of packages) {
@@ -366,7 +366,7 @@ Generate a structured plan with commands to execute.`,
     console.log(chalk.blue(`⚡︎ Monitoring system for ${duration} seconds...`))
 
     const _startTime = Date.now()
-    const samples = []
+    const samples: any[] = []
 
     const interval = setInterval(async () => {
       const systemInfo = await toolsManager.getSystemInfo()
@@ -627,7 +627,7 @@ Generate working commands, scripts, and configurations.`
   }
 
   private getSystemAdminCapabilities(cognition: TaskCognition): string[] {
-    const capabilities = []
+    const capabilities: string[] = []
 
     if (cognition.intent.primary === 'analyze') capabilities.push('system-analysis')
     if (cognition.normalizedTask.includes('monitor')) capabilities.push('system-monitoring')
@@ -639,7 +639,7 @@ Generate working commands, scripts, and configurations.`
   }
 
   private extractCommandsFromResponse(response: string): string[] {
-    const commands = []
+    const commands: string[] = []
     const commandMatches = response.match(/```(?:bash|sh)?\n([\s\S]*?)\n```/g) || []
 
     for (const match of commandMatches) {
@@ -653,7 +653,7 @@ Generate working commands, scripts, and configurations.`
   }
 
   private extractScriptsFromResponse(response: string): string[] {
-    const scripts = []
+    const scripts: string[] = []
 
     if (response.includes('#!/bin/bash') || response.includes('#!/bin/sh')) {
       scripts.push('Shell script generated')

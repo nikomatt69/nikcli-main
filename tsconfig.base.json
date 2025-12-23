@@ -1,15 +1,17 @@
 {
   "compilerOptions": {
-    "target": "ES2019",
-    "module": "commonjs",
+    "target": "ES2022",
+    "module": "ESNext",
     "declaration": true,
     "outDir": "dist",
     "strict": true,
     "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
     "moduleResolution": "node",
     "resolveJsonModule": true,
-    "sourceMap": true
+    "sourceMap": true,
+    "downlevelIteration": true
   }
 }

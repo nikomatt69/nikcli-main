@@ -173,8 +173,7 @@ export class SemanticSearchEngine {
     const processingTime = Date.now() - startTime
     this.updatePerformanceStats(processingTime)
 
-    console.log(chalk.green(`✓ Query analyzed in ${processingTime}ms (confidence: ${Math.round(confidence * 100)}%)`))
-    this.logAnalysisDetails(analysis)
+
 
     return analysis
   }

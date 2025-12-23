@@ -45,8 +45,11 @@ graph TB
     IDE[IDE Integration<br/>LSP Support]
     CLOUD[Cloud Services<br/>Deployment Platform]
     
+    %% Task Input
+    TASK_IN[User Task Input<br/>CLI/Web/API Input]
+    
     %% Task Flow Process
-    TASK_IN[User Task Input] --> UA
+    TASK_IN --> UA
     UA --> TCF
     TCF --> EE
     EE --> CA
@@ -63,11 +66,11 @@ graph TB
     OS --> UA
     
     %% Agent Delegation Decision
-    UA -->|Complexity ≥ 4<br/>& Specialization Match| RA
-    UA -->|Complexity ≥ 4<br/>& Specialization Match| BA
-    UA -->|Complexity ≥ 4<br/>& Specialization Match| DA
-    UA -->|Complexity ≥ 4<br/>& Specialization Match| CRA
-    UA -->|Complexity ≥ 4<br/>& Specialization Match| OA
+    UA -->|Complexity ≥ 4<br/>& Frontend Tasks| RA
+    UA -->|Complexity ≥ 4<br/>& Backend Tasks| BA
+    UA -->|Complexity ≥ 4<br/>& Infrastructure| DA
+    UA -->|Complexity ≥ 3<br/>& Code Quality| CRA
+    UA -->|Complexity ≥ 5<br/>& Performance| OA
     
     %% Core Service Integration
     UA --> TS

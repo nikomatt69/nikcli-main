@@ -580,7 +580,7 @@ Provide 2-4 most relevant predictions, ranked by confidence.`
   }
 
   private getContextDescription(context: any): string {
-    const parts = []
+    const parts: string[] = []
     if (context.projectType) parts.push(context.projectType)
     if (context.gitBranch) parts.push(`branch: ${context.gitBranch}`)
     if (context.directory) parts.push(`dir: ${context.directory.split('/').pop()}`)
