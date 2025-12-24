@@ -33,8 +33,8 @@ export abstract class BaseAgent implements AgentInstance {
   protected batchSize: number = 5 // Process tasks in batches for better performance
 
   // TaskChain support
-  public taskchainId?: string = undefined
-  public taskchainRole?: 'primary' | 'secondary' | 'coordinator' = undefined
+  protected taskchainId?: string = undefined
+  protected taskchainRole?: 'primary' | 'secondary' | 'coordinator' = undefined
 
   // Default sandbox permissions for all agents (can be overridden by specific agents)
   protected defaultPermissions = {
@@ -285,7 +285,7 @@ export abstract class BaseAgent implements AgentInstance {
       throw new Error(`Tool not found: ${toolName}`)
     }
 
-    CliUI.logDebug(`🔧 Agent ${this.id} executing tool: ${toolName}`)
+    advancedUI.logInfo(`🔧 Agent ${this.id} executing tool: ${toolName}`)
 
     try {
       const result = await tool.execute(...args)
@@ -393,7 +393,7 @@ export abstract class BaseAgent implements AgentInstance {
    * Handle incoming messages from other agents
    */
   protected async onMessage(fromAgent: string, message: any): Promise<void> {
-    CliUI.logDebug(`📨 Agent ${this.id} received message from ${fromAgent}:`, message)
+    advancedUI.logInfo(`📨 Agent ${this.id} received message from ${fromAgent}:`, message)
     // Override in specialized agents to handle specific message types
   }
 
@@ -414,7 +414,7 @@ export abstract class BaseAgent implements AgentInstance {
     // Prevent memory leaks by limiting history size
     if (this.taskHistory.length > this.memoryLimit) {
       const removed = this.taskHistory.splice(0, this.taskHistory.length - this.memoryLimit)
-      CliUI.logDebug(`🧹 Cleaned ${removed.length} old task records for agent ${this.id}`)
+      advancedUI.logInfo(`🧹 Cleaned ${removed.length} old task records for agent ${this.id}`)
     }
   }
 

@@ -111,7 +111,6 @@ export class DynamicAgent extends BaseAgent {
   private blueprint: AgentBlueprint
   private isRunning: boolean = false
   private currentTodos: string[] = []
-  private taskchainId?: string = undefined
 
   constructor(blueprint: AgentBlueprint, workingDirectory: string = process.cwd()) {
     super(workingDirectory)
@@ -119,6 +118,13 @@ export class DynamicAgent extends BaseAgent {
     this.capabilities = blueprint.capabilities
     this.specialization = blueprint.description
     this.blueprint = blueprint
+  }
+
+  /**
+   * Set the taskchain ID (used by agent factory)
+   */
+  setTaskchainId(chainId: string): void {
+    this.taskchainId = chainId
   }
 
   protected async onInitialize(): Promise<void> {
@@ -1280,7 +1286,7 @@ Execute tasks step-by-step and verify results before proceeding.`
     // Auto-create taskchain for the agent
     const chain = taskChainManager.createChain({ name: `Chain-${blueprint.name}` })
     taskChainManager.addAgentToChain(chain.id, agent.id, 'primary')
-    agent.taskchainId = chain.id
+    agent.setTaskchainId(chain.id)
 
     try {
       await agent.initialize()

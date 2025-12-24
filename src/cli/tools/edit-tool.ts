@@ -68,7 +68,7 @@ export class EditTool extends BaseTool {
         parameters: params,
       })
 
-      CliUI.logDebug(`Using system prompt: ${systemPrompt.substring(0, 100)}...`)
+
 
       // Validazione parametri
       if (!params.filePath) {

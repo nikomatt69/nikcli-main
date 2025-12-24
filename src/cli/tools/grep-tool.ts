@@ -4,9 +4,10 @@ import { extname, join, relative } from 'node:path'
 
 import { PromptManager } from '../prompts/prompt-manager'
 import { advancedUI } from '../ui/advanced-cli-ui'
-import { CliUI } from '../utils/cli-ui'
+
 import { BaseTool, type ToolExecutionResult } from './base-tool'
 import { IGNORE_PATTERNS } from './list-tool'
+import { CliUI } from '../utils/cli-ui'
 
 /**
  * Enhanced GrepTool - Ricerca avanzata con pattern matching intelligente
@@ -67,7 +68,7 @@ export class GrepTool extends BaseTool {
         parameters: params,
       })
 
-      CliUI.logDebug(`Using system prompt: ${systemPrompt.substring(0, 100)}...`)
+
 
       if (!params.pattern) {
         throw new Error('Pattern is required for grep search')
@@ -99,10 +100,10 @@ export class GrepTool extends BaseTool {
       // Se non trova file, potrebbe essere dovuto a IGNORE_PATTERNS troppo aggressivi
       // Mostra warning ma continua comunque
       if (filesToSearch.length === 0) {
-        advancedUI.logInfo(`⚠︎  No files found matching criteria - this might be due to aggressive ignore patterns`)
-        CliUI.logDebug(`Search path: ${searchPath}, pattern: ${params.pattern}`)
+        advancedUI.logWarning(`⚠︎  No files found matching criteria - this might be due to aggressive ignore patterns`)
+        advancedUI.logInfo(`Search path: ${searchPath}, pattern: ${params.pattern}`)
       } else {
-        CliUI.logDebug(`Found ${filesToSearch.length} files to search`)
+        advancedUI.logInfo(`Found ${filesToSearch.length} files to search`)
       }
 
       // Ricerca pattern nei file
@@ -127,7 +128,7 @@ export class GrepTool extends BaseTool {
             break
           }
         } catch (error: any) {
-          CliUI.logDebug(`Skipping file ${filePath}: ${error.message}`)
+          advancedUI.logInfo(`Skipping file ${filePath}: ${error.message}`)
         }
       }
 
@@ -247,7 +248,7 @@ export class GrepTool extends BaseTool {
             } else if (stats.isFile()) {
               // Verifica dimensione file
               if (stats.size > MAX_FILE_SIZE) {
-                CliUI.logDebug(`Skipping large file: ${relativePath} (${stats.size} bytes)`)
+                advancedUI.logInfo(`Skipping large file: ${relativePath} (${stats.size} bytes)`)
                 continue
               }
 
@@ -264,11 +265,11 @@ export class GrepTool extends BaseTool {
               files.push(fullPath)
             }
           } catch (statError) {
-            CliUI.logDebug(`Skipping ${fullPath}: ${statError}`)
+            advancedUI.logInfo(`Skipping ${fullPath}: ${statError}`)
           }
         }
       } catch (readdirError) {
-        CliUI.logDebug(`Cannot read directory ${currentPath}: ${readdirError}`)
+        advancedUI.logInfo(`Cannot read directory ${currentPath}: ${readdirError}`)
       }
     }
 

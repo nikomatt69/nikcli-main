@@ -10,13 +10,13 @@ import type { ExecutionPlan, MutableExecutionPlan, PlanTodo } from './types'
 
 export interface PlanningEvent {
   type:
-    | 'plan_start'
-    | 'plan_created'
-    | 'todo_start'
-    | 'todo_progress'
-    | 'todo_complete'
-    | 'plan_complete'
-    | 'plan_failed'
+  | 'plan_start'
+  | 'plan_created'
+  | 'todo_start'
+  | 'todo_progress'
+  | 'todo_complete'
+  | 'plan_complete'
+  | 'plan_failed'
   planId?: string
   todoId?: string
   content?: string
@@ -55,35 +55,35 @@ export class AutonomousPlanner extends EventEmitter {
     this.toolchainRegistry.set('create-react-component', {
       name: 'Create React Component',
       description: 'Create a React component with TypeScript and styling',
-      tools: ['analyze_project', 'generate_code', 'write_file', 'execute_command'],
+      tools: ['analyze_project', 'grep_tool', 'write_file', 'execute_command'],
       pattern: 'sequential',
     })
 
     this.toolchainRegistry.set('setup-api-endpoint', {
       name: 'Setup API Endpoint',
       description: 'Create API endpoint with validation and error handling',
-      tools: ['read_file', 'analyze_project', 'generate_code', 'write_file', 'manage_packages'],
+      tools: ['read_file', 'analyze_project', 'grep_tool', 'write_file', 'manage_packages'],
       pattern: 'sequential',
     })
 
     this.toolchainRegistry.set('add-testing', {
       name: 'Add Testing Suite',
       description: 'Set up comprehensive testing for the project',
-      tools: ['analyze_project', 'manage_packages', 'generate_code', 'write_file', 'execute_command'],
+      tools: ['analyze_project', 'manage_packages', 'grep_tool', 'write_file', 'execute_command'],
       pattern: 'parallel-then-sequential',
     })
 
     this.toolchainRegistry.set('optimize-performance', {
       name: 'Optimize Performance',
       description: 'Analyze and optimize application performance',
-      tools: ['analyze_project', 'read_file', 'execute_command', 'generate_code', 'write_file'],
+      tools: ['analyze_project', 'read_file', 'execute_command', 'grep_toolwrite_file'],
       pattern: 'analyze-then-fix',
     })
 
     this.toolchainRegistry.set('fix-errors', {
       name: 'Fix Errors',
       description: 'Analyze and fix TypeScript/ESLint errors',
-      tools: ['execute_command', 'read_file', 'generate_code', 'write_file', 'execute_command'],
+      tools: ['execute_command', 'read_file', 'grep_tool', 'write_file', 'execute_command'],
       pattern: 'iterative',
     })
   }
@@ -184,8 +184,8 @@ ${workspaceContext.relevantFiles.map((f: { path: any; summary: any }) => `- ${f.
 
 AVAILABLE TOOLCHAINS:
 ${Array.from(this.toolchainRegistry.entries())
-  .map(([key, chain]) => `- ${key}: ${chain.description} (tools: ${chain.tools.join(', ')})`)
-  .join('\n')}
+            .map(([key, chain]) => `- ${key}: ${chain.description} (tools: ${chain.tools.join(', ')})`)
+            .join('\n')}
 
 AVAILABLE TOOLS:
 - read_file: Read and analyze file contents
@@ -194,7 +194,7 @@ AVAILABLE TOOLS:
 - execute_command: Run terminal commands
 - analyze_project: Comprehensive project analysis
 - manage_packages: Install/manage dependencies
-- generate_code: Generate code with context awareness
+
 
 Your task: Create a detailed execution plan for the goal "${goal}".
 
@@ -684,7 +684,7 @@ Execute the task now using the available tools.`,
     }
 
     if (goalLower.includes('create') || goalLower.includes('generate')) {
-      tools.push('analyze_project', 'generate_code', 'write_file')
+      tools.push('analyze_project', 'write_file', 'rag_search')
     }
 
     if (goalLower.includes('install') || goalLower.includes('package')) {
@@ -701,7 +701,7 @@ Execute the task now using the available tools.`,
 
     // Default tools if no specific match
     if (tools.length === 0) {
-      tools.push('analyze_project', 'read_file', 'generate_code', 'write_file')
+      tools.push('analyze_project', 'read_file', 'grep_tool', 'write_file')
     }
 
     return [...new Set(tools)]

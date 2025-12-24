@@ -9,6 +9,7 @@ import {
   StreamProtocol,
   syntaxColors,
 } from '@nicomatt69/streamtty'
+import { EventEmitter } from 'node:events'
 import chalk from 'chalk'
 import { TerminalOutputManager, terminalOutputManager } from '../ui/terminal-output-manager'
 
@@ -50,7 +51,7 @@ export interface RenderStats {
  * Centralized StreamttyService that manages all terminal rendering through streamtty
  * Routes all AI chunks, UI messages, and system output through streamtty for consistent formatting
  */
-export class StreamttyService {
+export class StreamttyService extends EventEmitter {
   private isInitialized = false
   private static enhancedTableRenderer: any = null
   private static mermaidRenderer: any = null
@@ -109,6 +110,7 @@ export class StreamttyService {
   private streamBuffer = ''
 
   constructor(private options: StreamttyServiceOptions = {}) {
+    super()
     // Check environment variable for emoji preference
     if (process.env.DISABLE_EMOJI === 'true' || process.env.NO_EMOJI === 'true') {
       this.options.stripEmoji = true
@@ -719,6 +721,9 @@ export class StreamttyService {
     }
 
     this.streamBuffer += processedChunk
+
+    // Emit chunk event for listeners (mobile websocket, etc.)
+    this.emit('chunk', { content: processedChunk, type, raw: chunk })
 
     // Always use enhanced inline mode - direct stdout with enhanced formatting
     const chunkLines = TerminalOutputManager.calculateLines(processedChunk)

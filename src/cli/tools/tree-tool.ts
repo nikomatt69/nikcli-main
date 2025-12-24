@@ -108,7 +108,7 @@ export class TreeTool extends BaseTool {
         parameters: params,
       })
 
-      CliUI.logDebug(`Using system prompt: ${systemPrompt.substring(0, 100)}...`)
+
 
       const searchPath = params.path || this.workingDirectory
       const maxDepth = params.maxDepth !== undefined ? params.maxDepth : 5
@@ -244,7 +244,7 @@ export class TreeTool extends BaseTool {
           const child = await this.buildTree(entryPath, depth + 1, maxDepth, params)
           children.push(child)
         } catch (error) {
-          CliUI.logDebug(`Skipping ${entry}: ${error}`)
+          advancedUI.logInfo(`Skipping ${entry}: ${error}`)
         }
       }
 
@@ -253,7 +253,7 @@ export class TreeTool extends BaseTool {
 
       node.children = children
     } catch (error) {
-      CliUI.logDebug(`Cannot read directory ${path}: ${error}`)
+      advancedUI.logInfo(`Cannot read directory ${path}: ${error}`)
     }
 
     return node

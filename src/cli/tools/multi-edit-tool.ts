@@ -74,7 +74,7 @@ export class MultiEditTool extends BaseTool {
         parameters: params,
       })
 
-      CliUI.logDebug(`Using system prompt: ${systemPrompt.substring(0, 100)}...`)
+
 
       const normalizedOperations = this.normalizeOperations(params)
 

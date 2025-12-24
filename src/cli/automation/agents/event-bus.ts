@@ -51,13 +51,7 @@ export class EventBus extends EventEmitter {
     this.updateMetrics(eventType)
 
     // Log event if debug mode
-    if (process.env.DEBUG_EVENTS) {
-      CliUI.logDebug(`📡 Event published: ${eventType}`, {
-        id: event.id,
-        source: event.source,
-        priority: event.priority,
-      })
-    }
+    
 
     try {
       // Emit to EventEmitter subscribers

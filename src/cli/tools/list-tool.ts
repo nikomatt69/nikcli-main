@@ -70,7 +70,7 @@ export class ListTool extends BaseTool {
         parameters: params,
       })
 
-      CliUI.logDebug(`Using system prompt: ${systemPrompt.substring(0, 100)}...`)
+
 
       const searchPath = params.path || this.workingDirectory
       const limit = params.limit || DEFAULT_LIMIT
@@ -208,11 +208,11 @@ export class ListTool extends BaseTool {
             }
           } catch (statError) {
             // Skip file con errori di accesso
-            CliUI.logDebug(`Skipping ${fullPath}: ${statError}`)
+            advancedUI.logInfo(`Skipping ${fullPath}: ${statError}`)
           }
         }
       } catch (readdirError) {
-        CliUI.logDebug(`Cannot read directory ${currentPath}: ${readdirError}`)
+        advancedUI.logInfo(`Cannot read directory ${currentPath}: ${readdirError}`)
       }
     }
 

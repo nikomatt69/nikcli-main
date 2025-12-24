@@ -1037,22 +1037,6 @@ export class ToolService {
   }
 
   /**
-   * Clear all session approvals
-   */
-  clearSessionApprovals(): void {
-    this.policyManager.clearSessionApprovals()
-    console.log(chalk.blue('⚡︎ Session approvals cleared'))
-  }
-
-  /**
-   * Add a tool to session approvals
-   */
-  addSessionApproval(toolName: string, operation: string): void {
-    this.policyManager.addSessionApproval(toolName, operation)
-    console.log(chalk.green(`✓ Added session approval for ${toolName}:${operation}`))
-  }
-
-  /**
    * Get available tools with their security status
    */
   getAvailableToolsWithSecurity(): Array<{

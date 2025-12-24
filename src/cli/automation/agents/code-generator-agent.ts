@@ -292,10 +292,10 @@ Include proper types, error handling, and JSDoc comments.`
       }
     })
 
-    CliUI.logDebug(`🧠 Initialized ${generatorPatterns.length} Code Generator cognitive patterns`)
+    advancedUI.logInfo(`🧠 Initialized ${generatorPatterns.length} Code Generator cognitive patterns`)
   }
 
   private async saveCognitiveState(): Promise<void> {
-    CliUI.logDebug(' Code Generator cognitive state prepared for persistence')
+    advancedUI.logInfo(' Code Generator cognitive state prepared for persistence')
   }
 }

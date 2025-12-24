@@ -432,7 +432,7 @@ export class TaskMasterService extends EventEmitter {
           progress: 0,
           tools: availableTools,
           reasoning: 'Core implementation task',
-          metadata: { suggestedTools: ['generate_code', 'write_file', 'rag-search-tool', 'multi-read-tool'] },
+          metadata: { suggestedTools: ['edit_file', 'write_file', 'rag-search-tool', 'multi-read-tool', 'grep_tool'] },
         },
         {
           id: nanoid(),
@@ -767,7 +767,7 @@ Generate tasks NOW (JSON only):`
           estimatedDuration: 25,
           progress: 0,
           tools: availableTools,
-          metadata: { suggestedTools: ['generate_code', 'write_file', 'rag-search-tool'] },
+          metadata: { suggestedTools: ['edit_file', 'write_file', 'rag-search-tool'] },
           reasoning: 'A comprehensive report provides actionable insights and strategic recommendations',
         },
       ]
@@ -797,7 +797,7 @@ Generate tasks NOW (JSON only):`
       {
         title: 'Implementation',
         description: `Execute the main task: ${userRequest}`,
-        tools: ['write_file', 'execute_command', 'generate_code'],
+        tools: ['write_file', 'execute_command', 'grep_tool'],
         reasoning: 'Core implementation of the requested feature',
       },
       {

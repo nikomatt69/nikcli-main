@@ -411,7 +411,7 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
         priority: 6,
       },
       analysis: {
-        tools: ['analyze_project', 'manage_packages', 'generate_code'],
+        tools: ['analyze_project', 'manage_packages', 'write_file'],
         keywords: [
           'analyze',
           'explain',
@@ -1659,7 +1659,7 @@ The tool automatically handles chunking, token limits, and provides continuation
               args,
               autonomous,
             })
-            CliUI.logDebug(`Using system prompt: ${toolPrompt.substring(0, 100)}...`)
+
 
             const effectiveSkipConfirmation = skipConfirmation || autonomous
 
@@ -1761,7 +1761,7 @@ The tool automatically handles chunking, token limits, and provides continuation
               analyzeDependencies,
               securityScan,
             })
-            CliUI.logDebug(`Using system prompt: ${toolPrompt.substring(0, 100)}...`)
+
 
             advancedUI.logFunctionUpdate('info', 'Starting comprehensive project analysis...', 'ℹ')
 
@@ -1809,7 +1809,7 @@ The tool automatically handles chunking, token limits, and provides continuation
               dev,
               global,
             })
-            CliUI.logDebug(`Using system prompt: ${toolPrompt.substring(0, 100)}...`)
+
 
             const command = 'bun'
             let args: string[] = []
@@ -1865,54 +1865,6 @@ The tool automatically handles chunking, token limits, and provides continuation
       }),
 
       // Intelligent code generation
-      generate_code: tool({
-        description: 'Generate code with context awareness and best practices',
-        parameters: z.object({
-          type: z.enum(['component', 'function', 'class', 'test', 'config', 'docs']).describe('Code type'),
-          description: z.string().describe('What to generate'),
-          language: z.string().default('typescript').describe('Programming language'),
-          framework: z.string().optional().describe('Framework context (react, node, etc)'),
-          outputPath: z.string().optional().describe('Where to save the generated code'),
-        }),
-        execute: async ({ type, description, language, framework, outputPath }) => {
-          try {
-            // Check approval before execution (HIGH risk - writes files)
-            await this.checkApproval('generate_code', 'generate', { type, description, language, framework, outputPath })
-
-            // Load tool-specific prompt for context
-            const toolPrompt = await this.getToolPrompt('generate_code', {
-              type,
-              description,
-              language,
-              framework,
-            })
-            CliUI.logDebug(`Using system prompt: ${toolPrompt.substring(0, 100)}...`)
-
-            advancedUI.logFunctionCall(`generating${type}`)
-            advancedUI.logFunctionUpdate('info', description, '●')
-
-            const projectContext = this.executionContext.get('project:analysis')
-            const codeGenResult = await this.generateIntelligentCode({
-              type,
-              description,
-              language,
-              framework: framework || projectContext?.framework,
-              projectContext,
-              outputPath,
-            })
-
-            if (outputPath && codeGenResult.code) {
-              writeFileSync(resolve(this.workingDirectory, outputPath), codeGenResult.code)
-              // Code generated
-            }
-
-            return codeGenResult
-          } catch (error: any) {
-            return { error: `Code generation failed: ${error.message}` }
-          }
-        },
-      }),
-
       // Web search capabilities (native OpenAI web_search_preview when available)
       web_search_preview: this.webSearchProvider.getNativeWebSearchTool() || this.webSearchProvider.getWebSearchTool(),
       web_search: this.webSearchProvider.getWebSearchTool(),
@@ -3665,7 +3617,7 @@ The tool automatically handles chunking, token limits, and provides continuation
         {
           role: 'system',
           content: `AI dev assistant. CWD: ${this.workingDirectory}
-Tools: read_file, write_file, explore_directory, execute_command, analyze_project, manage_packages, generate_code, doc_search, doc_add
+Tools: read_file, write_file, explore_directory, execute_command, analyze_project, manage_packages, grep_tool, doc_search, doc_add
 Task: ${this.truncateForPrompt(task, 300)} 
 
 ${context ? this.truncateForPrompt(safeStringifyContext(context), 150) : ''}

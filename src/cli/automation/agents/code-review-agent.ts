@@ -305,10 +305,10 @@ Provide specific suggestions for improvement with detailed explanations.`
       }
     })
 
-    CliUI.logDebug(`🧠 Initialized ${reviewPatterns.length} Code Review cognitive patterns`)
+    advancedUI.logInfo(`🧠 Initialized ${reviewPatterns.length} Code Review cognitive patterns`)
   }
 
   private async saveCognitiveState(): Promise<void> {
-    CliUI.logDebug('💾 Code Review cognitive state prepared for persistence')
+    advancedUI.logInfo('💾 Code Review cognitive state prepared for persistence')
   }
 }

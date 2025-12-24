@@ -129,7 +129,7 @@ export class ReactAgent extends CognitiveAgentBase {
       // Add React-specific component analysis
       if (this.isComponentTask(cognition)) {
         reactCognition.componentAnalysis = await this.analyzeComponent(cognition)
-        CliUI.logDebug(`🧩 Component analysis: ${reactCognition.componentAnalysis?.componentType || 'unknown'}`)
+        advancedUI.logInfo(`🧩 Component analysis: ${reactCognition.componentAnalysis?.componentType || 'unknown'}`)
       }
 
       // Enhance with React capabilities
@@ -190,11 +190,11 @@ export class ReactAgent extends CognitiveAgentBase {
       }
     })
 
-    CliUI.logDebug(`🧠 Initialized ${reactPatterns.length} React cognitive patterns`)
+    advancedUI.logInfo(`🧠 Initialized ${reactPatterns.length} React cognitive patterns`)
   }
 
   private async saveCognitiveState(): Promise<void> {
-    CliUI.logDebug('💾 React cognitive state prepared for persistence')
+    advancedUI.logInfo('💾 React cognitive state prepared for persistence')
   }
 
   private async analyzeProjectContext(cognition: TaskCognition): Promise<any> {

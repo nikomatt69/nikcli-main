@@ -176,7 +176,7 @@ export class BackendAgent extends CognitiveAgentBase {
       // Backend-specific API analysis
       if (this.isAPIRelatedTask(cognition)) {
         backendCognition.apiAnalysis = await this.analyzeAPIRequirements(cognition)
-        CliUI.logDebug(`🔗 API analysis: ${backendCognition.apiAnalysis?.endpointType || 'unknown'}`)
+        advancedUI.logInfo(`🔗 API analysis: ${backendCognition.apiAnalysis?.endpointType || 'unknown'}`)
       }
 
       // Enhance with backend capabilities
@@ -191,7 +191,7 @@ export class BackendAgent extends CognitiveAgentBase {
         }
       }
 
-      CliUI.logDebug(` Enhanced Backend cognition - Complexity: ${backendCognition.estimatedComplexity}/10`)
+      advancedUI.logInfo(` Enhanced Backend cognition - Complexity: ${backendCognition.estimatedComplexity}/10`)
 
       return backendCognition
     } catch (error: any) {
@@ -263,7 +263,7 @@ export class BackendAgent extends CognitiveAgentBase {
       }
     })
 
-    CliUI.logDebug(`🧠 Initialized ${backendPatterns.length} Backend cognitive patterns`)
+    advancedUI.logInfo(`🧠 Initialized ${backendPatterns.length} Backend cognitive patterns`)
   }
 
   private async saveCognitiveState(): Promise<void> {
@@ -274,7 +274,7 @@ export class BackendAgent extends CognitiveAgentBase {
       cognitiveMetrics: this.getPerformanceMetrics(),
     }
 
-    CliUI.logDebug(
+    advancedUI.logInfo(
       ` Backend cognitive state prepared for persistence (${Object.keys(stateData.taskPatterns).length} patterns)`
     )
   }
@@ -936,7 +936,7 @@ export class BackendAgent extends CognitiveAgentBase {
   }
 
   private async configureBackendTools(): Promise<void> {
-    CliUI.logDebug(' Configuring backend-specific tools')
+    advancedUI.logInfo(' Configuring backend-specific tools')
   }
 
   // Placeholder methods for complex backend operations

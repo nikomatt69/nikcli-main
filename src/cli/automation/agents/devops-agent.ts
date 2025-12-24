@@ -162,7 +162,7 @@ export class DevOpsAgent extends CognitiveAgentBase {
 
       if (this.isInfrastructureTask(cognition)) {
         devopsCognition.infrastructureAnalysis = await this.analyzeInfrastructureRequirements(cognition)
-        CliUI.logDebug(
+        advancedUI.logInfo(
           `🏗️ Infrastructure analysis: ${devopsCognition.infrastructureAnalysis?.deploymentTarget || 'unknown'}`
         )
       }
@@ -170,7 +170,7 @@ export class DevOpsAgent extends CognitiveAgentBase {
       const devopsCapabilities = this.getDevOpsCapabilities(cognition)
       devopsCognition.requiredCapabilities.push(...devopsCapabilities)
 
-      CliUI.logDebug(`🚀 Enhanced DevOps cognition - Complexity: ${devopsCognition.estimatedComplexity}/10`)
+      advancedUI.logInfo(`🚀 Enhanced DevOps cognition - Complexity: ${devopsCognition.estimatedComplexity}/10`)
       return devopsCognition
     } catch (error: any) {
       CliUI.logError(`✖ Failed to enhance DevOps cognition: ${error.message}`)
@@ -214,11 +214,11 @@ export class DevOpsAgent extends CognitiveAgentBase {
       }
     })
 
-    CliUI.logDebug(`🧠 Initialized ${devopsPatterns.length} DevOps cognitive patterns`)
+    advancedUI.logInfo(`🧠 Initialized ${devopsPatterns.length} DevOps cognitive patterns`)
   }
 
   private async saveCognitiveState(): Promise<void> {
-    CliUI.logDebug(' DevOps cognitive state prepared for persistence')
+    advancedUI.logInfo(' DevOps cognitive state prepared for persistence')
   }
 
   private async analyzeInfrastructureEnvironment(cognition: TaskCognition): Promise<any> {

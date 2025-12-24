@@ -76,7 +76,7 @@ export class GlobTool extends BaseTool {
         parameters: params,
       })
 
-      CliUI.logDebug(`Using system prompt: ${systemPrompt.substring(0, 100)}...`)
+
 
       if (!params.pattern || (Array.isArray(params.pattern) && params.pattern.length === 0)) {
         throw new Error('Pattern is required for glob search')
@@ -113,7 +113,7 @@ export class GlobTool extends BaseTool {
       // Execute glob search
       const files = (await globby(patterns, globOptions)) as unknown as string[]
 
-      CliUI.logDebug(`Found ${files.length} raw matches`)
+      advancedUI.logInfo(`Found ${files.length} raw matches`)
 
       // Get file stats and build GlobMatch objects
       const matches: GlobMatch[] = []
@@ -146,7 +146,7 @@ export class GlobTool extends BaseTool {
           if (stats.isFile()) filesCount++
           if (stats.isDirectory()) directoriesCount++
         } catch (error) {
-          CliUI.logDebug(`Skipping ${file}: ${error}`)
+          advancedUI.logInfo(`Skipping ${file}: ${error}`)
         }
       }
 
@@ -177,6 +177,7 @@ export class GlobTool extends BaseTool {
 
       // Show glob results in structured UI
       if (result.matches.length > 0) {
+
         advancedUI.showFileList(
           result.matches.map((m) => m.relativePath),
           `🔍 Glob: ${patterns.join(', ')}`
@@ -193,7 +194,7 @@ export class GlobTool extends BaseTool {
         },
       }
     } catch (error: any) {
-      CliUI.logError(`Glob tool failed: ${error.message}`)
+      advancedUI.logError(`Glob tool failed: ${error.message}`)
       return {
         success: false,
         error: error.message,

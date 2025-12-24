@@ -329,7 +329,7 @@ export class FrontendAgent extends BaseAgent {
 
   private async configureFrontendTools(): Promise<void> {
     // Configure tools specific to frontend development
-    CliUI.logDebug('🔧 Configuring frontend-specific tools')
+    advancedUI.logInfo('🔧 Configuring frontend-specific tools')
   }
 
   private async generateComponentCode(name: string, type: string, framework: string): Promise<string> {

@@ -147,7 +147,7 @@ export class OptimizationAgent extends CognitiveAgentBase {
 
       if (this.isOptimizationTask(cognition)) {
         optimizationCognition.optimizationAnalysis = await this.analyzeOptimizationRequirements(cognition)
-        CliUI.logDebug(
+        advancedUI.logInfo(
           `⚡ Optimization analysis: ${optimizationCognition.optimizationAnalysis?.optimizationType || 'unknown'}`
         )
       }
@@ -318,10 +318,10 @@ Provide the optimized version with explanations of improvements made.`
       }
     })
 
-    CliUI.logDebug(`🧠 Initialized ${optimizationPatterns.length} Optimization cognitive patterns`)
+    advancedUI.logInfo(`🧠 Initialized ${optimizationPatterns.length} Optimization cognitive patterns`)
   }
 
   private async saveCognitiveState(): Promise<void> {
-    CliUI.logDebug('💾 Optimization cognitive state prepared for persistence')
+    advancedUI.logInfo('💾 Optimization cognitive state prepared for persistence')
   }
 }

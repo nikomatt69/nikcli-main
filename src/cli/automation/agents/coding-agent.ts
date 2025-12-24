@@ -115,11 +115,11 @@ export class CodingAgent extends CognitiveAgentBase {
       }
     })
 
-    CliUI.logDebug(`🧠 Initialized ${codingPatterns.length} Coding cognitive patterns`)
+    advancedUI.logInfo(`🧠 Initialized ${codingPatterns.length} Coding cognitive patterns`)
   }
 
   private async saveCognitiveState(): Promise<void> {
-    CliUI.logDebug('💾 Coding cognitive state prepared for persistence')
+    advancedUI.logInfo('💾 Coding cognitive state prepared for persistence')
   }
 
   private determineCodingTaskType(cognition: TaskCognition): string {
@@ -296,7 +296,7 @@ export class CodingAgent extends CognitiveAgentBase {
 
       if (this.isCodingTask(cognition)) {
         codingCognition.codingAnalysis = await this.analyzeCodingRequirements(cognition)
-        CliUI.logDebug(`💻 Coding analysis: ${codingCognition.codingAnalysis?.taskType || 'unknown'}`)
+        advancedUI.logInfo(`💻 Coding analysis: ${codingCognition.codingAnalysis?.taskType || 'unknown'}`)
       }
 
       const codingCapabilities = this.getCodingCapabilities(cognition)

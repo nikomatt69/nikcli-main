@@ -6810,7 +6810,7 @@ RULES:
 
         if (parsed.agents && Array.isArray(parsed.agents) && parsed.agents.length > 0) {
           agentConfigs = parsed.agents
-          console.log(chalk.green(`✓ AI determined ${agentConfigs.length} agent(s) needed`))
+          advancedUI.logReasoning(chalk.green(`✓ AI determined ${agentConfigs.length} agent(s) needed`))
           if (parsed.reasoning) {
             console.log(chalk.gray(`   Reasoning: ${parsed.reasoning}`))
           }
@@ -21204,6 +21204,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
                 type: 'input',
                 name: 'maxTokens',
                 message: 'Max tokens',
+                
                 default: cfg.maxTokens,
                 validate: (v: any) => asNumber(v, 1, 120000),
               },

@@ -157,7 +157,7 @@ export class BashTool extends BaseTool {
         parameters: parsedParams,
       })
 
-      CliUI.logDebug(`Using system prompt: ${systemPrompt.substring(0, 100)}...`)
+
 
       // Validazione sicurezza comando
       await this.validateCommandSafety(parsedParams.command, parsedParams.allowDangerous || false)
@@ -175,7 +175,7 @@ export class BashTool extends BaseTool {
       if (parsedParams.description) {
         advancedUI.logInfo(`📝 Description: ${parsedParams.description}`)
       }
-      CliUI.logDebug(`Shell selected for execution: ${shellConfig.displayName} (${shellConfig.executable})`)
+      advancedUI.logInfo(`Shell selected for execution: ${shellConfig.displayName} (${shellConfig.executable})`)
 
       const result = await this.executeCommand(parsedParams.command, {
         timeout,
@@ -380,7 +380,7 @@ export class BashTool extends BaseTool {
       })
 
       // Log processo avviato
-      CliUI.logDebug(`Started process PID: ${child.pid}`)
+      advancedUI.logInfo(`Started process PID: ${child.pid}`)
     })
   }
 

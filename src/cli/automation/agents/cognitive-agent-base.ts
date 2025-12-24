@@ -1,5 +1,6 @@
 import { nanoid } from 'nanoid'
 import { CliUI } from '../../utils/cli-ui'
+import { advancedUI } from '../../ui/advanced-cli-ui'
 import type { AgentTask } from './agent-router'
 import { type AgentMetrics, type AgentTaskResult, BaseAgent } from './base-agent'
 import type {
@@ -116,7 +117,7 @@ export abstract class CognitiveAgentBase extends BaseAgent implements CognitiveC
         this.recordTaskPattern(intent.primary, cognition)
       }
 
-      CliUI.logDebug(`🧠 Cognitive analysis completed for task: ${taskDescription.substring(0, 50)}...`)
+      advancedUI.logInfo(`🧠 Cognitive analysis completed for task: ${taskDescription.substring(0, 50)}...`)
 
       return cognition
     } catch (error: any) {
@@ -181,7 +182,7 @@ export abstract class CognitiveAgentBase extends BaseAgent implements CognitiveC
         this.recordSuccessfulStrategy(cognition.intent.primary, plan)
       }
 
-      CliUI.logDebug(`🎯 Orchestration plan created with ${phases.length} phases, strategy: ${strategy}`)
+      advancedUI.logInfo(`🎯 Orchestration plan created with ${phases.length} phases, strategy: ${strategy}`)
 
       return plan
     } catch (error: any) {
@@ -220,7 +221,7 @@ export abstract class CognitiveAgentBase extends BaseAgent implements CognitiveC
       // Maintain memory limits
       this.maintainCognitiveMemoryLimits()
 
-      CliUI.logDebug(`📊 Cognitive memory updated: ${success ? 'SUCCESS' : 'FAILURE'} for ${patternKey}`)
+      advancedUI.logInfo(`📊 Cognitive memory updated: ${success ? 'SUCCESS' : 'FAILURE'} for ${patternKey}`)
     } catch (error: any) {
       CliUI.logError(`✖ Failed to update cognitive memory: ${error.message}`)
     }
@@ -272,7 +273,7 @@ export abstract class CognitiveAgentBase extends BaseAgent implements CognitiveC
       const specializationOptimizations = this.getSpecializationOptimizations()
       optimizations.push(...specializationOptimizations)
 
-      CliUI.logDebug(`💡 Generated ${optimizations.length} optimization suggestions`)
+      advancedUI.logInfo(`💡 Generated ${optimizations.length} optimization suggestions`)
     } catch (error: any) {
       CliUI.logError(`✖ Failed to generate optimizations: ${error.message}`)
     }

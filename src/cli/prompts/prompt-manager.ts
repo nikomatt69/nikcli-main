@@ -181,7 +181,7 @@ export class PromptManager {
         const oldestKey = this.promptCache.keys().next().value
         if (oldestKey) {
           this.promptCache.delete(oldestKey)
-          CliUI.logDebug(`Evicted oldest prompt from cache: ${oldestKey}`)
+          advancedUI.logInfo(`Evicted oldest prompt from cache: ${oldestKey}`)
         }
       }
 
@@ -406,7 +406,7 @@ RESPONSE GUIDELINES:
           provider: context.parameters?.provider,
         })
       } catch (error) {
-        CliUI.logDebug(`Failed to resolve output style from config: ${error}`)
+        advancedUI.logInfo(`Failed to resolve output style from config: ${error}`)
       }
     }
 

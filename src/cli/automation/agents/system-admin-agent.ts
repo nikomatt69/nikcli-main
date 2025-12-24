@@ -187,11 +187,11 @@ Generate a structured plan with commands to execute.`,
       }
 
       console.log(chalk.blue.bold('\nCommands to execute:'))
-      ;(planResult.commands || []).forEach((cmd: any, index: number) => {
-        console.log(`${index + 1}. ${chalk.cyan(cmd.command)}`)
-        console.log(`   ${chalk.gray(cmd.description)}`)
-        if (cmd.sudo) console.log(`   ${chalk.red('⚠︎ Requires sudo')}`)
-      })
+        ; (planResult.commands || []).forEach((cmd: any, index: number) => {
+          console.log(`${index + 1}. ${chalk.cyan(cmd.command)}`)
+          console.log(`   ${chalk.gray(cmd.description)}`)
+          if (cmd.sudo) console.log(`   ${chalk.red('⚠︎ Requires sudo')}`)
+        })
 
       // Ask for confirmation
       const readline = require('readline').createInterface({
@@ -467,7 +467,7 @@ Generate a structured plan with commands to execute.`,
 
       if (this.isSystemOperationTask(cognition)) {
         systemAdminCognition.systemAnalysis = await this.analyzeSystemRequirements(cognition)
-        CliUI.logDebug(`🖥️ System analysis: ${systemAdminCognition.systemAnalysis?.resourceType || 'unknown'}`)
+        advancedUI.logInfo(`🖥️ System analysis: ${systemAdminCognition.systemAnalysis?.resourceType || 'unknown'}`)
       }
 
       const systemCapabilities = this.getSystemAdminCapabilities(cognition)
@@ -512,11 +512,11 @@ Generate a structured plan with commands to execute.`,
       }
     })
 
-    CliUI.logDebug(`🧠 Initialized ${systemAdminPatterns.length} System Admin cognitive patterns`)
+    advancedUI.logInfo(`🧠 Initialized ${systemAdminPatterns.length} System Admin cognitive patterns`)
   }
 
   private async saveCognitiveState(): Promise<void> {
-    CliUI.logDebug(' System Admin cognitive state prepared for persistence')
+    advancedUI.logInfo(' System Admin cognitive state prepared for persistence')
   }
 
   private async analyzeSystemEnvironmentCognitive(cognition: TaskCognition): Promise<any> {

@@ -1,5 +1,6 @@
 import * as fs from 'node:fs'
 import * as path from 'node:path'
+import { EventEmitter } from 'node:events'
 import boxen from 'boxen'
 import chalk from 'chalk'
 import { type Change, diffLines } from 'diff'
@@ -19,7 +20,7 @@ export interface DiffViewerOptions {
   colorized: boolean
 }
 
-export class DiffManager {
+export class DiffManager extends EventEmitter {
   private pendingDiffs: Map<string, FileDiff> = new Map()
   private autoAccept: boolean = false
   /**
@@ -44,6 +45,9 @@ export class DiffManager {
     }
 
     this.pendingDiffs.set(filePath, fileDiff)
+
+    // Emit diff:created event for listeners
+    this.emit('diff:created', fileDiff)
 
     // Show diff in structured UI when interactive and not auto-accept; guard and swallow UI errors
     if (!this.autoAccept && process.stdout.isTTY && typeof advancedUI?.showFileDiff === 'function') {
@@ -122,7 +126,11 @@ export class DiffManager {
     if (!diff) return false
 
     diff.status = 'accepted'
-    return this.applyDiff(filePath)
+    const result = this.applyDiff(filePath)
+    if (result) {
+      this.emit('diff:accepted', filePath)
+    }
+    return result
   }
 
   /**
@@ -133,6 +141,7 @@ export class DiffManager {
     if (!diff) return false
 
     diff.status = 'rejected'
+    this.emit('diff:rejected', filePath)
     console.log(chalk.red(`✖ Rejected changes to ${filePath}`))
     return true
   }
@@ -160,6 +169,13 @@ export class DiffManager {
    */
   getPendingCount(): number {
     return Array.from(this.pendingDiffs.values()).filter((d) => d.status === 'pending').length
+  }
+
+  /**
+   * Get all diffs (pending, accepted, and rejected)
+   */
+  getAllDiffs(): FileDiff[] {
+    return Array.from(this.pendingDiffs.values())
   }
 
   /**

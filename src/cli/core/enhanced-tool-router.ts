@@ -146,10 +146,7 @@ export class EnhancedToolRouter extends ToolRouter {
         pattern: /\b(analyze|investigate|review|audit|assess|evaluate|inspect|debug)\b/,
         weight: 1.0,
       },
-      generate_code: {
-        pattern: /\b(generate|create|build|write|implement|implement)\b/,
-        weight: 1.0,
-      },
+
       manage_packages: {
         pattern: /\b(manage|update|install|uninstall|add|remove|package)\b/,
         weight: 1.0,
@@ -290,10 +287,10 @@ export class EnhancedToolRouter extends ToolRouter {
     return Math.min(
       1.0,
       rec.confidence * weights.originalConfidence +
-        rec.contextualRelevance * weights.contextualRelevance +
-        rec.userExperienceScore * weights.userExperienceScore +
-        userPatternMatch * weights.userPatternMatch +
-        recencyBoost * weights.recency
+      rec.contextualRelevance * weights.contextualRelevance +
+      rec.userExperienceScore * weights.userExperienceScore +
+      userPatternMatch * weights.userPatternMatch +
+      recencyBoost * weights.recency
     )
   }
 
@@ -382,7 +379,7 @@ export class EnhancedToolRouter extends ToolRouter {
       modify: ['file_system', 'parsing', 'generation', 'validation'],
       execute: ['command_execution', 'process_management'],
       analyze: ['parsing', 'analysis', 'reporting'],
-      generate_code: ['code_generation', 'validation'],
+      generate_code: ['write_file', 'validation'],
       manage_packages: ['package_management', 'validation'],
       git_workflow: ['git_operations', 'validation'],
       doc_search: ['doc_search', 'validation'],
@@ -498,11 +495,11 @@ export class EnhancedToolRouter extends ToolRouter {
   private suggestAlternativeTools(tool: string, _intentAnalysis: IntentAnalysis): string[] {
     const alternatives: Record<string, string[]> = {
       read_file: ['explore_directory', 'semantic_search', 'web_search'],
-      write_file: ['generate_code', 'multi_edit', 'write_file'],
+      write_file: ['write_file', 'multi_edit', 'replace_in_file'],
       web_search: ['doc_search', 'semantic_search'],
       execute_command: ['manage_packages', 'git_workflow', 'web_search'],
       analyze_project: ['code_analysis', 'read_file'],
-      generate_code: ['code_generation', 'write_file'],
+
       manage_packages: ['dependency_analysis', 'read_file'],
       git_workflow: ['git_workflow', 'read_file'],
       doc_search: ['doc_search', 'read_file', 'web_search'],
@@ -515,11 +512,11 @@ export class EnhancedToolRouter extends ToolRouter {
   private estimateExecutionDuration(tool: string, intentAnalysis: IntentAnalysis): number {
     const baseDurations: Record<string, number> = {
       read_file: 2,
-      write_file: 5,
+      write_file: 10,
       web_search: 10,
       execute_command: 15,
       analyze_project: 30,
-      generate_code: 20,
+
     }
 
     const baseDuration = baseDurations[tool] || 10

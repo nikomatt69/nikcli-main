@@ -17,9 +17,11 @@ import { securityPolicy } from '../security/security-policy'
 import { ChatSessionService } from '../services/chat-session-service'
 import type { BackgroundJob, CreateBackgroundJobRequest, JobStatus } from '../types'
 import { createChatRouter } from './chat-routes'
+import { mobileRouter } from './mobile-routes'
 import { slackRouter } from './slack-routes'
 import { setupWebRoutes } from './web-routes'
 import { BackgroundAgentsWebSocketServer } from './websocket-server'
+import { MobileWebSocketServer } from './mobile-websocket-server'
 
 export interface APIServerConfig {
   port: number
@@ -60,6 +62,7 @@ export class BackgroundAgentsAPIServer {
   private githubIntegration?: GitHubIntegration
   private clients: Map<string, express.Response> = new Map()
   private wsServer?: BackgroundAgentsWebSocketServer
+  private mobileWsServer?: MobileWebSocketServer
   private healthChecker?: HealthChecker
   private slackNotifier?: SlackNotifier
   private chatSessionService: ChatSessionService
@@ -538,6 +541,9 @@ export class BackgroundAgentsAPIServer {
 
     // Slack routes
     v1.use('/slack', slackRouter)
+
+    // Mobile routes
+    v1.use('/mobile', mobileRouter)
 
     this.app.use('/v1', v1)
 
@@ -1291,6 +1297,10 @@ export class BackgroundAgentsAPIServer {
           this.wsServer = new BackgroundAgentsWebSocketServer(this.server)
           console.log(`📡 WebSocket server ready on ws://0.0.0.0:${this.config.port}/ws`)
 
+          // Initialize Mobile WebSocket server
+          this.mobileWsServer = new MobileWebSocketServer(this.server)
+          console.log(`📱 Mobile WebSocket server ready on ws://0.0.0.0:${this.config.port}/ws/mobile`)
+
           resolve()
         })
 
@@ -1322,6 +1332,11 @@ export class BackgroundAgentsAPIServer {
         // Shutdown WebSocket server
         if (this.wsServer) {
           this.wsServer.shutdown()
+        }
+
+        // Shutdown Mobile WebSocket server
+        if (this.mobileWsServer) {
+          this.mobileWsServer.shutdown()
         }
 
         this.server.close(() => {
