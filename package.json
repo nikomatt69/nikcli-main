@@ -146,6 +146,7 @@
     "diff": "^8.0.2",
     "discord-webhook-ts": "^5.0.0",
     "dotenv": "^17.2.1",
+    "exa-js": "^2.0.12",
     "express": "5.1.0",
     "express-rate-limit": "^8.0.1",
     "fs": "^0.0.1-security",

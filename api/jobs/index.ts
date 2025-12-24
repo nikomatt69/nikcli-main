@@ -1,5 +1,3 @@
-// api/jobs/index.ts
-
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { backgroundAgentService } from '../../src/cli/background-agents/background-agent-service'
 
@@ -37,7 +35,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const stats = backgroundAgentService.getStats()
 
     return res.status(200).json({
-      jobs: jobs.map((job) => ({
+      jobs: (await jobs).map((job) => ({
         id: job.id,
         repo: job.repo,
         task: job.task,
@@ -54,17 +52,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         },
         githubContext: job.githubContext
           ? {
-              issueNumber: job.githubContext.issueNumber,
-              repository: job.githubContext.repository,
-              author: job.githubContext.author,
-            }
+            issueNumber: job.githubContext.issueNumber,
+            repository: job.githubContext.repository,
+            author: job.githubContext.author,
+          }
           : undefined,
       })),
       stats,
       pagination: {
         limit: parseInt(limit as string, 10),
         offset: parseInt(offset as string, 10),
-        total: jobs.length,
+        total: (await jobs).length,
       },
     })
   } catch (error: any) {

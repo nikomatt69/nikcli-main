@@ -6810,16 +6810,16 @@ RULES:
 
         if (parsed.agents && Array.isArray(parsed.agents) && parsed.agents.length > 0) {
           agentConfigs = parsed.agents
-          advancedUI.logReasoning(chalk.green(`✓ AI determined ${agentConfigs.length} agent(s) needed`))
+          advancedUI.logCognitive(chalk.green(`✓ AI determined ${agentConfigs.length} agent(s) needed`))
           if (parsed.reasoning) {
-            console.log(chalk.gray(`   Reasoning: ${parsed.reasoning}`))
+            advancedUI.logCognitive(chalk.gray(`   Reasoning: ${parsed.reasoning}`))
           }
         } else {
           throw new Error('Invalid agents array')
         }
       } catch (error: any) {
-        console.log(chalk.yellow(`⚠ AI analysis failed: ${error.message}`))
-        console.log(chalk.yellow('   Creating fallback agent configuration...'))
+        advancedUI.logCognitive(chalk.yellow(`⚠ AI analysis failed: ${error.message}`))
+        advancedUI.logCognitive(chalk.yellow('   Creating fallback agent configuration...'))
 
         // FALLBACK: Rule-based prompt analysis
         agentConfigs = this.createFallbackAgentConfigs(userTask)

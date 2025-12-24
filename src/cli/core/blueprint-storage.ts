@@ -3,6 +3,7 @@ import os from 'node:os'
 import path from 'node:path'
 import chalk from 'chalk'
 import type { AgentBlueprint } from './agent-factory'
+import { advancedUI } from '../ui/advanced-cli-ui'
 
 export interface BlueprintStorageConfig {
   storageDir: string
@@ -75,9 +76,9 @@ export class BlueprintStorage {
       await this.loadAllBlueprints()
 
       this.initialized = true
-      console.log(chalk.gray(`📁 Blueprint storage initialized: ${this.config.storageDir}`))
+      advancedUI.logCognitive(chalk.gray(`📁 Blueprint storage initialized: ${this.config.storageDir}`))
     } catch (error: any) {
-      console.error(chalk.red(`✖ Failed to initialize blueprint storage: ${error.message}`))
+      advancedUI.logError(chalk.red(`✖ Failed to initialize blueprint storage: ${error.message}`))
       throw error
     }
   }
@@ -111,7 +112,7 @@ export class BlueprintStorage {
         await this.createBackup(blueprint.id)
       }
 
-      console.log(chalk.gray(`💾 Blueprint saved: ${blueprint.name} (${blueprint.id})`))
+      advancedUI.logCognitive(chalk.gray(`💾 Blueprint saved: ${blueprint.name} (${blueprint.id})`))
     } catch (error: any) {
       console.error(chalk.red(`✖ Failed to save blueprint: ${error.message}`))
       throw error
@@ -197,7 +198,7 @@ export class BlueprintStorage {
         }
       }
 
-      console.log(chalk.gray(`📋 Loaded ${this.blueprintsCache.size} blueprints from storage`))
+      advancedUI.logCognitive(chalk.gray(`📋 Loaded ${this.blueprintsCache.size} blueprints from storage`))
     } catch (error: any) {
       if (error.code !== 'ENOENT') {
         console.error(chalk.red(`✖ Failed to load blueprints: ${error.message}`))

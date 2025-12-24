@@ -3,8 +3,8 @@ import { promisify } from 'node:util'
 import { createOpenAI, openai } from '@ai-sdk/openai'
 import { tool } from 'ai'
 import chalk from 'chalk'
+import Exa from 'exa-js'
 import { z } from 'zod'
-import { webSearch } from '@exalabs/ai-sdk'
 import { modelProvider } from '../ai/model-provider'
 import { configManager } from './config-manager'
 
@@ -22,33 +22,41 @@ interface WebSynthesisResult {
   sources: Array<{ title: string; url: string; snippet?: string }>
 }
 
+// Exa client singleton
+let exaClient: Exa | null = null
+
+function getExaClient(): Exa | null {
+  if (!exaClient) {
+    const apiKey = configManager.getApiKey('exa') || process.env.EXA_API_KEY || null
+    if (apiKey) {
+      exaClient = new Exa(apiKey)
+    }
+  }
+  return exaClient
+}
+
 export class WebSearchProvider {
   // Native OpenAI web search tool (web_search_preview) when supported
   getNativeWebSearchTool() {
     if (!this.supportsNativeOpenAIWebSearch()) return null
 
-    // The .tools.webSearchPreview property only exists on the default 'openai' export,
-    // not on instances created by createOpenAI(). Use the default export for OpenAI provider.
     try {
       const current = configManager.getCurrentModel()
       const models = configManager.get('models')
       const cfg = models?.[current]
       if (!cfg) return null
 
-      // Only use native tool for OpenAI provider (not OpenRouter, as it requires custom baseURL)
       if (cfg.provider === 'openai') {
         const apiKey = configManager.getApiKey(current)
         if (!apiKey) return null
 
-        // Check if the default openai export has the webSearchPreview tool
         if (openai?.tools?.webSearchPreview) {
           return openai.tools.webSearchPreview()
         }
       }
 
-      // For OpenRouter or other providers, return null to fall back to custom tool
       return null
-    } catch (_error) {
+    } catch {
       return null
     }
   }
@@ -75,7 +83,6 @@ export class WebSearchProvider {
         try {
           console.log(chalk.blue(`🔍 Searching web for: "${query}" (${searchType})`))
 
-          // Use different search strategies based on type
           let searchResults: WebSearchResult[] = []
 
           switch (searchType) {
@@ -120,6 +127,7 @@ export class WebSearchProvider {
             searchTime: new Date().toISOString(),
           }
         } catch (error: any) {
+          console.error(chalk.red(`Web search error: ${error.message}`))
           return {
             error: `Web search failed: ${error.message}`,
             query,
@@ -137,10 +145,7 @@ export class WebSearchProvider {
       const cfg = models?.[current]
       if (!cfg) return false
 
-      // Only OpenAI provider supports web_search_preview natively via the default export
-      // OpenRouter requires custom baseURL, so native tool is not available
       if (cfg.provider === 'openai') {
-        // Check if the default openai export has the webSearchPreview tool
         return !!openai?.tools?.webSearchPreview
       }
 
@@ -150,9 +155,6 @@ export class WebSearchProvider {
     }
   }
 
-  /**
-   * Build an OpenAI-compatible provider for tool usage (OpenAI or OpenRouter baseURL).
-   */
   private getOpenAICompatibleProvider() {
     const current = configManager.getCurrentModel()
     const models = configManager.get('models')
@@ -184,168 +186,101 @@ export class WebSearchProvider {
           },
         })
       }
-    } catch (_error) {
+    } catch {
       return null
     }
 
     return null
   }
 
-  /**
-   * Get Exa API key from config manager or environment variable
-   */
-  private getExaApiKey(): string | null {
-    try {
-      // Try config manager first
-      const apiKey = configManager.getApiKey('exa')
-      if (apiKey) return apiKey
-
-      // Fallback to environment variable
-      return process.env.EXA_API_KEY || null
-    } catch {
-      return null
-    }
-  }
-
-  /**
-   * Check if Exa is available (API key configured)
-   */
   private isExaAvailable(): boolean {
-    return !!this.getExaApiKey()
+    return !!getExaClient()
   }
 
-  /**
-   * Search using Exa AI SDK tool as fallback
-   */
   private async searchWithExa(query: string, maxResults: number): Promise<WebSearchResult[]> {
+    const exa = getExaClient()
+    if (!exa) {
+      return []
+    }
+
     try {
-      const apiKey = this.getExaApiKey()
-      if (!apiKey) {
-        return []
-      }
+      const { results } = await exa.searchAndContents(query, {
+        livecrawl: 'always',
+        numResults: maxResults,
+      })
 
-      // Ensure EXA_API_KEY is set in environment for the tool to work
-      // The @exalabs/ai-sdk tool reads from process.env.EXA_API_KEY
-      const originalApiKey = process.env.EXA_API_KEY
-      if (!process.env.EXA_API_KEY) {
-        process.env.EXA_API_KEY = apiKey
-      }
-
-      try {
-        // Create Exa webSearch tool with configuration
-        const exaSearchTool = webSearch({
-          numResults: maxResults,
-          type: 'neural', // Use neural search for better results
-        })
-
-        // Execute the tool directly - the tool's execute method accepts { query: string }
-        const result = await exaSearchTool.execute({ query })
-
-        // Transform Exa results to WebSearchResult format
-        const results: WebSearchResult[] = []
-
-        // Handle different possible result structures
-        let items: any[] = []
-
-        if (Array.isArray(result)) {
-          items = result
-        } else if (result && typeof result === 'object') {
-          // Try common property names
-          items = result.results || result.items || result.data || []
-
-          // If result itself looks like a single item, wrap it
-          if (result.url || result.title) {
-            items = [result]
-          }
-        }
-
-        items.forEach((item: any, index: number) => {
-          if (item && (item.url || item.link)) {
-            results.push({
-              title: item.title || item.name || `Result ${index + 1}`,
-              url: item.url || item.link || '',
-              snippet: item.text || item.snippet || item.description || item.excerpt || '',
-              relevance: 1 - index * 0.1,
-            })
-          }
-        })
-
-        return results
-      } finally {
-        // Restore original API key if we set it
-        if (originalApiKey === undefined) {
-          delete process.env.EXA_API_KEY
-        } else if (originalApiKey !== process.env.EXA_API_KEY) {
-          process.env.EXA_API_KEY = originalApiKey
-        }
-      }
+      return results.map((result: any, index: number) => ({
+        title: result.title || `Result ${index + 1}`,
+        url: result.url,
+        snippet: result.text?.slice(0, 500) || '',
+        relevance: 1 - index * 0.1,
+      }))
     } catch (error: any) {
       console.warn(chalk.yellow(`Exa search failed: ${error.message}`))
       return []
     }
   }
 
-  // General web search using curl and search engines
   private async searchGeneral(query: string, maxResults: number): Promise<WebSearchResult[]> {
-    try {
-      // Use DuckDuckGo for privacy-friendly search
-      const searchUrl = `https://duckduckgo.com/html/?q=${encodeURIComponent(query)}`
-      const { stdout } = await execAsync(
-        `curl -s -A "Mozilla/5.0" "${searchUrl}" | grep -o 'href="[^"]*" class="result__url"' | head -${maxResults}`
-      )
+    const exa = getExaClient()
 
-      const results: WebSearchResult[] = []
-      const lines = stdout.split('\n').filter((line) => line.trim())
-
-      lines.forEach((line, index) => {
-        const urlMatch = line.match(/href="([^"]*)"/)
-        if (urlMatch) {
-          results.push({
-            title: `Result ${index + 1}`,
-            url: urlMatch[1],
-            snippet: `Found result for: ${query}`,
-            relevance: 1 - index * 0.1,
-          })
+    if (exa) {
+      try {
+        const results = await this.searchWithExa(query, maxResults)
+        if (results.length > 0) {
+          return results
         }
-      })
-
-      return results
-    } catch (_error) {
-      console.warn(chalk.yellow('DuckDuckGo search failed, trying Exa fallback...'))
-
-      // Try Exa as fallback if available
-      if (this.isExaAvailable()) {
-        const exaResults = await this.searchWithExa(query, maxResults)
-        if (exaResults.length > 0) {
-          console.log(chalk.green(`✓ Exa fallback returned ${exaResults.length} results`))
-          return exaResults
-        }
+      } catch (error: any) {
+        console.warn(chalk.yellow(`Exa search failed, trying DuckDuckGo...`))
       }
-
-      // Final fallback to manual search links
-      return this.getFallbackResults(query, maxResults)
     }
+
+    return this.searchWithDuckDuckGoAPI(query, maxResults)
   }
 
-  // Technical search focusing on developer resources
+  private async searchWithDuckDuckGoAPI(query: string, maxResults: number): Promise<WebSearchResult[]> {
+    try {
+      const searchUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`
+      const { stdout } = await execAsync(`curl -s "${searchUrl}"`)
+      const data = JSON.parse(stdout)
+
+      const results: WebSearchResult[] = []
+      const items = data.RelatedTopics || data.Results || []
+
+      for (const item of items.slice(0, maxResults)) {
+        results.push({
+          title: item.Text || item.FirstURL?.split('/').pop() || 'Result',
+          url: item.FirstURL || item.URL || '',
+          snippet: item.Text || '',
+          relevance: 1 - results.length * 0.1,
+        })
+      }
+
+      if (results.length > 0) {
+        return results
+      }
+    } catch (error: any) {
+      console.warn(chalk.yellow(`DuckDuckGo API failed: ${error.message}`))
+    }
+
+    return this.getFallbackResults(query, maxResults)
+  }
+
   private async searchTechnical(query: string, maxResults: number): Promise<WebSearchResult[]> {
     const technicalQuery = `${query} site:github.com OR site:stackoverflow.com OR site:dev.to OR site:medium.com`
     return this.searchGeneral(technicalQuery, maxResults)
   }
 
-  // Documentation search
   private async searchDocumentation(query: string, maxResults: number): Promise<WebSearchResult[]> {
     const docQuery = `${query} site:docs.npmjs.com OR site:developer.mozilla.org OR site:docs.python.org OR site:docs.oracle.com`
     return this.searchGeneral(docQuery, maxResults)
   }
 
-  // Stack Overflow specific search
   private async searchStackOverflow(query: string, maxResults: number): Promise<WebSearchResult[]> {
     const soQuery = `${query} site:stackoverflow.com`
     return this.searchGeneral(soQuery, maxResults)
   }
 
-  // Fallback results when search fails
   private getFallbackResults(query: string, maxResults: number): WebSearchResult[] {
     return [
       {
@@ -369,7 +304,6 @@ export class WebSearchProvider {
     ].slice(0, maxResults)
   }
 
-  // Use AISDK via our modelProvider to synthesize an answer with citations
   private async synthesizeAnswer(
     query: string,
     results: WebSearchResult[],
@@ -410,10 +344,8 @@ export class WebSearchProvider {
     return { answer, sources }
   }
 
-  // Fetch page content (best-effort) and return plain text
   private async fetchPageText(url: string, maxBytes: number): Promise<string> {
     try {
-      // Note: default fetch redirect is 'follow'; omit explicit typing to stay compatible with current libs
       const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0 NikCLI' } as any })
       if (!res.ok) return ''
       const reader = res.body?.getReader?.()
@@ -440,7 +372,6 @@ export class WebSearchProvider {
   }
 
   private htmlToText(html: string): string {
-    // naive HTML to text: strip tags and collapse whitespace
     return html
       .replace(/<script[\s\S]*?<\/script>/gi, ' ')
       .replace(/<style[\s\S]*?<\/style>/gi, ' ')
