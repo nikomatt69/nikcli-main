@@ -93,6 +93,7 @@
     "@huggingface/transformers": "^3.8.1",
     "@mermaid-js/mermaid-cli": "^11.12.0",
     "@mozilla/readability": "^0.6.0",
+    "@nicomatt69/nikcli": "^1.5.0",
     "@nicomatt69/streamtty": "0.0.1",
     "@octokit/rest": "^20.1.2",
     "@octokit/webhooks": "^14.1.3",
