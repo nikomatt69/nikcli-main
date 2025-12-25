@@ -86,20 +86,10 @@ export class EditValidator {
       })
 
       // Provide helpful suggestions
-      if (
-        matchResult.alternatives &&
-        matchResult.alternatives.length > 0 &&
-        !options.fuzzyMatch
-      ) {
+      if (matchResult.alternatives && matchResult.alternatives.length > 0 && !options.fuzzyMatch) {
         suggestions.push('Enable fuzzyMatch: true to find similar patterns')
-        suggestions.push(
-          `Similar lines found at lines ${matchResult.alternatives.map(a => a.lineNumber).join(', ')}`
-        )
-      } else if (
-        matchResult.alternatives &&
-        matchResult.alternatives.length > 0 &&
-        options.fuzzyMatch
-      ) {
+        suggestions.push(`Similar lines found at lines ${matchResult.alternatives.map((a) => a.lineNumber).join(', ')}`)
+      } else if (matchResult.alternatives && matchResult.alternatives.length > 0 && options.fuzzyMatch) {
         suggestions.push(`Did you mean one of these similar lines:`)
         for (const alt of matchResult.alternatives.slice(0, 3)) {
           suggestions.push(
@@ -124,9 +114,7 @@ export class EditValidator {
       })
 
       suggestions.push(`Use replaceAll: true to replace all occurrences`)
-      suggestions.push(
-        `Or provide more context to disambiguate which occurrence to replace`
-      )
+      suggestions.push(`Or provide more context to disambiguate which occurrence to replace`)
       suggestions.push(`Occurrences found at lines: ${ambiguity.lines.join(', ')}`)
 
       return { valid: false, errors, warnings, suggestions }
@@ -134,7 +122,7 @@ export class EditValidator {
 
     // Check for potential whitespace issues
     const lines = content.split('\n')
-    const lines_with_pattern = lines.filter(line => line.includes(oldString))
+    const lines_with_pattern = lines.filter((line) => line.includes(oldString))
 
     if (lines_with_pattern.length === 0 && matchResult.found) {
       warnings.push({
@@ -169,11 +157,7 @@ export class EditValidator {
   /**
    * Check if pattern appears multiple times (ambiguity)
    */
-  public checkAmbiguity(
-    content: string,
-    pattern: string,
-    options: EditOptions = {}
-  ): AmbiguityCheck {
+  public checkAmbiguity(content: string, pattern: string, options: EditOptions = {}): AmbiguityCheck {
     const lines = content.split('\n')
     let occurrences = 0
     const lines_found: number[] = []
@@ -298,7 +282,7 @@ export class EditValidator {
       /import\s+/m, // import statements
     ]
 
-    return syntaxPatterns.some(pattern => pattern.test(content))
+    return syntaxPatterns.some((pattern) => pattern.test(content))
   }
 
   /**
@@ -323,11 +307,7 @@ export class EditValidator {
   /**
    * Check if JSON would be valid after replacement
    */
-  private isValidJsonAfterReplacement(
-    originalContent: string,
-    oldString: string,
-    newString: string
-  ): boolean {
+  private isValidJsonAfterReplacement(originalContent: string, oldString: string, newString: string): boolean {
     try {
       const modified = originalContent.replace(oldString, newString)
       JSON.parse(modified)
@@ -340,11 +320,7 @@ export class EditValidator {
   /**
    * Check if JavaScript/TypeScript syntax would be valid
    */
-  private isValidJavascriptAfterReplacement(
-    originalContent: string,
-    oldString: string,
-    newString: string
-  ): boolean {
+  private isValidJavascriptAfterReplacement(originalContent: string, oldString: string, newString: string): boolean {
     const modified = originalContent.replace(oldString, newString)
 
     // Basic syntax checks
@@ -357,24 +333,16 @@ export class EditValidator {
     const openParens = (modified.match(/\(/g) || []).length
     const closeParens = (modified.match(/\)/g) || []).length
 
-    return (
-      openBraces === closeBraces &&
-      openBrackets === closeBrackets &&
-      openParens === closeParens
-    )
+    return openBraces === closeBraces && openBrackets === closeBrackets && openParens === closeParens
   }
 
   /**
    * Check if YAML indentation would be preserved
    */
-  private isValidYamlIndentation(
-    originalContent: string,
-    oldString: string,
-    newString: string
-  ): boolean {
+  private isValidYamlIndentation(originalContent: string, oldString: string, newString: string): boolean {
     // Get indentation of the original pattern
     const originalLines = originalContent.split('\n')
-    const patternLine = originalLines.find(line => line.includes(oldString))
+    const patternLine = originalLines.find((line) => line.includes(oldString))
 
     if (!patternLine) return true
 

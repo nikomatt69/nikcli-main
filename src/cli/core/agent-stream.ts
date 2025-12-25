@@ -296,7 +296,9 @@ export class AgentStreamManager extends EventEmitter {
     // Show taskchain info at top if there are active chains
     let taskchainInfo = ''
     if (chainStatus.activeChains > 0) {
-      taskchainInfo = chalk.cyan(` | TaskChains: ${chainStatus.activeChains} active, ${chainStatus.protectedAgents} protected`)
+      taskchainInfo = chalk.cyan(
+        ` | TaskChains: ${chainStatus.activeChains} active, ${chainStatus.protectedAgents} protected`
+      )
     }
 
     if (activeAgents.length === 0 && chainStatus.activeChains === 0) {

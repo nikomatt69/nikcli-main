@@ -1,6 +1,7 @@
 import chalk from 'chalk'
 import { ContextAwareRAGSystem } from '../context/context-aware-rag'
 import { lspManager } from '../lsp/lsp-manager'
+import { PromptManager } from '../prompts/prompt-manager'
 import {
   type FileInfo,
   type ReadFileOptions,
@@ -10,11 +11,10 @@ import {
   TOKEN_CONSTANTS,
 } from '../schemas/tool-schemas'
 import { advancedUI } from '../ui/advanced-cli-ui'
+import { bunFile, bunShell } from '../utils/bun-compat'
 import { CliUI } from '../utils/cli-ui'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
 import { sanitizePath } from './secure-file-tools'
-import { PromptManager } from '../prompts/prompt-manager'
-import { bunFile, bunShell } from '../utils/bun-compat'
 
 const { DEFAULT_TOKEN_BUDGET, MAX_LINES_PER_CHUNK, TOKEN_CHAR_RATIO } = TOKEN_CONSTANTS
 
@@ -207,7 +207,7 @@ export class ReadFileTool extends BaseTool {
     }
 
     if (typeof content === 'object' && content !== null) {
-      return Object.values(content).reduce((total, value) => total as any + this.estimateTokens(value), 0) as any
+      return Object.values(content).reduce((total, value) => (total as any) + this.estimateTokens(value), 0) as any
     }
 
     return 1
@@ -258,7 +258,6 @@ export class ReadFileTool extends BaseTool {
           executionTime: Date.now() - startTime,
           toolName: this.name,
           parameters: { filePath, options },
-
         },
       }
     } catch (error: any) {
@@ -646,7 +645,7 @@ export class ReadFileTool extends BaseTool {
   private async performLSPContextAnalysis(filePath: string, content: string, imageAnalysis: any = null): Promise<void> {
     try {
       // LSP Analysis (only for code files)
-      let lspContext = null
+      const lspContext = null
       if (this.isCodeFile(filePath)) {
         const lspContext = await lspManager.analyzeFile(filePath)
 
@@ -763,4 +762,4 @@ export class ReadFileTool extends BaseTool {
 }
 
 // Re-export FileInfo from centralized schemas for backwards compatibility
-export { type FileInfo } from '../schemas/tool-schemas'
+export type { FileInfo } from '../schemas/tool-schemas'

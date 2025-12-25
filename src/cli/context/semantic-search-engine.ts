@@ -173,8 +173,6 @@ export class SemanticSearchEngine {
     const processingTime = Date.now() - startTime
     this.updatePerformanceStats(processingTime)
 
-
-
     return analysis
   }
 

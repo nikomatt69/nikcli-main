@@ -4,10 +4,9 @@ import { extname, join, relative } from 'node:path'
 
 import { PromptManager } from '../prompts/prompt-manager'
 import { advancedUI } from '../ui/advanced-cli-ui'
-
+import { CliUI } from '../utils/cli-ui'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
 import { IGNORE_PATTERNS } from './list-tool'
-import { CliUI } from '../utils/cli-ui'
 
 /**
  * Enhanced GrepTool - Ricerca avanzata con pattern matching intelligente
@@ -67,8 +66,6 @@ export class GrepTool extends BaseTool {
         toolName: 'grep-tool',
         parameters: params,
       })
-
-
 
       if (!params.pattern) {
         throw new Error('Pattern is required for grep search')

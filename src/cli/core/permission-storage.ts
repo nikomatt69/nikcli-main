@@ -1,8 +1,8 @@
 import * as os from 'node:os'
 import * as path from 'node:path'
 import { z } from 'zod'
-import { fileExistsSync, mkdirpSync, readTextSync, writeTextSync } from '../utils/bun-compat'
 import { advancedUI } from '../ui/advanced-cli-ui'
+import { fileExistsSync, mkdirpSync, readTextSync, writeTextSync } from '../utils/bun-compat'
 
 // Zod schema for permission entry
 const PermissionEntrySchema = z.object({

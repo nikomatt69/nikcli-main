@@ -4,9 +4,9 @@ import { readFile, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import chalk from 'chalk'
-import { advancedUI } from '../ui/advanced-cli-ui' // Added
 import { type CacheProvider, globalCacheManager } from '../core/cache-provider'
 import { configManager } from '../core/config-manager'
+import { advancedUI } from '../ui/advanced-cli-ui' // Added
 import { createOpenRouterRerankingProvider, type OpenRouterRerankingProvider } from './openrouter-reranking-provider'
 
 export interface RerankingConfig {
@@ -253,8 +253,6 @@ export class UnifiedRerankingInterface {
       this.clearCache()
     }
 
-    advancedUI.logInfo(chalk.green('✓ Reranking configuration updated'))
-    this.logConfig()
   }
 
   /**
@@ -344,7 +342,6 @@ export class UnifiedRerankingInterface {
 
   // Private methods
   private logConfig(): void {
-
     advancedUI.logInfo(`  Provider: ${this.config.provider}`)
     advancedUI.logInfo(`  Model: ${this.config.model}`)
     advancedUI.logInfo(`  Top K: ${this.config.topK}`)

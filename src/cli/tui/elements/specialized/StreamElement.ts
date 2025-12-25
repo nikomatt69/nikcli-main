@@ -3,8 +3,8 @@
  * Integrates StreamttyService with OpenTUI for real-time output streaming
  */
 
-import { BaseElement, ElementConfig, OpenTUIElement } from '../base/BaseElement'
 import { eventBus } from '../../core/EventBus'
+import { BaseElement, type ElementConfig, type OpenTUIElement } from '../base/BaseElement'
 
 export interface StreamElementConfig extends ElementConfig {
   type: 'stream'
@@ -52,7 +52,7 @@ export class StreamElement extends BaseElement {
       children: [],
       props: {
         scrollable: true,
-        tags: true
+        tags: true,
       },
       text: '',
       visible: this.config.hidden !== true,
@@ -89,7 +89,7 @@ export class StreamElement extends BaseElement {
       },
       destroy: () => {
         this.clear()
-      }
+      },
     }
   }
 
@@ -164,7 +164,7 @@ export class StreamElement extends BaseElement {
     const chunk: StreamChunk = {
       content,
       type,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     }
 
     this.buffer.push(chunk)
@@ -203,7 +203,7 @@ export class StreamElement extends BaseElement {
     if (this.buffer.length === 0) return
 
     // Join buffer content
-    const content = this.buffer.map(chunk => this.formatChunk(chunk)).join('')
+    const content = this.buffer.map((chunk) => this.formatChunk(chunk)).join('')
     this.buffer = []
 
     // Update element
@@ -264,10 +264,7 @@ export class StreamElement extends BaseElement {
    * Scroll down
    */
   scrollDown(lines: number = 1): void {
-    this.scrollPosition = Math.min(
-      this.element.children.length,
-      this.scrollPosition + lines
-    )
+    this.scrollPosition = Math.min(this.element.children.length, this.scrollPosition + lines)
     // TODO: Implement actual scrolling
   }
 

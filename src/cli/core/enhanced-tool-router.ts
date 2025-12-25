@@ -287,10 +287,10 @@ export class EnhancedToolRouter extends ToolRouter {
     return Math.min(
       1.0,
       rec.confidence * weights.originalConfidence +
-      rec.contextualRelevance * weights.contextualRelevance +
-      rec.userExperienceScore * weights.userExperienceScore +
-      userPatternMatch * weights.userPatternMatch +
-      recencyBoost * weights.recency
+        rec.contextualRelevance * weights.contextualRelevance +
+        rec.userExperienceScore * weights.userExperienceScore +
+        userPatternMatch * weights.userPatternMatch +
+        recencyBoost * weights.recency
     )
   }
 
@@ -516,7 +516,6 @@ export class EnhancedToolRouter extends ToolRouter {
       web_search: 10,
       execute_command: 15,
       analyze_project: 30,
-
     }
 
     const baseDuration = baseDurations[tool] || 10

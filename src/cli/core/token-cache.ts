@@ -1,9 +1,9 @@
 import crypto from 'node:crypto'
 import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
+import { Mutex } from 'async-mutex'
 import chalk from 'chalk'
 import { LRUCache } from 'lru-cache'
-import { Mutex } from 'async-mutex'
 import { QuietCacheLogger } from './performance-optimizer'
 import { tokenTelemetry } from './token-telemetry'
 
@@ -61,7 +61,7 @@ export class TokenCacheManager {
       ttl: this.maxCacheAge,
     })
     // Non-blocking load, init completata async
-    this.initialize().catch(error => {
+    this.initialize().catch((error) => {
       console.error(chalk.red('Failed to initialize token cache:'), error)
     })
   }

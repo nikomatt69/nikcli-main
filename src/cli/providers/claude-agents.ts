@@ -213,7 +213,9 @@ export class ClaudeAgentProvider extends EventEmitter {
 
     // Load config from settings (using generic storage)
     try {
-      const savedConfig = simpleConfigManager.get('customProviders' as any)?.claudeAgent as Partial<ClaudeAgentConfig> | undefined
+      const savedConfig = simpleConfigManager.get('customProviders' as any)?.claudeAgent as
+        | Partial<ClaudeAgentConfig>
+        | undefined
       if (savedConfig) {
         this.config = { ...this.config, ...savedConfig }
       }
@@ -221,7 +223,11 @@ export class ClaudeAgentProvider extends EventEmitter {
       // Config not available, use defaults
     }
 
-    advancedUI.logFunctionUpdate('success', `Claude Agent SDK initialized (${this.skills.size} skills, ${this.subagents.size} subagents)`, '⚡')
+    advancedUI.logFunctionUpdate(
+      'success',
+      `Claude Agent SDK initialized (${this.skills.size} skills, ${this.subagents.size} subagents)`,
+      '⚡'
+    )
     this.emit('initialized', { skills: this.skills.size, subagents: this.subagents.size })
   }
 
@@ -600,7 +606,11 @@ export class ClaudeAgentProvider extends EventEmitter {
       lines.push(chalk.gray(`Tools used: ${result.toolsCalled.join(', ')}`))
     }
 
-    lines.push(chalk.gray(`Duration: ${(result.duration / 1000).toFixed(2)}s | Tokens: ${result.tokensUsed} | Cost: $${result.costUsd.toFixed(4)}`))
+    lines.push(
+      chalk.gray(
+        `Duration: ${(result.duration / 1000).toFixed(2)}s | Tokens: ${result.tokensUsed} | Cost: $${result.costUsd.toFixed(4)}`
+      )
+    )
 
     return lines.join('\n')
   }

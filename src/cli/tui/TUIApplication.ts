@@ -4,18 +4,18 @@
  */
 
 import { eventBus } from './core/EventBus'
+import { navigationSystem } from './core/NavigationSystem'
 import { tuiState } from './core/TUIState'
 import { elementManager } from './elements/base/ElementManager'
 import { focusManager } from './elements/base/FocusManager'
-import { navigationSystem } from './core/NavigationSystem'
-import { layoutManager } from './layout/LayoutManager'
-import { streamttyAdapter } from './integration/StreamttyAdapter'
-import { themeAdapter } from './integration/ThemeAdapter'
-import { PanelElement } from './elements/specialized/PanelElement'
-import { StreamElement } from './elements/specialized/StreamElement'
+import { ChatPanel } from './elements/panels/ChatPanel'
 import { DiffPanel } from './elements/panels/DiffPanel'
 import { TodoPanel } from './elements/panels/TodoPanel'
-import { ChatPanel } from './elements/panels/ChatPanel'
+import { PanelElement } from './elements/specialized/PanelElement'
+import { StreamElement } from './elements/specialized/StreamElement'
+import { streamttyAdapter } from './integration/StreamttyAdapter'
+import { themeAdapter } from './integration/ThemeAdapter'
+import { layoutManager } from './layout/LayoutManager'
 
 export interface TUIApplicationConfig {
   title?: string
@@ -38,7 +38,7 @@ export class TUIApplication {
       defaultLayout: 'single',
       enableMouse: true,
       enableKeyboard: true,
-      ...config
+      ...config,
     }
   }
 
@@ -142,11 +142,7 @@ export class TUIApplication {
    */
   private registerElementTypes(): void {
     elementManager.registerElementType('panel', () => {
-      return new PanelElement(
-        { id: `panel-${Date.now()}`, type: 'panel' },
-        eventBus,
-        themeAdapter.getTheme()
-      )
+      return new PanelElement({ id: `panel-${Date.now()}`, type: 'panel' }, eventBus, themeAdapter.getTheme())
     })
 
     elementManager.registerElementType('stream', () => {
@@ -195,7 +191,7 @@ export class TUIApplication {
         source: 'streamtty',
         title: 'Output',
         width: '100%',
-        height: '70%'
+        height: '70%',
       },
       eventBus,
       themeAdapter.getTheme()
@@ -211,7 +207,7 @@ export class TUIApplication {
         title: 'AI Chat',
         width: '100%',
         height: '30%',
-        pinned: true
+        pinned: true,
       },
       eventBus,
       themeAdapter.getTheme()
@@ -227,7 +223,7 @@ export class TUIApplication {
         title: 'Todos',
         width: '50%',
         height: '30%',
-        pinned: true
+        pinned: true,
       },
       eventBus,
       themeAdapter.getTheme()
@@ -276,7 +272,6 @@ export class TUIApplication {
 
         // Trigger render
         eventBus.emit('tui:render', {})
-
       } catch (error) {
         console.error('Error in render loop:', error)
       }
@@ -444,7 +439,7 @@ Press any key to close this help.
       isRunning: this.isRunning,
       isInitialized: this.isInitialized,
       elementCount: elementManager.getElementCount(),
-      theme: themeAdapter.getTheme().name
+      theme: themeAdapter.getTheme().name,
     }
   }
 

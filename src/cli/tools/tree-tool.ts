@@ -108,8 +108,6 @@ export class TreeTool extends BaseTool {
         parameters: params,
       })
 
-
-
       const searchPath = params.path || this.workingDirectory
       const maxDepth = params.maxDepth !== undefined ? params.maxDepth : 5
       const showSize = params.showSize !== undefined ? params.showSize : true

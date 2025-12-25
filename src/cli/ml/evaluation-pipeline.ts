@@ -29,7 +29,7 @@ class EvaluationPipeline {
   private metricsBuffer: Map<string, EvaluationMetrics> = new Map()
   private readonly BATCH_EVALUATION_SIZE = 50
 
-  constructor() { }
+  constructor() {}
 
   async initialize(supabaseProvider: EnhancedSupabaseProvider): Promise<void> {
     try {

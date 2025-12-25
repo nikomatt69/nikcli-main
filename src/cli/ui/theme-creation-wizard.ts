@@ -1,10 +1,10 @@
-import inquirer from 'inquirer'
-import chalk from 'chalk'
 import boxen from 'boxen'
-import { Theme, ThemeColors, ColorGradient, themeManager } from './theme-manager'
-import { colorPicker, ColorPickerResult } from './interactive-color-picker'
-import { themeValidator, ValidationResult } from './theme-validator'
+import chalk from 'chalk'
+import inquirer from 'inquirer'
+import { ColorPickerResult, colorPicker } from './interactive-color-picker'
 import { LiveThemePreview } from './live-theme-preview'
+import { ColorGradient, type Theme, type ThemeColors, themeManager } from './theme-manager'
+import { themeValidator, type ValidationResult } from './theme-validator'
 
 export interface WizardState {
   name: string
@@ -75,7 +75,6 @@ export class ThemeCreationWizard {
       const theme = await this.stepSaveTheme(validation)
 
       return theme
-
     } catch (error) {
       console.log(chalk.red('\n✗ Wizard cancelled or error occurred'))
       return null
@@ -164,7 +163,11 @@ export class ThemeCreationWizard {
    * Step 3-5: Mode Customization
    */
   private async stepModeCustomization(mode: 'default' | 'plan' | 'vm', modeName: string): Promise<void> {
-    console.log(chalk.yellow(`\n${mode === 'default' ? '🔵' : mode === 'plan' ? '🟡' : '🟣'} Step ${mode === 'default' ? '3' : mode === 'plan' ? '4' : '5'}: ${modeName} Customization`))
+    console.log(
+      chalk.yellow(
+        `\n${mode === 'default' ? '🔵' : mode === 'plan' ? '🟡' : '🟣'} Step ${mode === 'default' ? '3' : mode === 'plan' ? '4' : '5'}: ${modeName} Customization`
+      )
+    )
     console.log(chalk.gray(`Customize colors for ${modeName}\n`))
 
     const modeColors = this.state.colors[mode]
@@ -224,7 +227,7 @@ export class ThemeCreationWizard {
       } else if (action === 'pick') {
         const colorResult = await colorPicker.pickColor(`Pick ${prop.label}`)
         modeColors[prop.key as keyof ThemeColors] = colorResult.isGradient
-          ? colorResult.gradient as any
+          ? (colorResult.gradient as any)
           : colorResult.color
 
         // Show accessibility info if available
@@ -371,11 +374,7 @@ export class ThemeCreationWizard {
     }
 
     if (action === 'save') {
-      const success = themeManager.createCustomTheme(
-        this.state.name,
-        this.state.description,
-        theme.colors
-      )
+      const success = themeManager.createCustomTheme(this.state.name, this.state.description, theme.colors)
 
       if (success) {
         console.log(chalk.green(`\n✓ Theme "${this.state.name}" saved successfully!`))

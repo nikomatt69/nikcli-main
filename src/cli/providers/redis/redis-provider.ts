@@ -1,11 +1,10 @@
 import { EventEmitter } from 'node:events'
 import { Redis as UpstashRedis } from '@upstash/redis'
+import { Mutex } from 'async-mutex'
 import chalk from 'chalk'
 import IORedis from 'ioredis'
-import { Mutex } from 'async-mutex'
 import { type ConfigType, simpleConfigManager } from '../../core/config-manager'
 import { advancedUI } from '../../ui/advanced-cli-ui'
-
 
 export interface RedisProviderOptions {
   url?: string
@@ -74,7 +73,7 @@ export class RedisProvider extends EventEmitter {
     this.config = { ...simpleConfigManager.getRedisConfig(), ...options }
 
     if (this.config.enabled) {
-      this.connect().catch(error => {
+      this.connect().catch((error) => {
         advancedUI.logError(chalk.red(`Failed to connect to Redis: ${error.message}`))
       })
       this.startHealthChecks()
@@ -162,7 +161,9 @@ export class RedisProvider extends EventEmitter {
         }
         await this.ioredisClient.connect()
         await this.ioredisClient.ping()
-        advancedUI.logInfo(chalk.green(`✓ Local Redis (${this.config.host}:${this.config.port}) connected successfully`))
+        advancedUI.logInfo(
+          chalk.green(`✓ Local Redis (${this.config.host}:${this.config.port}) connected successfully`)
+        )
       } else {
         if (!this.upstashClient) {
           throw new Error('Upstash Redis client not initialized')
@@ -365,7 +366,7 @@ export class RedisProvider extends EventEmitter {
       } catch (parseError) {
         // Corrupted data detected - auto-clean and return null
         advancedUI.logInfo(chalk.yellow(`⚠︎ Corrupted cache data for key ${key}, auto-cleaning...`))
-        await this.del(key).catch(() => { }) // Silent cleanup failure
+        await this.del(key).catch(() => {}) // Silent cleanup failure
         return null
       }
 
@@ -695,7 +696,7 @@ export class RedisProvider extends EventEmitter {
         vectorEntry = JSON.parse(serializedValue as string)
       } catch (parseError) {
         // Corrupted vector cache data - auto-clean and return null
-        await this.del(cacheKey).catch(() => { })
+        await this.del(cacheKey).catch(() => {})
         return null
       }
 
@@ -828,4 +829,3 @@ export class RedisProvider extends EventEmitter {
 
 // Singleton instance
 export const redisProvider = new RedisProvider()
-

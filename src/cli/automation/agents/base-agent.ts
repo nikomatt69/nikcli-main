@@ -429,7 +429,9 @@ export abstract class BaseAgent implements AgentInstance {
       const batchResults = await Promise.allSettled(batch.map((item) => processor(item)))
 
       results.push(
-        ...(batchResults as PromiseSettledResult<any>[]).map((result) => (result.status === 'fulfilled' ? result.value : { error: result.reason }))
+        ...(batchResults as PromiseSettledResult<any>[]).map((result) =>
+          result.status === 'fulfilled' ? result.value : { error: result.reason }
+        )
       )
 
       // Small delay between batches to prevent overwhelming

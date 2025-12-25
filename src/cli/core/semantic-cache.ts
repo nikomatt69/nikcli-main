@@ -9,11 +9,11 @@
  * @version 1.6.0
  */
 
+import { Mutex } from 'async-mutex'
 import { ChromaClient } from 'chromadb'
 import { EventEmitter } from 'events'
 import Redis from 'ioredis'
 import { LRUCache } from 'lru-cache'
-import { Mutex } from 'async-mutex'
 import { advancedUI } from '../ui/advanced-cli-ui'
 
 /**
@@ -279,7 +279,10 @@ export class SemanticCache extends EventEmitter {
           })
           this.emit('initialized', { component: 'chromadb' })
         } catch (error) {
-          advancedUI.logFunctionUpdate('warning', `ChromaDB initialization failed, continuing without vector search: ${error}`)
+          advancedUI.logFunctionUpdate(
+            'warning',
+            `ChromaDB initialization failed, continuing without vector search: ${error}`
+          )
         }
 
         this.isInitialized = true

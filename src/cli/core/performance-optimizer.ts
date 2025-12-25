@@ -11,13 +11,11 @@ export interface PerformanceMetrics {
 
 // Quiet logging utility for cache operations
 export class QuietCacheLogger {
-  
   private static totalSavings: number = 0
 
   static logCacheSave(tokensSaved?: number): void {
     if (tokensSaved && tokensSaved > 0) {
       QuietCacheLogger.totalSavings += tokensSaved
- 
     }
   }
 

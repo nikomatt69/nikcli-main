@@ -433,7 +433,6 @@ export class UniversalTokenizerService extends EventEmitter {
     this.adapters.set('groq', new DynamicTokenizerAdapter())
     this.adapters.set('cerebras', new DynamicTokenizerAdapter())
     this.adapters.set('opencode', new DynamicTokenizerAdapter())
-
   }
 
   /**

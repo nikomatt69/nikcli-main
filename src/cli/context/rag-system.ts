@@ -44,12 +44,12 @@ export interface UnifiedRAGConfig {
   rerankingModel?: string | null
   rerankingTopK?: number
   cacheConfig?: {
-    analysisTTL: number      // Default: 24h (era 5min)
-    embeddingsTTL: number    // Default: 24h
-    fileHashTTL: number      // Default: 7gg
-    maxMemoryCache: number   // Default: 200MB
+    analysisTTL: number // Default: 24h (era 5min)
+    embeddingsTTL: number // Default: 24h
+    fileHashTTL: number // Default: 7gg
+    maxMemoryCache: number // Default: 200MB
     enablePersistentCache: boolean // Default: true
-    incrementalIndexing: boolean   // Default: true
+    incrementalIndexing: boolean // Default: true
     forceRefreshOnConfigChange: boolean // Default: true
   }
 }
@@ -324,7 +324,7 @@ export class UnifiedRAGSystem {
     }
 
     // Initialize cache providers with extended TTL
-    const cacheConfig = config?.cacheConfig as any || {}
+    const cacheConfig = (config?.cacheConfig as any) || {}
 
     this.embeddingsCache = globalCacheManager.getCache('rag-embeddings', {
       defaultTTL: (cacheConfig as any).embeddingsTTL || 24 * 60 * 60 * 1000, // 24 hours
@@ -457,7 +457,10 @@ export class UnifiedRAGSystem {
   /**
    * Unified project analysis combining workspace and vector approaches
    */
-  async analyzeProject(projectPath: string, options?: { forceRefresh?: boolean; incremental?: boolean }): Promise<RAGAnalysisResult> {
+  async analyzeProject(
+    projectPath: string,
+    options?: { forceRefresh?: boolean; incremental?: boolean }
+  ): Promise<RAGAnalysisResult> {
     await this.ensureInitialized()
 
     const startTime = Date.now()
@@ -893,7 +896,7 @@ export class UnifiedRAGSystem {
             if (indexedCount % 100 === 0) {
             }
           }
-        } catch (fileError) { }
+        } catch (fileError) {}
       }
 
       // Batch index documents with progress tracking
@@ -937,7 +940,7 @@ export class UnifiedRAGSystem {
                 )
               }
             }
-          } catch (error) { }
+          } catch (error) {}
         }
 
         let successfulBatches = 0
@@ -2340,16 +2343,16 @@ export class UnifiedRAGSystem {
     advancedUI.logFunctionUpdate(
       'info',
       `🎯 Optimized results: ${results.length} → ${truncatedResults.length} contexts, ` +
-      `~${estimateTokensFromChars(truncatedResults.reduce((sum, r) => sum + r.content.length, 0))} tokens`
+        `~${estimateTokensFromChars(truncatedResults.reduce((sum, r) => sum + r.content.length, 0))} tokens`
     )
     advancedUI.logFunctionUpdate(
       'info',
       `🎯 Optimized results: ${results.length} → ${truncatedResults.length} contexts, ` +
-      `~${estimateTokensFromChars(truncatedResults.reduce((sum, r) => sum + r.content.length, 0))} tokens`
+        `~${estimateTokensFromChars(truncatedResults.reduce((sum, r) => sum + r.content.length, 0))} tokens`
     )
     chalk.blue(
       `🎯 Optimized results: ${results.length} → ${truncatedResults.length} contexts, ` +
-      `~${estimateTokensFromChars(truncatedResults.reduce((sum, r) => sum + r.content.length, 0))} tokens`
+        `~${estimateTokensFromChars(truncatedResults.reduce((sum, r) => sum + r.content.length, 0))} tokens`
     )
 
     return truncatedResults

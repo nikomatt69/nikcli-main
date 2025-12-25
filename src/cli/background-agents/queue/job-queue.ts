@@ -2,8 +2,8 @@
 
 import { EventEmitter } from 'node:events'
 import { Redis as UpstashRedis } from '@upstash/redis'
-import IORedis from 'ioredis'
 import { Mutex } from 'async-mutex'
+import IORedis from 'ioredis'
 import type { QueueStats } from '../types'
 
 export interface QueueConfig {
@@ -355,13 +355,13 @@ export class JobQueue extends EventEmitter {
       // Schedule for later
       setTimeout(() => {
         this.insertJobSorted(queueData)
-        this.processNextLocal().catch(error => {
+        this.processNextLocal().catch((error) => {
           console.error('Failed to process delayed job:', error)
         })
       }, queueData.delay)
     } else {
       this.insertJobSorted(queueData)
-      this.processNextLocal().catch(error => {
+      this.processNextLocal().catch((error) => {
         console.error('Failed to process local job:', error)
       })
     }

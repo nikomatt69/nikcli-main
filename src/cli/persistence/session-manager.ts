@@ -72,9 +72,7 @@ export class SessionManager {
         }
       }
 
-      return sessions.sort((a, b) =>
-        new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-      )
+      return sessions.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
     } catch (error: unknown) {
       const e = error as { code?: string }
       if (e.code === 'ENOENT') return []

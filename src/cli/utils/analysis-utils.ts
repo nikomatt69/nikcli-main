@@ -52,10 +52,10 @@ export function compactAnalysis(analysis: any, opts: CompactOptions = {}) {
     fileCount: analysis?.fileCount,
     dependencies: analysis?.dependencies
       ? {
-        production: analysis.dependencies.production?.length ?? 0,
-        development: analysis.dependencies.development?.length ?? 0,
-        total: analysis.dependencies.total ?? 0,
-      }
+          production: analysis.dependencies.production?.length ?? 0,
+          development: analysis.dependencies.development?.length ?? 0,
+          total: analysis.dependencies.total ?? 0,
+        }
       : undefined,
     directory: analysis?.directory,
     timestamp: analysis?.timestamp,

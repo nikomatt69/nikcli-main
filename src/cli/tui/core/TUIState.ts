@@ -88,16 +88,16 @@ export class TUIStateManager {
           info: 'magenta',
           muted: 'gray',
           background: 'black',
-          foreground: 'white'
-        }
+          foreground: 'white',
+        },
       },
       status: {
         isRunning: false,
         isLoading: false,
-        message: null
+        message: null,
       },
       panels: new Map(),
-      elements: new Map()
+      elements: new Map(),
     }
   }
 

@@ -1,5 +1,5 @@
-import fs from 'node:fs/promises'
 import { statSync } from 'node:fs'
+import fs from 'node:fs/promises'
 import path from 'node:path'
 import boxen from 'boxen'
 import chalk from 'chalk'
@@ -8,7 +8,6 @@ import inquirer from 'inquirer'
 import { nanoid } from 'nanoid'
 import ora, { type Ora } from 'ora'
 import readline from 'readline'
-import { themeManager } from './ui/theme-manager'
 import { advancedAIProvider } from './ai/advanced-ai-provider'
 import { modelProvider } from './ai/model-provider'
 import type { ModernAIProvider } from './ai/modern-ai-provider'
@@ -29,12 +28,12 @@ import { docsContextManager } from './context/docs-context-manager'
 import { unifiedRAGSystem } from './context/rag-system'
 import { workspaceContext } from './context/workspace-context'
 import { agentFactory } from './core/agent-factory'
-import { blueprintStorage } from './core/blueprint-storage'
 import { agentLearningSystem } from './core/agent-learning-system'
 import { AgentManager } from './core/agent-manager'
 import { agentStream } from './core/agent-stream'
 import { agentTodoManager } from './core/agent-todo-manager'
 import { AnalyticsManager } from './core/analytics-manager'
+import { blueprintStorage } from './core/blueprint-storage'
 import { createCloudDocsProvider, getCloudDocsProvider } from './core/cloud-docs-provider'
 import { CompletionProtocolCache, completionCache } from './core/completion-protocol-cache'
 // Import existing modules
@@ -52,17 +51,18 @@ import { tokenCache } from './core/token-cache'
 import { toolRouter } from './core/tool-router'
 import { universalTokenizer } from './core/universal-tokenizer-service'
 import { validatorManager } from './core/validator-manager'
-import { ExecutionPolicyManager } from './policies/execution-policy'
 import { ideDiagnosticIntegration } from './integrations/ide-diagnostic-integration'
 import { EvaluationPipeline } from './ml/evaluation-pipeline'
 import { FeatureExtractor } from './ml/feature-extractor'
 import { MLInferenceEngine } from './ml/ml-inference-engine'
 // ML System imports
 import { ToolchainOptimizer } from './ml/toolchain-optimizer'
+import { contextOrchestrator } from './orchestrator/context-orchestrator'
 import { EnhancedSessionManager } from './persistence/enhanced-session-manager'
 import { enhancedPlanning } from './planning/enhanced-planning'
 import { PlanningManager } from './planning/planning-manager'
 import type { ExecutionPlan } from './planning/types'
+import { ExecutionPolicyManager } from './policies/execution-policy'
 import { authProvider } from './providers/supabase/auth-provider'
 import { enhancedSupabaseProvider } from './providers/supabase/enhanced-supabase-provider'
 import { registerAgents } from './register-agents'
@@ -81,6 +81,7 @@ import { StreamingOrchestrator } from './streaming-orchestrator'
 import { toolsManager } from './tools/tools-manager'
 import { advancedUI } from './ui/advanced-cli-ui'
 import { approvalSystem } from './ui/approval-system'
+import { themeManager } from './ui/theme-manager'
 import { createConsoleTokenDisplay } from './ui/token-aware-status-bar'
 import { fileExists, mkdirp, readJson, readText, remove, writeJson, writeText } from './utils/bun-compat'
 
@@ -2826,53 +2827,9 @@ export class NikCLI {
   }
 
   private async showBetaEntryPanel(): Promise<void> {
-    // Full cleanup so the onboarding panel appears on a blank screen
-    this.clearTerminalForOnboarding()
-    const banner = `
-    ███╗   ██╗██╗██╗  ██╗ ██████╗██╗     ██╗
-    ████╗  ██║██║██║ ██╔╝██╔════╝██║     ██║
-    ██╔██╗ ██║██║█████╔╝ ██║     ██║     ██║
-    ██║╚██╗██║██║██╔═██╗ ██║     ██║     ██║
-    ██║ ╚████║██║██║  ██╗╚██████╗███████╗██║
-    ╚═╝  ╚═══╝╚═╝╚═╝  ╚═╝ ╚═════╝╚══════╝╚═╝
-    `
-    const lines: string[] = []
-    const warningBox = boxen(
-      chalk.red.bold('🚨  BETA VERSION WARNING\n\n') +
-      chalk.cyan(`${banner}\n`) +
-      chalk.cyan('For detailed security information, visit:\n') +
-      chalk.blue.underline('https://github.com/nikomatt69/nikcli-main/blob/main/SECURITY.md\n\n') +
-      chalk.white('By continuing, you acknowledge these risks.'),
-      {
-        padding: 1,
-        borderStyle: 'round',
-        borderColor: 'red',
-        backgroundColor: '#2a0000',
-        title: 'Security Notice',
-      }
-    )
-    lines.push(warningBox)
-    lines.push(chalk.cyan('API key'))
-    lines.push(
-      chalk.white('• Env: ANTHROPIC_API_KEY | OPENAI_API_KEY | OPENROUTER_API_KEY') +
-      '\n' +
-      chalk.white('  GOOGLE_GENERATIVE_AI_API_KEY | AI_GATEWAY_API_KEY')
-    )
-    lines.push(chalk.white('• /set-key-<provider> <key> saved in  ~/.nikcli'))
-    lines.push('')
-    lines.push(chalk.magenta('Login'))
-    lines.push(chalk.white('• Press Ctrl+W for Login')),
-      await this.printPanel(
-        boxen(lines.join('\n'), {
-          title: 'NikCLI Beta',
-          padding: 1,
-          margin: 1,
-          borderStyle: 'round',
-          borderColor: 'red',
-          backgroundColor: '#2a0000',
-        }),
-        'general'
-      )
+    // Show professional startup panel
+    const { ProfessionalStartupPanel } = await import('./index')
+    await ProfessionalStartupPanel.render()
   }
 
   /**
@@ -3050,23 +3007,20 @@ export class NikCLI {
 
     // Buffer for accumulating raw stdin data
     let pendingData = ''
-
-    // Override the read method to intercept data
-    const self = this
     process.stdin.on('data', (chunk: Buffer) => {
       const data = chunk.toString()
       pendingData += data
 
       // Process through paste handler
-      const result = self.pasteHandler.processRawData(pendingData)
+      const result = this.pasteHandler.processRawData(pendingData)
       pendingData = ''
 
       if (result.isPasteComplete && result.pastedContent) {
         // Paste completed - handle as consolidated input with pre-paste content
-        const existingContent = self.prepasteLineContent
-        self.prepasteLineContent = ''
+        const existingContent = this.prepasteLineContent
+        this.prepasteLineContent = ''
         setImmediate(() => {
-          self.handleConsolidatedPaste(result.pastedContent!, existingContent)
+          this.handleConsolidatedPaste(result.pastedContent!, existingContent)
         })
       }
 
@@ -3131,7 +3085,9 @@ export class NikCLI {
    * @param input The raw input string from the user.
    * @returns An object containing the original input, the potentially optimized input, and the display text.
    */
-  private async _preprocessInput(input: string): Promise<{ actualInput: string; optimizedInput: string; displayText: string }> {
+  private async _preprocessInput(
+    input: string
+  ): Promise<{ actualInput: string; optimizedInput: string; displayText: string }> {
     let actualInput = input
     let displayText = input
 
@@ -4391,15 +4347,8 @@ export class NikCLI {
       await this.cleanupPlanArtifacts()
       // Start progress indicator using our new methods
       const planningId = `planning-${Date.now()}`
-      this.createStatusIndicator(
-        planningId,
-        'Generating comprehensive plan with TaskMaster AI',
-        input
-      )
-      this.startAdvancedSpinner(
-        planningId,
-        chalk.gray('Analyzing requirements and generating plan...')
-      );
+      this.createStatusIndicator(planningId, 'Generating comprehensive plan with TaskMaster AI', input)
+      this.startAdvancedSpinner(planningId, chalk.gray('Analyzing requirements and generating plan...'))
 
       // Try TaskMaster AI first, fallback to enhanced planning if needed
       let plan: any = null
@@ -5294,6 +5243,23 @@ EOF`
     try {
       const allAggregatedResults: string[] = []
 
+      // Orchestrate context for all todos at the start
+      try {
+        const orchestrationResult = await contextOrchestrator.orchestrate(plan.todos, `plan-${plan.id || 'default'}`)
+        if (orchestrationResult.warnings.length > 0) {
+          for (const warning of orchestrationResult.warnings) {
+            advancedUI.logWarning(`⚠ ${warning}`)
+          }
+        }
+        collaborationContext.chainId = `plan-${plan.id || 'default'}`
+        collaborationContext.orchestrationResult = orchestrationResult
+        advancedUI.logSuccess(
+          `✓ Context orchestrated for ${plan.todos.length} todos (${orchestrationResult.executionPlan} mode)`
+        )
+      } catch (error) {
+        advancedUI.logWarning(`⚠ Could not orchestrate context: ${error}`)
+      }
+
       // Notify plan start
       void this.sendPlanStartedNotification(plan, agents)
 
@@ -5400,7 +5366,13 @@ EOF`
         // Set up agent helpers for collaboration
         this.setupAgentCollaborationHelpers(agent, collaborationContext)
 
-        const agentOutput = await this.executeAgentCollectOutput(agent, todoText, agentName, tools)
+        const agentOutput = await this.executeAgentCollectOutput(
+          agent,
+          todoText,
+          agentName,
+          tools,
+          collaborationContext
+        )
         collaborationContext.sharedData.set(`${agent.id}:todo:${todo.id}:output`, {
           raw: agentOutput,
           agentName,
@@ -5429,7 +5401,8 @@ EOF`
     agent: any,
     task: string,
     agentName: string,
-    tools: any[]
+    tools: any[],
+    collaborationContext?: any
   ): Promise<string> {
     try {
       // Get unified tool renderer
@@ -5437,6 +5410,21 @@ EOF`
 
       // Start parallel execution mode
       unifiedRenderer.startExecution('parallel')
+
+      // Get dynamic orchestrated context for this agent
+      let dynamicContext = ''
+      let contextInfo = ''
+      try {
+        const chainId = collaborationContext?.chainId || 'parallel-chain'
+        const agentId = agent.id || agent.blueprintId || agentName
+        dynamicContext = contextOrchestrator.getAgentContext(chainId, agentId, 'standard')
+
+        if (dynamicContext && dynamicContext.length > 50) {
+          contextInfo = '\n\n## Dynamic Context (Optimized for this task):\n' + dynamicContext
+        }
+      } catch {
+        advancedUI.logWarning('⚠ Could not get orchestrated context')
+      }
 
       // Create collaboration-aware messages
       const specialization = agent.blueprint?.specialization || 'general'
@@ -5452,13 +5440,13 @@ Your role:
 - Focus on YOUR specialization area
 - Share your findings and insights with the team
 - Build upon or complement what other agents discover
-- Be collaborative, not redundant
+- Be collaborative, not redundant${contextInfo}
 
 Task to complete: ${task}
 
-Work on this task focusing on your specialization: ${specialization}`
+Work on this task focusing on your specialization: ${specialization}`,
         },
-        { role: 'user' as const, content: task }
+        { role: 'user' as const, content: task },
       ]
 
       let assistantText = ''
@@ -5989,8 +5977,39 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
           advancedUI.startInteractiveMode()
           interactiveStarted = true
 
+          // Get dynamic context for this task
+          let dynamicContext = ''
+          let contextInfo = ''
+          try {
+            const todos = task.todos || (task as any).todos || []
+            if (todos.length > 0) {
+              const result = await contextOrchestrator.orchestrate(todos, `task-${task.id || 'default'}`)
+              if (result && result.contextSlices) {
+                const taskContext = Array.from(result.contextSlices.values())[0]
+                if (taskContext) {
+                  dynamicContext = `${taskContext.sharedContext}\n\n${taskContext.taskContext}`
+                  if (dynamicContext.length > 50) {
+                    contextInfo = `\n\n## Dynamic Context (Optimized):\n${dynamicContext}`
+                  }
+                }
+              }
+            }
+          } catch {
+            advancedUI.logWarning('⚠ Could not get orchestrated context for task')
+          }
+
           // Execute the task using AI provider like default mode
-          const messages = [{ role: 'user' as const, content: task.description || task.title }]
+          const messages = [
+            ...(contextInfo
+              ? [
+                {
+                  role: 'system' as const,
+                  content: task.description + `${contextInfo}` || task.title + `${contextInfo}`,
+                },
+              ]
+              : []),
+            { role: 'user' as const, content: task.description || task.title },
+          ]
           let streamCompleted = false
 
           // Track streaming output for formatting (same as default mode)
@@ -6560,13 +6579,28 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     // Keywords that FORCE very_complex (parallel agents) - user explicitly wants deep/parallel execution
     const forceParallelKeywords = [
       // Explicit parallel/multi-agent requests
-      'deep', 'parallel', 'agents', 'multiagents', 'multi-agents',
-      'parallel agents', 'multi-agent', 'multiagent', 'multiple agents',
+      'deep',
+      'parallel',
+      'agents',
+      'multiagents',
+      'multi-agents',
+      'parallel agents',
+      'multi-agent',
+      'multiagent',
+      'multiple agents',
       // Italian equivalentszw
-      'in parallelo', 'agenti paralleli', 'agenti multipli', 'analisi profonda',
+      'in parallelo',
+      'agenti paralleli',
+      'agenti multipli',
+      'analisi profonda',
       // Deep analysis requests
-      'deep analysis', 'comprehensive analysis', 'thorough', 'exhaustive', 'in-depth',
-      'analisi completa', 'analisi approfondita',
+      'deep analysis',
+      'comprehensive analysis',
+      'thorough',
+      'exhaustive',
+      'in-depth',
+      'analisi completa',
+      'analisi approfondita',
     ]
     if (forceParallelKeywords.some((keyword) => lowerInput.includes(keyword))) {
       return true
@@ -6575,28 +6609,107 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     // Keywords that indicate complex tasks
     const complexKeywords = [
       // Development actions
-      'create', 'build', 'implement', 'develop', 'generate', 'setup', 'configure',
-      'refactor', 'migrate', 'deploy', 'install', 'integrate', 'design', 'architect',
-      'optimize', 'debug', 'fix', 'repair', 'maintain', 'update', 'upgrade',
-      'explore', 'plan', 'research', 'analyze', 'investigate', 'discover',
+      'create',
+      'build',
+      'implement',
+      'develop',
+      'generate',
+      'setup',
+      'configure',
+      'refactor',
+      'migrate',
+      'deploy',
+      'install',
+      'integrate',
+      'design',
+      'architect',
+      'optimize',
+      'debug',
+      'fix',
+      'repair',
+      'maintain',
+      'update',
+      'upgrade',
+      'explore',
+      'plan',
+      'research',
+      'analyze',
+      'investigate',
+      'discover',
       // Multi-step indicators (IT/EN)
-      'step', 'phase', 'stage', 'prima', 'poi', 'after', 'before', 'then', 'next',
-      'first', 'second', 'third', 'finally', 'initially', 'subsequently', 'meanwhile',
+      'step',
+      'phase',
+      'stage',
+      'prima',
+      'poi',
+      'after',
+      'before',
+      'then',
+      'next',
+      'first',
+      'second',
+      'third',
+      'finally',
+      'initially',
+      'subsequently',
+      'meanwhile',
       // Project types
-      'application', 'app', 'website', 'api', 'service', 'system', 'platform',
-      'framework', 'library', 'package', 'module', 'component', 'plugin',
+      'application',
+      'app',
+      'website',
+      'api',
+      'service',
+      'system',
+      'platform',
+      'framework',
+      'library',
+      'package',
+      'module',
+      'component',
+      'plugin',
       // Technical domains
-      'database', 'authentication', 'authorization', 'testing', 'documentation',
-      'frontend', 'backend', 'fullstack', 'middleware', 'deployment', 'devops',
+      'database',
+      'authentication',
+      'authorization',
+      'testing',
+      'documentation',
+      'frontend',
+      'backend',
+      'fullstack',
+      'middleware',
+      'deployment',
+      'devops',
       // File operations
-      'create file', 'modify file', 'refactor code', 'write tests', 'update config',
-      'explore codebase', 'explore repository', 'plan implementation', 'research solution',
+      'create file',
+      'modify file',
+      'refactor code',
+      'write tests',
+      'update config',
+      'explore codebase',
+      'explore repository',
+      'plan implementation',
+      'research solution',
     ]
 
     // Keywords that indicate simple tasks
     const simpleKeywords = [
-      'show', 'list', 'check', 'status', 'help', 'what', 'how', 'explain', 'describe',
-      '?', 'info', 'info about', 'tell me', 'show me', 'list', 'view', 'get',
+      'show',
+      'list',
+      'check',
+      'status',
+      'help',
+      'what',
+      'how',
+      'explain',
+      'describe',
+      '?',
+      'info',
+      'info about',
+      'tell me',
+      'show me',
+      'list',
+      'view',
+      'get',
     ]
 
     // Pattern that indicate planning/multi-step approach
@@ -6622,9 +6735,27 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
 
     // Count technical terms (indicates specialized knowledge needed)
     const technicalTerms = [
-      'react', 'vue', 'angular', 'node', 'python', 'typescript', 'javascript',
-      'api', 'rest', 'graphql', 'database', 'sql', 'mongodb', 'postgres',
-      'docker', 'kubernetes', 'aws', 'azure', 'gcp', 'github', 'gitlab',
+      'react',
+      'vue',
+      'angular',
+      'node',
+      'python',
+      'typescript',
+      'javascript',
+      'api',
+      'rest',
+      'graphql',
+      'database',
+      'sql',
+      'mongodb',
+      'postgres',
+      'docker',
+      'kubernetes',
+      'aws',
+      'azure',
+      'gcp',
+      'github',
+      'gitlab',
     ]
     const technicalTermCount = technicalTerms.filter((term) => lowerInput.includes(term)).length
 
@@ -6660,16 +6791,37 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
 
     // Keywords that indicate complex tasks
     const complexKeywords = [
-      'create', 'build', 'implement', 'develop', 'generate', 'setup', 'configure',
-      'refactor', 'migrate', 'deploy', 'install', 'integrate', 'design', 'architect',
-      'optimize', 'debug', 'fix', 'repair', 'maintain', 'update', 'upgrade',
-      'explore', 'plan', 'research', 'analyze', 'investigate', 'discover',
+      'create',
+      'build',
+      'implement',
+      'develop',
+      'generate',
+      'setup',
+      'configure',
+      'refactor',
+      'migrate',
+      'deploy',
+      'install',
+      'integrate',
+      'design',
+      'architect',
+      'optimize',
+      'debug',
+      'fix',
+      'repair',
+      'maintain',
+      'update',
+      'upgrade',
+      'explore',
+      'plan',
+      'research',
+      'analyze',
+      'investigate',
+      'discover',
     ]
 
     // Keywords that indicate simple tasks
-    const simpleKeywords = [
-
-    ]
+    const simpleKeywords = []
 
     const hasComplexKeywords = complexKeywords.some((keyword) => lowerInput.includes(keyword))
     const hasSimpleKeywords = simpleKeywords.some((keyword) => lowerInput.includes(keyword))
@@ -6688,9 +6840,27 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     }
 
     const technicalTerms = [
-      'react', 'vue', 'angular', 'node', 'python', 'typescript', 'javascript',
-      'api', 'rest', 'graphql', 'database', 'sql', 'mongodb', 'postgres',
-      'docker', 'kubernetes', 'aws', 'azure', 'gcp', 'github', 'gitlab',
+      'react',
+      'vue',
+      'angular',
+      'node',
+      'python',
+      'typescript',
+      'javascript',
+      'api',
+      'rest',
+      'graphql',
+      'database',
+      'sql',
+      'mongodb',
+      'postgres',
+      'docker',
+      'kubernetes',
+      'aws',
+      'azure',
+      'gcp',
+      'github',
+      'gitlab',
     ]
     const technicalTermCount = technicalTerms.filter((term) => lowerInput.includes(term)).length
     if (technicalTermCount >= 2) {
@@ -6732,26 +6902,42 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
 
     // Define supported providers (from config-manager.ts ModelConfigSchema)
     const supportedProviders = [
-      'openai', 'anthropic', 'google', 'ollama', 'vercel', 'gateway',
-      'openrouter', 'cerebras', 'groq', 'llamacpp', 'lmstudio',
-      'openai-compatible', 'opencode'
+      'openai',
+      'anthropic',
+      'google',
+      'ollama',
+      'vercel',
+      'gateway',
+      'openrouter',
+      'cerebras',
+      'groq',
+      'llamacpp',
+      'lmstudio',
+      'openai-compatible',
+      'opencode',
     ]
 
     const isCurrentModelValid = currentApiKey && currentProvider && supportedProviders.includes(currentProvider)
 
     if (!isCurrentModelValid) {
-      advancedUI.logFunctionUpdate('warning', `   No valid API key or unsupported provider for ${originalModel}, finding alternative...`)
+      advancedUI.logFunctionUpdate(
+        'warning',
+        `   No valid API key or unsupported provider for ${originalModel}, finding alternative...`
+      )
 
       // Find first model with API key AND supported provider
-      const modelsWithKeys = configManager.listModels()
-        .filter(m => m.hasApiKey && m.config.provider && supportedProviders.includes(m.config.provider))
+      const modelsWithKeys = configManager
+        .listModels()
+        .filter((m) => m.hasApiKey && m.config.provider && supportedProviders.includes(m.config.provider))
 
       if (modelsWithKeys.length > 0) {
         modelToUse = modelsWithKeys[0].name
         const providerName = modelsWithKeys[0].config.provider
         advancedUI.logFunctionUpdate('info', chalk.gray(`   Using model with API key: ${modelToUse} (${providerName})`))
       } else {
-        throw new Error('No models with API key and supported provider found. Please configure an API key with /set-key <model> <key>')
+        throw new Error(
+          'No models with API key and supported provider found. Please configure an API key with /set-key <model> <key>'
+        )
       }
     } else {
       advancedUI.logFunctionUpdate('info', chalk.gray(`   Using current model: ${modelToUse} (${currentProvider})`))
@@ -6858,7 +7044,7 @@ RULES:
               throw new Error(`Blueprint not persisted after ${maxAttempts} attempts`)
             }
             // Exponential backoff: 50ms, 100ms, 150ms, 200ms
-            await new Promise(resolve => setTimeout(resolve, 50 * (attempt + 1)))
+            await new Promise((resolve) => setTimeout(resolve, 50 * (attempt + 1)))
           }
         } catch (error: any) {
           advancedUI.logFunctionUpdate('error', `   ✖ Failed to create blueprint: ${error.message}`)
@@ -6994,8 +7180,14 @@ RULES:
     if (isComplexTask) {
       // Auto-generate agents from prompt and execute with parallel plan mode
       try {
-        advancedUI.logFunctionUpdate('info', chalk.blue('📋 Complex task detected - auto-configuring parallel agents...'))
-        advancedUI.logFunctionUpdate('info', chalk.gray(`   Task complexity indicators: ${this.getTaskComplexityIndicators(input).join(', ')}`))
+        advancedUI.logFunctionUpdate(
+          'info',
+          chalk.blue('📋 Complex task detected - auto-configuring parallel agents...')
+        )
+        advancedUI.logFunctionUpdate(
+          'info',
+          chalk.gray(`   Task complexity indicators: ${this.getTaskComplexityIndicators(input).join(', ')}`)
+        )
 
         // 1. Generate agents dynamically from prompt (uses session model)
         advancedUI.logFunctionUpdate('info', chalk.blue('🧬 Generating agents from prompt...'))
@@ -7042,7 +7234,7 @@ RULES:
                 throw new Error(`Failed to launch agent after ${maxRetries} attempts: ${error.message}`)
               }
               // Exponential backoff: 100ms, 200ms
-              await new Promise(resolve => setTimeout(resolve, 100 * (attempt + 1)))
+              await new Promise((resolve) => setTimeout(resolve, 100 * (attempt + 1)))
             }
           }
 
@@ -7574,7 +7766,7 @@ RULES:
   async initProject(options: InitOptions): Promise<void> {
     console.log(chalk.blue(' Initializing project context...'))
 
-    const claudeFile = path.join(this.workingDirectory, 'NIKOCLI.md')
+    const claudeFile = path.join(this.workingDirectory, 'NIKOCLI.md', 'todo.md')
 
     try {
       // Check if CLAUDE.md (NIKOCLI.md) already exists
@@ -13182,6 +13374,22 @@ RULES:
         ],
       },
       {
+        title: '🔌 Plugins',
+        commands: [
+          ['/plugins', 'List all installed plugins'],
+          ['/plugin info <name>', 'Show plugin details'],
+          ['/plugin create', 'Create new plugin with wizard'],
+          ['/plugin create "description"', 'Create plugin from AI description'],
+          ['/plugin install <path>', 'Install from local path'],
+          ['/plugin install <git-url>', 'Install from git URL'],
+          ['/plugin uninstall <name>', 'Uninstall plugin'],
+          ['/plugin enable <name>', 'Enable plugin'],
+          ['/plugin disable <name>', 'Disable plugin'],
+          ['/plugin reload <name>', 'Hot reload plugin'],
+          ['/plugin reload --all', 'Reload all plugins'],
+        ],
+      },
+      {
         title: '🔑 API Keys & Authentication',
         commands: [
           ['/set-key <model> <key>', 'Set API key for AI models'],
@@ -13955,7 +14163,12 @@ RULES:
     const queueCount = queueStatus.queueLength
     const _statusDot = this.assistantProcessing ? chalk.blue('●') : chalk.gray('●')
     const readyText = this.assistantProcessing
-      ? themeManager.applyChalk(this.currentMode, 'modeText', `Loading ${this.renderLoadingBar(12, this.currentMode)}`, themeManager.getCurrentTheme().name)
+      ? themeManager.applyChalk(
+        this.currentMode,
+        'modeText',
+        `Loading ${this.renderLoadingBar(12, this.currentMode)}`,
+        themeManager.getCurrentTheme().name
+      )
       : 'Ready'
 
     // Model/provider
@@ -14101,7 +14314,6 @@ RULES:
       const progressBar = this.assistantProcessing
         ? themeManager.getProgressBar(this.currentMode, loadingBar)
         : ' '.repeat(14)
-
 
       const ctrlpShortcut = chalk.hex('#666666')('Ctrl+B:?')
 
@@ -14792,7 +15004,6 @@ RULES:
         dynamicInfo = chalk.white(agentNames)
       } catch { }
     }
-
 
     const ctrlpShortcut = chalk.hex('#666666')('Ctrl+B:?')
 
@@ -17026,7 +17237,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
                 borderStyle: 'round',
                 borderColor: 'green',
               }
-            ))
+            )
+          )
         }
       } else {
         this.printPanel(
@@ -24229,10 +24441,10 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           if (stats.redis.health) {
             statusContent += `  Latency: ${chalk.blue(stats.redis.health.latency)}ms\n`
             statusContent += `  Status: ${stats.redis.health.status === 'healthy'
-              ? chalk.green('Healthy')
-              : stats.redis.health.status === 'degraded'
-                ? chalk.yellow('Degraded')
-                : chalk.red('Unhealthy')
+                ? chalk.green('Healthy')
+                : stats.redis.health.status === 'degraded'
+                  ? chalk.yellow('Degraded')
+                  : chalk.red('Unhealthy')
               }\n`
           }
 
@@ -24835,8 +25047,6 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     const multiplier = specializationMultipliers[specialization.toLowerCase()] || specializationMultipliers.default
     return Math.floor(baseTime * multiplier * (0.8 + Math.random() * 0.4)) // Add some randomness
   }
-
-
 
   /**
    * Check for collaboration opportunities between agents

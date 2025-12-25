@@ -6,8 +6,8 @@ import { advancedUI } from '../ui/advanced-cli-ui'
 import { diffManager } from '../ui/diff-manager'
 import { DiffViewer, type FileDiff } from '../ui/diff-viewer'
 import { CliUI } from '../utils/cli-ui'
-import { SmartMatcher } from '../utils/smart-matcher'
 import { EditValidator } from '../utils/edit-validator'
+import { SmartMatcher } from '../utils/smart-matcher'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
 
 /**
@@ -67,8 +67,6 @@ export class EditTool extends BaseTool {
         toolName: 'edit-tool',
         parameters: params,
       })
-
-
 
       // Validazione parametri
       if (!params.filePath) {
@@ -208,7 +206,7 @@ export class EditTool extends BaseTool {
           }
         }
 
-        throw new Error(`Edit validation failed: ${validation.errors.map(e => e.message).join(', ')}`)
+        throw new Error(`Edit validation failed: ${validation.errors.map((e) => e.message).join(', ')}`)
       }
 
       // Sostituzione in file esistente
@@ -315,7 +313,9 @@ export class EditTool extends BaseTool {
         if (suggestions.length > 0) {
           advancedUI.logWarning('⚠︎ Pattern not found. Similar matches:')
           for (const sugg of suggestions) {
-            advancedUI.logInfo(`  Line ${sugg.lineNumber}: "${sugg.content}" (${Math.round(sugg.similarity * 100)}% similar)`)
+            advancedUI.logInfo(
+              `  Line ${sugg.lineNumber}: "${sugg.content}" (${Math.round(sugg.similarity * 100)}% similar)`
+            )
           }
           advancedUI.logInfo('\nConsider using fuzzyMatch: true or adjusting the search pattern.')
         } else {

@@ -51,7 +51,6 @@ export class EventBus extends EventEmitter {
     this.updateMetrics(eventType)
 
     // Log event if debug mode
-    
 
     try {
       // Emit to EventEmitter subscribers

@@ -6,19 +6,17 @@ import { createOpenAI } from '@ai-sdk/openai'
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import { createVercel } from '@ai-sdk/vercel'
 import { generateObject, generateText, streamText } from 'ai'
-
+import chalk from 'chalk'
 import { createOllama } from 'ollama-ai-provider'
 import { z } from 'zod'
-
 import { configManager, type ModelConfig } from '../core/config-manager'
 import { streamttyService } from '../services/streamtty-service'
 import { adaptiveModelRouter, type ModelScope } from './adaptive-model-router'
 import { openRouterRegistry } from './openrouter-model-registry'
-import { ReasoningDetector } from './reasoning-detector'
 
 // Static import for provider registry (replaces dynamic require for performance)
 import { getLanguageModel } from './provider-registry'
-import chalk from 'chalk'
+import { ReasoningDetector } from './reasoning-detector'
 
 // ====================== ⚡︎ ZOD VALIDATION SCHEMAS ======================
 
@@ -419,7 +417,8 @@ export class ModelProvider {
       }
       case 'opencode': {
         // OpenCode is an OpenAI-compatible provider with dedicated API key management
-        const apiKey = configManager.getApiKey('opencode') || process.env.OPENCODE_API_KEY || process.env.OPENAI_COMPATIBLE_API_KEY
+        const apiKey =
+          configManager.getApiKey('opencode') || process.env.OPENCODE_API_KEY || process.env.OPENAI_COMPATIBLE_API_KEY
         if (!apiKey) {
           throw new Error(
             `API key not found for model: ${currentModelName} (OpenCode). Set OPENCODE_API_KEY environment variable or use /set-key opencode to configure.`
@@ -479,7 +478,7 @@ export class ModelProvider {
           if (nik?.advancedUI) nik.advancedUI.logInfo('Model Router', msg)
           else console.log(require('chalk').dim(msg))
         }
-      } catch { }
+      } catch {}
     }
     const effectiveConfig: ModelConfig = { ...currentModelConfig, model: effectiveModelId } as ModelConfig
     // Enforce light quota check for OpenRouter usage if authenticated
@@ -493,7 +492,7 @@ export class ModelProvider {
           }
         }
       }
-    } catch (_) { }
+    } catch (_) {}
 
     const model = this.getModel(effectiveConfig)
 
@@ -561,7 +560,7 @@ export class ModelProvider {
             exclude: false,
             enabled: true,
           }
-            ; (reasoningConfig as any).include_reasoning = (reasoningConfig as any).include_reasoning ?? true
+          ;(reasoningConfig as any).include_reasoning = (reasoningConfig as any).include_reasoning ?? true
           baseOptions.experimental_providerMetadata.openrouter.reasoning = reasoningConfig
         }
         const transforms = (effectiveConfig as any).transforms || configManager.get('openrouterTransforms')
@@ -597,7 +596,7 @@ export class ModelProvider {
           await authProvider.recordUsage('apiCalls', 1)
         }
       }
-    } catch (_) { }
+    } catch (_) {}
 
     // Extract reasoning if available and display if requested
     if (reasoningEnabled) {
@@ -687,7 +686,7 @@ export class ModelProvider {
           const msg = `[Router] ${currentModelName} → ${decision.selectedModel} (${decision.tier}, ~${decision.estimatedTokens} tok)`
           if (nik?.advancedUI) nik.advancedUI.logInfo('Model Router', msg)
           else console.log(require('chalk').dim(msg))
-        } catch { }
+        } catch {}
       }
     }
 
@@ -757,7 +756,7 @@ export class ModelProvider {
             exclude: false,
             enabled: true,
           }
-            ; (reasoningConfig as any).include_reasoning = (reasoningConfig as any).include_reasoning ?? true
+          ;(reasoningConfig as any).include_reasoning = (reasoningConfig as any).include_reasoning ?? true
           streamOptions.experimental_providerMetadata.openrouter.reasoning = reasoningConfig
         }
         const transforms = (effectiveConfig2 as any).transforms || configManager.get('openrouterTransforms')
@@ -827,7 +826,7 @@ export class ModelProvider {
           const msg = `[Router] ${configManager.getCurrentModel()} → ${decision.selectedModel} (${decision.tier}, ~${decision.estimatedTokens} tok)`
           if (nik?.advancedUI) nik.advancedUI.logInfo('Model Router', msg)
           else console.log(require('chalk').dim(msg))
-        } catch { }
+        } catch {}
       }
     }
     const model = this.getModel({ ...currentModelConfig, model: effId3 } as ModelConfig)

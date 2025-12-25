@@ -3,10 +3,10 @@ import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import chalk from 'chalk'
+import { advancedUI } from '../ui/advanced-cli-ui'
 import { structuredLogger } from '../utils/structured-logger'
 import { simpleConfigManager } from './config-manager'
 import type { DocumentationEntry } from './documentation-library'
-import { advancedUI } from '../ui/advanced-cli-ui'
 
 export interface SharedDocEntry {
   id: string

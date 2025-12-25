@@ -400,11 +400,9 @@ export class EnhancedModelSelector {
   /**
    * Select optimal model based on requirements
    */
-  static selectOptimalModel(requirements: {
-    reasoning?: boolean
-    vision?: boolean
-    speed?: 'fast' | 'balanced' | 'powerful'
-  } = {}): string {
+  static selectOptimalModel(
+    requirements: { reasoning?: boolean; vision?: boolean; speed?: 'fast' | 'balanced' | 'powerful' } = {}
+  ): string {
     const { reasoning = false, vision = false, speed = 'balanced' } = requirements
 
     let candidates: Set<string>
@@ -421,11 +419,11 @@ export class EnhancedModelSelector {
     }
 
     if (reasoning) {
-      candidates = new Set([...candidates].filter(id => EnhancedModelSelector.reasoningEnabledModels.has(id)))
+      candidates = new Set([...candidates].filter((id) => EnhancedModelSelector.reasoningEnabledModels.has(id)))
     }
 
     if (vision) {
-      candidates = new Set([...candidates].filter(id => EnhancedModelSelector.visionCapableModels.has(id)))
+      candidates = new Set([...candidates].filter((id) => EnhancedModelSelector.visionCapableModels.has(id)))
     }
 
     const selected = [...candidates][0]
@@ -546,7 +544,19 @@ export const providerUtils = {
    * Get list of available providers
    */
   getAvailableProviders: (): string[] => {
-    const allProviders = ['openrouter', 'anthropic', 'openai', 'google', 'cerebras', 'groq', 'vercel', 'ollama', 'llamacpp', 'lmstudio', 'opencode']
-    return allProviders.filter(p => providerUtils.isProviderAvailable(p))
+    const allProviders = [
+      'openrouter',
+      'anthropic',
+      'openai',
+      'google',
+      'cerebras',
+      'groq',
+      'vercel',
+      'ollama',
+      'llamacpp',
+      'lmstudio',
+      'opencode',
+    ]
+    return allProviders.filter((p) => providerUtils.isProviderAvailable(p))
   },
 }

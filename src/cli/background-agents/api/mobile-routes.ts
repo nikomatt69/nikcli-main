@@ -3,11 +3,11 @@
  * Extends existing background-agents API with mobile-specific endpoints
  */
 
-import { Router, type Request, type Response } from 'express'
+import { type Request, type Response, Router } from 'express'
+import { simpleConfigManager } from '../../core/config-manager'
 import { agentService } from '../../services/agent-service'
 import { streamttyService } from '../../services/streamtty-service'
 import { diffManager } from '../../ui/diff-manager'
-import { simpleConfigManager } from '../../core/config-manager'
 import type { BackgroundJob } from '../types'
 
 // Mobile-specific types
@@ -207,7 +207,7 @@ export function createMobileRouter(): Router {
   router.post('/agents/:id/stop', async (req: Request, res: Response): Promise<void> => {
     try {
       const { id } = req.params
-      
+
       // Attempt to cancel the task
       const cancelled = await agentService.cancelTask(id)
 
@@ -331,7 +331,7 @@ export function createMobileRouter(): Router {
   router.post('/mode/plan', async (_req: Request, res: Response): Promise<void> => {
     try {
       mobileContext.planMode = !mobileContext.planMode
-      
+
       // Sync with global streaming orchestrator if available
       const orchestrator = (global as any).__streamingOrchestrator
       if (orchestrator && orchestrator.context) {
@@ -416,7 +416,7 @@ export function createMobileRouter(): Router {
       let result: any = { executed: true }
 
       switch (command.toLowerCase()) {
-        case 'status':
+        case 'status': {
           const activeAgents = agentService.getActiveAgents()
           const queuedTasks = agentService.getQueuedTasks()
           result = {
@@ -426,6 +426,7 @@ export function createMobileRouter(): Router {
             mode: mobileContext,
           }
           break
+        }
 
         case 'clear':
           // Clear operation would be handled by streaming orchestrator

@@ -1,4 +1,4 @@
-import { Theme, ThemeColors, ColorGradient } from './theme-manager'
+import type { ColorGradient, Theme, ThemeColors } from './theme-manager'
 
 export interface ValidationIssue {
   type: 'error' | 'warning' | 'info'
@@ -30,9 +30,26 @@ export interface ValidationResult {
 
 export class ThemeValidator {
   private namedColors = [
-    'black', 'white', 'red', 'green', 'blue', 'cyan', 'magenta', 'yellow',
-    'orange', 'purple', 'pink', 'brown', 'gray', 'silver', 'gold', 'navy',
-    'teal', 'lime', 'olive', 'maroon'
+    'black',
+    'white',
+    'red',
+    'green',
+    'blue',
+    'cyan',
+    'magenta',
+    'yellow',
+    'orange',
+    'purple',
+    'pink',
+    'brown',
+    'gray',
+    'silver',
+    'gold',
+    'navy',
+    'teal',
+    'lime',
+    'olive',
+    'maroon',
   ]
 
   /**
@@ -59,7 +76,7 @@ export class ThemeValidator {
     // Calculate color statistics
     const colorStats = this.analyzeColors(theme)
 
-    const valid = issues.filter(i => i.type === 'error').length === 0
+    const valid = issues.filter((i) => i.type === 'error').length === 0
 
     return {
       valid,
@@ -134,9 +151,22 @@ export class ThemeValidator {
 
       // Check all required color properties
       const requiredColors: (keyof ThemeColors)[] = [
-        'modeText', 'verticalBar', 'progressBar', 'accent1', 'accent2', 'accent3',
-        'accent4', 'accent5', 'background', 'textPrimary', 'textSecondary',
-        'border', 'success', 'warning', 'error', 'info'
+        'modeText',
+        'verticalBar',
+        'progressBar',
+        'accent1',
+        'accent2',
+        'accent3',
+        'accent4',
+        'accent5',
+        'background',
+        'textPrimary',
+        'textSecondary',
+        'border',
+        'success',
+        'warning',
+        'error',
+        'info',
       ]
 
       for (const colorKey of requiredColors) {
@@ -309,10 +339,7 @@ export class ThemeValidator {
       if (!modeColors) continue
 
       // Check contrast between text and background
-      const textContrast = this.checkContrast(
-        modeColors.textPrimary,
-        modeColors.background
-      )
+      const textContrast = this.checkContrast(modeColors.textPrimary, modeColors.background)
 
       if (textContrast.ratio < 4.5) {
         contrastIssues.push({
@@ -377,7 +404,7 @@ export class ThemeValidator {
     if (colorStats.uniqueColors < 5) score -= 10
     score = Math.max(0, score)
 
-    const passesWCAG_AA = contrastIssues.filter(i => i.type === 'error').length === 0
+    const passesWCAG_AA = contrastIssues.filter((i) => i.type === 'error').length === 0
     const passesWCAG_AAA = score >= 90
 
     return {
@@ -393,7 +420,10 @@ export class ThemeValidator {
   /**
    * Check contrast ratio between two colors
    */
-  private checkContrast(color1: string | ColorGradient, color2: string | ColorGradient): { ratio: number; passes: boolean } {
+  private checkContrast(
+    color1: string | ColorGradient,
+    color2: string | ColorGradient
+  ): { ratio: number; passes: boolean } {
     const rgb1 = this.getRGB(color1)
     const rgb2 = this.getRGB(color2)
 
@@ -406,7 +436,10 @@ export class ThemeValidator {
   /**
    * Calculate relative luminance and contrast ratio
    */
-  private calculateContrastRatio(rgb1: { r: number; g: number; b: number }, rgb2: { r: number; g: number; b: number }): number {
+  private calculateContrastRatio(
+    rgb1: { r: number; g: number; b: number },
+    rgb2: { r: number; g: number; b: number }
+  ): number {
     const lum1 = this.getLuminance(rgb1)
     const lum2 = this.getLuminance(rgb2)
     const brightest = Math.max(lum1, lum2)
@@ -421,7 +454,7 @@ export class ThemeValidator {
     const { r, g, b } = rgb
     const [rs, gs, bs] = [r, g, b].map((c) => {
       c = c / 255
-      return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)
+      return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
     })
     return 0.2126 * rs + 0.7152 * gs + 0.0722 * bs
   }
@@ -559,8 +592,9 @@ export class ThemeValidator {
 
     if (defaultColors && planColors && vmColors) {
       const commonColors = Object.keys(defaultColors).filter(
-        key => defaultColors[key as keyof typeof defaultColors] === planColors[key as keyof typeof planColors] &&
-               defaultColors[key as keyof typeof defaultColors] === vmColors[key as keyof typeof vmColors]
+        (key) =>
+          defaultColors[key as keyof typeof defaultColors] === planColors[key as keyof typeof planColors] &&
+          defaultColors[key as keyof typeof defaultColors] === vmColors[key as keyof typeof vmColors]
       ).length
 
       if (commonColors > 5) {

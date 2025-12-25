@@ -18,10 +18,10 @@ import { ChatSessionService } from '../services/chat-session-service'
 import type { BackgroundJob, CreateBackgroundJobRequest, JobStatus } from '../types'
 import { createChatRouter } from './chat-routes'
 import { mobileRouter } from './mobile-routes'
+import { MobileWebSocketServer } from './mobile-websocket-server'
 import { slackRouter } from './slack-routes'
 import { setupWebRoutes } from './web-routes'
 import { BackgroundAgentsWebSocketServer } from './websocket-server'
-import { MobileWebSocketServer } from './mobile-websocket-server'
 
 export interface APIServerConfig {
   port: number

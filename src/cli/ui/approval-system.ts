@@ -7,6 +7,7 @@ import { simpleConfigManager as configManager } from '../core/config-manager'
 import { inputQueue } from '../core/input-queue'
 import { advancedUI } from './advanced-cli-ui'
 import { DiffViewer, type FileDiff } from './diff-viewer'
+import { themeManager } from './theme-manager'
 
 // Enterprise User Management
 export interface EnterpriseUser {
@@ -457,7 +458,11 @@ export class ApprovalSystem extends EventEmitter {
       timestamp: new Date(),
       actor: request.requesterId,
       action: 'approval_requested',
-      details: { requestId: request.id, type: request.type, riskLevel: request.riskLevel },
+      details: {
+        requestId: request.id,
+        type: request.type,
+        riskLevel: request.riskLevel,
+      },
       sessionId: this.sessionId,
     })
 
@@ -817,47 +822,44 @@ export class ApprovalSystem extends EventEmitter {
     const configuredTimeout = this.getApprovalTimeout()
 
     try {
-      // Spacing before the panel
-      console.log()
-      console.log(chalk.gray('─'.repeat(60)))
+      const terminalWidth = Math.max(40, process.stdout.columns || 120)
+      const verticalBar = themeManager.getVerticalBar('default')
+      const bgColor = chalk.bgHex('#1a1a1a')
 
-      // Show risk indicator and title
       const riskColor = this.getRiskColor(riskLevel)
       const riskIcon = this.getRiskIcon(riskLevel)
-      console.log()
 
-      // Build the panel content
-      const panelContent = [
-        `${riskIcon} ${chalk.bold('Tool Operation Approval Required')}`,
-        '',
-        `${chalk.gray('Tool:')} ${chalk.white(toolName)}`,
-        `${chalk.gray('Operation:')} ${chalk.white(operation)}`,
-        `${chalk.gray('Risk Level:')} ${riskColor(riskLevel.toUpperCase())}`,
-        '',
-        `${chalk.gray('Description:')} ${details.description}`,
-      ]
+      const headerText = `${riskIcon} TOOL APPROVAL`
+      const headerPadding = Math.max(0, terminalWidth - 2 - this._stripAnsi(headerText).length)
+      console.log(bgColor(`${verticalBar}${chalk.bold(headerText)}${' '.repeat(headerPadding)}`))
+
+      const infoText = `Tool: ${toolName} | Op: ${operation} | Risk: ${riskColor(riskLevel.toUpperCase())}`
+      const infoPadding = Math.max(0, terminalWidth - 2 - this._stripAnsi(infoText).length)
+      console.log(bgColor(`${verticalBar}${infoText}${' '.repeat(infoPadding)}`))
+
+      let description = details.description.replace(/\n/g, ' | ')
+      const maxWidth = terminalWidth - 2 - 4
+      if (this._stripAnsi(description).length > maxWidth) {
+        description = `${this._stripAnsi(description).substring(0, maxWidth - 3)}...`
+      }
+      const descriptionPadding = Math.max(0, terminalWidth - 2 - this._stripAnsi(description).length)
+      console.log(bgColor(`${verticalBar} ${description}${' '.repeat(descriptionPadding)}`))
 
       if (details.path) {
-        panelContent.push(`${chalk.gray('Path:')} ${chalk.cyan(details.path)}`)
+        const pathPadding = Math.max(0, terminalWidth - 2 - this._stripAnsi(details.path).length)
+        console.log(bgColor(`${verticalBar} ${chalk.cyan(details.path)}${' '.repeat(pathPadding)}`))
+      } else if (details.preview) {
+        const preview = details.preview.substring(0, 80) + (details.preview.length > 80 ? '...' : '')
+        const previewPadding = Math.max(0, terminalWidth - 2 - this._stripAnsi(preview).length)
+        console.log(bgColor(`${verticalBar} ${chalk.dim(preview)}${' '.repeat(previewPadding)}`))
       }
 
-      if (details.preview) {
-        panelContent.push('')
-        panelContent.push(`${chalk.gray('Preview:')}`)
-        panelContent.push(chalk.dim(details.preview.substring(0, 500)))
-      }
+      const timeoutText = `Timeout: ${configuredTimeout / 1000}s`
+      const timeoutPadding = Math.max(0, terminalWidth - 2 - this._stripAnsi(timeoutText).length)
+      console.log(bgColor(`${verticalBar}${chalk.hex('#666666')(timeoutText)}${' '.repeat(timeoutPadding)}`))
 
-      // Display the panel using boxen
-      this.cliInstance?.printPanel(
-        boxen(panelContent.join('\n'), {
-          padding: 1,
-          margin: { top: 0, bottom: 1, left: 0, right: 0 },
-          borderStyle: 'round',
-          borderColor: riskLevel === 'critical' ? 'red' : riskLevel === 'high' ? 'yellow' : 'blue',
-        })
-      )
+      console.log()
 
-      // Ensure output is flushed and terminal is ready for Inquirer
       await Promise.race([
         new Promise((resolve) => {
           process.stdout.write('', () => {
@@ -1593,6 +1595,22 @@ export class ApprovalSystem extends EventEmitter {
     }
   }
 
+  private _stripAnsi(str: string): string {
+    const escapeSequence = String.fromCharCode(27)
+    return str.replace(
+      new RegExp(
+        escapeSequence +
+          '\\[[0-9;]*[mGK]|' +
+          escapeSequence +
+          '\\[[\\d;]*[A-Za-z]|' +
+          escapeSequence +
+          '\\[[0-9;]*[JKHJIS]',
+        'g'
+      ),
+      ''
+    )
+  }
+
   /**
    * Get priority icon
    */
@@ -1992,11 +2010,26 @@ export class ApprovalSystem extends EventEmitter {
         name: 'conditions',
         message: 'Select enterprise conditions (if conditional approval):',
         choices: [
-          { name: 'Require additional review after execution', value: 'post_review' },
-          { name: 'Limit to non-production environment only', value: 'non_prod_only' },
-          { name: 'Require continuous monitoring during execution', value: 'monitor_execution' },
-          { name: 'Set expiration for approval (24 hours)', value: 'time_limit' },
-          { name: 'Require compliance officer sign-off', value: 'compliance_review' },
+          {
+            name: 'Require additional review after execution',
+            value: 'post_review',
+          },
+          {
+            name: 'Limit to non-production environment only',
+            value: 'non_prod_only',
+          },
+          {
+            name: 'Require continuous monitoring during execution',
+            value: 'monitor_execution',
+          },
+          {
+            name: 'Set expiration for approval (24 hours)',
+            value: 'time_limit',
+          },
+          {
+            name: 'Require compliance officer sign-off',
+            value: 'compliance_review',
+          },
         ],
         when: (answers: any) => answers.decision === 'conditional',
       },

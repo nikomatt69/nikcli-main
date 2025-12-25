@@ -6,8 +6,8 @@ import inquirer from 'inquirer'
 import { inputQueue } from '../core/input-queue'
 import { advancedUI } from '../ui/advanced-cli-ui'
 import {
-  checkPath,
   sanitizePath as centralizedSanitizePath,
+  checkPath,
   isPathSafe,
   type PathCheckResult,
 } from '../utils/path-resolver'

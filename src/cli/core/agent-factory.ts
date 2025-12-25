@@ -5,14 +5,15 @@ import { z } from 'zod'
 import { type ChatMessage, modelProvider } from '../ai/model-provider'
 import { BaseAgent } from '../automation/agents/base-agent'
 import { workspaceContext } from '../context/workspace-context'
+import { contextOrchestrator } from '../orchestrator/context-orchestrator'
 import { AgentTaskResultSchema } from '../schemas/core-schemas'
 import { toolsManager } from '../tools/migration-to-secure-tools' // deprecated, for backward compatibility
+import { advancedUI } from '../ui/advanced-cli-ui'
 import { CircuitBreaker } from '../utils/circuit-breaker'
 import { agentStream } from './agent-stream'
 import { agentTodoManager } from './agent-todo-manager'
 import { blueprintStorage } from './blueprint-storage'
 import { configManager } from './config-manager'
-import { advancedUI } from '../ui/advanced-cli-ui'
 import { taskChainManager } from './task-chain-manager'
 
 // ====================== ⚡︎ ZOD VALIDATION SCHEMAS ======================
@@ -1256,7 +1257,10 @@ Execute tasks step-by-step and verify results before proceeding.`
       const isHealthy = await this.checkAgentHealth(existing)
 
       if (isHealthy) {
-        advancedUI.logFunctionUpdate('warning', `⚠︎ Agent ${blueprint.name} already launched; returning existing instance`)
+        advancedUI.logFunctionUpdate(
+          'warning',
+          `⚠︎ Agent ${blueprint.name} already launched; returning existing instance`
+        )
 
         // If a task is provided, execute it on the existing agent
         if (task) {
@@ -1559,7 +1563,9 @@ Execute tasks step-by-step and verify results before proceeding.`
     }
 
     if (protectedFromTaskchain.length > 0) {
-      advancedUI.logInfo(chalk.cyan(`🛡 Protected ${protectedFromTaskchain.length} agents from cleanup (active taskchains)`))
+      advancedUI.logInfo(
+        chalk.cyan(`🛡 Protected ${protectedFromTaskchain.length} agents from cleanup (active taskchains)`)
+      )
     }
 
     if (inactiveAgents.length > 0) {
@@ -1708,13 +1714,24 @@ Execute tasks step-by-step and verify results before proceeding.`
       )
     )
 
+    let orchestrationResult: any = null
+    try {
+      const todos = agentTodoManager.getAgentTodos(primary.id)
+      if (todos.length > 0) {
+        orchestrationResult = await contextOrchestrator.orchestrate(todos, `task-${primary.id}`)
+      }
+    } catch (error) {
+      advancedUI.logWarning(`⚠ Could not orchestrate context: ${error}`)
+    }
+
     return {
       primary,
       secondary,
       reasoning,
       confidence,
       fallbackOptions,
-    }
+      orchestrationResult,
+    } as any
   }
 
   /**

@@ -74,8 +74,6 @@ export class MultiEditTool extends BaseTool {
         parameters: params,
       })
 
-
-
       const normalizedOperations = this.normalizeOperations(params)
 
       if (normalizedOperations.length === 0) {

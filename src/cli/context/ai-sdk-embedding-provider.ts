@@ -1,9 +1,9 @@
+import { homedir } from 'node:os'
+import { join } from 'node:path'
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import { createOpenAI } from '@ai-sdk/openai'
 import { embed } from 'ai'
 import chalk from 'chalk'
-import { homedir } from 'node:os'
-import { join } from 'node:path'
 import { configManager } from '../core/config-manager'
 import { redisProvider } from '../providers/redis/redis-provider'
 import { advancedUI } from '../ui/advanced-cli-ui'
@@ -312,7 +312,6 @@ export class AiSdkEmbeddingProvider {
         return finalResults
       } catch (error: any) {
         lastError = error instanceof Error ? error : new Error(String(error))
-
       }
     }
 
@@ -362,7 +361,6 @@ export class AiSdkEmbeddingProvider {
           const batchResult = await this.generateBatch(batch, config)
           return { index: i + batchIndex, result: batchResult }
         } catch (error) {
-
           throw error
         }
       })
@@ -437,10 +435,10 @@ export class AiSdkEmbeddingProvider {
             const modelKey = configManager.getApiKey(config.model)
             const apiKey = config.baseURL?.includes('openrouter.ai')
               ? configManager.getApiKey('openrouter') ||
-              modelKey ||
-              process.env.OPENROUTER_API_KEY ||
-              configManager.getApiKey('openai') ||
-              process.env.OPENAI_API_KEY
+                modelKey ||
+                process.env.OPENROUTER_API_KEY ||
+                configManager.getApiKey('openai') ||
+                process.env.OPENAI_API_KEY
               : modelKey || configManager.getApiKey('openai') || process.env.OPENAI_API_KEY
 
             if (!apiKey) {

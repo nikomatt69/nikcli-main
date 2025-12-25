@@ -29,21 +29,24 @@ import {
   type TokenOptimizationConfig,
   TokenOptimizer,
 } from '../core/performance-optimizer'
+import { permissionStorage } from '../core/permission-storage'
+import { pluginManager } from '../core/plugin-manager'
 import { ProgressiveTokenManager } from '../core/progressive-token-manager'
 import { smartCache } from '../core/smart-cache-manager'
 import { ToolRouter } from '../core/tool-router'
-import { permissionStorage } from '../core/permission-storage'
 import { type ValidationContext, validatorManager } from '../core/validator-manager'
-import { ExecutionPolicyManager } from '../policies/execution-policy'
 import { WebSearchProvider } from '../core/web-search-provider'
+import { ExecutionPolicyManager } from '../policies/execution-policy'
 import { PromptManager } from '../prompts/prompt-manager'
-import { ApprovalSystem } from '../ui/approval-system'
+import { getSkillsNativeProvider } from '../providers/skills/skills-native-provider'
 import { streamttyService } from '../services/streamtty-service'
 import { aiDocsTools } from '../tools/docs-request-tool'
 import { aiMemoryTools } from '../tools/memory-search-tool'
+import { createSkillNativeTool, listSkillsNativeTool } from '../tools/skill-native-tool'
 import { smartDocsTools } from '../tools/smart-docs-tool'
 import { ToolRegistry } from '../tools/tool-registry'
 import { advancedUI } from '../ui/advanced-cli-ui'
+import { ApprovalSystem } from '../ui/approval-system'
 import { diffManager } from '../ui/diff-manager'
 import { DiffViewer, type FileDiff } from '../ui/diff-viewer'
 import { compactAnalysis, safeStringifyContext } from '../utils/analysis-utils'
@@ -185,6 +188,35 @@ export class AdvancedAIProvider implements AutonomousProvider {
     toolResults: any[]
   }> {
     throw new Error('Method not implemented.')
+  }
+
+  /**
+   * Simple text generation without tools (for plugin generation)
+   */
+  async generateText(
+    messages: CoreMessage[],
+    options: { maxTokens?: number; temperature?: number } = {}
+  ): Promise<{ text: string }> {
+    const model = this.getModel() as any
+    const params = this.getProviderParams()
+
+    const genOpts: any = {
+      model,
+      messages: messages.map((m) => ({
+        role: m.role,
+        content: m.content,
+      })),
+      maxTokens: options.maxTokens ?? params.maxTokens ?? 2000,
+      temperature: options.temperature ?? params.temperature ?? 0.3,
+    }
+
+    try {
+      const result = await generateText(genOpts)
+      return { text: result.text }
+    } catch (error) {
+      console.error('[AdvancedAIProvider] generateText error:', error)
+      throw error
+    }
   }
 
   /**
@@ -854,20 +886,16 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
     }
 
     const riskLevel = (approvalRequest?.riskAssessment?.level || 'low') as 'low' | 'medium' | 'high' | 'critical'
-    const description = approvalRequest?.riskAssessment?.reasons?.join('\n• ') || `Execute ${toolName} with ${operation}`
+    const description =
+      approvalRequest?.riskAssessment?.reasons?.join('\n• ') || `Execute ${toolName} with ${operation}`
 
     // Use interactive approval with inquirer
-    const approval = await this.approvalSystem.requestToolApprovalInteractive(
-      toolName,
-      operation,
-      riskLevel,
-      {
-        description,
-        path: args.path || args.filePath || undefined,
-        args,
-        preview: args.content ? String(args.content).substring(0, 200) : undefined,
-      }
-    )
+    const approval = await this.approvalSystem.requestToolApprovalInteractive(toolName, operation, riskLevel, {
+      description,
+      path: args.path || args.filePath || undefined,
+      args,
+      preview: args.content ? String(args.content).substring(0, 200) : undefined,
+    })
 
     if (!approval.approved) {
       throw new Error(`Operation cancelled by user: ${toolName} - ${operation}`)
@@ -1158,16 +1186,78 @@ USAGE EXAMPLES:
 
 The tool automatically handles chunking, token limits, and provides continuation hints when files are truncated.`,
         parameters: z.object({
-          path: z.string().min(1).describe('File path to read (relative to project root). Example: "src/components/Button.tsx"'),
-          analyze: z.boolean().optional().default(true).describe('Whether to analyze file structure and extract metadata (functions, imports, exports, etc.)'),
-          encoding: z.string().optional().default('utf8').describe('File encoding (default: utf8). Use utf8 for text files, binary files will be detected automatically.'),
-          maxSize: z.number().int().min(1).optional().describe('Maximum file size in bytes to read (safety limit). Prevents reading extremely large files. Example: 10485760 for 10MB limit.'),
-          maxLines: z.number().int().min(1).optional().describe('Maximum total lines to read (overrides maxLinesPerChunk if smaller). Useful for reading only first N lines.'),
-          stripComments: z.boolean().optional().default(false).describe('Strip comments from code files (JS/TS/Python/CSS/HTML). Reduces token usage for large files.'),
-          parseJson: z.boolean().optional().default(false).describe('Parse content as JSON and return parsed object instead of string. Use for config files like package.json, tsconfig.json.'),
-          startLine: z.number().int().min(1).optional().default(1).describe('Starting line number (1-based). Default: 1. Use for incremental reading: startLine=1 for lines 1-200, startLine=201 for lines 201-400, etc.'),
-          maxLinesPerChunk: z.number().int().min(1).max(200).optional().default(200).describe('Maximum lines to read per chunk (default: 200, max: 200). CRITICAL: Never exceed 200 to avoid token overflow. This is enforced by the system prompt.'),
-          tokenBudget: z.number().int().min(1000).optional().default(3000).describe('Token budget for this read operation (default: 3000). Content will be automatically truncated if estimated tokens exceed this budget. Increase only if necessary.'),
+          path: z
+            .string()
+            .min(1)
+            .describe('File path to read (relative to project root). Example: "src/components/Button.tsx"'),
+          analyze: z
+            .boolean()
+            .optional()
+            .default(true)
+            .describe('Whether to analyze file structure and extract metadata (functions, imports, exports, etc.)'),
+          encoding: z
+            .string()
+            .optional()
+            .default('utf8')
+            .describe(
+              'File encoding (default: utf8). Use utf8 for text files, binary files will be detected automatically.'
+            ),
+          maxSize: z
+            .number()
+            .int()
+            .min(1)
+            .optional()
+            .describe(
+              'Maximum file size in bytes to read (safety limit). Prevents reading extremely large files. Example: 10485760 for 10MB limit.'
+            ),
+          maxLines: z
+            .number()
+            .int()
+            .min(1)
+            .optional()
+            .describe(
+              'Maximum total lines to read (overrides maxLinesPerChunk if smaller). Useful for reading only first N lines.'
+            ),
+          stripComments: z
+            .boolean()
+            .optional()
+            .default(false)
+            .describe('Strip comments from code files (JS/TS/Python/CSS/HTML). Reduces token usage for large files.'),
+          parseJson: z
+            .boolean()
+            .optional()
+            .default(false)
+            .describe(
+              'Parse content as JSON and return parsed object instead of string. Use for config files like package.json, tsconfig.json.'
+            ),
+          startLine: z
+            .number()
+            .int()
+            .min(1)
+            .optional()
+            .default(1)
+            .describe(
+              'Starting line number (1-based). Default: 1. Use for incremental reading: startLine=1 for lines 1-200, startLine=201 for lines 201-400, etc.'
+            ),
+          maxLinesPerChunk: z
+            .number()
+            .int()
+            .min(1)
+            .max(200)
+            .optional()
+            .default(200)
+            .describe(
+              'Maximum lines to read per chunk (default: 200, max: 200). CRITICAL: Never exceed 200 to avoid token overflow. This is enforced by the system prompt.'
+            ),
+          tokenBudget: z
+            .number()
+            .int()
+            .min(1000)
+            .optional()
+            .default(3000)
+            .describe(
+              'Token budget for this read operation (default: 3000). Content will be automatically truncated if estimated tokens exceed this budget. Increase only if necessary.'
+            ),
         }),
         execute: async ({
           path,
@@ -1179,12 +1269,21 @@ The tool automatically handles chunking, token limits, and provides continuation
           parseJson = false,
           startLine = 1,
           maxLinesPerChunk = 200,
-          tokenBudget = 3000
+          tokenBudget = 3000,
         }) => {
           try {
             // Check approval before execution
             await this.checkApproval('read_file', 'read', {
-              path, analyze, encoding, maxSize, maxLines, stripComments, parseJson, startLine, maxLinesPerChunk, tokenBudget
+              path,
+              analyze,
+              encoding,
+              maxSize,
+              maxLines,
+              stripComments,
+              parseJson,
+              startLine,
+              maxLinesPerChunk,
+              tokenBudget,
             })
 
             // Load tool-specific prompt for context
@@ -1210,7 +1309,9 @@ The tool automatically handles chunking, token limits, and provides continuation
 
             // Check maxSize if specified
             if (maxSize && stats.size > maxSize) {
-              return { error: `File too large: ${stats.size} bytes (max: ${maxSize} bytes)` }
+              return {
+                error: `File too large: ${stats.size} bytes (max: ${maxSize} bytes)`,
+              }
             }
 
             const extension = extname(fullPath)
@@ -1373,20 +1474,46 @@ The tool automatically handles chunking, token limits, and provides continuation
           encoding: z.string().optional().default('utf8').describe('File encoding (default: utf8)'),
           mode: z.number().int().optional().describe('File mode/permissions (octal, e.g., 0o644)'),
           createBackup: z.boolean().optional().default(true).describe('Create backup if file exists (alias: backup)'),
-          backup: z.boolean().optional().default(true).describe('Create backup if file exists (deprecated: use createBackup)'),
+          backup: z
+            .boolean()
+            .optional()
+            .default(true)
+            .describe('Create backup if file exists (deprecated: use createBackup)'),
           autoRollback: z.boolean().optional().default(false).describe('Automatically rollback on validation failure'),
-          verifyWrite: z.boolean().optional().default(true).describe('Verify file was written correctly by reading it back'),
+          verifyWrite: z
+            .boolean()
+            .optional()
+            .default(true)
+            .describe('Verify file was written correctly by reading it back'),
           showDiff: z.boolean().optional().default(true).describe('Show diff preview before writing'),
           skipFormatting: z.boolean().optional().default(false).describe('Skip automatic code formatting'),
           validate: z.boolean().optional().default(true).describe('Use LSP validation before writing'),
           agentId: z.string().optional().describe('ID of the agent making this request'),
           reasoning: z.string().optional().describe('Reasoning behind this file creation/modification'),
         }),
-        execute: async ({ path, content, encoding = 'utf8', mode, createBackup = true, backup = true, autoRollback = false, verifyWrite = true, showDiff = true, skipFormatting = false, validate = true, agentId, reasoning }) => {
+        execute: async ({
+          path,
+          content,
+          encoding = 'utf8',
+          mode,
+          createBackup = true,
+          backup = true,
+          autoRollback = false,
+          verifyWrite = true,
+          showDiff = true,
+          skipFormatting = false,
+          validate = true,
+          agentId,
+          reasoning,
+        }) => {
           try {
             // Check approval before execution
             await this.checkApproval('write_file', 'write', {
-              path, content: `${content.substring(0, 100)}...`, encoding, createBackup, validate
+              path,
+              content: `${content.substring(0, 100)}...`,
+              encoding,
+              createBackup,
+              validate,
             })
 
             // Load tool-specific prompt for context
@@ -1514,7 +1641,9 @@ The tool automatically handles chunking, token limits, and provides continuation
             // Set file mode if specified
             if (mode !== undefined) {
               try {
-                await execAsync(`chmod ${mode.toString(8)} "${fullPath}"`, { cwd: this.workingDirectory })
+                await execAsync(`chmod ${mode.toString(8)} "${fullPath}"`, {
+                  cwd: this.workingDirectory,
+                })
               } catch {
                 // Ignore chmod errors on some systems
               }
@@ -1528,10 +1657,15 @@ The tool automatically handles chunking, token limits, and provides continuation
                   if (autoRollback && backedUp) {
                     // Rollback from backup
                     const backupPath = `${fullPath}.backup.${Date.now()}`
-                    const backupFiles = readdirSync(dirname(fullPath)).filter((f) => f.startsWith(basename(fullPath) + '.backup.'))
+                    const backupFiles = readdirSync(dirname(fullPath)).filter((f) =>
+                      f.startsWith(basename(fullPath) + '.backup.')
+                    )
                     if (backupFiles.length > 0) {
                       const latestBackup = backupFiles.sort().reverse()[0]
-                      const backupContent = readFileSync(resolve(dirname(fullPath), latestBackup), encoding as BufferEncoding)
+                      const backupContent = readFileSync(
+                        resolve(dirname(fullPath), latestBackup),
+                        encoding as BufferEncoding
+                      )
                       writeFileSync(fullPath, backupContent, encoding as BufferEncoding)
                       advancedUI.logFunctionUpdate('error', 'Write verification failed - rolled back to backup', '✖')
                       return {
@@ -1572,10 +1706,10 @@ The tool automatically handles chunking, token limits, and provides continuation
               formatter: validationResult?.formatter,
               validation: validationResult
                 ? {
-                  isValid: validationResult.isValid,
-                  errors: validationResult.errors,
-                  warnings: validationResult.warnings,
-                }
+                    isValid: validationResult.isValid,
+                    errors: validationResult.errors,
+                    warnings: validationResult.warnings,
+                  }
                 : null,
               reasoning: reasoning || `File ${backedUp ? 'updated' : 'created'} by agent`,
             }
@@ -1597,7 +1731,12 @@ The tool automatically handles chunking, token limits, and provides continuation
         execute: async ({ path, depth, includeHidden, filterBy }) => {
           try {
             // Check approval before execution
-            await this.checkApproval('explore_directory', 'explore', { path, depth, includeHidden, filterBy })
+            await this.checkApproval('explore_directory', 'explore', {
+              path,
+              depth,
+              includeHidden,
+              filterBy,
+            })
 
             // Load tool-specific prompt for context
             const toolPrompt = await this.getToolPrompt('explore_directory', {
@@ -1639,19 +1778,45 @@ The tool automatically handles chunking, token limits, and provides continuation
           args: z.array(z.string()).optional().default([]).describe('Command arguments'),
           cwd: z.string().optional().describe('Working directory for command execution (defaults to project root)'),
           timeout: z.number().int().min(100).optional().default(30000).describe('Timeout in milliseconds (min: 100ms)'),
-          skipConfirmation: z.boolean().optional().default(true).describe('Skip confirmation prompts (alias: autonomous)'),
-          autonomous: z.boolean().optional().default(true).describe('Execute without confirmation (deprecated: use skipConfirmation)'),
+          skipConfirmation: z
+            .boolean()
+            .optional()
+            .default(true)
+            .describe('Skip confirmation prompts (alias: autonomous)'),
+          autonomous: z
+            .boolean()
+            .optional()
+            .default(true)
+            .describe('Execute without confirmation (deprecated: use skipConfirmation)'),
           env: z.record(z.string()).optional().describe('Environment variables to set for command'),
-          shell: z.enum(['bash', 'sh', 'zsh', 'fish', 'powershell', 'cmd']).optional().describe('Shell to use for command execution'),
+          shell: z
+            .enum(['bash', 'sh', 'zsh', 'fish', 'powershell', 'cmd'])
+            .optional()
+            .describe('Shell to use for command execution'),
         }),
-        execute: async ({ command, args = [], cwd, timeout = 30000, skipConfirmation = true, autonomous = true, env, shell }) => {
+        execute: async ({
+          command,
+          args = [],
+          cwd,
+          timeout = 30000,
+          skipConfirmation = true,
+          autonomous = true,
+          env,
+          shell,
+        }) => {
           const fullCommand = args.length > 0 ? `${command} ${args.join(' ')}` : command
           const commandCwd = cwd ? resolve(this.workingDirectory, cwd) : this.workingDirectory
           const startTime = Date.now()
 
           try {
             // Check approval before execution
-            await this.checkApproval('execute_command', 'execute', { command, args, cwd, timeout, autonomous })
+            await this.checkApproval('execute_command', 'execute', {
+              command,
+              args,
+              cwd,
+              timeout,
+              autonomous,
+            })
 
             // Load tool-specific prompt for context
             const toolPrompt = await this.getToolPrompt('execute_command', {
@@ -1659,7 +1824,6 @@ The tool automatically handles chunking, token limits, and provides continuation
               args,
               autonomous,
             })
-
 
             const effectiveSkipConfirmation = skipConfirmation || autonomous
 
@@ -1753,7 +1917,11 @@ The tool automatically handles chunking, token limits, and provides continuation
         execute: async ({ includeMetrics, analyzeDependencies, securityScan }) => {
           try {
             // Check approval before execution
-            await this.checkApproval('analyze_project', 'analyze', { includeMetrics, analyzeDependencies, securityScan })
+            await this.checkApproval('analyze_project', 'analyze', {
+              includeMetrics,
+              analyzeDependencies,
+              securityScan,
+            })
 
             // Load tool-specific prompt for context
             const toolPrompt = await this.getToolPrompt('analyze_project', {
@@ -1761,7 +1929,6 @@ The tool automatically handles chunking, token limits, and provides continuation
               analyzeDependencies,
               securityScan,
             })
-
 
             advancedUI.logFunctionUpdate('info', 'Starting comprehensive project analysis...', 'ℹ')
 
@@ -1800,7 +1967,12 @@ The tool automatically handles chunking, token limits, and provides continuation
         execute: async ({ action, packages, dev, global }) => {
           try {
             // Check approval before execution (CRITICAL - modifies system packages)
-            await this.checkApproval('manage_packages', 'package', { action, packages, dev, global })
+            await this.checkApproval('manage_packages', 'package', {
+              action,
+              packages,
+              dev,
+              global,
+            })
 
             // Load tool-specific prompt for context
             const toolPrompt = await this.getToolPrompt('manage_packages', {
@@ -1809,7 +1981,6 @@ The tool automatically handles chunking, token limits, and provides continuation
               dev,
               global,
             })
-
 
             const command = 'bun'
             let args: string[] = []
@@ -2008,7 +2179,11 @@ The tool automatically handles chunking, token limits, and provides continuation
           showDiff: z.boolean().optional().default(true).describe('Show diff preview of changes'),
           validateSyntax: z.boolean().optional().default(true).describe('Validate syntax after edits'),
           autoFormat: z.boolean().optional().default(true).describe('Auto-format code after edits'),
-          dryRun: z.boolean().optional().default(false).describe('Preview changes without applying (alias: previewOnly)'),
+          dryRun: z
+            .boolean()
+            .optional()
+            .default(false)
+            .describe('Preview changes without applying (alias: previewOnly)'),
           previewOnly: z.boolean().optional().default(false).describe('Preview changes without applying'),
         }),
         execute: async (params) => {
@@ -2092,7 +2267,11 @@ The tool automatically handles chunking, token limits, and provides continuation
           replace: z.string().describe('Replacement text (newString)'),
           replaceAll: z.boolean().optional().default(true).describe('Replace all occurrences (default: true)'),
           createBackup: z.boolean().optional().default(true).describe('Create backup before editing (alias: backup)'),
-          backup: z.boolean().optional().default(true).describe('Create backup before editing (deprecated: use createBackup)'),
+          backup: z
+            .boolean()
+            .optional()
+            .default(true)
+            .describe('Create backup before editing (deprecated: use createBackup)'),
         }),
         execute: async (params) => {
           const editTool = this.toolRegistry.getTool('edit-tool')
@@ -2434,7 +2613,9 @@ The tool automatically handles chunking, token limits, and provides continuation
           if (!skillTool) return { error: 'Skill tool not available' }
           // Check approval before execution
           await this.checkApproval('skill_tool', 'execute', params)
-          const result = await skillTool.execute(params.skillName, { context: params.context })
+          const result = await skillTool.execute(params.skillName, {
+            context: params.context,
+          })
           return result.success ? result.data : { error: result.error }
         },
       }),
@@ -2774,6 +2955,15 @@ The tool automatically handles chunking, token limits, and provides continuation
           return result.success ? result.data : { error: result.error }
         },
       }),
+
+      // ==================== PLUGIN TOOLS ====================
+      // Dynamically loaded from active plugins
+      ...pluginManager.getAllPluginTools(),
+
+      // ==================== NATIVE SKILLS (OpenCode-style) ====================
+      // Native skill loading from local SKILL.md files
+      skill: createSkillNativeTool(getSkillsNativeProvider()),
+      list_skills: listSkillsNativeTool,
     }
   }
 
@@ -2832,8 +3022,8 @@ The tool automatically handles chunking, token limits, and provides continuation
             ? lastUserMessage.content
             : Array.isArray(lastUserMessage.content)
               ? lastUserMessage.content
-                .map((part) => (typeof part === 'string' ? part : part.experimental_providerMetadata?.content || ''))
-                .join('')
+                  .map((part) => (typeof part === 'string' ? part : part.experimental_providerMetadata?.content || ''))
+                  .join('')
               : String(lastUserMessage.content)
 
         // Use ToolRouter for intelligent tool analysis
@@ -3068,11 +3258,10 @@ The tool automatically handles chunking, token limits, and provides continuation
 
           // Add reasoning metadata for OpenRouter using ReasoningDetector
           if (reasoningEnabled) {
-            const providerMetadata = ReasoningDetector.getReasoningProviderMetadata(
-              provider,
-              model,
-              { enabled: true, effort: 'medium' }
-            )
+            const providerMetadata = ReasoningDetector.getReasoningProviderMetadata(provider, model, {
+              enabled: true,
+              effort: 'medium',
+            })
 
             if (Object.keys(providerMetadata).length > 0) {
               streamOpts.experimental_providerMetadata = {
@@ -3101,7 +3290,7 @@ The tool automatically handles chunking, token limits, and provides continuation
                 streamOpts.experimental_providerMetadata.openrouter = {}
               }
               const toolNames = Object.keys(tools)
-              streamOpts.experimental_providerMetadata.openrouter.tools = toolNames.map(name => ({
+              streamOpts.experimental_providerMetadata.openrouter.tools = toolNames.map((name) => ({
                 name,
                 thought_signature: `thought_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`,
               }))
@@ -3114,11 +3303,10 @@ The tool automatically handles chunking, token limits, and provides continuation
 
           // Add reasoning metadata for Anthropic using ReasoningDetector
           if (reasoningEnabled) {
-            const providerMetadata = ReasoningDetector.getReasoningProviderMetadata(
-              provider,
-              model,
-              { enabled: true, budgetTokens: 10000 }
-            )
+            const providerMetadata = ReasoningDetector.getReasoningProviderMetadata(provider, model, {
+              enabled: true,
+              budgetTokens: 10000,
+            })
 
             if (Object.keys(providerMetadata).length > 0) {
               streamOpts.experimental_providerMetadata = {
@@ -3130,11 +3318,10 @@ The tool automatically handles chunking, token limits, and provides continuation
         } else {
           // Add reasoning metadata for other providers using ReasoningDetector
           if (reasoningEnabled) {
-            const providerMetadata = ReasoningDetector.getReasoningProviderMetadata(
-              provider,
-              model,
-              { enabled: true, effort: 'medium' }
-            )
+            const providerMetadata = ReasoningDetector.getReasoningProviderMetadata(provider, model, {
+              enabled: true,
+              effort: 'medium',
+            })
 
             if (Object.keys(providerMetadata).length > 0) {
               streamOpts.experimental_providerMetadata = {
@@ -3363,10 +3550,10 @@ The tool automatically handles chunking, token limits, and provides continuation
                     ? lastUserMessage.content
                     : Array.isArray(lastUserMessage.content)
                       ? lastUserMessage.content
-                        .map((part) =>
-                          typeof part === 'string' ? part : part.experimental_providerMetadata?.content || ''
-                        )
-                        .join('')
+                          .map((part) =>
+                            typeof part === 'string' ? part : part.experimental_providerMetadata?.content || ''
+                          )
+                          .join('')
                       : String(lastUserMessage.content)
 
                 // Salva nella cache intelligente
@@ -3860,9 +4047,34 @@ Stay within project directory.`,
   // Helper methods for intelligent analysis
   private isCodeFile(filePath: string): boolean {
     const codeExtensions = [
-      '.js', '.ts', '.jsx', '.tsx', '.py', '.java', '.c', '.cpp', '.h', '.hpp',
-      '.cs', '.php', '.rb', '.go', '.rs', '.swift', '.kt', '.scala', '.clj',
-      '.css', '.scss', '.sass', '.less', '.html', '.xml', '.json', '.yaml', '.yml',
+      '.js',
+      '.ts',
+      '.jsx',
+      '.tsx',
+      '.py',
+      '.java',
+      '.c',
+      '.cpp',
+      '.h',
+      '.hpp',
+      '.cs',
+      '.php',
+      '.rb',
+      '.go',
+      '.rs',
+      '.swift',
+      '.kt',
+      '.scala',
+      '.clj',
+      '.css',
+      '.scss',
+      '.sass',
+      '.less',
+      '.html',
+      '.xml',
+      '.json',
+      '.yaml',
+      '.yml',
     ]
     const ext = extname(filePath).toLowerCase()
     return codeExtensions.includes(ext)
@@ -4191,11 +4403,11 @@ Requirements:
       const routingCfg = configManager.get('modelRouting')
       const resolved = routingCfg?.enabled
         ? await this.resolveAdaptiveModel('code_gen', [
-          {
-            role: 'user',
-            content: `${type}: ${description} (${language})`,
-          } as any,
-        ])
+            {
+              role: 'user',
+              content: `${type}: ${description} (${language})`,
+            } as any,
+          ])
         : undefined
       const model = this.getModel(resolved) as any
       const params = this.getProviderParams()
@@ -4215,11 +4427,10 @@ Requirements:
 
           // Add reasoning metadata for OpenRouter using ReasoningDetector
           if (reasoningEnabled) {
-            const providerMetadata = ReasoningDetector.getReasoningProviderMetadata(
-              provider,
-              model,
-              { enabled: true, effort: 'medium' }
-            )
+            const providerMetadata = ReasoningDetector.getReasoningProviderMetadata(provider, model, {
+              enabled: true,
+              effort: 'medium',
+            })
 
             if (Object.keys(providerMetadata).length > 0) {
               genOpts.experimental_providerMetadata = {
@@ -4246,11 +4457,10 @@ Requirements:
 
           // Add reasoning metadata for Anthropic using ReasoningDetector
           if (reasoningEnabled) {
-            const providerMetadata = ReasoningDetector.getReasoningProviderMetadata(
-              provider,
-              model,
-              { enabled: true, budgetTokens: 5000 }
-            )
+            const providerMetadata = ReasoningDetector.getReasoningProviderMetadata(provider, model, {
+              enabled: true,
+              budgetTokens: 5000,
+            })
 
             if (Object.keys(providerMetadata).length > 0) {
               genOpts.experimental_providerMetadata = {
@@ -4262,11 +4472,10 @@ Requirements:
         } else {
           // Add reasoning metadata for other providers using ReasoningDetector
           if (reasoningEnabled) {
-            const providerMetadata = ReasoningDetector.getReasoningProviderMetadata(
-              provider,
-              model,
-              { enabled: true, effort: 'medium' }
-            )
+            const providerMetadata = ReasoningDetector.getReasoningProviderMetadata(provider, model, {
+              enabled: true,
+              effort: 'medium',
+            })
 
             if (Object.keys(providerMetadata).length > 0) {
               genOpts.experimental_providerMetadata = {
@@ -4331,7 +4540,7 @@ Requirements:
         const msg = `[Router] ${info.name} → ${decision.selectedModel} (${decision.tier}, ~${decision.estimatedTokens} tok)`
         if (nik?.advancedUI) nik.advancedUI.logInfo('model router', msg)
         else console.log(chalk.dim(msg))
-      } catch { }
+      } catch {}
 
       // The router returns a provider model id. Our config keys match these ids in default models.
       // If key is missing, fallback to current model name in config.
@@ -4497,13 +4706,16 @@ Requirements:
       case 'opencode': {
         // OpenCode provider with dedicated API key management
         const baseURL = (configData as any).baseURL || process.env.OPENCODE_BASE_URL || 'https://opencode.ai/zen/v1'
-        let apiKey = configManager.getApiKey('opencode') || process.env.OPENCODE_API_KEY || process.env.OPENAI_COMPATIBLE_API_KEY
+        let apiKey =
+          configManager.getApiKey('opencode') || process.env.OPENCODE_API_KEY || process.env.OPENAI_COMPATIBLE_API_KEY
         if (!apiKey) {
           const current = configManager.get('currentModel')
           if (current && current !== model) apiKey = configManager.getApiKey(current)
         }
         if (!apiKey) {
-          throw new Error(`No API key found for OpenCode provider (model ${model}). Set OPENCODE_API_KEY environment variable or use /set-key opencode`)
+          throw new Error(
+            `No API key found for OpenCode provider (model ${model}). Set OPENCODE_API_KEY environment variable or use /set-key opencode`
+          )
         }
         const compatProvider = createOpenAICompatible({
           name: 'opencode',

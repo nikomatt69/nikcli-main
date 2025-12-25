@@ -23,13 +23,13 @@ import { RAGSearchTool } from './rag-search-tool'
 import { ReadFileTool } from './read-file-tool'
 import { ReplaceInFileTool } from './replace-in-file-tool'
 import { RunCommandTool } from './run-command-tool'
+import { SkillTool } from './skill-tool'
 import { TextToCADTool } from './text-to-cad-tool'
 import { TextToGCodeTool } from './text-to-gcode-tool'
 import { TreeTool } from './tree-tool'
 import { VisionAnalysisTool } from './vision-analysis-tool'
 import { WatchTool } from './watch-tool'
 import { WebSearchTool } from './web-search-tool'
-import { SkillTool } from './skill-tool'
 import { WriteFileTool } from './write-file-tool'
 
 /**
@@ -59,7 +59,7 @@ export class ToolRegistry {
     // Update all tool instances that support updateWorkingDirectory
     for (const [_name, tool] of this.tools.entries()) {
       if (tool && typeof (tool as any).updateWorkingDirectory === 'function') {
-        ; (tool as any).updateWorkingDirectory(newDir)
+        ;(tool as any).updateWorkingDirectory(newDir)
       }
     }
   }

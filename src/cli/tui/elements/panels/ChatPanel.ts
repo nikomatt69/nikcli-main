@@ -3,8 +3,8 @@
  * AI chat interface in a TUI panel
  */
 
-import { PanelElement, PanelElementConfig } from '../specialized/PanelElement'
 import { eventBus } from '../../core/EventBus'
+import { PanelElement, type PanelElementConfig } from '../specialized/PanelElement'
 
 export interface ChatMessage {
   id: string
@@ -77,7 +77,7 @@ export class ChatPanel extends PanelElement {
       id: `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       role,
       content: content.trim(),
-      timestamp: Date.now()
+      timestamp: Date.now(),
     }
 
     this.addMessage(message)
@@ -92,8 +92,8 @@ export class ChatPanel extends PanelElement {
           model: this.model,
           provider: this.provider,
           systemPrompt: this.systemPrompt,
-          history: this.messages.slice(-10) // Last 10 messages for context
-        }
+          history: this.messages.slice(-10), // Last 10 messages for context
+        },
       })
     }
   }
@@ -139,7 +139,7 @@ export class ChatPanel extends PanelElement {
   getModelInfo(): { model: string; provider: string } {
     return {
       model: this.model,
-      provider: this.provider
+      provider: this.provider,
     }
   }
 
@@ -148,7 +148,7 @@ export class ChatPanel extends PanelElement {
    */
   private renderChat(): void {
     // Format messages for display
-    const formattedMessages = this.messages.map(msg => {
+    const formattedMessages = this.messages.map((msg) => {
       const time = new Date(msg.timestamp).toLocaleTimeString()
       const role = msg.role.toUpperCase()
       const prefix = msg.role === 'user' ? '>' : msg.role === 'assistant' ? 'AI' : 'SYS'
@@ -199,15 +199,15 @@ export class ChatPanel extends PanelElement {
       return true
     } else if (key === 'C-k') {
       // Clear last message
-      const lastUserMessage = [...this.messages].reverse().find(m => m.role === 'user')
+      const lastUserMessage = [...this.messages].reverse().find((m) => m.role === 'user')
       if (lastUserMessage) {
-        this.messages = this.messages.filter(m => m.id !== lastUserMessage.id)
+        this.messages = this.messages.filter((m) => m.id !== lastUserMessage.id)
         this.renderChat()
       }
       return true
     } else if (key === 'C-r') {
       // Regenerate last response
-      const lastUserMessage = [...this.messages].reverse().find(m => m.role === 'user')
+      const lastUserMessage = [...this.messages].reverse().find((m) => m.role === 'user')
       if (lastUserMessage && !this.isWaitingForResponse) {
         this.sendMessage(lastUserMessage.content)
       }

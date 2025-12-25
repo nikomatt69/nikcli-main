@@ -1,7 +1,7 @@
 import chalk from 'chalk'
-import { advancedUI } from '../ui/advanced-cli-ui'
 import { unifiedRAGSystem } from '../context/rag-system'
 import { workspaceContext } from '../context/workspace-context'
+import { advancedUI } from '../ui/advanced-cli-ui'
 
 /**
  * Gestisce i comandi per la gestione della cache RAG
@@ -127,11 +127,7 @@ export class CacheCommands {
   /**
    * Configura i parametri della cache
    */
-  static async configureCache(config: {
-    ttl?: string
-    incremental?: boolean
-    persistent?: boolean
-  }): Promise<void> {
+  static async configureCache(config: { ttl?: string; incremental?: boolean; persistent?: boolean }): Promise<void> {
     try {
       advancedUI.logInfo('⚙ Configuring cache...')
 

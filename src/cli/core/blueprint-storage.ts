@@ -2,8 +2,8 @@ import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import chalk from 'chalk'
-import type { AgentBlueprint } from './agent-factory'
 import { advancedUI } from '../ui/advanced-cli-ui'
+import type { AgentBlueprint } from './agent-factory'
 
 export interface BlueprintStorageConfig {
   storageDir: string

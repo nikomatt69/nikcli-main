@@ -11,26 +11,26 @@ import { diffManager } from '../../ui/diff-manager'
 
 export interface MobileWebSocketMessage {
   type:
-  | 'connection:established'
-  | 'message:user'
-  | 'message:system'
-  | 'message:agent'
-  | 'message:tool'
-  | 'message:error'
-  | 'message:vm'
-  | 'message:diff'
-  | 'stream:chunk'
-  | 'stream:complete'
-  | 'agent:started'
-  | 'agent:progress'
-  | 'agent:completed'
-  | 'agent:failed'
-  | 'diff:created'
-  | 'diff:accepted'
-  | 'diff:rejected'
-  | 'status:update'
-  | 'heartbeat'
-  | 'error'
+    | 'connection:established'
+    | 'message:user'
+    | 'message:system'
+    | 'message:agent'
+    | 'message:tool'
+    | 'message:error'
+    | 'message:vm'
+    | 'message:diff'
+    | 'stream:chunk'
+    | 'stream:complete'
+    | 'agent:started'
+    | 'agent:progress'
+    | 'agent:completed'
+    | 'agent:failed'
+    | 'diff:created'
+    | 'diff:accepted'
+    | 'diff:rejected'
+    | 'status:update'
+    | 'heartbeat'
+    | 'error'
   data: any
   timestamp: Date
   clientId?: string
@@ -60,7 +60,7 @@ export class MobileWebSocketServer {
         }
 
         const origin = info.origin
-        const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',').map(o => o.trim()) || [
+        const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',').map((o) => o.trim()) || [
           'http://localhost:3000',
           'http://localhost:3001',
           'http://localhost:8081', // Expo default
@@ -423,7 +423,7 @@ export class MobileWebSocketServer {
     const { command, args = [] } = payload
 
     switch (command.toLowerCase()) {
-      case 'status':
+      case 'status': {
         const status = this.getCurrentStatus()
         this.sendToClient(clientId, {
           type: 'message:system',
@@ -443,12 +443,16 @@ export class MobileWebSocketServer {
           timestamp: new Date(),
         })
         break
+      }
 
-      case 'agents':
+      case 'agents': {
         const activeAgents = agentService.getActiveAgents()
-        const agentList = activeAgents.length > 0
-          ? activeAgents.map((a: any) => `• ${a.agentType} [${a.status}] ${a.progress ? `${a.progress}%` : ''}`).join('\n')
-          : 'No active agents'
+        const agentList =
+          activeAgents.length > 0
+            ? activeAgents
+                .map((a: any) => `• ${a.agentType} [${a.status}] ${a.progress ? `${a.progress}%` : ''}`)
+                .join('\n')
+            : 'No active agents'
 
         this.sendToClient(clientId, {
           type: 'message:system',
@@ -460,6 +464,7 @@ export class MobileWebSocketServer {
           timestamp: new Date(),
         })
         break
+      }
 
       case 'help':
       case 'commands':
@@ -546,7 +551,7 @@ export class MobileWebSocketServer {
       }
     }
 
-    deadClients.forEach(id => this.clients.delete(id))
+    deadClients.forEach((id) => this.clients.delete(id))
   }
 
   private startHeartbeat(): void {

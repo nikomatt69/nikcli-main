@@ -2,6 +2,7 @@ import { EventEmitter } from 'node:events'
 import { nanoid } from 'nanoid'
 import type { SimpleConfigManager } from '../core/config-manager'
 import { GuidanceManager } from '../guidance/guidance-manager'
+import { contextOrchestrator } from '../orchestrator/context-orchestrator'
 import type {
   Agent,
   AgentConfig,
@@ -15,6 +16,7 @@ import type {
   AgentTodo,
   TaskStatus,
 } from '../types/types'
+import { advancedUI } from '../ui/advanced-cli-ui'
 import { AsyncLock } from '../utils/async-lock'
 import { structuredLogger } from '../utils/structured-logger'
 import type { CliConfig } from './config-manager'
@@ -302,6 +304,8 @@ export class AgentManager extends EventEmitter {
       // Store result
       this.taskHistory.set(task.id, result)
 
+      await this.reportTaskOutcome(agentId, task, result)
+
       return result
     } catch (error: any) {
       clearTimeout(timeoutId)
@@ -476,10 +480,21 @@ export class AgentManager extends EventEmitter {
       ? this.guidanceManager.getContextForAgent(agent.specialization, process.cwd())
       : ''
 
+    let orchestratedContext = ''
+    try {
+      orchestratedContext = contextOrchestrator.getAgentContext(agent.taskchainId || 'default', agent.id)
+    } catch {
+      advancedUI.logWarning('⚠ Could not get orchestrated context')
+    }
+
+    const combinedGuidance = orchestratedContext
+      ? `${guidance}\n\n## Orchestrated Context\n${orchestratedContext}`
+      : guidance
+
     return {
       workingDirectory: process.cwd(),
       projectPath: process.cwd(),
-      guidance,
+      guidance: combinedGuidance,
       configuration: {
         autonomyLevel: 'semi-autonomous',
         maxConcurrentTasks: agent.maxConcurrentTasks,
@@ -517,6 +532,27 @@ export class AgentManager extends EventEmitter {
         maxRetries: 3,
       },
       approvalRequired: this.config.approvalPolicy === 'strict',
+    }
+  }
+
+  /**
+   * Report task outcome to context orchestrator for learning
+   */
+  private async reportTaskOutcome(agentId: string, task: AgentTask, result: AgentTaskResult): Promise<void> {
+    try {
+      const agent = this.getAgent(agentId)
+      if (!agent) return
+
+      const duration = result.endTime && result.startTime ? result.endTime.getTime() - result.startTime.getTime() : 0
+
+      await contextOrchestrator.reportOutcome(agent.taskchainId || 'default', agentId, {
+        success: result.status === 'completed',
+        tokensUsed: result.tokenUsage?.total || 0,
+        duration,
+        todos: [],
+      })
+    } catch {
+      advancedUI.logWarning('⚠ Could not report task outcome to context orchestrator')
     }
   }
 

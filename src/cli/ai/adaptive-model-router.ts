@@ -20,16 +20,16 @@ export type RoutingStrategy = 'adaptive' | 'auto' | 'fallback' | 'fixed'
 
 export interface ModelRouteInput {
   provider:
-  | 'openai'
-  | 'anthropic'
-  | 'google'
-  | 'ollama'
-  | 'vercel'
-  | 'gateway'
-  | 'openrouter'
-  | 'groq'
-  | 'cerebras'
-  | 'openai-compatible'
+    | 'openai'
+    | 'anthropic'
+    | 'google'
+    | 'ollama'
+    | 'vercel'
+    | 'gateway'
+    | 'openrouter'
+    | 'groq'
+    | 'cerebras'
+    | 'openai-compatible'
   baseModel: string // model id configured as current for provider
   messages: Array<Pick<ChatMessage, 'role' | 'content'>>
   scope?: ModelScope

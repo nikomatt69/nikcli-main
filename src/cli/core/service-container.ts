@@ -155,13 +155,15 @@ export class ServiceContainer {
 
     for (const [name] of this.services) {
       initPromises.push(
-        this.get(name).then(async (service) => {
-          if (this.isService(service)) {
-            await service.initialize()
-          }
-        }).catch((err) => {
-          console.error(`Failed to initialize service '${name}':`, err.message)
-        })
+        this.get(name)
+          .then(async (service) => {
+            if (this.isService(service)) {
+              await service.initialize()
+            }
+          })
+          .catch((err) => {
+            console.error(`Failed to initialize service '${name}':`, err.message)
+          })
       )
     }
 
@@ -210,13 +212,7 @@ export class ServiceContainer {
   }
 
   private isService(obj: unknown): obj is IService {
-    return (
-      obj !== null &&
-      typeof obj === 'object' &&
-      'initialize' in obj &&
-      'shutdown' in obj &&
-      'getStatus' in obj
-    )
+    return obj !== null && typeof obj === 'object' && 'initialize' in obj && 'shutdown' in obj && 'getStatus' in obj
   }
 }
 

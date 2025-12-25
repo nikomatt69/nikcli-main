@@ -1,6 +1,6 @@
-import chalk from 'chalk'
 import boxen from 'boxen'
-import { Theme, themeManager } from './theme-manager'
+import chalk from 'chalk'
+import { type Theme, themeManager } from './theme-manager'
 
 export interface PreviewMode {
   mode: 'default' | 'plan' | 'vm'
@@ -13,9 +13,7 @@ export class LiveThemePreview {
   private isActive: boolean = false
 
   constructor(themeName?: string) {
-    this.currentTheme = themeName
-      ? themeManager.getTheme(themeName)
-      : themeManager.getCurrentTheme()
+    this.currentTheme = themeName ? themeManager.getTheme(themeName) : themeManager.getCurrentTheme()
   }
 
   /**
@@ -63,17 +61,26 @@ export class LiveThemePreview {
       { mode: 'vm', label: 'VM' },
     ]
 
-    const modeDisplay = modes.map(m => {
-      if (m.mode === this.currentMode) {
-        return chalk.bgBlue.white(` ${m.label} `)
-      }
-      return chalk.gray(m.label)
-    }).join('  ')
+    const modeDisplay = modes
+      .map((m) => {
+        if (m.mode === this.currentMode) {
+          return chalk.bgBlue.white(` ${m.label} `)
+        }
+        return chalk.gray(m.label)
+      })
+      .join('  ')
 
-    console.log(chalk.yellow('Press') + chalk.white(' [d] ') + chalk.yellow('for Default,') +
-                chalk.white(' [p] ') + chalk.yellow('for Plan,') +
-                chalk.white(' [v] ') + chalk.yellow('for VM,') +
-                chalk.white(' [q] ') + chalk.yellow('to quit\n'))
+    console.log(
+      chalk.yellow('Press') +
+        chalk.white(' [d] ') +
+        chalk.yellow('for Default,') +
+        chalk.white(' [p] ') +
+        chalk.yellow('for Plan,') +
+        chalk.white(' [v] ') +
+        chalk.yellow('for VM,') +
+        chalk.white(' [q] ') +
+        chalk.yellow('to quit\n')
+    )
 
     // Sample UI Panel
     this.renderSampleUIPanel(modeColors)
@@ -141,9 +148,10 @@ export class LiveThemePreview {
 
     for (const item of colorItems) {
       const blocks = '████████████'
-      const colorStr = typeof item.color === 'object' && 'from' in item.color
-        ? `${(item.color as any).from} → ${(item.color as any).to}`
-        : item.color as string
+      const colorStr =
+        typeof item.color === 'object' && 'from' in item.color
+          ? `${(item.color as any).from} → ${(item.color as any).to}`
+          : (item.color as string)
 
       console.log(`${item.label.padEnd(15)} ${this.applyColor(item.color, blocks)} ${chalk.gray(colorStr)}`)
     }
@@ -369,8 +377,12 @@ export class LiveThemePreview {
         const colorStr2 = typeof color2 === 'object' ? color2.from : color2
 
         console.log(`${item.label.padEnd(15)} ${theme1.name.padEnd(15)} ${theme2.name}`)
-        console.log(`${' '.repeat(15)} ${LiveThemePreview.renderColorSample(colorStr1)} ${' '.repeat(5)} ${LiveThemePreview.renderColorSample(colorStr2)}`)
-        console.log(`${' '.repeat(15)} ${chalk.gray(colorStr1)} ${' '.repeat(30 - colorStr1.length)} ${chalk.gray(colorStr2)}`)
+        console.log(
+          `${' '.repeat(15)} ${LiveThemePreview.renderColorSample(colorStr1)} ${' '.repeat(5)} ${LiveThemePreview.renderColorSample(colorStr2)}`
+        )
+        console.log(
+          `${' '.repeat(15)} ${chalk.gray(colorStr1)} ${' '.repeat(30 - colorStr1.length)} ${chalk.gray(colorStr2)}`
+        )
         console.log('')
       }
     }

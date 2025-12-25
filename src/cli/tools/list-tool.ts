@@ -70,8 +70,6 @@ export class ListTool extends BaseTool {
         parameters: params,
       })
 
-
-
       const searchPath = params.path || this.workingDirectory
       const limit = params.limit || DEFAULT_LIMIT
       const maxDepth = Math.min(params.maxDepth || 5, MAX_DEPTH)

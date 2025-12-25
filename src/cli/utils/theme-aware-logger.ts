@@ -33,12 +33,12 @@ export class ThemeAwareLogger {
         success: 'green',
         timestamp: 'dim',
         level: 'dim',
-        ...config?.colors
+        ...config?.colors,
       },
       showTimestamp: config?.showTimestamp ?? true,
       showLevel: config?.showLevel ?? true,
       showIcons: config?.showIcons ?? true,
-      ...config
+      ...config,
     }
   }
 
@@ -105,7 +105,7 @@ export class ThemeAwareLogger {
   }
 
   private applyThemeToArgs(args: any[]): string[] {
-    return args.map(arg => {
+    return args.map((arg) => {
       if (typeof arg === 'string') {
         return this.getChalkMethod(this.getLogColor('info'))(arg)
       }

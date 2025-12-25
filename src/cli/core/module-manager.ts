@@ -2,8 +2,8 @@ import chalk from 'chalk'
 import { advancedAIProvider } from '../ai/advanced-ai-provider'
 import { middlewareManager } from '../middleware'
 import type { ExecutionPolicyManager } from '../policies/execution-policy'
-import { diffManager } from '../ui/diff-manager'
 import { advancedUI } from '../ui/advanced-cli-ui'
+import { diffManager } from '../ui/diff-manager'
 import { simpleConfigManager as configManager } from './config-manager'
 
 export interface ModuleContext {
@@ -321,7 +321,9 @@ export class ModuleManager {
     advancedUI.logInfo(chalk.dim('• "Optimize this component for performance"'))
 
     advancedUI.logInfo(chalk.gray(`\\n${'─'.repeat(60)}`))
-    advancedUI.logInfo(chalk.yellow('💡 Tip: Use TAB for auto-completion, / for command menu, Shift+Tab to cycle modes'))
+    advancedUI.logInfo(
+      chalk.yellow('💡 Tip: Use TAB for auto-completion, / for command menu, Shift+Tab to cycle modes')
+    )
   }
 
   private async handleAgents(_args: string[], _context: ModuleContext): Promise<void> {

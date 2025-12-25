@@ -70,8 +70,6 @@ export class DiffTool extends BaseTool {
         parameters: params,
       })
 
-
-
       if (!params.source || !params.target) {
         throw new Error('Both source and target are required')
       }

@@ -1,8 +1,8 @@
-import { existsSync, readFileSync, writeFileSync, statSync, readdirSync } from 'node:fs'
-import { join, relative, resolve } from 'node:path'
 import { createHash } from 'node:crypto'
-import { WorkspaceContext, FileEmbedding } from './workspace-rag'
+import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { join, relative, resolve } from 'node:path'
 import { advancedUI } from '../ui/advanced-cli-ui'
+import type { FileEmbedding, WorkspaceContext } from './workspace-rag'
 
 export interface CacheMetadata {
   version: string
@@ -135,11 +135,7 @@ export class WorkspaceCacheManager {
       }
 
       // Salva context
-      writeFileSync(
-        this.contextCachePath,
-        JSON.stringify(contextData, null, 2),
-        'utf-8'
-      )
+      writeFileSync(this.contextCachePath, JSON.stringify(contextData, null, 2), 'utf-8')
 
       // Salva metadata file
       const metadataData = {
@@ -150,11 +146,7 @@ export class WorkspaceCacheManager {
         files: Object.fromEntries(fileMetadata.entries()),
       }
 
-      writeFileSync(
-        this.metadataCachePath,
-        JSON.stringify(metadataData, null, 2),
-        'utf-8'
-      )
+      writeFileSync(this.metadataCachePath, JSON.stringify(metadataData, null, 2), 'utf-8')
     } catch (error) {
       console.error('Failed to save workspace cache:', error)
     }

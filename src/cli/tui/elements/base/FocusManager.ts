@@ -3,10 +3,10 @@
  * Manages focus navigation between TUI elements
  */
 
-import { BaseElement } from './BaseElement'
-import { elementManager } from './ElementManager'
 import { eventBus } from '../../core/EventBus'
 import { tuiState } from '../../core/TUIState'
+import type { BaseElement } from './BaseElement'
+import { elementManager } from './ElementManager'
 
 export interface FocusConfig {
   wrapAround?: boolean
@@ -26,7 +26,7 @@ export class FocusManager {
       cycleTabs: true,
       mouseEnabled: true,
       autoFocus: true,
-      ...config
+      ...config,
     }
 
     this.setupEventHandlers()
@@ -126,7 +126,7 @@ export class FocusManager {
 
     const currentFocused = elementManager.getFocusedElement()
     const currentIndex = currentFocused
-      ? focusableElements.findIndex(el => el.getId() === currentFocused!.getId())
+      ? focusableElements.findIndex((el) => el.getId() === currentFocused!.getId())
       : -1
 
     let nextIndex: number
@@ -153,7 +153,7 @@ export class FocusManager {
 
     const currentFocused = elementManager.getFocusedElement()
     const currentIndex = currentFocused
-      ? focusableElements.findIndex(el => el.getId() === currentFocused!.getId())
+      ? focusableElements.findIndex((el) => el.getId() === currentFocused!.getId())
       : -1
 
     let prevIndex: number
@@ -234,10 +234,7 @@ export class FocusManager {
   focusNextInHistory(): boolean {
     if (this.focusHistory.length === 0) return false
 
-    this.currentFocusIndex = Math.min(
-      this.currentFocusIndex + 1,
-      this.focusHistory.length - 1
-    )
+    this.currentFocusIndex = Math.min(this.currentFocusIndex + 1, this.focusHistory.length - 1)
 
     return this.focusFromHistory(this.currentFocusIndex)
   }

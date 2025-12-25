@@ -882,10 +882,10 @@ export class ToolRouter extends EventEmitter {
 
         // Token budget options (conservative defaults)
         if (content.includes('brief') || content.includes('summary')) {
-          suggestions.tokenBudget = 1500  // Very brief
+          suggestions.tokenBudget = 1500 // Very brief
           suggestions.maxLines = 30
         } else if (content.includes('full') || content.includes('complete')) {
-          suggestions.tokenBudget = 3000  // Conservative default
+          suggestions.tokenBudget = 3000 // Conservative default
           suggestions.maxLines = 100
         } else {
           // Default to conservative budget
@@ -974,21 +974,21 @@ export class ToolRouter extends EventEmitter {
           if (mlPrediction.confidence > 0.75) {
             // Boost ML-predicted tools in the candidates list
             mlEnhancedTools = this.applyMLBoost(toolCandidates, mlPrediction) as any[]
-              ; (structuredLogger as any).debug('ML Tool Routing', '🤖 ML-Enhanced Tool Selection Active', {
-                mlConfidence: mlPrediction.confidence,
-                predictedTools: mlPrediction.tools,
-                inputIntent: context.userIntent.substring(0, 100),
-                totalCandidates: toolCandidates.length,
-                enhancedCandidates: mlEnhancedTools.length,
-              })
+            ;(structuredLogger as any).debug('ML Tool Routing', '🤖 ML-Enhanced Tool Selection Active', {
+              mlConfidence: mlPrediction.confidence,
+              predictedTools: mlPrediction.tools,
+              inputIntent: context.userIntent.substring(0, 100),
+              totalCandidates: toolCandidates.length,
+              enhancedCandidates: mlEnhancedTools.length,
+            })
           } else {
-            ; (structuredLogger as any).debug('ML Tool Routing', '⚠︎ ML Confidence Below Threshold', {
+            ;(structuredLogger as any).debug('ML Tool Routing', '⚠︎ ML Confidence Below Threshold', {
               mlConfidence: mlPrediction.confidence,
               threshold: 0.75,
             })
           }
         } catch (error: any) {
-          ; (structuredLogger as any).warn('ML Tool Routing', `⚠︎ ML prediction failed: ${error.message}`)
+          ;(structuredLogger as any).warn('ML Tool Routing', `⚠︎ ML prediction failed: ${error.message}`)
           // Silent ML failure - use rule-based routing
         }
       }
@@ -1905,7 +1905,7 @@ export class ToolRouter extends EventEmitter {
 
     // Log ML boost details
     if (boostedTools.length > 0) {
-      ; (structuredLogger as any).debug('ML Boost', '✓ ML-predicted tools boosted', {
+      ;(structuredLogger as any).debug('ML Boost', '✓ ML-predicted tools boosted', {
         boostedTools,
         confidenceBoost: '+0.15',
         totalCandidates: candidates.length,

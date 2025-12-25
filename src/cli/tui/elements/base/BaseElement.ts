@@ -208,7 +208,7 @@ export abstract class BaseElement {
   protected onFocus(): void {
     this.eventBus.emit('tui:element:focused', {
       id: this.config.id,
-      type: this.config.type
+      type: this.config.type,
     })
   }
 
@@ -227,7 +227,7 @@ export abstract class BaseElement {
   protected onBlur(): void {
     this.eventBus.emit('tui:element:blurred', {
       id: this.config.id,
-      type: this.config.type
+      type: this.config.type,
     })
   }
 
@@ -275,7 +275,7 @@ export abstract class BaseElement {
    * Find child by ID
    */
   findChild(id: string): BaseElement | null {
-    return this.children.find(child => child.getId() === id) || null
+    return this.children.find((child) => child.getId() === id) || null
   }
 
   /**
@@ -283,7 +283,7 @@ export abstract class BaseElement {
    */
   destroy(): void {
     // Destroy all children first
-    this.children.forEach(child => child.destroy())
+    this.children.forEach((child) => child.destroy())
     this.children = []
 
     // Unmount from parent
@@ -299,7 +299,7 @@ export abstract class BaseElement {
   protected onDestroy(): void {
     this.eventBus.emit('tui:element:destroyed', {
       id: this.config.id,
-      type: this.config.type
+      type: this.config.type,
     })
   }
 

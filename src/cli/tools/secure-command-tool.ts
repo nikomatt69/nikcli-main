@@ -3,11 +3,7 @@ import * as path from 'node:path'
 import chalk from 'chalk'
 import inquirer from 'inquirer'
 import { inputQueue } from '../core/input-queue'
-import {
-  type BatchSession as BatchSessionBase,
-  type CommandOptions,
-  type CommandResult,
-} from '../schemas/tool-schemas'
+import type { BatchSession as BatchSessionBase, CommandOptions, CommandResult } from '../schemas/tool-schemas'
 import { bunExec } from '../utils/bun-compat'
 import {
   DEFAULT_SHELL_NAME,
@@ -86,7 +82,7 @@ const DANGEROUS_COMMANDS = new Set([
 ])
 
 // Re-export types from tool-schemas for backwards compatibility
-export type { CommandResult, CommandOptions } from '../schemas/tool-schemas'
+export type { CommandOptions, CommandResult } from '../schemas/tool-schemas'
 
 /**
  * Extended BatchSession with callback handlers (not serializable in Zod)

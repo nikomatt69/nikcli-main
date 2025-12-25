@@ -3,7 +3,7 @@
  * Simple test to verify TUI architecture works
  */
 
-import { TUIApplication, eventBus, tuiState, elementManager, layoutManager } from './index'
+import { elementManager, eventBus, layoutManager, TUIApplication, tuiState } from './index'
 
 async function testTUI(): Promise<void> {
   console.log('Starting TUI Test...\n')
@@ -15,7 +15,7 @@ async function testTUI(): Promise<void> {
       theme: 'default',
       defaultLayout: 'dual',
       enableMouse: true,
-      enableKeyboard: true
+      enableKeyboard: true,
     })
 
     console.log('✓ TUIApplication created')
@@ -36,7 +36,7 @@ async function testTUI(): Promise<void> {
     console.log('\nEvent Bus:')
     const events = eventBus.getEvents()
     console.log(`  Registered Events: ${events.length}`)
-    events.forEach(event => console.log(`    - ${event}`))
+    events.forEach((event) => console.log(`    - ${event}`))
 
     // Check state
     console.log('\nTUI State:')
@@ -50,7 +50,7 @@ async function testTUI(): Promise<void> {
     console.log('\nElement Manager:')
     const elements = elementManager.getAllElements()
     console.log(`  Total Elements: ${elements.length}`)
-    elements.forEach(el => {
+    elements.forEach((el) => {
       console.log(`    - ${el.getType()}: ${el.getId()}`)
     })
 
@@ -72,7 +72,7 @@ async function testTUI(): Promise<void> {
         type: 'panel',
         title: 'Test Panel',
         width: 50,
-        height: 20
+        height: 20,
       },
       eventBus,
       tuiState.getState().theme
@@ -118,7 +118,6 @@ async function testTUI(): Promise<void> {
 
     // Don't actually start the TUI in test mode
     // await app.start()
-
   } catch (error) {
     console.error('\n❌ Test failed:', error)
     process.exit(1)
@@ -127,7 +126,7 @@ async function testTUI(): Promise<void> {
 
 // Run test if called directly
 if (require.main === module) {
-  testTUI().catch(error => {
+  testTUI().catch((error) => {
     console.error('Fatal error:', error)
     process.exit(1)
   })

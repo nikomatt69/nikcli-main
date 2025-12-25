@@ -228,7 +228,16 @@ export class APIKeyManager {
   printStatus(): void {
     console.log(chalk.bold('\n🔑 API Key Configuration Status\n'))
 
-    const providers: AIProvider[] = ['anthropic', 'openai', 'google', 'mistral', 'perplexity', 'openrouter', 'xai', 'opencode']
+    const providers: AIProvider[] = [
+      'anthropic',
+      'openai',
+      'google',
+      'mistral',
+      'perplexity',
+      'openrouter',
+      'xai',
+      'opencode',
+    ]
 
     for (const provider of providers) {
       const source = this.getAPIKeySource(provider)

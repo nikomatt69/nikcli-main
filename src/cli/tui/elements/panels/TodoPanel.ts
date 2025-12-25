@@ -3,8 +3,8 @@
  * Displays and manages todo items in a TUI panel
  */
 
-import { PanelElement, PanelElementConfig } from '../specialized/PanelElement'
 import { eventBus } from '../../core/EventBus'
+import { PanelElement, type PanelElementConfig } from '../specialized/PanelElement'
 
 export interface TodoItem {
   id: string
@@ -77,7 +77,7 @@ export class TodoPanel extends PanelElement {
    * Update todo
    */
   updateTodo(id: string, updates: Partial<TodoItem>): void {
-    const index = this.todos.findIndex(t => t.id === id)
+    const index = this.todos.findIndex((t) => t.id === id)
     if (index === -1) return
 
     this.todos[index] = { ...this.todos[index], ...updates }
@@ -89,7 +89,7 @@ export class TodoPanel extends PanelElement {
    * Remove todo
    */
   removeTodo(id: string): void {
-    const index = this.todos.findIndex(t => t.id === id)
+    const index = this.todos.findIndex((t) => t.id === id)
     if (index === -1) return
 
     const removed = this.todos.splice(index, 1)[0]
@@ -101,7 +101,7 @@ export class TodoPanel extends PanelElement {
    * Toggle todo completion
    */
   toggleTodo(id: string): void {
-    const todo = this.todos.find(t => t.id === id)
+    const todo = this.todos.find((t) => t.id === id)
     if (!todo) return
 
     todo.completed = !todo.completed
@@ -123,8 +123,8 @@ export class TodoPanel extends PanelElement {
    * Clear completed todos
    */
   clearCompleted(): void {
-    const completedTodos = this.todos.filter(t => t.completed)
-    this.todos = this.todos.filter(t => !t.completed)
+    const completedTodos = this.todos.filter((t) => t.completed)
+    this.todos = this.todos.filter((t) => !t.completed)
     this.renderTodos()
     eventBus.emit('todo:changed', { type: 'clear-completed', todos: completedTodos })
   }
@@ -153,17 +153,18 @@ export class TodoPanel extends PanelElement {
 
     // Apply filter
     if (this.filter === 'active') {
-      filtered = filtered.filter(t => !t.completed)
+      filtered = filtered.filter((t) => !t.completed)
     } else if (this.filter === 'completed') {
-      filtered = filtered.filter(t => t.completed)
+      filtered = filtered.filter((t) => t.completed)
     }
 
     // Apply sort
     filtered.sort((a, b) => {
       switch (this.sortBy) {
-        case 'priority':
+        case 'priority': {
           const priorityOrder = { high: 0, medium: 1, low: 2 }
           return priorityOrder[a.priority || 'medium'] - priorityOrder[b.priority || 'medium']
+        }
 
         case 'text':
           return a.text.localeCompare(b.text)
@@ -191,9 +192,9 @@ export class TodoPanel extends PanelElement {
   getStats(): { total: number; active: number; completed: number; high: number } {
     return {
       total: this.todos.length,
-      active: this.todos.filter(t => !t.completed).length,
-      completed: this.todos.filter(t => t.completed).length,
-      high: this.todos.filter(t => t.priority === 'high' && !t.completed).length
+      active: this.todos.filter((t) => !t.completed).length,
+      completed: this.todos.filter((t) => t.completed).length,
+      high: this.todos.filter((t) => t.priority === 'high' && !t.completed).length,
     }
   }
 
@@ -203,7 +204,7 @@ export class TodoPanel extends PanelElement {
         // Add new todo
         eventBus.emit('tui:panel:action', {
           panelId: (this.config as TodoPanelConfig).panelId,
-          action: 'add-todo'
+          action: 'add-todo',
         })
         return true
 
@@ -211,7 +212,7 @@ export class TodoPanel extends PanelElement {
         // Toggle selected todo (requires selection implementation)
         eventBus.emit('tui:panel:action', {
           panelId: (this.config as TodoPanelConfig).panelId,
-          action: 'toggle-selected'
+          action: 'toggle-selected',
         })
         return true
 
@@ -219,25 +220,27 @@ export class TodoPanel extends PanelElement {
         // Delete selected todo
         eventBus.emit('tui:panel:action', {
           panelId: (this.config as TodoPanelConfig).panelId,
-          action: 'delete-selected'
+          action: 'delete-selected',
         })
         return true
 
-      case 'f':
+      case 'f': {
         // Cycle through filters
         const filters: Array<TodoPanelConfig['filter']> = ['all', 'active', 'completed']
         const currentIndex = filters.indexOf(this.filter)
         const nextIndex = (currentIndex + 1) % filters.length
         this.setFilter(filters[nextIndex])
         return true
+      }
 
-      case 's':
+      case 's': {
         // Cycle through sort options
         const sorts: Array<TodoPanelConfig['sortBy']> = ['created', 'priority', 'text']
         const sortIndex = sorts.indexOf(this.sortBy)
         const nextSortIndex = (sortIndex + 1) % sorts.length
         this.setSort(sorts[nextSortIndex])
         return true
+      }
 
       case 'c':
         // Clear completed

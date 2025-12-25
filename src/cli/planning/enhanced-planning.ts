@@ -559,11 +559,7 @@ export class EnhancedPlanningSystem {
           const wantsRead = /\b(read|open|view|display|show|examine|analyze|inspect)\b/i.test(
             `${todo.title} ${todo.description || ''}`
           )
-          if (
-            wantsRead &&
-            Array.isArray(todo.files) &&
-            todo.files.length > 0
-          ) {
+          if (wantsRead && Array.isArray(todo.files) && todo.files.length > 0) {
             const readFile = registry.getTool('read-file-tool') as any
             if (readFile) {
               for (const filePath of todo.files) {

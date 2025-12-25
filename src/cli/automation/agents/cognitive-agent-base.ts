@@ -1,6 +1,6 @@
 import { nanoid } from 'nanoid'
-import { CliUI } from '../../utils/cli-ui'
 import { advancedUI } from '../../ui/advanced-cli-ui'
+import { CliUI } from '../../utils/cli-ui'
 import type { AgentTask } from './agent-router'
 import { type AgentMetrics, type AgentTaskResult, BaseAgent } from './base-agent'
 import type {

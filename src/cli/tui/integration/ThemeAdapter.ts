@@ -49,8 +49,8 @@ const themeService: ThemeService = {
           foreground: 'white',
           border: 'cyan',
           highlight: 'cyan',
-          selection: 'blue'
-        }
+          selection: 'blue',
+        },
       },
       dracula: {
         name: 'dracula',
@@ -66,8 +66,8 @@ const themeService: ThemeService = {
           foreground: 'white',
           border: 'purple',
           highlight: 'purple',
-          selection: 'blue'
-        }
+          selection: 'blue',
+        },
       },
       monokai: {
         name: 'monokai',
@@ -83,9 +83,9 @@ const themeService: ThemeService = {
           foreground: 'white',
           border: 'yellow',
           highlight: 'yellow',
-          selection: 'blue'
-        }
-      }
+          selection: 'blue',
+        },
+      },
     }
 
     return themes[name || 'default'] || themes.default
@@ -103,7 +103,7 @@ const themeService: ThemeService = {
   onThemeChange(callback: (theme: Theme) => void): void {
     // Mock implementation
     console.log('Theme change callback registered')
-  }
+  },
 }
 
 export class ThemeAdapter {
@@ -129,7 +129,7 @@ export class ThemeAdapter {
     this.currentTheme = theme
 
     // Notify all callbacks
-    this.themeCallbacks.forEach(callback => {
+    this.themeCallbacks.forEach((callback) => {
       try {
         callback(theme)
       } catch (error) {
@@ -169,18 +169,18 @@ export class ThemeAdapter {
       // Base styles
       base: {
         fg: colors.foreground,
-        bg: colors.background
+        bg: colors.background,
       },
 
       // Panel styles
       panel: {
         border: {
-          fg: colors.border
+          fg: colors.border,
         },
         title: {
           fg: colors.primary,
-          bold: true
-        }
+          bold: true,
+        },
       },
 
       // Button styles
@@ -189,8 +189,8 @@ export class ThemeAdapter {
         bg: colors.background,
         focus: {
           fg: colors.highlight,
-          bg: colors.selection
-        }
+          bg: colors.selection,
+        },
       },
 
       // Input styles
@@ -200,46 +200,46 @@ export class ThemeAdapter {
         focus: {
           fg: colors.highlight,
           border: {
-            fg: colors.highlight
-          }
-        }
+            fg: colors.highlight,
+          },
+        },
       },
 
       // Text styles
       text: {
         primary: {
-          fg: colors.primary
+          fg: colors.primary,
         },
         secondary: {
-          fg: colors.secondary
+          fg: colors.secondary,
         },
         success: {
-          fg: colors.success
+          fg: colors.success,
         },
         warning: {
-          fg: colors.warning
+          fg: colors.warning,
         },
         error: {
-          fg: colors.error
+          fg: colors.error,
         },
         info: {
-          fg: colors.info
+          fg: colors.info,
         },
         muted: {
-          fg: colors.muted
-        }
+          fg: colors.muted,
+        },
       },
 
       // Highlight styles
       highlight: {
         fg: colors.highlight,
-        bg: colors.selection
+        bg: colors.selection,
       },
 
       // Selection styles
       selection: {
-        bg: colors.selection
-      }
+        bg: colors.selection,
+      },
     }
   }
 

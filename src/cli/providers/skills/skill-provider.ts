@@ -48,12 +48,7 @@ const GITHUB_RAW_BASE = 'https://raw.githubusercontent.com'
 const GITHUB_API_BASE = 'https://api.github.com'
 const DEFAULT_CACHE_DIR = '.nikcli/skills'
 
-const KNOWN_SKILLS = [
-  'docx',
-  'pdf',
-  'pptx',
-  'xlsx',
-] as const
+const KNOWN_SKILLS = ['docx', 'pdf', 'pptx', 'xlsx'] as const
 
 // ====================== PROVIDER CLASS ======================
 
@@ -91,11 +86,7 @@ export class SkillProvider extends EventEmitter {
     // Load cached skills
     this.loadCachedSkills()
 
-    advancedUI.logFunctionUpdate(
-      'success',
-      `Skill Provider initialized (${this.skills.size} skills loaded)`,
-      '🎯'
-    )
+    advancedUI.logFunctionUpdate('success', `Skill Provider initialized (${this.skills.size} skills loaded)`, '🎯')
     this.emit('initialized', { skillCount: this.skills.size })
 
     // Register cleanup on process exit

@@ -1,8 +1,8 @@
 import { EventEmitter } from 'node:events'
-import { nanoid } from 'nanoid'
 import chalk from 'chalk'
-import { advancedUI } from '../ui/advanced-cli-ui'
+import { nanoid } from 'nanoid'
 import { EventBus, EventTypes } from '../automation/agents/event-bus'
+import { advancedUI } from '../ui/advanced-cli-ui'
 
 export interface TaskChain {
   id: string
@@ -55,11 +55,7 @@ export class TaskChainManager extends EventEmitter {
     })
   }
 
-  createChain(options: {
-    name: string
-    rootTaskId?: string
-    parentChainId?: string
-  }): TaskChain {
+  createChain(options: { name: string; rootTaskId?: string; parentChainId?: string }): TaskChain {
     const chain: TaskChain = {
       id: `chain_${nanoid(10)}`,
       name: options.name,
@@ -144,21 +140,40 @@ export class TaskChainManager extends EventEmitter {
   }
 
   getActiveChains(): TaskChain[] {
-    return Array.from(this.chains.values()).filter(
-      (c) => c.status === 'running' || c.status === 'pending'
-    )
+    return Array.from(this.chains.values()).filter((c) => c.status === 'running' || c.status === 'pending')
   }
 
-  getChainStatus(): { totalChains: number; activeChains: number; completedChains: number; failedChains: number; protectedAgents: number } {
-    let active = 0, completed = 0, failed = 0
+  getChainStatus(): {
+    totalChains: number
+    activeChains: number
+    completedChains: number
+    failedChains: number
+    protectedAgents: number
+  } {
+    let active = 0,
+      completed = 0,
+      failed = 0
     for (const chain of this.chains.values()) {
       switch (chain.status) {
-        case 'running': case 'pending': active++; break
-        case 'completed': completed++; break
-        case 'failed': failed++; break
+        case 'running':
+        case 'pending':
+          active++
+          break
+        case 'completed':
+          completed++
+          break
+        case 'failed':
+          failed++
+          break
       }
     }
-    return { totalChains: this.chains.size, activeChains: active, completedChains: completed, failedChains: failed, protectedAgents: this.agentToChain.size }
+    return {
+      totalChains: this.chains.size,
+      activeChains: active,
+      completedChains: completed,
+      failedChains: failed,
+      protectedAgents: this.agentToChain.size,
+    }
   }
 
   private handleTaskCompleted(agentId: string, _taskId: string): void {
@@ -181,7 +196,10 @@ export class TaskChainManager extends EventEmitter {
   cleanupStaleChains(_maxAge: number = 30 * 60 * 1000): number {
     let cleaned = 0
     for (const [chainId, chain] of this.chains.entries()) {
-      if ((chain.status === 'running' || chain.status === 'pending') && chain.updatedAt.getTime() + 60 * 60 * 1000 < Date.now()) {
+      if (
+        (chain.status === 'running' || chain.status === 'pending') &&
+        chain.updatedAt.getTime() + 60 * 60 * 1000 < Date.now()
+      ) {
         this.failChain(chainId, 'Stale chain - exceeded 1 hour without activity')
         cleaned++
       }
@@ -195,7 +213,9 @@ export class TaskChainManager extends EventEmitter {
     const activeChains = this.getActiveChains()
     console.log(chalk.blue.bold('\n[TaskChain Manager]'))
     console.log(chalk.gray('='.repeat(40)))
-    console.log(`Total: ${status.totalChains} | Active: ${status.activeChains} | Completed: ${status.completedChains} | Failed: ${status.failedChains}`)
+    console.log(
+      `Total: ${status.totalChains} | Active: ${status.activeChains} | Completed: ${status.completedChains} | Failed: ${status.failedChains}`
+    )
     console.log(`Protected Agents: ${status.protectedAgents}`)
     if (activeChains.length > 0) {
       console.log(chalk.blue.bold('\nActive Chains:'))

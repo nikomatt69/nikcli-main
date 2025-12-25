@@ -456,7 +456,7 @@ Error Context:
             const [key, ...valueParts] = line.split(':')
             if (key && valueParts.length > 0) {
               const value = valueParts.join(':').trim()
-                ; (metadata as Record<string, any>)[key.trim()] = value.replace(/^["']|["']$/g, '')
+              ;(metadata as Record<string, any>)[key.trim()] = value.replace(/^["']|["']$/g, '')
             }
           }
           template = metadataMatch[2]

@@ -208,7 +208,6 @@ export class UnifiedEmbeddingInterface {
           }
         }
       } catch (error) {
-
         throw error
       }
     }
@@ -355,7 +354,7 @@ export class UnifiedEmbeddingInterface {
     this.stats.cacheHitRate =
       this.stats.totalQueries > 0
         ? (this.stats.totalQueries - Object.values(this.stats.byProvider).reduce((sum, p) => sum + p.count, 0)) /
-        this.stats.totalQueries
+          this.stats.totalQueries
         : 0
 
     return { ...this.stats }
@@ -434,7 +433,6 @@ export class UnifiedEmbeddingInterface {
 
   // Private methods
   private logConfig(): void {
-
     console.log(`  Provider: ${this.config.provider}`)
     console.log(`  Model: ${this.config.model}`)
     console.log(`  Dimensions: ${this.config.dimensions}`)

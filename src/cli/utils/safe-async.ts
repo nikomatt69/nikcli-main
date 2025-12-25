@@ -12,11 +12,7 @@ import { structuredLogger } from './structured-logger'
  * @param context Contesto per il logging (nome componente/classe)
  * @returns Risultato dell'operazione o fallback
  */
-export async function safeAsync<T>(
-  fn: () => Promise<T>,
-  fallback?: T,
-  context?: string
-): Promise<T | undefined> {
+export async function safeAsync<T>(fn: () => Promise<T>, fallback?: T, context?: string): Promise<T | undefined> {
   try {
     return await fn()
   } catch (error: any) {
@@ -32,10 +28,7 @@ export async function safeAsync<T>(
  * @returns Risultato dell'operazione
  * @throws L'errore originale se fallisce
  */
-export async function safeAsyncThrow<T>(
-  fn: () => Promise<T>,
-  context?: string
-): Promise<T> {
+export async function safeAsyncThrow<T>(fn: () => Promise<T>, context?: string): Promise<T> {
   try {
     return await fn()
   } catch (error: any) {
@@ -50,11 +43,7 @@ export async function safeAsyncThrow<T>(
  * @param context Contesto per il logging
  */
 export function SafeAsync(fallback?: any, context?: string) {
-  return function (
-    target: any,
-    propertyKey: string,
-    descriptor: PropertyDescriptor
-  ) {
+  return (target: any, propertyKey: string, descriptor: PropertyDescriptor) => {
     const originalMethod = descriptor.value
 
     descriptor.value = async function (...args: any[]) {
@@ -80,11 +69,7 @@ export function SafeAsync(fallback?: any, context?: string) {
  * @param context Contesto per il logging
  */
 export function SafeAsyncThrow(context?: string) {
-  return function (
-    target: any,
-    propertyKey: string,
-    descriptor: PropertyDescriptor
-  ) {
+  return (target: any, propertyKey: string, descriptor: PropertyDescriptor) => {
     const originalMethod = descriptor.value
 
     descriptor.value = async function (...args: any[]) {
@@ -184,14 +169,20 @@ export async function safeAsyncWithRetry<T>(
       lastError = error
 
       if (attempt < maxAttempts) {
-        const delay = baseDelay * Math.pow(2, attempt - 1)
-        structuredLogger.warning(context || 'RetryWrapper', `Attempt ${attempt} failed, retrying in ${delay}ms: ${error.message}`)
-        await new Promise(resolve => setTimeout(resolve, delay))
+        const delay = baseDelay * 2 ** (attempt - 1)
+        structuredLogger.warning(
+          context || 'RetryWrapper',
+          `Attempt ${attempt} failed, retrying in ${delay}ms: ${error.message}`
+        )
+        await new Promise((resolve) => setTimeout(resolve, delay))
       }
     }
   }
 
-  structuredLogger.error(context || 'RetryWrapper', `All retry attempts failed after ${maxAttempts} attempts: ${lastError?.message}`)
+  structuredLogger.error(
+    context || 'RetryWrapper',
+    `All retry attempts failed after ${maxAttempts} attempts: ${lastError?.message}`
+  )
 
   return fallback
 }

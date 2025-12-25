@@ -4,8 +4,8 @@ import * as os from 'node:os'
 import * as path from 'node:path'
 import chalk from 'chalk'
 import { type FileInfo, TOKEN_CONSTANTS } from '../schemas/tool-schemas'
-import { PathResolver } from '../utils/path-resolver'
 import { bunExec, fileExistsSync, mkdirpSync, readTextSync, writeTextSync } from '../utils/bun-compat'
+import { PathResolver } from '../utils/path-resolver'
 
 // Token limiting constants from centralized schema
 const { DEFAULT_TOKEN_BUDGET, MAX_LINES_PER_CHUNK, TOKEN_CHAR_RATIO } = TOKEN_CONSTANTS

@@ -13,6 +13,7 @@ import { type CoreMessage, type CoreTool, experimental_wrapLanguageModel, genera
 import { createOllama } from 'ollama-ai-provider'
 import { z } from 'zod'
 import { simpleConfigManager } from '../core/config-manager'
+import { pluginManager } from '../core/plugin-manager'
 import { type PromptContext, PromptManager } from '../prompts/prompt-manager'
 import { streamttyService } from '../services/streamtty-service'
 import type { OutputStyle } from '../types/output-styles'
@@ -22,18 +23,18 @@ import { type QualityEvaluation, type WorkflowResult, workflowPatterns } from '.
 
 export interface ModelConfig {
   provider:
-  | 'openai'
-  | 'anthropic'
-  | 'google'
-  | 'vercel'
-  | 'gateway'
-  | 'openrouter'
-  | 'ollama'
-  | 'cerebras'
-  | 'groq'
-  | 'llamacpp'
-  | 'lmstudio'
-  | 'openai-compatible'
+    | 'openai'
+    | 'anthropic'
+    | 'google'
+    | 'vercel'
+    | 'gateway'
+    | 'openrouter'
+    | 'ollama'
+    | 'cerebras'
+    | 'groq'
+    | 'llamacpp'
+    | 'lmstudio'
+    | 'openai-compatible'
   model: string
   temperature?: number
   maxTokens?: number
@@ -168,7 +169,7 @@ function addGeminiThoughtSignatures(
 
   // Build tools array with thought_signature for each tool
   const toolNames = Object.keys(tools)
-  options.experimental_providerMetadata.openrouter.tools = toolNames.map(name => ({
+  options.experimental_providerMetadata.openrouter.tools = toolNames.map((name) => ({
     name,
     thought_signature: generateThoughtSignature(),
   }))
@@ -1026,6 +1027,10 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
           }
         },
       }),
+
+      // ==================== PLUGIN TOOLS ====================
+      // Dynamically loaded from active plugins
+      ...pluginManager.getAllPluginTools(),
     }
 
     // Note: Tool-level caching via @ai-sdk-tools/cache is incompatible with AI SDK v3's CoreTool type
@@ -1068,10 +1073,10 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
       rootPath: relative(process.cwd(), rootPath),
       packageInfo: packageInfo
         ? {
-          name: packageInfo.name as string,
-          version: packageInfo.version,
-          description: packageInfo.description,
-        }
+            name: packageInfo.name as string,
+            version: packageInfo.version,
+            description: packageInfo.description,
+          }
         : null,
       framework,
       technologies,
@@ -1380,12 +1385,15 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
       }
       case 'opencode': {
         // OpenCode provider with dedicated API key management
-        const opencodeApiKey = simpleConfigManager.getApiKey('opencode') ||
+        const opencodeApiKey =
+          simpleConfigManager.getApiKey('opencode') ||
           simpleConfigManager.getApiKey(model) ||
           process.env.OPENCODE_API_KEY ||
           process.env.OPENAI_COMPATIBLE_API_KEY
         if (!opencodeApiKey) {
-          throw new Error(`No API key found for OpenCode provider. Set OPENCODE_API_KEY environment variable or use /set-key opencode`)
+          throw new Error(
+            `No API key found for OpenCode provider. Set OPENCODE_API_KEY environment variable or use /set-key opencode`
+          )
         }
         const baseURL = (config as any).baseURL || process.env.OPENCODE_BASE_URL || 'https://opencode.ai/zen/v1'
         const compatProvider = createOpenAICompatible({
@@ -1471,7 +1479,7 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
             }
           }
         }
-      } catch (_) { }
+      } catch (_) {}
 
       // Track step progress for loop control (AI SDK best practice)
       // Reference: https://ai-sdk.dev/docs/agents/loop-control
@@ -1543,11 +1551,11 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
       // Add reasoning metadata for ALL providers using ReasoningDetector
       // AI SDK v4 compatible - uses correct parameter names per provider
       if (reasoningEnabled && cfg?.provider) {
-        const providerMetadata = ReasoningDetector.getReasoningProviderMetadata(
-          cfg.provider,
-          cfg.model,
-          { enabled: true, effort: 'medium', budgetTokens: 10000 }
-        )
+        const providerMetadata = ReasoningDetector.getReasoningProviderMetadata(cfg.provider, cfg.model, {
+          enabled: true,
+          effort: 'medium',
+          budgetTokens: 10000,
+        })
 
         if (Object.keys(providerMetadata).length > 0) {
           streamOptions.experimental_providerMetadata = {
@@ -1739,7 +1747,7 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
             await authProvider.recordUsage('apiCalls', 1)
           }
         }
-      } catch (_) { }
+      } catch (_) {}
       yield {
         type: 'finish',
         finishReason: finishResult,
@@ -1830,11 +1838,11 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
       // Add reasoning metadata for ALL providers using ReasoningDetector
       // AI SDK v4 compatible - uses correct parameter names per provider
       if (reasoningEnabled && cfg?.provider) {
-        const providerMetadata = ReasoningDetector.getReasoningProviderMetadata(
-          cfg.provider,
-          cfg.model,
-          { enabled: true, effort: 'medium', budgetTokens: 10000 }
-        )
+        const providerMetadata = ReasoningDetector.getReasoningProviderMetadata(cfg.provider, cfg.model, {
+          enabled: true,
+          effort: 'medium',
+          budgetTokens: 10000,
+        })
 
         if (Object.keys(providerMetadata).length > 0) {
           generateOptions.experimental_providerMetadata = {
@@ -2008,15 +2016,15 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
     options: AIProviderOptions = {}
   ): AsyncGenerator<{
     type:
-    | 'text'
-    | 'tool_call'
-    | 'tool_call_complete'
-    | 'tool_result'
-    | 'finish'
-    | 'reasoning'
-    | 'style_applied'
-    | 'error'
-    | 'usage'
+      | 'text'
+      | 'tool_call'
+      | 'tool_call_complete'
+      | 'tool_result'
+      | 'finish'
+      | 'reasoning'
+      | 'style_applied'
+      | 'error'
+      | 'usage'
     content?: string
     toolCall?: any
     toolCallId?: string

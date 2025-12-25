@@ -2,11 +2,11 @@
 
 import crypto from 'node:crypto'
 import { Octokit } from '@octokit/rest'
+import { logger } from '../utils/logger'
+import { structuredLogger } from '../utils/structured-logger'
 import { CommentProcessor } from './comment-processor'
 import { TaskExecutor } from './task-executor'
 import type { GitHubBotConfig, GitHubPullRequest, GitHubWebhookEvent, ProcessingJob } from './types'
-import { logger } from '../utils/logger'
-import { structuredLogger } from '../utils/structured-logger'
 
 /**
  * GitHub Bot Webhook Handler for @nikcli mentions
@@ -56,7 +56,9 @@ export class GitHubWebhookHandler {
       logger.info('Slack service initialized')
       structuredLogger.success('GitHubWebhookHandler', 'Slack service initialized')
     } catch (error) {
-      logger.error('Error initializing Slack service', { error: error instanceof Error ? error.message : String(error) })
+      logger.error('Error initializing Slack service', {
+        error: error instanceof Error ? error.message : String(error),
+      })
     }
   }
 
@@ -67,7 +69,9 @@ export class GitHubWebhookHandler {
       logger.info('Cache service initialized')
       structuredLogger.success('GitHubWebhookHandler', 'Cache service initialized')
     } catch (error) {
-      logger.error('Error initializing cache service', { error: error instanceof Error ? error.message : String(error) })
+      logger.error('Error initializing cache service', {
+        error: error instanceof Error ? error.message : String(error),
+      })
     }
   }
 
@@ -80,7 +84,11 @@ export class GitHubWebhookHandler {
       const requestTime = parseInt(timestamp)
       const now = Math.floor(Date.now() / 1000)
       if (Math.abs(now - requestTime) > 300) {
-        logger.warn('Webhook timestamp validation failed', { requestTime, now, difference: Math.abs(now - requestTime) })
+        logger.warn('Webhook timestamp validation failed', {
+          requestTime,
+          now,
+          difference: Math.abs(now - requestTime),
+        })
         return false
       }
     }
@@ -114,7 +122,11 @@ export class GitHubWebhookHandler {
 
     // Verify webhook signature with timestamp
     if (!this.verifySignature(payload, signature, timestamp)) {
-      logger.warn('Invalid webhook signature or timestamp', { event, hasSignature: !!signature, hasTimestamp: !!timestamp })
+      logger.warn('Invalid webhook signature or timestamp', {
+        event,
+        hasSignature: !!signature,
+        hasTimestamp: !!timestamp,
+      })
       res.status(401).json({ error: 'Invalid signature or timestamp' })
       return
     }
@@ -167,7 +179,12 @@ export class GitHubWebhookHandler {
     const repository = payload.repository
     const issue = payload.issue
 
-    logger.info('New comment received', { repository: repository.full_name, issueNumber: issue.number, author: comment.user.login, commentLength: comment.body.length })
+    logger.info('New comment received', {
+      repository: repository.full_name,
+      issueNumber: issue.number,
+      author: comment.user.login,
+      commentLength: comment.body.length,
+    })
     structuredLogger.info('GitHubWebhookHandler', `New comment in ${repository.full_name}#${issue.number}`)
 
     // Check if comment mentions @nikcli
@@ -182,7 +199,12 @@ export class GitHubWebhookHandler {
       return
     }
 
-    logger.info('@nikcli mentioned - processing request', { repository: repository.full_name, issueNumber: issue.number, author: comment.user.login, command: mention.command })
+    logger.info('@nikcli mentioned - processing request', {
+      repository: repository.full_name,
+      issueNumber: issue.number,
+      author: comment.user.login,
+      command: mention.command,
+    })
     structuredLogger.info('GitHubWebhookHandler', '@nikcli mentioned! Processing request...')
 
     // Security validation
@@ -210,7 +232,10 @@ export class GitHubWebhookHandler {
           author: comment.user.login,
           command: `${mention.command} ${mention.args.join(' ')}`.trim(),
         })
-        logger.info('Notified Slack about GitHub mention', { threadTs: slackThreadTs, repository: repository.full_name })
+        logger.info('Notified Slack about GitHub mention', {
+          threadTs: slackThreadTs,
+          repository: repository.full_name,
+        })
       } catch (error) {
         logger.error('Failed to notify Slack', { error: error instanceof Error ? error.message : String(error) })
       }
@@ -231,7 +256,11 @@ export class GitHubWebhookHandler {
         })
         pullRequest = prData
       } catch (error) {
-        logger.error('Failed to fetch PR details', { repository: repository.full_name, issueNumber: issue.number, error: error instanceof Error ? error.message : String(error) })
+        logger.error('Failed to fetch PR details', {
+          repository: repository.full_name,
+          issueNumber: issue.number,
+          error: error instanceof Error ? error.message : String(error),
+        })
       }
     }
 
@@ -268,8 +297,15 @@ export class GitHubWebhookHandler {
     const repository = payload.repository
     const pullRequest = payload.pull_request
 
-    logger.info('New PR review comment received', { repository: repository.full_name, prNumber: pullRequest.number, author: comment.user.login })
-    structuredLogger.info('GitHubWebhookHandler', `New PR review comment in ${repository.full_name}#${pullRequest.number}`)
+    logger.info('New PR review comment received', {
+      repository: repository.full_name,
+      prNumber: pullRequest.number,
+      author: comment.user.login,
+    })
+    structuredLogger.info(
+      'GitHubWebhookHandler',
+      `New PR review comment in ${repository.full_name}#${pullRequest.number}`
+    )
 
     const mention = this.commentProcessor.extractNikCLIMention(comment.body)
     if (!mention) {
@@ -309,7 +345,11 @@ export class GitHubWebhookHandler {
     const issue = payload.issue
     const repository = payload.repository
 
-    logger.info('New issue received', { repository: repository.full_name, issueNumber: issue.number, author: issue.user.login })
+    logger.info('New issue received', {
+      repository: repository.full_name,
+      issueNumber: issue.number,
+      author: issue.user.login,
+    })
     structuredLogger.info('GitHubWebhookHandler', `New issue in ${repository.full_name}#${issue.number}`)
 
     // Check if issue body contains @nikcli
@@ -392,7 +432,11 @@ export class GitHubWebhookHandler {
         await this.updateStatusComment(job, statusCommentId, 'completed', result.details?.jobId)
       }
     } catch (error) {
-      logger.error('Job failed', { jobId: job.id, error: error instanceof Error ? error.message : String(error), stack: error instanceof Error ? error.stack : undefined })
+      logger.error('Job failed', {
+        jobId: job.id,
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      })
 
       job.status = 'failed'
       job.error = error instanceof Error ? error.message : 'Unknown error'
@@ -428,7 +472,11 @@ export class GitHubWebhookHandler {
 
       return response.data.id
     } catch (error) {
-      logger.error('Failed to post status comment', { jobId: job.id, status, error: error instanceof Error ? error.message : String(error) })
+      logger.error('Failed to post status comment', {
+        jobId: job.id,
+        status,
+        error: error instanceof Error ? error.message : String(error),
+      })
       return null
     }
   }
@@ -456,7 +504,11 @@ export class GitHubWebhookHandler {
         body: comment,
       })
     } catch (error) {
-      logger.error('Failed to update status comment', { jobId: job.id, status, error: error instanceof Error ? error.message : String(error) })
+      logger.error('Failed to update status comment', {
+        jobId: job.id,
+        status,
+        error: error instanceof Error ? error.message : String(error),
+      })
     }
   }
 
@@ -503,7 +555,12 @@ export class GitHubWebhookHandler {
         content: reaction as any,
       })
     } catch (error) {
-      logger.error('Failed to add reaction', { repository, commentId, reaction, error: error instanceof Error ? error.message : String(error) })
+      logger.error('Failed to add reaction', {
+        repository,
+        commentId,
+        reaction,
+        error: error instanceof Error ? error.message : String(error),
+      })
     }
   }
 
@@ -520,7 +577,12 @@ export class GitHubWebhookHandler {
         content: reaction as any,
       })
     } catch (error) {
-      logger.error('Failed to add reaction to PR review comment', { repository, commentId, reaction, error: error instanceof Error ? error.message : String(error) })
+      logger.error('Failed to add reaction to PR review comment', {
+        repository,
+        commentId,
+        reaction,
+        error: error instanceof Error ? error.message : String(error),
+      })
     }
   }
 
@@ -542,7 +604,10 @@ export class GitHubWebhookHandler {
 
       logger.info('Posted result comment', { jobId: job.id, repository: job.repository })
     } catch (error) {
-      logger.error('Failed to post result comment', { jobId: job.id, error: error instanceof Error ? error.message : String(error) })
+      logger.error('Failed to post result comment', {
+        jobId: job.id,
+        error: error instanceof Error ? error.message : String(error),
+      })
     }
   }
 
@@ -564,10 +629,11 @@ ${error instanceof Error ? error.message : 'Unknown error'}
 Please check your request and try again. If the issue persists, please create an issue in the [NikCLI repository](https://github.com/nikomatt69/nikcli-main).
 
 ---
-*Processing time: ${job.startedAt && job.completedAt
+*Processing time: ${
+        job.startedAt && job.completedAt
           ? `${((job.completedAt.getTime() - job.startedAt.getTime()) / 1000).toFixed(2)}s`
           : 'N/A'
-        }*`
+      }*`
 
       await this.octokit.rest.issues.createComment({
         owner,
@@ -576,7 +642,10 @@ Please check your request and try again. If the issue persists, please create an
         body: comment,
       })
     } catch (postError) {
-      logger.error('Failed to post error comment', { jobId: job.id, error: postError instanceof Error ? postError.message : String(postError) })
+      logger.error('Failed to post error comment', {
+        jobId: job.id,
+        error: postError instanceof Error ? postError.message : String(postError),
+      })
     }
   }
 
@@ -594,7 +663,11 @@ Please check your request and try again. If the issue persists, please create an
         body: help,
       })
     } catch (error) {
-      logger.error('Failed to post usage help', { repository, issueNumber, error: error instanceof Error ? error.message : String(error) })
+      logger.error('Failed to post usage help', {
+        repository,
+        issueNumber,
+        error: error instanceof Error ? error.message : String(error),
+      })
     }
   }
 
@@ -731,7 +804,10 @@ ${result.files.map((f: string) => `- \`${f}\``).join('\n')}
       logger.debug('Rate limit check passed', { username, count, limit })
       return true
     } catch (error) {
-      logger.error('Rate limit check failed', { username, error: error instanceof Error ? error.message : String(error) })
+      logger.error('Rate limit check failed', {
+        username,
+        error: error instanceof Error ? error.message : String(error),
+      })
       return true // Fail open
     }
   }
@@ -761,7 +837,11 @@ If you believe this is an error, please contact your administrator.`,
         content: '-1',
       })
     } catch (error) {
-      logger.error('Error posting security error', { repository: repo, issueNumber, error: error instanceof Error ? error.message : String(error) })
+      logger.error('Error posting security error', {
+        repository: repo,
+        issueNumber,
+        error: error instanceof Error ? error.message : String(error),
+      })
     }
   }
 
@@ -792,7 +872,11 @@ Please try again later.`,
         content: 'confused',
       })
     } catch (error) {
-      logger.error('Error posting rate limit error', { repository: repo, issueNumber, error: error instanceof Error ? error.message : String(error) })
+      logger.error('Error posting rate limit error', {
+        repository: repo,
+        issueNumber,
+        error: error instanceof Error ? error.message : String(error),
+      })
     }
   }
 }

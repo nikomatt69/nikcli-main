@@ -4,6 +4,8 @@ import { EventEmitter } from 'node:events'
 import { v4 as uuidv4 } from 'uuid'
 import { advancedUI } from '../ui/advanced-cli-ui'
 import { VMStatusIndicator } from '../ui/vm-status-indicator'
+import { logger } from '../utils/logger'
+import { structuredLogger } from '../utils/structured-logger'
 import { ContainerManager } from '../virtualized-agents/container-manager'
 import { VMOrchestrator } from '../virtualized-agents/vm-orchestrator'
 import {
@@ -14,8 +16,6 @@ import {
 import { VercelKVBackgroundAgentAdapter, vercelKVAdapter } from './adapters/vercel-kv-adapter'
 import { EnvironmentParser } from './core/environment-parser'
 import { PlaybookParser } from './core/playbook-parser'
-import { logger } from '../utils/logger'
-import { structuredLogger } from '../utils/structured-logger'
 import type { BackgroundJob, CreateBackgroundJobRequest, JobStatus } from './types'
 
 export interface BackgroundJobStats {
@@ -111,7 +111,10 @@ export class BackgroundAgentService extends EventEmitter {
         // Load existing jobs from local file
         await this.loadJobsFromLocalFile()
       } else {
-        structuredLogger.warning('BackgroundAgentService', 'Local file storage not available - using in-memory storage only')
+        structuredLogger.warning(
+          'BackgroundAgentService',
+          'Local file storage not available - using in-memory storage only'
+        )
       }
     } catch (error) {
       logger.error('Error initializing local file storage', {
@@ -156,10 +159,6 @@ export class BackgroundAgentService extends EventEmitter {
 
     try {
       const jobs = await this.localAdapter.getAllJobs()
-      logger.info('Loaded jobs from local file storage', {
-        count: jobs.length,
-        source: 'local-file',
-      })
 
       for (const job of jobs) {
         this.jobs.set(job.id, job)

@@ -535,8 +535,6 @@ export class TaskMasterService extends EventEmitter {
         : '["read-file-tool","write-file-tool","rag-search-tool","grep-tool","multi-read-tool"]'
 
     try {
-
-
       const prompt = `You are TaskMaster AI, an expert project planning assistant. Your job is to ALWAYS generate actionable tasks for ANY request.
 
 USER REQUEST: "${userRequest}"
@@ -1037,7 +1035,7 @@ Generate tasks NOW (JSON only):`
     // Notify plan started
     try {
       await this.sendPlanLifecycleNotification(plan, true, true)
-    } catch { }
+    } catch {}
 
     for (const todo of mutablePlan.todos) {
       todo.status = 'in_progress'
@@ -1046,7 +1044,7 @@ Generate tasks NOW (JSON only):`
       // Notify task started
       try {
         await this.sendTaskStartedNotification(plan, todo)
-      } catch { }
+      } catch {}
 
       try {
         // Simulate task execution
@@ -1088,7 +1086,7 @@ Generate tasks NOW (JSON only):`
     try {
       const failedCount = plan.todos.filter((t) => t.status === 'failed').length
       await this.sendPlanLifecycleNotification(plan, failedCount === 0, false)
-    } catch { }
+    } catch {}
 
     return {
       planId: plan.id,
@@ -1348,7 +1346,7 @@ Generate tasks NOW (JSON only):`
         planTitle: plan.title,
       }
       await this.notificationService.sendTaskStarted(payload)
-    } catch { }
+    } catch {}
   }
 
   /**
@@ -1389,7 +1387,7 @@ Generate tasks NOW (JSON only):`
         }
         await this.notificationService.sendPlanCompletion(payload)
       }
-    } catch { }
+    } catch {}
   }
 }
 

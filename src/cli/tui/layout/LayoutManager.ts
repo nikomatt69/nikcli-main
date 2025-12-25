@@ -4,8 +4,8 @@
  */
 
 import { eventBus } from '../core/EventBus'
-import { tuiState, TUILayout } from '../core/TUIState'
-import { BaseElement } from '../elements/base/BaseElement'
+import { type TUILayout, tuiState } from '../core/TUIState'
+import type { BaseElement } from '../elements/base/BaseElement'
 
 export interface PanelLayout {
   id: string
@@ -70,7 +70,7 @@ export class LayoutManager {
       panels: [],
       gaps: 1,
       borderWidth: 1,
-      padding: 1
+      padding: 1,
     })
 
     // Dual panel layout
@@ -80,7 +80,7 @@ export class LayoutManager {
       panels: [],
       gaps: 1,
       borderWidth: 1,
-      padding: 1
+      padding: 1,
     })
 
     // Triple panel layout
@@ -90,7 +90,7 @@ export class LayoutManager {
       panels: [],
       gaps: 1,
       borderWidth: 1,
-      padding: 1
+      padding: 1,
     })
 
     // Quad panel layout
@@ -100,7 +100,7 @@ export class LayoutManager {
       panels: [],
       gaps: 1,
       borderWidth: 1,
-      padding: 1
+      padding: 1,
     })
   }
 
@@ -138,7 +138,7 @@ export class LayoutManager {
     if (!this.currentLayout) return
 
     // Check if panel already exists
-    const existingIndex = this.currentLayout.panels.findIndex(p => p.id === panel.id)
+    const existingIndex = this.currentLayout.panels.findIndex((p) => p.id === panel.id)
     if (existingIndex > -1) {
       this.currentLayout.panels[existingIndex] = panel
     } else {
@@ -156,7 +156,7 @@ export class LayoutManager {
   removePanel(panelId: string): void {
     if (!this.currentLayout) return
 
-    const index = this.currentLayout.panels.findIndex(p => p.id === panelId)
+    const index = this.currentLayout.panels.findIndex((p) => p.id === panelId)
     if (index > -1) {
       this.currentLayout.panels.splice(index, 1)
       this.calculateLayout()
@@ -171,7 +171,7 @@ export class LayoutManager {
   resizePanel(panelId: string, width: number, height: number): void {
     if (!this.currentLayout) return
 
-    const panel = this.currentLayout.panels.find(p => p.id === panelId)
+    const panel = this.currentLayout.panels.find((p) => p.id === panelId)
     if (!panel) return
 
     panel.width = Math.max(panel.minWidth || 0, width)
@@ -187,7 +187,7 @@ export class LayoutManager {
   splitPanel(panelId: string, direction: 'horizontal' | 'vertical' = 'vertical'): void {
     if (!this.currentLayout) return
 
-    const panel = this.currentLayout.panels.find(p => p.id === panelId)
+    const panel = this.currentLayout.panels.find((p) => p.id === panelId)
     if (!panel) return
 
     // Create new panel
@@ -201,7 +201,7 @@ export class LayoutManager {
       height: direction === 'horizontal' ? panel.height / 2 : panel.height,
       weight: panel.weight,
       minWidth: panel.minWidth,
-      minHeight: panel.minHeight
+      minHeight: panel.minHeight,
     }
 
     // Resize original panel
@@ -228,8 +228,8 @@ export class LayoutManager {
   mergePanels(panelId1: string, panelId2: string): void {
     if (!this.currentLayout) return
 
-    const panel1 = this.currentLayout.panels.find(p => p.id === panelId1)
-    const panel2 = this.currentLayout.panels.find(p => p.id === panelId2)
+    const panel1 = this.currentLayout.panels.find((p) => p.id === panelId1)
+    const panel2 = this.currentLayout.panels.find((p) => p.id === panelId2)
 
     if (!panel1 || !panel2) return
 
@@ -242,7 +242,7 @@ export class LayoutManager {
    * Auto-layout based on visible panels
    */
   autoLayout(panels: BaseElement[]): LayoutConfig {
-    const visiblePanels = panels.filter(p => p.isElementVisible())
+    const visiblePanels = panels.filter((p) => p.isElementVisible())
     const count = visiblePanels.length
 
     let layoutId = 'single'
@@ -257,8 +257,11 @@ export class LayoutManager {
       const panelLayout: PanelLayout = {
         id: panel.getId(),
         element: panel,
-        x: 0, y: 0, width: 0, height: 0,
-        weight: 1
+        x: 0,
+        y: 0,
+        width: 0,
+        height: 0,
+        weight: 1,
       }
       this.addPanel(panelLayout)
     })
@@ -276,12 +279,12 @@ export class LayoutManager {
     const { width: screenWidth, height: screenHeight } = state.size
     const { padding = 1, gaps = 1 } = this.currentLayout
 
-    const panels = this.currentLayout.panels.filter(p => !p.pinned)
-    const pinnedPanels = this.currentLayout.panels.filter(p => p.pinned)
+    const panels = this.currentLayout.panels.filter((p) => !p.pinned)
+    const pinnedPanels = this.currentLayout.panels.filter((p) => p.pinned)
 
     // Calculate available space
-    let availableWidth = screenWidth - (padding * 2) - (gaps * (panels.length - 1))
-    let availableHeight = screenHeight - (padding * 2) - (gaps * (panels.length - 1))
+    const availableWidth = screenWidth - padding * 2 - gaps * (panels.length - 1)
+    const availableHeight = screenHeight - padding * 2 - gaps * (panels.length - 1)
 
     // Handle pinned panels first (they don't take up layout space)
     // TODO: Position pinned panels separately
@@ -291,7 +294,7 @@ export class LayoutManager {
     // Calculate layout based on mode
     switch (this.currentLayout.mode) {
       case 'single':
-        panels.forEach(panel => {
+        panels.forEach((panel) => {
           panel.x = padding
           panel.y = padding
           panel.width = availableWidth
@@ -371,7 +374,7 @@ export class LayoutManager {
   private renderLayout(): void {
     if (!this.currentLayout) return
 
-    this.currentLayout.panels.forEach(panel => {
+    this.currentLayout.panels.forEach((panel) => {
       const element = panel.element.getElement()
       if (element) {
         element.width = panel.width
@@ -387,14 +390,11 @@ export class LayoutManager {
   private updateState(): void {
     if (!this.currentLayout) return
 
-    tuiState.updateLayout(
-      this.currentLayout.mode,
-      this.currentLayout.panels[0]?.id || null
-    )
+    tuiState.updateLayout(this.currentLayout.mode, this.currentLayout.panels[0]?.id || null)
 
     // Update panel list in state
-    const panelIds = this.currentLayout.panels.map(p => p.id)
-    panelIds.forEach(id => tuiState.addPanel(id))
+    const panelIds = this.currentLayout.panels.map((p) => p.id)
+    panelIds.forEach((id) => tuiState.addPanel(id))
   }
 
   /**
@@ -415,8 +415,11 @@ export class LayoutManager {
       const panelLayout: PanelLayout = {
         id: panelId,
         element: panel,
-        x: 0, y: 0, width: 0, height: 0,
-        weight: 1
+        x: 0,
+        y: 0,
+        width: 0,
+        height: 0,
+        weight: 1,
       }
       this.addPanel(panelLayout)
     }

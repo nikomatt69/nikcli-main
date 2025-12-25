@@ -1,5 +1,4 @@
 import path, { join } from 'node:path'
-import { bunFile, bunWrite, copyFile, mkdirp, removeFile, bunGlob } from '../utils/bun-compat'
 import { Mutex } from 'async-mutex'
 import { ContextAwareRAGSystem } from '../context/context-aware-rag'
 import { lspManager } from '../lsp/lsp-manager'
@@ -17,6 +16,7 @@ import {
 import { advancedUI } from '../ui/advanced-cli-ui'
 import { diffManager } from '../ui/diff-manager'
 import { DiffViewer, type FileDiff } from '../ui/diff-viewer'
+import { bunFile, bunGlob, bunWrite, copyFile, mkdirp, removeFile } from '../utils/bun-compat'
 import { CliUI } from '../utils/cli-ui'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
 
@@ -28,20 +28,20 @@ class FileLockManager {
 
   static getLock(filePath: string): Mutex {
     const normalized = path.resolve(filePath)
-    if (!this.locks.has(normalized)) {
-      this.locks.set(normalized, new Mutex())
+    if (!FileLockManager.locks.has(normalized)) {
+      FileLockManager.locks.set(normalized, new Mutex())
     }
-    return this.locks.get(normalized)!
+    return FileLockManager.locks.get(normalized)!
   }
 
   static async withLock<T>(filePath: string, operation: () => Promise<T>): Promise<T> {
-    const lock = this.getLock(filePath)
+    const lock = FileLockManager.getLock(filePath)
     return lock.runExclusive(operation)
   }
 
   static clearLock(filePath: string): void {
     const normalized = path.resolve(filePath)
-    this.locks.delete(normalized)
+    FileLockManager.locks.delete(normalized)
   }
 }
 
@@ -637,7 +637,7 @@ export class ContentValidators {
         }
 
         // Clean up temp file
-        await removeFile(tempFilePath).catch(() => { })
+        await removeFile(tempFilePath).catch(() => {})
       } catch (lspError: any) {
         warnings.push(`LSP validation unavailable: ${lspError.message}`)
 

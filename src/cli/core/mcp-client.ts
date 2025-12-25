@@ -4,9 +4,9 @@ import http from 'node:http'
 import https from 'node:https'
 import chalk from 'chalk'
 import { IDEDiagnosticMcpServer } from '../mcp/ide-diagnostic-server'
+import { advancedUI } from '../ui/advanced-cli-ui'
 import { completionCache } from './completion-protocol-cache'
 import { simpleConfigManager } from './config-manager'
-import { advancedUI } from '../ui/advanced-cli-ui'
 
 // Claude Code/OpenCode compatible MCP server configuration
 export interface ClaudeCodeMcpServer {

@@ -4,12 +4,12 @@
  */
 
 import { existsSync, readFileSync } from 'node:fs'
-import { resolve, dirname } from 'node:path'
+import { dirname, resolve } from 'node:path'
 import chalk from 'chalk'
-import { lspManager } from './lsp-manager'
 import { aiCompletionService } from '../services/ai-completion-service'
 import { detectLanguageFromExtension } from './language-detection'
-import type { LSPClient, LSPDiagnostic, LSPCompletionItem, LSPSymbol } from './lsp-client'
+import type { LSPClient, LSPCompletionItem, LSPDiagnostic, LSPSymbol } from './lsp-client'
+import { lspManager } from './lsp-manager'
 
 export interface AICompletionContext {
   file: string
@@ -128,7 +128,7 @@ class SimplePredictiveCache implements PredictiveCache {
     if (this.cache.size > this.maxSize) {
       const entries = Array.from(this.cache.entries())
       entries.sort((a, b) => a[1].timestamp - b[1].timestamp)
-      
+
       const toRemove = entries.slice(0, this.cache.size - this.maxSize + 100)
       toRemove.forEach(([key]) => this.cache.delete(key))
     }
@@ -198,7 +198,7 @@ export class AIEnhancedLSPManager {
           )
 
           // Enhance with context
-          const enhancedCompletions = completions.map(comp => ({
+          const enhancedCompletions = completions.map((comp) => ({
             ...comp,
             // Add AI enhancement metadata
             data: {
@@ -275,7 +275,10 @@ Position: Line ${context.position.line + 1}, Column ${context.position.character
 Surrounding code:
 ${surroundingLines.join('\n')}
 
-Recent commands: ${context.userHistory.recentCompletions.slice(-5).map(c => c.completion).join(', ')}
+Recent commands: ${context.userHistory.recentCompletions
+      .slice(-5)
+      .map((c) => c.completion)
+      .join(', ')}
 Active agents: ${context.projectContext.activeAgents}
 LSP suggestions: ${context.projectContext.lspSuggestions}
 
@@ -375,7 +378,7 @@ Return JSON format:
     const label = completion.label || completion.insertText || ''
 
     // Check if completion matches frequently used symbols
-    if (this.userPreferences.frequentlyUsedSymbols.some(symbol => label.includes(symbol))) {
+    if (this.userPreferences.frequentlyUsedSymbols.some((symbol) => label.includes(symbol))) {
       return 0.8
     }
 
@@ -412,7 +415,10 @@ Return JSON format:
   /**
    * Rank completions
    */
-  private async rankCompletions(completions: LSPCompletionItem[], context: AICompletionContext): Promise<LSPCompletionItem[]> {
+  private async rankCompletions(
+    completions: LSPCompletionItem[],
+    context: AICompletionContext
+  ): Promise<LSPCompletionItem[]> {
     return completions.sort((a, b) => {
       const aScore = this.calculateCompletionScore(a, context)
       const bScore = this.calculateCompletionScore(b, context)
@@ -493,7 +499,6 @@ Return JSON format:
       },
       ttlMs: 300000, // 5 minutes
     })
-
   }
 
   /**
@@ -510,7 +515,7 @@ Return JSON format:
     // Simple hash function (can be enhanced)
     let hash = 0
     for (let i = 0; i < code.length; i++) {
-      hash = ((hash << 5) - hash) + code.charCodeAt(i)
+      hash = (hash << 5) - hash + code.charCodeAt(i)
       hash = hash & hash
     }
     return hash.toString(36)
@@ -544,7 +549,12 @@ Return JSON format:
   /**
    * Update project context
    */
-  updateProjectContext(workspaceFiles: number, recentCommands: number, activeAgents: number, lspSuggestions: number): void {
+  updateProjectContext(
+    workspaceFiles: number,
+    recentCommands: number,
+    activeAgents: number,
+    lspSuggestions: number
+  ): void {
     this.projectContext = {
       workspaceFiles,
       recentCommands,
@@ -561,11 +571,13 @@ Return JSON format:
       preferredLanguages: [...this.userPreferences.preferredLanguages, ...(preferences.preferredLanguages || [])],
       completionStyle: preferences.completionStyle || this.userPreferences.completionStyle,
       autoAcceptThreshold: preferences.autoAcceptThreshold || this.userPreferences.autoAcceptThreshold,
-      frequentlyUsedSymbols: [...this.userPreferences.frequentlyUsedSymbols, ...(preferences.frequentlyUsedSymbols || [])],
+      frequentlyUsedSymbols: [
+        ...this.userPreferences.frequentlyUsedSymbols,
+        ...(preferences.frequentlyUsedSymbols || []),
+      ],
       recentCompletions: [...this.userPreferences.recentCompletions, ...(preferences.recentCompletions || [])],
     }
   }
-
 
   /**
    * Get performance metrics
@@ -602,7 +614,6 @@ Return JSON format:
     this.completionCache.clear()
     console.log(chalk.blue('✓ AI completion cache cleared'))
   }
-
 }
 
 // Export singleton instance

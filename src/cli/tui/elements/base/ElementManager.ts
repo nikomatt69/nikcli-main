@@ -3,9 +3,9 @@
  * Manages lifecycle and registry of all TUI elements
  */
 
-import { BaseElement } from './BaseElement'
 import { eventBus } from '../../core/EventBus'
 import { tuiState } from '../../core/TUIState'
+import type { BaseElement } from './BaseElement'
 
 export class ElementManager {
   private elements = new Map<string, BaseElement>()
@@ -14,22 +14,14 @@ export class ElementManager {
   /**
    * Register element type
    */
-  registerElementType(
-    type: string,
-    factory: () => BaseElement
-  ): void {
+  registerElementType(type: string, factory: () => BaseElement): void {
     this.elementTypes.set(type, factory)
   }
 
   /**
    * Create element by type
    */
-  createElement(
-    type: string,
-    config: any,
-    eventBus: any,
-    theme: any
-  ): BaseElement {
+  createElement(type: string, config: any, eventBus: any, theme: any): BaseElement {
     const factory = this.elementTypes.get(type)
     if (!factory) {
       throw new Error(`Unknown element type: ${type}`)
@@ -58,7 +50,7 @@ export class ElementManager {
 
     eventBus.emit('tui:element:registered', {
       id,
-      type: element.getType()
+      type: element.getType(),
     })
   }
 
@@ -94,14 +86,14 @@ export class ElementManager {
    * Get elements by type
    */
   getElementsByType(type: string): BaseElement[] {
-    return this.getAllElements().filter(el => el.getType() === type)
+    return this.getAllElements().filter((el) => el.getType() === type)
   }
 
   /**
    * Get focusable elements
    */
   getFocusableElements(): BaseElement[] {
-    return this.getAllElements().filter(el => {
+    return this.getAllElements().filter((el) => {
       const config = el.getConfig()
       return config.focusable !== false && el.isElementVisible()
     })
@@ -113,7 +105,7 @@ export class ElementManager {
   findElementAt(x: number, y: number): BaseElement | null {
     // Find the topmost element at the given position
     const elements = this.getAllElements()
-      .filter(el => el.isElementVisible())
+      .filter((el) => el.isElementVisible())
       .sort((a, b) => {
         // Z-index sorting (later elements are on top)
         const aIndex = this.getElementZIndex(a.getId())
@@ -151,7 +143,7 @@ export class ElementManager {
     let hash = 0
     for (let i = 0; i < id.length; i++) {
       const char = id.charCodeAt(i)
-      hash = ((hash << 5) - hash) + char
+      hash = (hash << 5) - hash + char
       hash = hash & hash // Convert to 32-bit integer
     }
     return Math.abs(hash)
@@ -161,7 +153,7 @@ export class ElementManager {
    * Destroy all elements
    */
   destroyAll(): void {
-    this.elements.forEach(element => element.destroy())
+    this.elements.forEach((element) => element.destroy())
     this.elements.clear()
     tuiState.reset()
   }
@@ -170,7 +162,7 @@ export class ElementManager {
    * Update all elements (render loop)
    */
   updateAll(): void {
-    this.elements.forEach(element => {
+    this.elements.forEach((element) => {
       if (element.isElementVisible()) {
         // Trigger update if needed
         // This will be called from the main render loop
@@ -229,7 +221,7 @@ export class ElementManager {
 
     const currentFocused = this.getFocusedElement()
     const currentIndex = currentFocused
-      ? focusableElements.findIndex(el => el.getId() === currentFocused.getId())
+      ? focusableElements.findIndex((el) => el.getId() === currentFocused.getId())
       : -1
 
     const nextIndex = (currentIndex + 1) % focusableElements.length
@@ -247,12 +239,10 @@ export class ElementManager {
 
     const currentFocused = this.getFocusedElement()
     const currentIndex = currentFocused
-      ? focusableElements.findIndex(el => el.getId() === currentFocused.getId())
+      ? focusableElements.findIndex((el) => el.getId() === currentFocused.getId())
       : -1
 
-    const prevIndex = currentIndex <= 0
-      ? focusableElements.length - 1
-      : currentIndex - 1
+    const prevIndex = currentIndex <= 0 ? focusableElements.length - 1 : currentIndex - 1
     const prevElement = focusableElements[prevIndex]
 
     this.setFocusedElement(prevElement.getId())

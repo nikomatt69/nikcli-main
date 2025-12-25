@@ -1,10 +1,10 @@
-import inquirer from 'inquirer'
-import chalk from 'chalk'
 import boxen from 'boxen'
-import { Theme, ThemeColors, ColorGradient, themeManager } from './theme-manager'
-import { colorPicker, ColorPickerResult } from './interactive-color-picker'
-import { themeValidator, ValidationResult } from './theme-validator'
+import chalk from 'chalk'
+import inquirer from 'inquirer'
+import { ColorPickerResult, colorPicker } from './interactive-color-picker'
 import { LiveThemePreview } from './live-theme-preview'
+import { type ColorGradient, type Theme, type ThemeColors, themeManager } from './theme-manager'
+import { themeValidator, ValidationResult } from './theme-validator'
 
 export interface EditOptions {
   mode?: 'default' | 'plan' | 'vm'
@@ -57,7 +57,6 @@ export class ThemeEditor {
 
       console.log(chalk.green('\n✓ Editor closed\n'))
       return true
-
     } catch (error: any) {
       console.log(chalk.red(`\n✗ Error: ${error.message}\n`))
       return false
@@ -150,7 +149,7 @@ export class ThemeEditor {
       {
         type: 'list',
         name: 'action',
-        message: `${colorProperties.find(p => p.key === colorKey)?.label}:`,
+        message: `${colorProperties.find((p) => p.key === colorKey)?.label}:`,
         choices: [
           { name: `Keep: ${currentStr}`, value: 'keep' },
           { name: 'Pick new color', value: 'pick' },
@@ -173,7 +172,11 @@ export class ThemeEditor {
         ? colorResult.gradient!
         : colorResult.color
 
-      console.log(chalk.green(`\n✓ Color updated: ${this.formatColorValue(this.theme.colors[mode][colorKey as keyof ThemeColors])}\n`))
+      console.log(
+        chalk.green(
+          `\n✓ Color updated: ${this.formatColorValue(this.theme.colors[mode][colorKey as keyof ThemeColors])}\n`
+        )
+      )
     }
 
     // Ask if user wants to preview
@@ -215,15 +218,19 @@ export class ThemeEditor {
     console.log(chalk.gray(`\nEditing ${mode} mode colors:\n`))
 
     // Show current colors
-    const colorList = Object.entries(modeColors).map(([key, value]) => {
-      return `${key.padEnd(15)} ${this.formatColorValue(value as any)}`
-    }).join('\n')
+    const colorList = Object.entries(modeColors)
+      .map(([key, value]) => {
+        return `${key.padEnd(15)} ${this.formatColorValue(value as any)}`
+      })
+      .join('\n')
 
-    console.log(boxen(chalk.gray(colorList), {
-      padding: 1,
-      borderStyle: 'round',
-      borderColor: 'gray',
-    }))
+    console.log(
+      boxen(chalk.gray(colorList), {
+        padding: 1,
+        borderStyle: 'round',
+        borderColor: 'gray',
+      })
+    )
 
     const { action } = await inquirer.prompt([
       {
@@ -284,9 +291,7 @@ export class ThemeEditor {
 
       const currentValue = modeColors[colorKey]
       const colorResult = await colorPicker.pickColor(`Pick ${colorKey}`)
-      modeColors[colorKey] = colorResult.isGradient
-        ? colorResult.gradient as any
-        : colorResult.color
+      modeColors[colorKey] = colorResult.isGradient ? (colorResult.gradient as any) : colorResult.color
     }
   }
 
@@ -331,11 +336,12 @@ export class ThemeEditor {
         fromColor = 'rgb(255, 20, 147)'
         toColor = 'rgb(0, 255, 255)'
         break
-      case 'custom':
+      case 'custom': {
         const result = await colorPicker.pickGradient()
         fromColor = result.gradient!.from
         toColor = result.gradient!.to
         break
+      }
       default:
         fromColor = 'blue'
         toColor = 'cyan'

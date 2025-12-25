@@ -162,7 +162,7 @@ export class ThemeManager {
       return {
         r: parseInt(rgbMatch[1]),
         g: parseInt(rgbMatch[2]),
-        b: parseInt(rgbMatch[3])
+        b: parseInt(rgbMatch[3]),
       }
     }
 
@@ -182,11 +182,15 @@ export class ThemeManager {
   /**
    * Mix two colors together
    */
-  private mixColors(color1: { r: number; g: number; b: number }, color2: { r: number; g: number; b: number }, factor: number): { r: number; g: number; b: number } {
+  private mixColors(
+    color1: { r: number; g: number; b: number },
+    color2: { r: number; g: number; b: number },
+    factor: number
+  ): { r: number; g: number; b: number } {
     return {
       r: Math.round(color1.r * (1 - factor) + color2.r * factor),
       g: Math.round(color1.g * (1 - factor) + color2.g * factor),
-      b: Math.round(color1.b * (1 - factor) + color2.b * factor)
+      b: Math.round(color1.b * (1 - factor) + color2.b * factor),
     }
   }
 
@@ -232,7 +236,7 @@ export class ThemeManager {
           success: 'green',
           warning: 'yellow',
           error: 'red',
-          info: this.rgbToString(baseColor)
+          info: this.rgbToString(baseColor),
         },
         plan: {
           modeText: 'yellow',
@@ -250,7 +254,7 @@ export class ThemeManager {
           success: 'green',
           warning: 'yellow',
           error: 'red',
-          info: 'blue'
+          info: 'blue',
         },
         vm: {
           modeText: 'magenta',
@@ -268,14 +272,14 @@ export class ThemeManager {
           success: 'green',
           warning: 'yellow',
           error: 'red',
-          info: 'magenta'
-        }
+          info: 'magenta',
+        },
       },
       accessibility: {
         highContrast: false,
         colorblindFriendly: true,
-        reducedMotion: false
-      }
+        reducedMotion: false,
+      },
     }
 
     return theme
@@ -294,7 +298,7 @@ export class ThemeManager {
     return {
       r: Math.round(f(0) * 255),
       g: Math.round(f(8) * 255),
-      b: Math.round(f(4) * 255)
+      b: Math.round(f(4) * 255),
     }
   }
 
@@ -325,7 +329,7 @@ export class ThemeManager {
     }
 
     // Check for sufficient color differentiation
-    const colors = Object.values(theme.colors.default).filter(c => typeof c === 'string') as string[]
+    const colors = Object.values(theme.colors.default).filter((c) => typeof c === 'string') as string[]
     const uniqueColors = new Set(colors)
     if (uniqueColors.size < 3) {
       issues.push('Insufficient color differentiation')
@@ -356,7 +360,7 @@ export class ThemeManager {
       colors: theme.colors,
       modes: Object.keys(theme.colors),
       tags: theme.tags,
-      score: validation.score
+      score: validation.score,
     }
   }
 
@@ -385,7 +389,7 @@ export class ThemeManager {
           success: 'green',
           warning: 'yellow',
           error: 'red',
-          info: 'blue'
+          info: 'blue',
         },
         plan: {
           modeText: { from: 'yellow', to: 'rgb(255, 215, 0)', type: 'linear', angle: 30 },
@@ -403,7 +407,7 @@ export class ThemeManager {
           success: 'green',
           warning: 'yellow',
           error: 'red',
-          info: 'blue'
+          info: 'blue',
         },
         vm: {
           modeText: { from: 'magenta', to: 'rgb(255, 20, 147)', type: 'linear', angle: 45 },
@@ -421,14 +425,14 @@ export class ThemeManager {
           success: 'green',
           warning: 'yellow',
           error: 'red',
-          info: 'blue'
-        }
+          info: 'blue',
+        },
       },
       accessibility: {
         highContrast: false,
         colorblindFriendly: true,
-        reducedMotion: false
-      }
+        reducedMotion: false,
+      },
     })
 
     // Ocean Theme
@@ -455,7 +459,7 @@ export class ThemeManager {
           success: 'green',
           warning: 'yellow',
           error: 'red',
-          info: 'blue'
+          info: 'blue',
         },
         plan: {
           modeText: 'yellow',
@@ -473,7 +477,7 @@ export class ThemeManager {
           success: 'green',
           warning: 'yellow',
           error: 'red',
-          info: 'blue'
+          info: 'blue',
         },
         vm: {
           modeText: 'rgb(255, 20, 147)',
@@ -491,14 +495,14 @@ export class ThemeManager {
           success: 'green',
           warning: 'yellow',
           error: 'red',
-          info: 'blue'
-        }
+          info: 'blue',
+        },
       },
       accessibility: {
         highContrast: false,
         colorblindFriendly: true,
-        reducedMotion: false
-      }
+        reducedMotion: false,
+      },
     })
 
     // Sunset Theme
@@ -525,7 +529,7 @@ export class ThemeManager {
           success: 'green',
           warning: 'yellow',
           error: 'red',
-          info: 'blue'
+          info: 'blue',
         },
         plan: {
           modeText: 'yellow',
@@ -543,7 +547,7 @@ export class ThemeManager {
           success: 'green',
           warning: 'yellow',
           error: 'red',
-          info: 'blue'
+          info: 'blue',
         },
         vm: {
           modeText: 'rgb(148, 0, 211)',
@@ -561,14 +565,14 @@ export class ThemeManager {
           success: 'green',
           warning: 'yellow',
           error: 'red',
-          info: 'blue'
-        }
+          info: 'blue',
+        },
       },
       accessibility: {
         highContrast: false,
         colorblindFriendly: true,
-        reducedMotion: false
-      }
+        reducedMotion: false,
+      },
     })
 
     // Forest Theme
@@ -595,7 +599,7 @@ export class ThemeManager {
           success: 'green',
           warning: 'yellow',
           error: 'red',
-          info: 'blue'
+          info: 'blue',
         },
         plan: {
           modeText: 'yellow',
@@ -613,7 +617,7 @@ export class ThemeManager {
           success: 'green',
           warning: 'yellow',
           error: 'red',
-          info: 'blue'
+          info: 'blue',
         },
         vm: {
           modeText: 'rgb(75, 0, 130)',
@@ -631,14 +635,14 @@ export class ThemeManager {
           success: 'green',
           warning: 'yellow',
           error: 'red',
-          info: 'blue'
-        }
+          info: 'blue',
+        },
       },
       accessibility: {
         highContrast: false,
         colorblindFriendly: true,
-        reducedMotion: false
-      }
+        reducedMotion: false,
+      },
     })
 
     // Cyberpunk Theme
@@ -665,7 +669,7 @@ export class ThemeManager {
           success: 'green',
           warning: 'yellow',
           error: 'red',
-          info: 'blue'
+          info: 'blue',
         },
         plan: {
           modeText: 'rgb(255, 215, 0)',
@@ -683,7 +687,7 @@ export class ThemeManager {
           success: 'green',
           warning: 'yellow',
           error: 'red',
-          info: 'blue'
+          info: 'blue',
         },
         vm: {
           modeText: 'rgb(0, 191, 255)',
@@ -701,14 +705,14 @@ export class ThemeManager {
           success: 'green',
           warning: 'yellow',
           error: 'red',
-          info: 'blue'
-        }
+          info: 'blue',
+        },
       },
       accessibility: {
         highContrast: false,
         colorblindFriendly: true,
-        reducedMotion: false
-      }
+        reducedMotion: false,
+      },
     })
 
     // Monokai Theme
@@ -735,7 +739,7 @@ export class ThemeManager {
           success: 'green',
           warning: 'yellow',
           error: 'red',
-          info: 'blue'
+          info: 'blue',
         },
         plan: {
           modeText: 'rgb(255, 215, 0)',
@@ -753,7 +757,7 @@ export class ThemeManager {
           success: 'green',
           warning: 'yellow',
           error: 'red',
-          info: 'blue'
+          info: 'blue',
         },
         vm: {
           modeText: 'rgb(249, 38, 114)',
@@ -771,14 +775,14 @@ export class ThemeManager {
           success: 'green',
           warning: 'yellow',
           error: 'red',
-          info: 'blue'
-        }
+          info: 'blue',
+        },
       },
       accessibility: {
         highContrast: false,
         colorblindFriendly: true,
-        reducedMotion: false
-      }
+        reducedMotion: false,
+      },
     })
 
     // Nord Theme
@@ -805,7 +809,7 @@ export class ThemeManager {
           success: 'green',
           warning: 'yellow',
           error: 'red',
-          info: 'blue'
+          info: 'blue',
         },
         plan: {
           modeText: 'yellow',
@@ -823,7 +827,7 @@ export class ThemeManager {
           success: 'green',
           warning: 'yellow',
           error: 'red',
-          info: 'blue'
+          info: 'blue',
         },
         vm: {
           modeText: 'rgb(180, 142, 173)',
@@ -841,14 +845,14 @@ export class ThemeManager {
           success: 'green',
           warning: 'yellow',
           error: 'red',
-          info: 'blue'
-        }
+          info: 'blue',
+        },
       },
       accessibility: {
         highContrast: false,
         colorblindFriendly: true,
-        reducedMotion: false
-      }
+        reducedMotion: false,
+      },
     })
   }
 
@@ -890,7 +894,7 @@ export class ThemeManager {
 
     this.currentThemeName = name
     // Get current ui config
-    const uiConfig = configManager.get('ui') as any || { theme: { active: 'default', customThemes: {} } }
+    const uiConfig = (configManager.get('ui') as any) || { theme: { active: 'default', customThemes: {} } }
     // Update theme.active
     uiConfig.theme.active = name
     // Save back to config manager
@@ -902,12 +906,21 @@ export class ThemeManager {
     return Array.from(this.themes.values())
   }
 
-  public getColor(mode: 'default' | 'plan' | 'vm', colorType: keyof ThemeColors, themeName?: string): string | ColorGradient {
+  public getColor(
+    mode: 'default' | 'plan' | 'vm',
+    colorType: keyof ThemeColors,
+    themeName?: string
+  ): string | ColorGradient {
     const theme = this.getTheme(themeName)
     return theme.colors[mode][colorType]
   }
 
-  public applyChalk(mode: 'default' | 'plan' | 'vm', colorType: keyof ThemeColors, text: string, themeName?: string): string {
+  public applyChalk(
+    mode: 'default' | 'plan' | 'vm',
+    colorType: keyof ThemeColors,
+    text: string,
+    themeName?: string
+  ): string {
     const colorValue = this.getColor(mode, colorType, themeName)
 
     // If it's a ColorGradient, render the gradient
@@ -965,8 +978,8 @@ export class ThemeManager {
       accessibility: {
         highContrast: false,
         colorblindFriendly: true,
-        reducedMotion: false
-      }
+        reducedMotion: false,
+      },
     })
 
     return true
@@ -1018,7 +1031,7 @@ export class ThemeManager {
         timeBased: true,
         seasonBased: true,
         autoAdjust: true,
-        smoothTransition: true
+        smoothTransition: true,
       },
       colors: {
         default: {
@@ -1037,7 +1050,7 @@ export class ThemeManager {
           success: 'rgb(50, 205, 50)',
           warning: 'rgb(255, 215, 0)',
           error: 'rgb(220, 20, 60)',
-          info: 'rgb(0, 191, 255)'
+          info: 'rgb(0, 191, 255)',
         },
         plan: {
           modeText: { from: 'rgb(255, 215, 0)', to: 'rgb(255, 193, 7)', type: 'linear', angle: 30 },
@@ -1055,7 +1068,7 @@ export class ThemeManager {
           success: 'rgb(50, 205, 50)',
           warning: 'rgb(255, 215, 0)',
           error: 'rgb(220, 20, 60)',
-          info: 'rgb(0, 191, 255)'
+          info: 'rgb(0, 191, 255)',
         },
         vm: {
           modeText: { from: 'rgb(148, 0, 211)', to: 'rgb(138, 43, 226)', type: 'linear', angle: 45 },
@@ -1073,14 +1086,14 @@ export class ThemeManager {
           success: 'rgb(50, 205, 50)',
           warning: 'rgb(255, 215, 0)',
           error: 'rgb(220, 20, 60)',
-          info: 'rgb(148, 0, 211)'
-        }
+          info: 'rgb(148, 0, 211)',
+        },
       },
       accessibility: {
         highContrast: true,
         colorblindFriendly: true,
-        reducedMotion: false
-      }
+        reducedMotion: false,
+      },
     }
   }
 
@@ -1111,7 +1124,7 @@ export class ThemeManager {
           success: 'rgb(0, 255, 0)',
           warning: 'rgb(255, 215, 0)',
           error: 'rgb(220, 20, 60)',
-          info: 'rgb(0, 255, 0)'
+          info: 'rgb(0, 255, 0)',
         },
         plan: {
           modeText: { from: 'rgb(255, 215, 0)', to: 'rgb(255, 193, 7)', type: 'linear', angle: 30 },
@@ -1129,7 +1142,7 @@ export class ThemeManager {
           success: 'rgb(0, 255, 0)',
           warning: 'rgb(255, 215, 0)',
           error: 'rgb(220, 20, 60)',
-          info: 'rgb(0, 255, 0)'
+          info: 'rgb(0, 255, 0)',
         },
         vm: {
           modeText: { from: 'rgb(255, 20, 147)', to: 'rgb(199, 21, 133)', type: 'linear', angle: 45 },
@@ -1147,14 +1160,14 @@ export class ThemeManager {
           success: 'rgb(0, 255, 0)',
           warning: 'rgb(255, 215, 0)',
           error: 'rgb(220, 20, 60)',
-          info: 'rgb(255, 20, 147)'
-        }
+          info: 'rgb(255, 20, 147)',
+        },
       },
       accessibility: {
         highContrast: true,
         colorblindFriendly: false,
-        reducedMotion: false
-      }
+        reducedMotion: false,
+      },
     }
   }
 
@@ -1185,7 +1198,7 @@ export class ThemeManager {
           success: 'rgb(0, 255, 0)',
           warning: 'rgb(255, 255, 0)',
           error: 'rgb(255, 0, 0)',
-          info: 'rgb(0, 255, 255)'
+          info: 'rgb(0, 255, 255)',
         },
         plan: {
           modeText: 'rgb(255, 255, 0)',
@@ -1203,7 +1216,7 @@ export class ThemeManager {
           success: 'rgb(0, 255, 0)',
           warning: 'rgb(255, 255, 0)',
           error: 'rgb(255, 0, 0)',
-          info: 'rgb(0, 255, 255)'
+          info: 'rgb(0, 255, 255)',
         },
         vm: {
           modeText: 'rgb(255, 0, 255)',
@@ -1221,14 +1234,14 @@ export class ThemeManager {
           success: 'rgb(0, 255, 0)',
           warning: 'rgb(255, 255, 0)',
           error: 'rgb(255, 0, 0)',
-          info: 'rgb(0, 255, 255)'
-        }
+          info: 'rgb(0, 255, 255)',
+        },
       },
       accessibility: {
         highContrast: true,
         colorblindFriendly: true,
-        reducedMotion: true
-      }
+        reducedMotion: true,
+      },
     }
   }
 

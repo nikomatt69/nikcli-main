@@ -3,10 +3,10 @@
  * Bridges existing StreamttyService with OpenTUI elements
  */
 
-import { ElementManager, elementManager } from '../elements/base/ElementManager'
-import { EventBus, eventBus } from '../core/EventBus'
-import { StreamElement } from '../elements/specialized/StreamElement'
+import { type EventBus, eventBus } from '../core/EventBus'
 import { tuiState } from '../core/TUIState'
+import { type ElementManager, elementManager } from '../elements/base/ElementManager'
+import { StreamElement } from '../elements/specialized/StreamElement'
 
 // Mock StreamttyService types (will be replaced with actual imports)
 export interface ChunkType {
@@ -34,7 +34,7 @@ const streamttyService: StreamttyService = {
 
   async streamAISDKEvent(event: StreamEvent): Promise<void> {
     eventBus.emit('streamtty:ai-event', event)
-  }
+  },
 }
 
 export class StreamttyAdapter {
@@ -84,7 +84,7 @@ export class StreamttyAdapter {
         height: '100%',
         autoScroll: true,
         preserveHistory: true,
-        maxLines: 1000
+        maxLines: 1000,
       },
       this.eventBus,
       tuiState.getState().theme
@@ -98,11 +98,7 @@ export class StreamttyAdapter {
   /**
    * Create named stream element
    */
-  createStreamElement(
-    id: string,
-    source: 'streamtty' | 'ai' | 'tool' | 'log',
-    title?: string
-  ): StreamElement {
+  createStreamElement(id: string, source: 'streamtty' | 'ai' | 'tool' | 'log', title?: string): StreamElement {
     const streamElement = new StreamElement(
       {
         id,
@@ -113,7 +109,7 @@ export class StreamttyAdapter {
         height: '100%',
         autoScroll: true,
         preserveHistory: true,
-        maxLines: 1000
+        maxLines: 1000,
       },
       this.eventBus,
       tuiState.getState().theme

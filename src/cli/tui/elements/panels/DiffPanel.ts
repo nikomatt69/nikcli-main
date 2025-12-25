@@ -3,8 +3,8 @@
  * Displays file diffs in a TUI panel
  */
 
-import { PanelElement, PanelElementConfig } from '../specialized/PanelElement'
 import { eventBus } from '../../core/EventBus'
+import { PanelElement, type PanelElementConfig } from '../specialized/PanelElement'
 
 export interface DiffPanelConfig extends PanelElementConfig {
   panelType: 'diff-panel'
@@ -94,7 +94,7 @@ export class DiffPanel extends PanelElement {
     // TODO: Implement view toggle
     eventBus.emit('tui:panel:action', {
       panelId: (this.config as DiffPanelConfig).panelId,
-      action: 'toggle-view'
+      action: 'toggle-view',
     })
   }
 
@@ -104,7 +104,7 @@ export class DiffPanel extends PanelElement {
   private refreshDiff(): void {
     eventBus.emit('tui:panel:action', {
       panelId: (this.config as DiffPanelConfig).panelId,
-      action: 'refresh'
+      action: 'refresh',
     })
   }
 
@@ -114,7 +114,7 @@ export class DiffPanel extends PanelElement {
   private saveDiff(): void {
     eventBus.emit('tui:panel:action', {
       panelId: (this.config as DiffPanelConfig).panelId,
-      action: 'save'
+      action: 'save',
     })
   }
 
@@ -124,7 +124,7 @@ export class DiffPanel extends PanelElement {
   getDiffStats(): { additions: number; deletions: number; changes: number } {
     // Simple diff stats calculation
     const additions = (this.newContent.match(/^\+/gm) || []).length
-    const deletions = (this.newContent.match(/^\-/gm) || []).length
+    const deletions = (this.newContent.match(/^-/gm) || []).length
     const changes = additions + deletions
 
     return { additions, deletions, changes }

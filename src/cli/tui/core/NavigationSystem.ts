@@ -3,8 +3,8 @@
  * Handles keyboard and mouse navigation for TUI
  */
 
-import { ElementManager, elementManager } from '../elements/base/ElementManager'
-import { FocusManager, focusManager } from '../elements/base/FocusManager'
+import { type ElementManager, elementManager } from '../elements/base/ElementManager'
+import { type FocusManager, focusManager } from '../elements/base/FocusManager'
 import { eventBus } from './EventBus'
 import { tuiState } from './TUIState'
 
@@ -30,7 +30,7 @@ export class NavigationSystem {
       cycleTabs: true,
       mouseEnabled: true,
       viMode: false,
-      ...config
+      ...config,
     }
 
     this.setupDefaultKeyBindings()
@@ -177,8 +177,7 @@ export class NavigationSystem {
     tuiState.updateFocus(null, prevPanelId)
 
     // Focus first focusable element in panel
-    const panelElements = this.elementManager.getElementsByType('panel')
-      .filter(el => el.getId() === prevPanelId)
+    const panelElements = this.elementManager.getElementsByType('panel').filter((el) => el.getId() === prevPanelId)
 
     if (panelElements.length > 0) {
       this.elementManager.setFocusedElement(panelElements[0].getId())
@@ -211,8 +210,7 @@ export class NavigationSystem {
     tuiState.updateFocus(null, nextPanelId)
 
     // Focus first focusable element in panel
-    const panelElements = this.elementManager.getElementsByType('panel')
-      .filter(el => el.getId() === nextPanelId)
+    const panelElements = this.elementManager.getElementsByType('panel').filter((el) => el.getId() === nextPanelId)
 
     if (panelElements.length > 0) {
       this.elementManager.setFocusedElement(panelElements[0].getId())

@@ -29,7 +29,7 @@ export class EventBus {
         if (handlers.size === 0) {
           this.events.delete(event)
         }
-      }
+      },
     }
   }
 
@@ -51,7 +51,7 @@ export class EventBus {
     const handlers = this.events.get(event)
     if (!handlers) return
 
-    const promises = Array.from(handlers).map(handler => {
+    const promises = Array.from(handlers).map((handler) => {
       try {
         return Promise.resolve(handler(data))
       } catch (error) {

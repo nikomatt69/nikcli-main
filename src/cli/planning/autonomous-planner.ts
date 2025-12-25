@@ -10,13 +10,13 @@ import type { ExecutionPlan, MutableExecutionPlan, PlanTodo } from './types'
 
 export interface PlanningEvent {
   type:
-  | 'plan_start'
-  | 'plan_created'
-  | 'todo_start'
-  | 'todo_progress'
-  | 'todo_complete'
-  | 'plan_complete'
-  | 'plan_failed'
+    | 'plan_start'
+    | 'plan_created'
+    | 'todo_start'
+    | 'todo_progress'
+    | 'todo_complete'
+    | 'plan_complete'
+    | 'plan_failed'
   planId?: string
   todoId?: string
   content?: string
@@ -184,8 +184,8 @@ ${workspaceContext.relevantFiles.map((f: { path: any; summary: any }) => `- ${f.
 
 AVAILABLE TOOLCHAINS:
 ${Array.from(this.toolchainRegistry.entries())
-            .map(([key, chain]) => `- ${key}: ${chain.description} (tools: ${chain.tools.join(', ')})`)
-            .join('\n')}
+  .map(([key, chain]) => `- ${key}: ${chain.description} (tools: ${chain.tools.join(', ')})`)
+  .join('\n')}
 
 AVAILABLE TOOLS:
 - read_file: Read and analyze file contents

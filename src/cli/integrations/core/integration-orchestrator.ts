@@ -1,6 +1,5 @@
 // src/cli/integrations/core/integration-orchestrator.ts
 
-
 import type { EventBus } from '../../automation/agents/event-bus'
 import type { EnhancedGitHubService } from '../github/github-service'
 import type { EnhancedSlackService } from '../slack/slack-service'
@@ -370,7 +369,7 @@ export class IntegrationOrchestrator {
       }
     }
     // Store action results for potential template expansion
-    ; (event as any).actionResults = actionResults
+    ;(event as any).actionResults = actionResults
   }
 
   private async executeAction(action: WorkflowAction, event: WorkflowEvent, previousResults: any[]): Promise<any> {

@@ -1,6 +1,6 @@
+import { EventEmitter } from 'node:events'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import { EventEmitter } from 'node:events'
 import boxen from 'boxen'
 import chalk from 'chalk'
 import { type Change, diffLines } from 'diff'

@@ -57,16 +57,6 @@ interface QueuedPrompt {
   agentId?: string
 }
 
-// ASCII Banner
-const banner = `
-███╗   ██╗██╗██╗  ██╗ ██████╗██╗     ██╗
-████╗  ██║██║██║ ██╔╝██╔════╝██║     ██║
-██╔██╗ ██║██║█████╔╝ ██║     ██║     ██║
-██║╚██╗██║██║██╔═██╗ ██║     ██║     ██║
-██║ ╚████║██║██║  ██╗╚██████╗███████╗██║
-╚═╝  ╚═══╝╚═╝╚═╝  ╚═╝ ╚═════╝╚══════╝╚═╝
-`
-
 /**
  * Unified Chat Interface with Complete Lifecycle Management
  */
@@ -635,7 +625,7 @@ export class UnifiedChatInterface extends EventEmitter {
         break
       case 'clear':
         console.clear()
-        this.displayBanner()
+        this.showPrompt()
         break
       case 'exit':
         this.showGoodbye()
@@ -775,26 +765,9 @@ export class UnifiedChatInterface extends EventEmitter {
   /**
    * Display banner
    */
-  private displayBanner(): void {
-    console.clear()
-    console.log(chalk.cyanBright(banner))
-
-    const welcomeBox = boxen(
-      chalk.white.bold('🔌 Autonomous AI Development Assistant\n\n') +
-        chalk.gray('• Intelligent planning and execution\n') +
-        chalk.gray('• Real-time prompt queue management\n') +
-        chalk.gray('• Interactive permission system\n') +
-        chalk.gray('• Multi-agent orchestration\n\n') +
-        chalk.cyan('Ready to help with your development tasks!'),
-      {
-        padding: 1,
-        margin: 1,
-        borderStyle: 'round',
-        borderColor: 'cyan',
-      }
-    )
-
-    console.log(welcomeBox)
+  private async displayBanner(): Promise<void> {
+    const { ProfessionalStartupPanel } = await import('./index')
+    await ProfessionalStartupPanel.render()
   }
 
   /**
@@ -849,7 +822,7 @@ export class UnifiedChatInterface extends EventEmitter {
       }
 
       // Display banner
-      this.displayBanner()
+      await this.displayBanner()
 
       // Initialize services
       console.log(chalk.blue('⚡︎ Initializing services...'))

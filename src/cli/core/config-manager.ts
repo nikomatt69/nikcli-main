@@ -3,9 +3,9 @@ import * as os from 'node:os'
 import * as path from 'node:path'
 import chalk from 'chalk'
 import { z } from 'zod'
-import { fileExistsSync, mkdirpSync, readTextSync, writeTextSync } from '../utils/bun-compat'
 import { OutputStyleConfigSchema, OutputStyleEnum } from '../types/output-styles'
 import { advancedUI } from '../ui/advanced-cli-ui'
+import { fileExistsSync, mkdirpSync, readTextSync, writeTextSync } from '../utils/bun-compat'
 
 // Validation schemas
 const ModelConfigSchema = z.object({
@@ -22,7 +22,7 @@ const ModelConfigSchema = z.object({
     'llamacpp',
     'lmstudio',
     'openai-compatible',
-    'opencode'
+    'opencode',
   ]),
   model: z.string(),
   temperature: z.number().min(0).max(2).optional(),
@@ -1011,6 +1011,8 @@ const ConfigSchema = z.object({
       autoSyncInterval: 3600000,
       cacheTtl: 300,
     }),
+  // Auto-update configuration
+  autoUpdate: z.boolean().default(true).describe('Enable automatic updates on startup'),
 })
 
 export type ConfigType = z.infer<typeof ConfigSchema>
@@ -2380,7 +2382,7 @@ export class SimpleConfigManager {
             )
           }
         })
-        .catch(() => { })
+        .catch(() => {})
     }
   }
 
@@ -2445,9 +2447,9 @@ export class SimpleConfigManager {
   setEmbeddingModelConfig(model: string, config: Partial<z.infer<typeof EmbeddingModelConfigSchema>>): void {
     const baseConfig = this.config.embeddingModels?.[model] ||
       this.getEmbeddingModelConfig(model) || {
-      provider: this.inferEmbeddingProvider(model),
-      model,
-    }
+        provider: this.inferEmbeddingProvider(model),
+        model,
+      }
 
     this.config.embeddingModels = {
       ...this.config.embeddingModels,

@@ -88,7 +88,7 @@ export class CacheService extends EventEmitter {
     this.activeIntervals.forEach((interval) => {
       try {
         clearInterval(interval)
-      } catch { }
+      } catch {}
     })
     this.activeIntervals.clear()
   }

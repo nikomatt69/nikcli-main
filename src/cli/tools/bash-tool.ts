@@ -157,8 +157,6 @@ export class BashTool extends BaseTool {
         parameters: parsedParams,
       })
 
-
-
       // Validazione sicurezza comando
       await this.validateCommandSafety(parsedParams.command, parsedParams.allowDangerous || false)
 

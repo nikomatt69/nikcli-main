@@ -14,10 +14,10 @@ export interface VectorDocument {
   content: string
   embedding?: number[]
   metadata: Record<string, any> & {
-    fileHash?: string      // MD5 hash of file content
-    lastModified?: string  // ISO string
-    fileSize?: number      // File size in bytes
-    cached?: boolean       // Whether this was loaded from cache
+    fileHash?: string // MD5 hash of file content
+    lastModified?: string // ISO string
+    fileSize?: number // File size in bytes
+    cached?: boolean // Whether this was loaded from cache
   }
   timestamp: Date
 }

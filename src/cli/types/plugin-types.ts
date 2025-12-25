@@ -1,6 +1,6 @@
-import type { z } from 'zod';
-import type { Tool } from '../tool-service';
-import type { Agent } from '../agent-manager';
+import { type CoreTool, Tool } from 'ai'
+import type { z } from 'zod'
+import type { Agent } from './types'
 
 // ============================================================================
 // Core Plugin Types
@@ -10,31 +10,29 @@ import type { Agent } from '../agent-manager';
  * Semantic versioning of plugins
  * Follows semver.org specification
  */
-export type PluginVersion =
-  | `${number}.${number}.${number}`
-  | `${number}.${number}.${number}-${string}`;
+export type PluginVersion = `${number}.${number}.${number}` | `${number}.${number}.${number}-${string}`
 
 /**
  * Unique plugin identifier
  * Format: <scope>/<name> or <name>
  * Examples: @nikcli/code-formatter, my-custom-tool
  */
-export type PluginId = string;
+export type PluginId = string
 
 /**
  * Plugin manifest validation result
  */
 export interface ManifestValidationResult {
-  isValid: boolean;
+  isValid: boolean
   errors: Array<{
-    path: string;
-    message: string;
-    code: string;
-  }>;
+    path: string
+    message: string
+    code: string
+  }>
   warnings: Array<{
-    path: string;
-    message: string;
-  }>;
+    path: string
+    message: string
+  }>
 }
 
 /**
@@ -42,16 +40,16 @@ export interface ManifestValidationResult {
  */
 export interface PluginDependency {
   /** Plugin ID that is required */
-  id: PluginId;
+  id: PluginId
 
   /** Version range (semver format) */
-  version?: string;
+  version?: string
 
   /** Whether this dependency is optional */
-  optional?: boolean;
+  optional?: boolean
 
   /** Reason for the dependency */
-  reason?: string;
+  reason?: string
 }
 
 /**
@@ -59,57 +57,57 @@ export interface PluginDependency {
  */
 export interface PluginMetadata {
   /** Unique identifier */
-  id: PluginId;
+  id: PluginId
 
   /** Human-readable name */
-  name: string;
+  name: string
 
   /** Short description */
-  description: string;
+  description: string
 
   /** Version following semver */
-  version: PluginVersion;
+  version: PluginVersion
 
   /** Minimum NikCLI version required */
-  minNikCLIVersion?: string;
+  minNikCLIVersion?: string
 
   /** Maximum NikCLI version supported */
-  maxNikCLIVersion?: string;
+  maxNikCLIVersion?: string
 
   /** Plugin author information */
   author: {
-    name: string;
-    email?: string;
-    url?: string;
-  };
+    name: string
+    email?: string
+    url?: string
+  }
 
   /** Plugin license */
-  license: string;
+  license: string
 
   /** Repository information */
   repository?: {
-    type: 'git' | 'hg' | 'svn';
-    url: string;
-    directory?: string;
-  };
+    type: 'git' | 'hg' | 'svn'
+    url: string
+    directory?: string
+  }
 
   /** Homepage URL */
-  homepage?: string;
+  homepage?: string
 
   /** Plugin keywords for discoverability */
-  keywords?: string[];
+  keywords?: string[]
 
   /** Plugin category */
-  category: 'tool' | 'agent' | 'ui' | 'integration' | 'middleware' | 'other';
+  category: 'tool' | 'agent' | 'ui' | 'integration' | 'middleware' | 'other'
 
   /** List of other plugins this plugin depends on */
-  dependencies?: PluginDependency[];
+  dependencies?: PluginDependency[]
 
   /** Plugins this is incompatible with */
-  incompatibilities?: PluginId[];
+  incompatibilities?: PluginId[]
 
   /** Icon (emoji or URL) */
-  icon?: string;
+  icon?: string
 }
 
 /**
@@ -118,42 +116,42 @@ export interface PluginMetadata {
 export interface PluginPermissions {
   /** Allowed file system access patterns */
   filesystem?: {
-    read?: string[]; // Glob patterns for read access
-    write?: string[]; // Glob patterns for write access
-    exec?: string[]; // Executable paths allowed
-  };
+    read?: string[] // Glob patterns for read access
+    write?: string[] // Glob patterns for write access
+    exec?: string[] // Executable paths allowed
+  }
 
   /** Network access permissions */
   network?: {
-    domains?: string[]; // Allowed domains
-    ports?: number[]; // Allowed ports
-    protocols?: ('http' | 'https' | 'ws' | 'wss' | 'tcp' | 'udp')[];
-  };
+    domains?: string[] // Allowed domains
+    ports?: number[] // Allowed ports
+    protocols?: ('http' | 'https' | 'ws' | 'wss' | 'tcp' | 'udp')[]
+  }
 
   /** Environment variable access */
   env?: {
-    read?: string[]; // Patterns for env vars to read
-    write?: string[]; // Patterns for env vars to set
-  };
+    read?: string[] // Patterns for env vars to read
+    write?: string[] // Patterns for env vars to set
+  }
 
   /** Tool execution permissions */
   tools?: {
-    allowed?: string[]; // Tool names allowed
-    blocked?: string[]; // Tool names explicitly blocked
-  };
+    allowed?: string[] // Tool names allowed
+    blocked?: string[] // Tool names explicitly blocked
+  }
 
   /** Agent interaction permissions */
   agents?: {
-    allowed?: string[]; // Agent types allowed to interact with
-    blocked?: string[]; // Agent types blocked
-  };
+    allowed?: string[] // Agent types allowed to interact with
+    blocked?: string[] // Agent types blocked
+  }
 
   /** System-level permissions */
   system?: {
-    allowProcesses?: boolean; // Can spawn processes
-    allowNotifications?: boolean; // Can show notifications
-    allowClipboard?: boolean; // Can access clipboard
-  };
+    allowProcesses?: boolean // Can spawn processes
+    allowNotifications?: boolean // Can show notifications
+    allowClipboard?: boolean // Can access clipboard
+  }
 }
 
 /**
@@ -161,71 +159,68 @@ export interface PluginPermissions {
  */
 export interface PluginHookContext {
   /** Plugin instance */
-  plugin: PluginInstance;
+  plugin: PluginInstance
 
   /** Current working directory */
-  cwd: string;
+  cwd: string
 
   /** Environment variables */
-  env: Record<string, string>;
+  env: Record<string, string>
 
   /** Logger instance */
-  logger: PluginLogger;
+  logger: PluginLogger
 
   /** Configuration store */
-  config: PluginConfigStore;
+  config: PluginConfigStore
 
   /** Event emitter for system events */
-  events: PluginEventEmitter;
+  events: PluginEventEmitter
 }
 
 /**
  * Lifecycle hook types
  */
-export type LifecycleHook<T = unknown> = (
-  context: PluginHookContext,
-  data?: T,
-) => Promise<void> | void;
+export type LifecycleHook<T = unknown> = (context: PluginHookContext, data?: T) => Promise<void> | void
 
 /**
  * Plugin lifecycle hooks
  */
 export interface PluginLifecycleHooks {
   /** Called when plugin is loaded */
-  onLoad?: LifecycleHook;
+  onLoad?: LifecycleHook
 
   /** Called when plugin is initialized */
-  onInit?: LifecycleHook;
+  onInit?: LifecycleHook
 
   /** Called before plugin is activated */
-  onBeforeActivate?: LifecycleHook;
+  onBeforeActivate?: LifecycleHook
 
   /** Called after plugin is activated */
-  onActivate?: LifecycleHook;
+  onActivate?: LifecycleHook
 
   /** Called before plugin is deactivated */
-  onBeforeDeactivate?: LifecycleHook;
+  onBeforeDeactivate?: LifecycleHook
 
   /** Called after plugin is deactivated */
-  onDeactivate?: LifecycleHook;
+  onDeactivate?: LifecycleHook
 
   /** Called when configuration changes */
-  onConfigChange?: LifecycleHook<Record<string, unknown>>;
+  onConfigChange?: LifecycleHook<Record<string, unknown>>
 
   /** Called when another plugin is loaded/activated */
   onPluginChange?: LifecycleHook<{
-    id: PluginId;
-    action: 'load' | 'activate' | 'deactivate' | 'unload';
-  }>;
+    id: PluginId
+    action: 'load' | 'activate' | 'deactivate' | 'unload'
+  }>
 
   /** Called before plugin is unloaded */
-  onBeforeUnload?: LifecycleHook;
+  onBeforeUnload?: LifecycleHook
 
   /** Called when plugin is unloaded */
-  onUnload?: LifecycleHook;
+  onUnload?: LifecycleHook
 
   /** Called when an error occurs */
-  onError?: LifecycleHook<{ error: Error; context?: string }>;
+  onError?: LifecycleHook<{ error: Error; context?: string }>
 }
 
 /**
@@ -233,31 +228,31 @@ export interface PluginLifecycleHooks {
  */
 export interface PluginConfigSchema {
   /** Configuration key */
-  key: string;
+  key: string
 
   /** Type of the configuration value */
-  type: 'string' | 'number' | 'boolean' | 'object' | 'array';
+  type: 'string' | 'number' | 'boolean' | 'object' | 'array'
 
   /** Default value */
-  default?: unknown;
+  default?: unknown
 
   /** Validation schema (Zod) */
-  schema?: z.ZodTypeAny;
+  schema?: z.ZodTypeAny
 
   /** Whether the value is required */
-  required?: boolean;
+  required?: boolean
 
   /** Human-readable description */
-  description?: string;
+  description?: string
 
   /** Example value */
-  example?: unknown;
+  example?: unknown
 
   /** Environment variable to load from (fallback) */
-  envVar?: string;
+  envVar?: string
 
   /** Whether this can be changed at runtime */
-  mutable?: boolean;
+  mutable?: boolean
 }
 
 /**
@@ -265,25 +260,22 @@ export interface PluginConfigSchema {
  */
 export interface PluginToolDefinition {
   /** Tool name */
-  name: string;
+  name: string
 
   /** Tool description */
-  description: string;
+  description: string
 
   /** Input schema (Zod) */
-  inputSchema: z.ZodTypeAny;
+  inputSchema: z.ZodTypeAny
 
   /** Tool execution handler */
-  handler: (
-    input: unknown,
-    context: PluginHookContext,
-  ) => Promise<unknown> | unknown;
+  handler: (input: unknown, context: PluginHookContext) => Promise<unknown> | unknown
 
   /** Whether the tool is dangerous (requires approval) */
-  dangerous?: boolean;
+  dangerous?: boolean
 
   /** Required permissions for this tool */
-  requiredPermissions?: PluginPermissions;
+  requiredPermissions?: PluginPermissions
 }
 
 /**
@@ -291,22 +283,22 @@ export interface PluginToolDefinition {
  */
 export interface PluginAgentDefinition {
   /** Agent type */
-  type: string;
+  type: string
 
   /** Agent name */
-  name: string;
+  name: string
 
   /** Agent description */
-  description: string;
+  description: string
 
   /** Agent capabilities */
-  capabilities: string[];
+  capabilities: string[]
 
   /** Agent initialization handler */
-  initialize?: (context: PluginHookContext) => Promise<Agent>;
+  initialize?: (context: PluginHookContext) => Promise<Agent>
 
   /** Required permissions for this agent */
-  requiredPermissions?: PluginPermissions;
+  requiredPermissions?: PluginPermissions
 }
 
 /**
@@ -314,16 +306,16 @@ export interface PluginAgentDefinition {
  */
 export interface PluginUIComponent {
   /** Component name */
-  name: string;
+  name: string
 
   /** Component type */
-  type: 'command' | 'slash-command' | 'widget' | 'panel' | 'overlay';
+  type: 'command' | 'slash-command' | 'widget' | 'panel' | 'overlay'
 
   /** Component implementation */
-  component: unknown; // Would be React/Vue/etc component
+  component: unknown // Would be React/Vue/etc component
 
   /** Required permissions */
-  requiredPermissions?: PluginPermissions;
+  requiredPermissions?: PluginPermissions
 }
 
 /**
@@ -331,49 +323,49 @@ export interface PluginUIComponent {
  */
 export interface PluginManifest {
   /** Plugin metadata */
-  metadata: PluginMetadata;
+  metadata: PluginMetadata
 
   /** Entry point file */
-  main: string;
+  main: string
 
   /** Plugin permissions */
-  permissions?: PluginPermissions;
+  permissions?: PluginPermissions
 
   /** Configuration schema */
-  config?: PluginConfigSchema[];
+  config?: PluginConfigSchema[]
 
   /** Lifecycle hooks */
-  hooks?: PluginLifecycleHooks;
+  hooks?: PluginLifecycleHooks
 
   /** Tools provided by this plugin */
-  tools?: PluginToolDefinition[];
+  tools?: PluginToolDefinition[]
 
   /** Agents provided by this plugin */
-  agents?: PluginAgentDefinition[];
+  agents?: PluginAgentDefinition[]
 
   /** UI components provided by this plugin */
-  ui?: PluginUIComponent[];
+  ui?: PluginUIComponent[]
 
   /** Static assets provided by this plugin */
-  assets?: Record<string, string>;
+  assets?: Record<string, string>
 
   /** Custom settings for the plugin system */
   settings?: {
     /** Priority for execution order */
-    priority?: number;
+    priority?: number
 
     /** Whether plugin can be hot-reloaded */
-    hotReloadable?: boolean;
+    hotReloadable?: boolean
 
     /** Whether plugin runs in sandbox */
-    sandboxed?: boolean;
+    sandboxed?: boolean
 
     /** Maximum memory allowed (MB) */
-    maxMemory?: number;
+    maxMemory?: number
 
     /** Maximum execution time (ms) */
-    maxExecutionTime?: number;
-  };
+    maxExecutionTime?: number
+  }
 }
 
 // ============================================================================
@@ -422,53 +414,53 @@ export enum PluginHealth {
  */
 export interface PluginInstance {
   /** Plugin manifest */
-  manifest: PluginManifest;
+  manifest: PluginManifest
 
   /** Plugin state */
-  state: PluginState;
+  state: PluginState
 
   /** Plugin health status */
-  health: PluginHealth;
+  health: PluginHealth
 
   /** Plugin load timestamp */
-  loadedAt: Date;
+  loadedAt: Date
 
   /** Plugin activation timestamp */
-  activatedAt?: Date;
+  activatedAt?: Date
 
   /** Plugin deactivation timestamp */
-  deactivatedAt?: Date;
+  deactivatedAt?: Date
 
   /** Last error encountered */
   lastError?: {
-    error: Error;
-    timestamp: Date;
-    context?: string;
-  };
+    error: Error
+    timestamp: Date
+    context?: string
+  }
 
   /** Plugin configuration values */
-  config: Record<string, unknown>;
+  config: Record<string, unknown>
 
   /** Tools registered by this plugin */
-  registeredTools: Tool[];
+  registeredTools: CoreTool[]
 
   /** Agents registered by this plugin */
-  registeredAgents: Agent[];
+  registeredAgents: Agent[]
 
   /** Performance metrics */
   metrics: {
-    executionCount: number;
-    totalExecutionTime: number;
-    averageExecutionTime: number;
-    errorCount: number;
-    lastExecutionTime?: Date;
-  };
+    executionCount: number
+    totalExecutionTime: number
+    averageExecutionTime: number
+    errorCount: number
+    lastExecutionTime?: Date
+  }
 
   /** Plugin directory path */
-  path: string;
+  path: string
 
   /** Whether plugin is builtin */
-  builtin: boolean;
+  builtin: boolean
 }
 
 // ============================================================================
@@ -480,22 +472,22 @@ export interface PluginInstance {
  */
 export interface PluginLoadOptions {
   /** Whether to activate the plugin immediately */
-  autoActivate?: boolean;
+  autoActivate?: boolean
 
   /** Configuration values to apply */
-  config?: Record<string, unknown>;
+  config?: Record<string, unknown>
 
   /** Whether to validate dependencies */
-  validateDependencies?: boolean;
+  validateDependencies?: boolean
 
   /** Whether to load dependencies recursively */
-  loadDependencies?: boolean;
+  loadDependencies?: boolean
 
   /** Timeout for loading (ms) */
-  timeout?: number;
+  timeout?: number
 
   /** Whether to enable hot reload */
-  hotReload?: boolean;
+  hotReload?: boolean
 }
 
 /**
@@ -503,22 +495,22 @@ export interface PluginLoadOptions {
  */
 export interface PluginDiscoveryOptions {
   /** Directories to search for plugins */
-  searchPaths?: string[];
+  searchPaths?: string[]
 
   /** Whether to search npm for plugins */
-  searchNpm?: boolean;
+  searchNpm?: boolean
 
   /** Whether to include built-in plugins */
-  includeBuiltin?: boolean;
+  includeBuiltin?: boolean
 
   /** Filter by category */
-  category?: string;
+  category?: string
 
   /** Filter by keyword */
-  keywords?: string[];
+  keywords?: string[]
 
   /** Maximum depth for directory search */
-  maxDepth?: number;
+  maxDepth?: number
 }
 
 /**
@@ -526,19 +518,19 @@ export interface PluginDiscoveryOptions {
  */
 export interface PluginResolutionResult {
   /** Resolved plugin path */
-  path: string;
+  path: string
 
   /** Plugin ID */
-  id: PluginId;
+  id: PluginId
 
   /** Resolution source */
-  source: 'builtin' | 'local' | 'npm' | 'git' | 'url';
+  source: 'builtin' | 'local' | 'npm' | 'git' | 'url'
 
   /** Whether the plugin is valid */
-  valid: boolean;
+  valid: boolean
 
   /** Validation errors if any */
-  validationErrors?: string[];
+  validationErrors?: string[]
 }
 
 // ============================================================================
@@ -550,52 +542,52 @@ export interface PluginResolutionResult {
  */
 export interface PluginSystemConfig {
   /** Directories to search for plugins */
-  pluginPaths: string[];
+  pluginPaths: string[]
 
   /** Whether to auto-load plugins on startup */
-  autoLoadPlugins: boolean;
+  autoLoadPlugins: boolean
 
   /** Whether to auto-activate loaded plugins */
-  autoActivatePlugins: boolean;
+  autoActivatePlugins: boolean
 
   /** Whether to validate dependencies */
-  validateDependencies: boolean;
+  validateDependencies: boolean
 
   /** Maximum number of concurrent plugin operations */
-  maxConcurrentOperations: number;
+  maxConcurrentOperations: number
 
   /** Plugin operation timeout (ms) */
-  operationTimeout: number;
+  operationTimeout: number
 
   /** Whether to enable hot reload */
-  hotReloadEnabled: boolean;
+  hotReloadEnabled: boolean
 
   /** Hot reload polling interval (ms) */
-  hotReloadInterval: number;
+  hotReloadInterval: number
 
   /** Whether to sandbox plugins */
-  sandboxPlugins: boolean;
+  sandboxPlugins: boolean
 
   /** Sandbox configuration */
   sandboxConfig?: {
     /** Maximum memory per plugin (MB) */
-    maxMemory?: number;
+    maxMemory?: number
 
     /** Maximum execution time (ms) */
-    maxExecutionTime?: number;
+    maxExecutionTime?: number
 
     /** Blocked modules */
-    blockedModules?: string[];
-  };
+    blockedModules?: string[]
+  }
 
   /** Telemetry configuration */
   telemetry?: {
     /** Whether to collect plugin metrics */
-    enabled: boolean;
+    enabled: boolean
 
     /** Sample rate (0-1) */
-    sampleRate?: number;
-  };
+    sampleRate?: number
+  }
 }
 
 /**
@@ -603,31 +595,31 @@ export interface PluginSystemConfig {
  */
 export interface PluginSystemStats {
   /** Total plugins loaded */
-  totalPlugins: number;
+  totalPlugins: number
 
   /** Active plugins */
-  activePlugins: number;
+  activePlugins: number
 
   /** Plugins in error state */
-  errorPlugins: number;
+  errorPlugins: number
 
   /** Total tools registered */
-  totalTools: number;
+  totalTools: number
 
   /** Total agents registered */
-  totalAgents: number;
+  totalAgents: number
 
   /** System uptime (ms) */
-  uptime: number;
+  uptime: number
 
   /** Total plugin executions */
-  totalExecutions: number;
+  totalExecutions: number
 
   /** Average execution time (ms) */
-  avgExecutionTime: number;
+  avgExecutionTime: number
 
   /** Plugin state distribution */
-  stateDistribution: Record<PluginState, number>;
+  stateDistribution: Record<PluginState, number>
 }
 
 // ============================================================================
@@ -638,31 +630,31 @@ export interface PluginSystemStats {
  * Plugin logger interface
  */
 export interface PluginLogger {
-  debug(message: string, ...args: unknown[]): void;
-  info(message: string, ...args: unknown[]): void;
-  warn(message: string, ...args: unknown[]): void;
-  error(message: string, error?: Error, ...args: unknown[]): void;
+  debug(message: string, ...args: unknown[]): void
+  info(message: string, ...args: unknown[]): void
+  warn(message: string, ...args: unknown[]): void
+  error(message: string, error?: Error, ...args: unknown[]): void
 }
 
 /**
  * Plugin config store interface
  */
 export interface PluginConfigStore {
-  get<T = unknown>(key: string): T | undefined;
-  set(key: string, value: unknown): void;
-  delete(key: string): void;
-  has(key: string): boolean;
-  all(): Record<string, unknown>;
+  get<T = unknown>(key: string): T | undefined
+  set(key: string, value: unknown): void
+  delete(key: string): void
+  has(key: string): boolean
+  all(): Record<string, unknown>
 }
 
 /**
  * Plugin event emitter interface
  */
 export interface PluginEventEmitter {
-  on(event: string, handler: (...args: unknown[]) => void): void;
-  off(event: string, handler: (...args: unknown[]) => void): void;
-  emit(event: string, ...args: unknown[]): void;
-  once(event: string, handler: (...args: unknown[]) => void): void;
+  on(event: string, handler: (...args: unknown[]) => void): void
+  off(event: string, handler: (...args: unknown[]) => void): void
+  emit(event: string, ...args: unknown[]): void
+  once(event: string, handler: (...args: unknown[]) => void): void
 }
 
 /**
@@ -708,10 +700,10 @@ export class PluginError extends Error {
     public code: PluginErrorCode,
     message: string,
     public pluginId?: PluginId,
-    public context?: Record<string, unknown>,
+    public context?: Record<string, unknown>
   ) {
-    super(message);
-    this.name = 'PluginError';
+    super(message)
+    this.name = 'PluginError'
   }
 }
 
@@ -725,9 +717,69 @@ export type PluginEvent =
   | { type: 'deactivate'; pluginId: PluginId }
   | { type: 'error'; pluginId: PluginId; error: Error }
   | {
-      type: 'stateChange';
-      pluginId: PluginId;
-      oldState: PluginState;
-      newState: PluginState;
+      type: 'stateChange'
+      pluginId: PluginId
+      oldState: PluginState
+      newState: PluginState
     }
-  | { type: 'configChange'; pluginId: PluginId; key: string; value: unknown };
+  | { type: 'configChange'; pluginId: PluginId; key: string; value: unknown }
+
+// ============================================================================
+// Plugin API Types (Exposed to Plugins)
+// ============================================================================
+
+/**
+ * Plugin tool registry interface - used by plugins to register tools
+ */
+export interface PluginToolRegistry {
+  register(
+    name: string,
+    tool: {
+      description: string
+      schema: z.ZodTypeAny
+      execute: (args: unknown, context: PluginContext) => Promise<unknown>
+      dangerous?: boolean
+    }
+  ): void
+  unregister(name: string): void
+  get(name: string):
+    | {
+        description: string
+        schema: z.ZodTypeAny
+        execute: (args: unknown, context: PluginContext) => Promise<unknown>
+        dangerous?: boolean
+      }
+    | undefined
+  list(): string[]
+}
+
+/**
+ * Plugin agent registry interface - used by plugins to register agents
+ */
+export interface PluginAgentRegistry {
+  register(agent: Agent): void
+  unregister(agentId: string): void
+  get(agentId: string): Agent | undefined
+  list(): string[]
+}
+
+/**
+ * Plugin context - exposed to plugins at runtime
+ * Extends PluginHookContext to provide full plugin API
+ */
+export interface PluginContext extends PluginHookContext {
+  /** Plugin manifest */
+  manifest: PluginManifest
+
+  /** Plugin instance (alias for plugin in PluginHookContext) */
+  instance: PluginInstance
+
+  /** Tool registry for registering tools */
+  tools: PluginToolRegistry
+
+  /** Agent registry for registering agents */
+  agents: PluginAgentRegistry
+
+  /** Register a lifecycle hook */
+  registerHook<K extends keyof PluginLifecycleHooks>(hook: K, handler: PluginLifecycleHooks[K]): void
+}

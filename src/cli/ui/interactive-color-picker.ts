@@ -1,5 +1,5 @@
-import inquirer from 'inquirer'
 import chalk from 'chalk'
+import inquirer from 'inquirer'
 
 export interface HSL {
   h: number // 0-360
@@ -95,7 +95,7 @@ export class InteractiveColorPicker {
         name: 'hue',
         message: 'Hue (0-360°):',
         default: 180,
-        validate: (val) => val >= 0 && val <= 360 || 'Hue must be 0-360',
+        validate: (val) => (val >= 0 && val <= 360) || 'Hue must be 0-360',
       },
     ])
 
@@ -105,7 +105,7 @@ export class InteractiveColorPicker {
         name: 'saturation',
         message: 'Saturation (0-100%):',
         default: 50,
-        validate: (val) => val >= 0 && val <= 100 || 'Saturation must be 0-100',
+        validate: (val) => (val >= 0 && val <= 100) || 'Saturation must be 0-100',
       },
     ])
 
@@ -115,7 +115,7 @@ export class InteractiveColorPicker {
         name: 'lightness',
         message: 'Lightness (0-100%):',
         default: 50,
-        validate: (val) => val >= 0 && val <= 100 || 'Lightness must be 0-100',
+        validate: (val) => (val >= 0 && val <= 100) || 'Lightness must be 0-100',
       },
     ])
 
@@ -151,7 +151,7 @@ export class InteractiveColorPicker {
         name: 'red',
         message: 'Red (0-255):',
         default: 255,
-        validate: (val) => val >= 0 && val <= 255 || 'Red must be 0-255',
+        validate: (val) => (val >= 0 && val <= 255) || 'Red must be 0-255',
       },
     ])
 
@@ -161,7 +161,7 @@ export class InteractiveColorPicker {
         name: 'green',
         message: 'Green (0-255):',
         default: 0,
-        validate: (val) => val >= 0 && val <= 255 || 'Green must be 0-255',
+        validate: (val) => (val >= 0 && val <= 255) || 'Green must be 0-255',
       },
     ])
 
@@ -171,7 +171,7 @@ export class InteractiveColorPicker {
         name: 'blue',
         message: 'Blue (0-255):',
         default: 0,
-        validate: (val) => val >= 0 && val <= 255 || 'Blue must be 0-255',
+        validate: (val) => (val >= 0 && val <= 255) || 'Blue must be 0-255',
       },
     ])
 
@@ -294,7 +294,7 @@ export class InteractiveColorPicker {
         name: 'angle',
         message: 'Gradient angle (0-360°):',
         default: 45,
-        validate: (val) => val >= 0 && val <= 360 || 'Angle must be 0-360',
+        validate: (val) => (val >= 0 && val <= 360) || 'Angle must be 0-360',
       },
     ])
 
@@ -397,7 +397,7 @@ export class InteractiveColorPicker {
     const { r, g, b } = color
     const [rs, gs, bs] = [r, g, b].map((c) => {
       c = c / 255
-      return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)
+      return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
     })
     return 0.2126 * rs + 0.7152 * gs + 0.0722 * bs
   }
@@ -407,24 +407,38 @@ export class InteractiveColorPicker {
    */
   private hslToRgb(hsl: HSL): RGB {
     const { h, s, l } = hsl
-    const c = (1 - Math.abs(2 * l / 100 - 1)) * (s / 100)
+    const c = (1 - Math.abs((2 * l) / 100 - 1)) * (s / 100)
     const x = c * (1 - Math.abs(((h / 60) % 2) - 1))
     const m = l / 100 - c / 2
 
-    let r = 0, g = 0, b = 0
+    let r = 0,
+      g = 0,
+      b = 0
 
     if (h >= 0 && h < 60) {
-      r = c; g = x; b = 0
+      r = c
+      g = x
+      b = 0
     } else if (h >= 60 && h < 120) {
-      r = x; g = c; b = 0
+      r = x
+      g = c
+      b = 0
     } else if (h >= 120 && h < 180) {
-      r = 0; g = c; b = x
+      r = 0
+      g = c
+      b = x
     } else if (h >= 180 && h < 240) {
-      r = 0; g = x; b = c
+      r = 0
+      g = x
+      b = c
     } else if (h >= 240 && h < 300) {
-      r = x; g = 0; b = c
+      r = x
+      g = 0
+      b = c
     } else {
-      r = c; g = 0; b = x
+      r = c
+      g = 0
+      b = x
     }
 
     return {

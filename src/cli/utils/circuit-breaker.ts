@@ -44,13 +44,21 @@ export class CircuitBreaker {
       if (Date.now() >= this.nextAttemptTime) {
         this.state = 'half-open'
         this.successes = 0
-        structuredLogger.info(this.componentName, `Circuit breaker transitioning to half-open for recovery test. Next attempt: ${new Date(this.nextAttemptTime).toISOString()}`)
+        structuredLogger.info(
+          this.componentName,
+          `Circuit breaker transitioning to half-open for recovery test. Next attempt: ${new Date(this.nextAttemptTime).toISOString()}`
+        )
       } else {
         if (fallback) {
           return fallback()
         }
-        const error = new Error(`Circuit breaker is open. Next attempt at ${new Date(this.nextAttemptTime).toISOString()}`)
-        structuredLogger.warning(this.componentName, `Circuit breaker is open, rejecting request. Next attempt: ${new Date(this.nextAttemptTime).toISOString()}`)
+        const error = new Error(
+          `Circuit breaker is open. Next attempt at ${new Date(this.nextAttemptTime).toISOString()}`
+        )
+        structuredLogger.warning(
+          this.componentName,
+          `Circuit breaker is open, rejecting request. Next attempt: ${new Date(this.nextAttemptTime).toISOString()}`
+        )
         throw error
       }
     }
@@ -76,7 +84,10 @@ export class CircuitBreaker {
       if (this.successes >= this.successThreshold) {
         this.state = 'closed'
         this.successes = 0
-        structuredLogger.info(this.componentName, `Circuit breaker recovered and closed after ${this.successes} successful attempts`)
+        structuredLogger.info(
+          this.componentName,
+          `Circuit breaker recovered and closed after ${this.successes} successful attempts`
+        )
       }
     }
   }
@@ -91,12 +102,18 @@ export class CircuitBreaker {
       this.nextAttemptTime = Date.now() + this.timeout
       this.successes = 0
 
-      structuredLogger.warning(this.componentName, `Circuit breaker opened after half-open failure. Failures: ${this.failures}/${this.failureThreshold}`)
+      structuredLogger.warning(
+        this.componentName,
+        `Circuit breaker opened after half-open failure. Failures: ${this.failures}/${this.failureThreshold}`
+      )
     } else if (this.failures >= this.failureThreshold) {
       this.state = 'open'
       this.nextAttemptTime = Date.now() + this.timeout
 
-      structuredLogger.warning(this.componentName, `Circuit breaker opened due to failure threshold. Failures: ${this.failures}/${this.failureThreshold}`)
+      structuredLogger.warning(
+        this.componentName,
+        `Circuit breaker opened due to failure threshold. Failures: ${this.failures}/${this.failureThreshold}`
+      )
     }
   }
 

@@ -3,8 +3,8 @@
  * Integrates TUI with the main NikCLI application
  */
 
+import { getTUICapabilities, isTUISupported, startTUI } from './index'
 import { TUIApplication } from './TUIApplication'
-import { startTUI, isTUISupported, getTUICapabilities } from './index'
 
 export interface CLIOptions {
   tui?: boolean
@@ -53,7 +53,7 @@ export async function startTUIFromCLI(options: CLIOptions): Promise<void> {
       theme: options.theme || 'default',
       defaultLayout: options.layout || 'dual',
       enableMouse: !options.noMouse,
-      enableKeyboard: !options.noKeyboard
+      enableKeyboard: !options.noKeyboard,
     })
 
     // Initialize
@@ -70,7 +70,6 @@ export async function startTUIFromCLI(options: CLIOptions): Promise<void> {
 
     // Start the TUI
     await app.start()
-
   } catch (error) {
     console.error('\n❌ Failed to start TUI:', error)
     console.log('\nFalling back to stdout mode...')
@@ -87,27 +86,27 @@ export async function startTUIFromCLI(options: CLIOptions): Promise<void> {
 export function addTUIOptions(parser: any): void {
   parser.option('--tui', 'Enable TUI mode', {
     default: false,
-    type: 'boolean'
+    type: 'boolean',
   })
 
   parser.option('--theme <theme>', 'TUI theme', {
     default: 'default',
-    choices: ['default', 'dracula', 'monokai', 'nord', 'solarized', 'cyberpunk']
+    choices: ['default', 'dracula', 'monokai', 'nord', 'solarized', 'cyberpunk'],
   })
 
   parser.option('--layout <layout>', 'Default layout', {
     default: 'dual',
-    choices: ['single', 'dual', 'triple', 'quad']
+    choices: ['single', 'dual', 'triple', 'quad'],
   })
 
   parser.option('--no-mouse', 'Disable mouse support', {
     default: false,
-    type: 'boolean'
+    type: 'boolean',
   })
 
   parser.option('--no-keyboard', 'Disable keyboard support', {
     default: false,
-    type: 'boolean'
+    type: 'boolean',
   })
 }
 

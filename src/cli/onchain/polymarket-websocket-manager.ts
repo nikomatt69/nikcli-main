@@ -131,7 +131,7 @@ export class PolymarketWebSocketManager extends EventEmitter {
       try {
         clearTimeout(timer)
         clearInterval(timer)
-      } catch { }
+      } catch {}
     })
     this.activeTimers.clear()
   }

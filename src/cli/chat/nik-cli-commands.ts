@@ -6,7 +6,6 @@ import boxen from 'boxen'
 import chalk from 'chalk'
 import { parse as parseDotenv } from 'dotenv'
 import { z } from 'zod'
-import { themeManager } from '../ui/theme-manager'
 import { modelProvider } from '../ai/model-provider'
 import { modernAIProvider } from '../ai/modern-ai-provider'
 import { backgroundAgentService } from '../background-agents/background-agent-service'
@@ -24,8 +23,8 @@ import { WebSearchProvider } from '../core/web-search-provider'
 import { ideDiagnosticIntegration } from '../integrations/ide-diagnostic-integration'
 import { enhancedPlanning } from '../planning/enhanced-planning'
 import { claudeAgentProvider } from '../providers/claude-agents'
-import { skillProvider } from '../providers/skills'
 import { imageGenerator } from '../providers/image'
+import { skillProvider } from '../providers/skills'
 import { visionProvider } from '../providers/vision'
 import { registerAgents } from '../register-agents'
 import { adDisplayManager } from '../services/ad-display-manager'
@@ -43,9 +42,10 @@ import { renderAdPanel } from '../ui/ad-panel'
 import { advancedUI } from '../ui/advanced-cli-ui'
 import { approvalSystem } from '../ui/approval-system'
 import { DiffViewer } from '../ui/diff-viewer'
+import { LiveThemePreview } from '../ui/live-theme-preview'
 import { themeCreationWizard } from '../ui/theme-creation-wizard'
 import { themeEditor } from '../ui/theme-editor'
-import { LiveThemePreview } from '../ui/live-theme-preview'
+import { themeManager } from '../ui/theme-manager'
 import { themeValidator } from '../ui/theme-validator'
 import { ContainerManager } from '../virtualized-agents/container-manager'
 import { VMOrchestrator } from '../virtualized-agents/vm-orchestrator'
@@ -53,7 +53,6 @@ import { initializeVMSelector, vmSelector } from '../virtualized-agents/vm-selec
 import { chatManager } from './chat-manager'
 
 // Skills imports (simplified for create-skill command)
-
 
 // ====================== ⚡︎ ZOD COMMAND VALIDATION SCHEMAS ======================
 
@@ -266,6 +265,17 @@ export class SlashCommandHandler {
     this.commands.set('theme-edit', this.themeEditCommand.bind(this))
     this.commands.set('theme-test', this.themeTestCommand.bind(this))
     this.commands.set('theme-validate', this.themeValidateCommand.bind(this))
+
+    // Plugin Commands
+    this.commands.set('plugins', this.pluginsCommand.bind(this))
+    this.commands.set('plugin', this.pluginCommand.bind(this))
+    this.commands.set('plugin-create', this.pluginCreateCommand.bind(this))
+    this.commands.set('plugin-install', this.pluginInstallCommand.bind(this))
+    this.commands.set('plugin-uninstall', this.pluginUninstallCommand.bind(this))
+    this.commands.set('plugin-enable', this.pluginEnableCommand.bind(this))
+    this.commands.set('plugin-disable', this.pluginDisableCommand.bind(this))
+    this.commands.set('plugin-reload', this.pluginReloadCommand.bind(this))
+
     this.commands.set('new', this.newSessionCommand.bind(this))
     this.commands.set('sessions', this.sessionsCommand.bind(this))
     this.commands.set('export', this.exportCommand.bind(this))
@@ -878,8 +888,8 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       // Perform sign in or sign up
       const result = isSignUp
         ? await authProvider.signUp(email, password, {
-          username: email.split('@')[0],
-        })
+            username: email.split('@')[0],
+          })
         : await authProvider.signIn(email, password, { rememberMe: true })
 
       if (result) {
@@ -1191,13 +1201,13 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       if (userTier === 'free') {
         const panel = boxen(
           chalk.red('✖ /ads commands require Pro subscription\n\n') +
-          chalk.gray('Free users:\n') +
-          chalk.gray('  • Ads are always displayed\n') +
-          chalk.gray('  • No opt-out available\n\n') +
-          chalk.gray('Pro users:\n') +
-          chalk.gray('  • Can hide ads with /ads off\n') +
-          chalk.gray('  • Can create/manage ad campaigns\n') +
-          chalk.gray('  • Can access all /ads commands'),
+            chalk.gray('Free users:\n') +
+            chalk.gray('  • Ads are always displayed\n') +
+            chalk.gray('  • No opt-out available\n\n') +
+            chalk.gray('Pro users:\n') +
+            chalk.gray('  • Can hide ads with /ads off\n') +
+            chalk.gray('  • Can create/manage ad campaigns\n') +
+            chalk.gray('  • Can access all /ads commands'),
           {
             title: 'Pro Feature Required',
             padding: 1,
@@ -1228,10 +1238,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
           const panel = boxen(
             chalk.green(`📊 Ad Status\n\n`) +
-            chalk.gray(`Total Impressions: ${chalk.cyan(stats.impressions.toString())}\n`) +
-            chalk.gray(`Ads Hidden: ${chalk.cyan(adsHidden)}\n`) +
-            chalk.gray(`Ads Enabled: ${chalk.cyan(config.ads.enabled ? 'Yes' : 'No')}\n`) +
-            chalk.gray(`Frequency: Every ${chalk.cyan(config.ads.frequencyMinutes.toString())} minutes`),
+              chalk.gray(`Total Impressions: ${chalk.cyan(stats.impressions.toString())}\n`) +
+              chalk.gray(`Ads Hidden: ${chalk.cyan(adsHidden)}\n`) +
+              chalk.gray(`Ads Enabled: ${chalk.cyan(config.ads.enabled ? 'Yes' : 'No')}\n`) +
+              chalk.gray(`Frequency: Every ${chalk.cyan(config.ads.frequencyMinutes.toString())} minutes`),
             {
               title: '🎯 Advertising Status',
               padding: 1,
@@ -1438,9 +1448,9 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
                 answers.targetAudience === 'all'
                   ? ['all']
                   : answers.targetAudience
-                    .split(',')
-                    .map((s: string) => s.trim())
-                    .filter((s: string) => s.length > 0),
+                      .split(',')
+                      .map((s: string) => s.trim())
+                      .filter((s: string) => s.length > 0),
               budgetImpressions: Math.floor(answers.budgetImpressions),
               durationDays: Math.floor(answers.durationDays),
             }
@@ -1494,11 +1504,11 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           } else if (checkoutSession && sanitizedAnswers) {
             const successPanel = boxen(
               chalk.green('✓ Campaign Created Successfully!\n\n') +
-              chalk.gray(`Campaign ID: ${chalk.cyan(checkoutSession.campaignId)}\n`) +
-              chalk.gray(`Total Cost: ${chalk.yellow(`$${checkoutSession.totalCost.toFixed(2)}`)}\n`) +
-              chalk.gray(`Impressions: ${chalk.cyan(checkoutSession.impressions.toString())}\n`) +
-              chalk.gray(`Duration: ${chalk.cyan(sanitizedAnswers.durationDays.toString())} days\n\n`) +
-              chalk.blue(`🔗 Payment Link:\n${checkoutSession.stripeSessionId}`),
+                chalk.gray(`Campaign ID: ${chalk.cyan(checkoutSession.campaignId)}\n`) +
+                chalk.gray(`Total Cost: ${chalk.yellow(`$${checkoutSession.totalCost.toFixed(2)}`)}\n`) +
+                chalk.gray(`Impressions: ${chalk.cyan(checkoutSession.impressions.toString())}\n`) +
+                chalk.gray(`Duration: ${chalk.cyan(sanitizedAnswers.durationDays.toString())} days\n\n`) +
+                chalk.blue(`🔗 Payment Link:\n${checkoutSession.stripeSessionId}`),
               {
                 title: '💳 Ready to Checkout',
                 padding: 1,
@@ -2205,7 +2215,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     lines.push(chalk.green('Vector Store'))
     lines.push(
       `  Status: ${ragStats.vectorDBAvailable ? chalk.green('available') : chalk.yellow('unavailable')}` +
-      (vectorStats?.provider ? ` (${vectorStats.provider})` : '')
+        (vectorStats?.provider ? ` (${vectorStats.provider})` : '')
     )
     if (vectorStats) {
       lines.push(`  Indexed docs: ${vectorStats.indexedDocuments ?? vectorStats.documentsCount ?? 0}`)
@@ -2216,8 +2226,8 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     lines.push(chalk.green('Caches'))
     lines.push(
       `  Embeddings: ${ragStats?.caches?.embeddings?.entries ?? 0} entries | ` +
-      `hit ${ragStats?.caches?.embeddings?.hits ?? 0} / miss ${ragStats?.caches?.embeddings?.misses ?? 0} | ` +
-      `rate ${ragStats?.caches?.embeddings?.hitRate ?? '0%'}`
+        `hit ${ragStats?.caches?.embeddings?.hits ?? 0} / miss ${ragStats?.caches?.embeddings?.misses ?? 0} | ` +
+        `rate ${ragStats?.caches?.embeddings?.hitRate ?? '0%'}`
     )
     lines.push(
       `  Analysis: ${ragStats?.caches?.analysis?.entries ?? 0} entries | rate ${ragStats?.caches?.analysis?.hitRate ?? '0%'}`
@@ -2290,7 +2300,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
             console.log(chalk.red('Usage: /router mode <conservative|balanced|aggressive>'))
             break
           }
-          ; (cfg.modelRouting as any).mode = mode as any
+          ;(cfg.modelRouting as any).mode = mode as any
           configManager.setAll(cfg as any)
           this.cliInstance.printPanel(
             boxen(`Routing mode set to ${mode}`, {
@@ -2829,9 +2839,9 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       this.cliInstance.printPanel(
         boxen(
           `${chalk.green('Environment variables imported successfully')}` +
-          `\n${chalk.gray('File:')} ${chalk.cyan(resolvedPath)}` +
-          `\n${chalk.gray('Total:')} ${total}  ${chalk.gray('Added:')} ${added}  ${chalk.gray('Updated:')} ${updated}  ${chalk.gray('Skipped:')} ${skipped}` +
-          `\n${chalk.gray('Available immediately and persisted to ~/.nikcli/config.json')}`,
+            `\n${chalk.gray('File:')} ${chalk.cyan(resolvedPath)}` +
+            `\n${chalk.gray('Total:')} ${total}  ${chalk.gray('Added:')} ${added}  ${chalk.gray('Updated:')} ${updated}  ${chalk.gray('Skipped:')} ${skipped}` +
+            `\n${chalk.gray('Available immediately and persisted to ~/.nikcli/config.json')}`,
           {
             title: '✓ Env Saved',
             padding: 1,
@@ -3305,10 +3315,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
             this.printPanel(
               boxen(
                 'Dashboard is loading...\n\nBasic System Info:\n' +
-                `Platform: ${process.platform}\n` +
-                `Architecture: ${process.arch}\n` +
-                `Node Version: ${process.version}\n` +
-                `Uptime: ${this.formatUptime(process.uptime())}`,
+                  `Platform: ${process.platform}\n` +
+                  `Architecture: ${process.arch}\n` +
+                  `Node Version: ${process.version}\n` +
+                  `Uptime: ${this.formatUptime(process.uptime())}`,
                 {
                   title: '📊 Dashboard Loading',
                   padding: 1,
@@ -3334,9 +3344,9 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           this.printPanel(
             boxen(
               `Dashboard Error: ${error.message}\n\nBasic Info:\n` +
-              `Platform: ${process.platform}\n` +
-              `Node: ${process.version}\n` +
-              `Memory: ${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB`,
+                `Platform: ${process.platform}\n` +
+                `Node: ${process.version}\n` +
+                `Memory: ${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB`,
               {
                 title: '✖ Dashboard Error',
                 padding: 1,
@@ -3560,7 +3570,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           cwd,
           encoding: 'utf8',
         }).trim()
-      } catch (e) { }
+      } catch (e) {}
 
       try {
         const statusOutput = execSync('git status --porcelain', {
@@ -3572,7 +3582,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           .split('\n')
           .filter((l: string) => l).length
         gitInfo.status = gitInfo.uncommittedFiles > 0 ? 'dirty' : 'clean'
-      } catch (e) { }
+      } catch (e) {}
 
       try {
         gitInfo.commits = parseInt(
@@ -3581,7 +3591,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
             encoding: 'utf8',
           }).trim()
         )
-      } catch (e) { }
+      } catch (e) {}
 
       try {
         gitInfo.lastCommit = execSync('git log -1 --pretty=%B', {
@@ -3590,7 +3600,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         })
           .trim()
           .split('\n')[0]
-      } catch (e) { }
+      } catch (e) {}
     } catch (e) {
       // Git not available or not a git repo, keep defaults
     }
@@ -3671,7 +3681,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           sessionStats.avgTokens = stats.averageTokensPerMessage || 0
           sessionStats.totalCost = stats.costPerMessage || 0
         }
-      } catch (e) { }
+      } catch (e) {}
 
       return {
         current: currentModel.name || 'Unknown',
@@ -3855,7 +3865,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           sessionData.tokens.input = session.totalInputTokens || 0
           sessionData.tokens.output = session.totalOutputTokens || 0
         }
-      } catch (e) { }
+      } catch (e) {}
 
       return sessionData
     } catch (error) {
@@ -3890,7 +3900,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         const recentLogs = execSync(npmLogCmd, { encoding: 'utf8' }).trim().split('\n').filter(Boolean)
         logs.errors += recentLogs.length
         logs.recent.push(...recentLogs.map((log: string) => `📁 ${log}`))
-      } catch (e) { }
+      } catch (e) {}
 
       // Check for TypeScript compilation errors
       try {
@@ -3907,7 +3917,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           logs.recent.push(...errorLines.slice(0, 3).map((line: string) => `🔴 ${line.trim()}`))
           logs.lastError = errorLines.find((line: string) => line.includes('error')) || ''
         }
-      } catch (e) { }
+      } catch (e) {}
 
       // Check for ESLint warnings/errors
       try {
@@ -3924,7 +3934,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         if (errorCount > 0 || warningCount > 0) {
           logs.recent.push(`🔍 ESLint: ${errorCount} errors, ${warningCount} warnings`)
         }
-      } catch (e) { }
+      } catch (e) {}
 
       // Check for Git issues
       try {
@@ -3936,7 +3946,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           logs.errors += conflictFiles.length
           logs.recent.push(`🔀 Git conflicts: ${conflictFiles.length} files`)
         }
-      } catch (e) { }
+      } catch (e) {}
 
       // Check Node.js process warnings
       const processWarnings = process.listenerCount('warning')
@@ -3952,7 +3962,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           logs.warnings += 1
           logs.recent.push('📦 package.json: Missing main/exports field')
         }
-      } catch (e) { }
+      } catch (e) {}
 
       // Memory usage warnings
       const memUsage = process.memoryUsage()
@@ -4791,9 +4801,9 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           console.log(chalk.gray('─'.repeat(60)))
           console.log(result.answer.trim())
           console.log(chalk.gray('\nSources:'))
-            ; (result.sources || []).forEach((s: any, idx: number) => {
-              console.log(` [#${idx + 1}] ${chalk.cyan(s.title)} - ${chalk.gray(s.url)}`)
-            })
+          ;(result.sources || []).forEach((s: any, idx: number) => {
+            console.log(` [#${idx + 1}] ${chalk.cyan(s.title)} - ${chalk.gray(s.url)}`)
+          })
           console.log(chalk.gray('─'.repeat(60)))
         } else {
           const items = result?.results || []
@@ -5861,7 +5871,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
     // Also set the global currentMode for NikCLI prompt
     if ((global as any).__nikCLI) {
-      ; (global as any).__nikCLI.currentMode = 'vm'
+      ;(global as any).__nikCLI.currentMode = 'vm'
     }
 
     console.log(chalk.blue.bold('🐳 Entering VM Chat Mode'))
@@ -7068,10 +7078,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
                     priority: t.priority as any,
                     progress: t.progress,
                   }))
-                    ; (advancedUI as any).showTodoDashboard?.(items, 'Plan Todos')
+                  ;(advancedUI as any).showTodoDashboard?.(items, 'Plan Todos')
                   return { shouldExit: false, shouldUpdatePrompt: false }
                 }
-              } catch { }
+              } catch {}
               console.log(chalk.yellow('No active plans found. Create one with /plan create <goal>'))
               return { shouldExit: false, shouldUpdatePrompt: false }
             }
@@ -7178,10 +7188,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
                   priority: t.priority,
                   progress: t.progress,
                 }))
-                  ; (advancedUI as any).showTodoDashboard?.(items, 'Plan Todos')
+                ;(advancedUI as any).showTodoDashboard?.(items, 'Plan Todos')
                 return { shouldExit: false, shouldUpdatePrompt: false }
               }
-            } catch { }
+            } catch {}
             console.log(chalk.gray('No todo lists found'))
             return { shouldExit: false, shouldUpdatePrompt: false }
           }
@@ -7216,8 +7226,8 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
                   priority: (t as any).priority,
                   progress: (t as any).progress,
                 }))
-                  ; (advancedUI as any).showTodoDashboard?.(todoItems, latestPlan.title || 'Plan Todos')
-              } catch { }
+                ;(advancedUI as any).showTodoDashboard?.(todoItems, latestPlan.title || 'Plan Todos')
+              } catch {}
               enhancedPlanning.showPlanStatus(latestPlan.id)
             } else {
               // Fallback to session todos
@@ -7233,7 +7243,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
                     priority: t.priority,
                     progress: t.progress,
                   }))
-                    ; (advancedUI as any).showTodoDashboard?.(items, 'Plan Todos')
+                  ;(advancedUI as any).showTodoDashboard?.(items, 'Plan Todos')
                 } else {
                   console.log(chalk.yellow('No todo lists found'))
                 }
@@ -7253,8 +7263,8 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
                   priority: (t as any).priority,
                   progress: (t as any).progress,
                 }))
-                  ; (advancedUI as any).showTodoDashboard?.(todoItems, target.title || 'Plan Todos')
-              } catch { }
+                ;(advancedUI as any).showTodoDashboard?.(todoItems, target.title || 'Plan Todos')
+              } catch {}
             }
             enhancedPlanning.showPlanStatus(planId)
           }
@@ -7297,7 +7307,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     try {
       // Hide the Todos HUD panel (structured UI)
       advancedUI.hidePanel('todos')
-    } catch { }
+    } catch {}
 
     try {
       // Clear session todos from the TodoStore for current session
@@ -7310,19 +7320,19 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         globalAny.__nikCLI?.context?.session?.id ||
         `${Date.now()}`
       todoStore.setTodos(String(sessionId), [])
-    } catch { }
+    } catch {}
 
     // Clear inline HUD in renderPromptArea
     try {
       const nik: any = this.cliInstance
       if (nik?.clearPlanHud) nik.clearPlanHud()
-    } catch { }
+    } catch {}
 
     console.log(chalk.green('🧹 HUD Todos cleared'))
     try {
       const nik = (global as any).__nikCLI
       nik?.renderPromptAfterOutput?.()
-    } catch { }
+    } catch {}
     return { shouldExit: false, shouldUpdatePrompt: false }
   }
 
@@ -7339,7 +7349,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     try {
       const nik = (global as any).__nikCLI
       nik?.renderPromptAfterOutput?.()
-    } catch { }
+    } catch {}
     return { shouldExit: false, shouldUpdatePrompt: false }
   }
 
@@ -7349,7 +7359,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       // Toggle visibility on for inline HUD
       const nik: any = this.cliInstance
       if (nik?.showPlanHud) nik.showPlanHud()
-    } catch { }
+    } catch {}
     try {
       // Prefer latest active plan todos if available
       const plans = enhancedPlanning.getActivePlans?.() || []
@@ -7361,10 +7371,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           priority: (t as any).priority,
           progress: (t as any).progress,
         }))
-          ; (advancedUI as any).showTodoDashboard?.(todoItems, latestPlan.title || 'Plan Todos')
+        ;(advancedUI as any).showTodoDashboard?.(todoItems, latestPlan.title || 'Plan Todos')
         shown = true
       }
-    } catch { }
+    } catch {}
 
     if (!shown) {
       try {
@@ -7386,10 +7396,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
             priority: t.priority,
             progress: t.progress,
           }))
-            ; (advancedUI as any).showTodoDashboard?.(items, 'Plan Todos')
+          ;(advancedUI as any).showTodoDashboard?.(items, 'Plan Todos')
           shown = true
         }
-      } catch { }
+      } catch {}
     }
 
     if (!shown) {
@@ -7401,7 +7411,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     try {
       const nik = (global as any).__nikCLI
       nik?.renderPromptAfterOutput?.()
-    } catch { }
+    } catch {}
     return { shouldExit: false, shouldUpdatePrompt: false }
   }
 
@@ -7420,7 +7430,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     try {
       const nik = (global as any).__nikCLI
       nik?.renderPromptAfterOutput?.()
-    } catch { }
+    } catch {}
     return { shouldExit: false, shouldUpdatePrompt: false }
   }
 
@@ -7439,7 +7449,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     try {
       const nik = (global as any).__nikCLI
       nik?.renderPromptAfterOutput?.()
-    } catch { }
+    } catch {}
     return { shouldExit: false, shouldUpdatePrompt: false }
   }
 
@@ -7540,7 +7550,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
     // Also set the global currentMode for NikCLI prompt
     if ((global as any).__nikCLI) {
-      ; (global as any).__nikCLI.currentMode = 'default'
+      ;(global as any).__nikCLI.currentMode = 'default'
     }
 
     console.log(chalk.green('💬 Switched to Default Chat Mode'))
@@ -8802,7 +8812,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     } catch (error: any) {
       const panel = boxen(
         `Failed to execute GOAT command: ${error.message}` +
-        '\n\nTips:\n- Ensure GOAT_EVM_PRIVATE_KEY is set\n- Run /goat init first\n- Use /goat status to check setup',
+          '\n\nTips:\n- Ensure GOAT_EVM_PRIVATE_KEY is set\n- Run /goat init first\n- Use /goat status to check setup',
         {
           title: 'GOAT Error',
           padding: 1,
@@ -10056,7 +10066,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     } catch (error: any) {
       const panel = boxen(
         `Failed to execute web3 command: ${error.message}` +
-        '\n\nTips:\n- Ensure CDP_API_KEY_ID and CDP_API_KEY_SECRET are set\n- Run /web3 init first',
+          '\n\nTips:\n- Ensure CDP_API_KEY_ID and CDP_API_KEY_SECRET are set\n- Run /web3 init first',
         {
           title: 'Web3 Error',
           padding: 1,
@@ -10453,7 +10463,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     } catch (error: any) {
       const panel = boxen(
         `Failed to execute NikDrive command: ${error.message}` +
-        '\n\nTips:\n- Ensure API key is configured: /set-key nikdrive <KEY>\n- Run /nikdrive status to check connection',
+          '\n\nTips:\n- Ensure API key is configured: /set-key nikdrive <KEY>\n- Run /nikdrive status to check connection',
         {
           title: 'NikDrive Error',
           padding: 1,
@@ -12383,12 +12393,12 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       this.printPanel(
         boxen(
           chalk.bold('📬 Notification Settings\n\n') +
-          `${chalk.cyan('Global:')} ${statusIcon(config.enabled)}\n\n` +
-          `${chalk.cyan('Providers:')}\n` +
-          `  Slack:   ${statusIcon(config.providers.slack?.enabled ?? false)}\n` +
-          `  Discord: ${statusIcon(config.providers.discord?.enabled ?? false)}\n` +
-          `  Linear:  ${statusIcon(config.providers.linear?.enabled ?? false)}\n\n` +
-          chalk.gray('Usage: /notify [slack|discord|linear|all] [on|off]'),
+            `${chalk.cyan('Global:')} ${statusIcon(config.enabled)}\n\n` +
+            `${chalk.cyan('Providers:')}\n` +
+            `  Slack:   ${statusIcon(config.providers.slack?.enabled ?? false)}\n` +
+            `  Discord: ${statusIcon(config.providers.discord?.enabled ?? false)}\n` +
+            `  Linear:  ${statusIcon(config.providers.linear?.enabled ?? false)}\n\n` +
+            chalk.gray('Usage: /notify [slack|discord|linear|all] [on|off]'),
           {
             title: 'Notifications',
             padding: 1,
@@ -12448,8 +12458,8 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       this.printPanel(
         boxen(
           `${chalk.green('✓')} Notifications ${actionText}\n\n` +
-          chalk.gray(`Provider: ${providerName}\n`) +
-          chalk.gray('Changes applied for this session'),
+            chalk.gray(`Provider: ${providerName}\n`) +
+            chalk.gray('Changes applied for this session'),
           {
             title: 'Updated',
             padding: 1,
@@ -12575,11 +12585,11 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         this.printPanel(
           boxen(
             `${chalk.green('✓ Theme Applied Successfully!')}\n\n` +
-            `${chalk.cyan('Theme:')} ${chalk.yellow(themeName)}\n\n` +
-            `${chalk.gray('Changes are applied immediately to:')}\n` +
-            `• ${chalk.white('Mode indicators')}\n` +
-            `• ${chalk.white('Progress bars')}\n` +
-            `• ${chalk.white('UI elements')}`,
+              `${chalk.cyan('Theme:')} ${chalk.yellow(themeName)}\n\n` +
+              `${chalk.gray('Changes are applied immediately to:')}\n` +
+              `• ${chalk.white('Mode indicators')}\n` +
+              `• ${chalk.white('Progress bars')}\n` +
+              `• ${chalk.white('UI elements')}`,
             {
               title: '🎨 Theme Changed',
               padding: 1,
@@ -12594,10 +12604,13 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         this.printPanel(
           boxen(
             `${chalk.red('✖ Theme Not Found')}\n\n` +
-            `${chalk.gray('Theme:')} ${chalk.yellow(themeName)}\n\n` +
-            `${chalk.cyan('Available Themes:')}\n` +
-            `${themeManager.listThemes().map(t => chalk.white(`• ${t.name}`)).join('\n')}\n\n` +
-            `${chalk.gray('Use /theme to view all themes')}`,
+              `${chalk.gray('Theme:')} ${chalk.yellow(themeName)}\n\n` +
+              `${chalk.cyan('Available Themes:')}\n` +
+              `${themeManager
+                .listThemes()
+                .map((t) => chalk.white(`• ${t.name}`))
+                .join('\n')}\n\n` +
+              `${chalk.gray('Use /theme to view all themes')}`,
             {
               title: '❌ Error',
               padding: 1,
@@ -12618,16 +12631,13 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       if (!theme) {
         this.printPanel(
-          boxen(
-            `${chalk.red('✖ Theme not found')}\n\n${chalk.gray(`Theme: ${themeName}`)}`,
-            {
-              title: '❌ Error',
-              padding: 1,
-              margin: 1,
-              borderStyle: 'round',
-              borderColor: 'red',
-            }
-          )
+          boxen(`${chalk.red('✖ Theme not found')}\n\n${chalk.gray(`Theme: ${themeName}`)}`, {
+            title: '❌ Error',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'red',
+          })
         )
         return { shouldExit: false, shouldUpdatePrompt: false }
       }
@@ -12639,11 +12649,11 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       this.printPanel(
         boxen(
           `${chalk.yellow(theme.name)}\n${chalk.gray(theme.description)}\n\n` +
-          `${chalk.cyan('Mode Colors:')}\n` +
-          `${colorPreview('Default', colors.default)}\n` +
-          `${colorPreview('Plan', colors.plan)}\n` +
-          `${colorPreview('VM', colors.vm)}\n\n` +
-          `${chalk.gray('Use /theme set ' + theme.name + ' to apply')}`,
+            `${chalk.cyan('Mode Colors:')}\n` +
+            `${colorPreview('Default', colors.default)}\n` +
+            `${colorPreview('Plan', colors.plan)}\n` +
+            `${colorPreview('VM', colors.vm)}\n\n` +
+            `${chalk.gray('Use /theme set ' + theme.name + ' to apply')}`,
           {
             title: '🎨 Theme Info',
             padding: 1,
@@ -12664,9 +12674,9 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           this.printPanel(
             boxen(
               `${chalk.green('✓ Theme Created Successfully!')}\n\n` +
-              `${chalk.cyan('Theme:')} ${chalk.yellow(theme.name)}\n` +
-              `${chalk.gray('Description:')} ${theme.description}\n\n` +
-              `${chalk.gray('Use /theme set ' + theme.name + ' to apply it')}`,
+                `${chalk.cyan('Theme:')} ${chalk.yellow(theme.name)}\n` +
+                `${chalk.gray('Description:')} ${theme.description}\n\n` +
+                `${chalk.gray('Use /theme set ' + theme.name + ' to apply it')}`,
               {
                 title: '🎨 Theme Created',
                 padding: 1,
@@ -12688,12 +12698,12 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     this.printPanel(
       boxen(
         `${chalk.red('✖ Invalid theme command')}\n\n` +
-        `${chalk.cyan('Usage:')}\n` +
-        `${chalk.white('/theme              - List all themes')}\n` +
-        `${chalk.white('/theme set <name>   - Set theme')}\n` +
-        `${chalk.white('/theme info <name>  - Show theme details')}\n` +
-        `${chalk.white('/theme create       - Create new theme')}\n\n` +
-        `${chalk.gray('Example: /theme set ocean')}`,
+          `${chalk.cyan('Usage:')}\n` +
+          `${chalk.white('/theme              - List all themes')}\n` +
+          `${chalk.white('/theme set <name>   - Set theme')}\n` +
+          `${chalk.white('/theme info <name>  - Show theme details')}\n` +
+          `${chalk.white('/theme create       - Create new theme')}\n\n` +
+          `${chalk.gray('Example: /theme set ocean')}`,
         {
           title: '❌ Error',
           padding: 1,
@@ -12709,24 +12719,29 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
   /**
    * Show themes panel with all available themes
    */
-  private async showThemesPanel(): Promise<{ shouldExit: boolean; shouldUpdatePrompt: boolean }> {
+  private async showThemesPanel(): Promise<{
+    shouldExit: boolean
+    shouldUpdatePrompt: boolean
+  }> {
     const themes = themeManager.listThemes()
     const currentTheme = themeManager.getCurrentTheme()
 
-    const themeList = themes.map((theme) => {
-      const isCurrent = theme.name === currentTheme.name
-      const marker = isCurrent ? chalk.green('→') : ' '
-      return `${marker} ${chalk.yellow(theme.name)} ${chalk.gray('- ' + theme.description)}`
-    }).join('\n')
+    const themeList = themes
+      .map((theme) => {
+        const isCurrent = theme.name === currentTheme.name
+        const marker = isCurrent ? chalk.green('→') : ' '
+        return `${marker} ${chalk.yellow(theme.name)} ${chalk.gray('- ' + theme.description)}`
+      })
+      .join('\n')
 
     this.printPanel(
       boxen(
         `${chalk.cyan('Current Theme:')} ${chalk.green(currentTheme.name)}\n\n` +
-        `${chalk.cyan('Available Themes:')}\n${themeList}\n\n` +
-        `${chalk.gray('Commands:')}\n` +
-        `${chalk.white('/theme set <name>   - Apply theme')}\n` +
-        `${chalk.white('/theme info <name>  - Show details')}\n\n` +
-        `${chalk.gray('Example: /theme set cyberpunk')}`,
+          `${chalk.cyan('Available Themes:')}\n${themeList}\n\n` +
+          `${chalk.gray('Commands:')}\n` +
+          `${chalk.white('/theme set <name>   - Apply theme')}\n` +
+          `${chalk.white('/theme info <name>  - Show details')}\n\n` +
+          `${chalk.gray('Example: /theme set cyberpunk')}`,
         {
           title: '🎨 Theme Manager',
           padding: 1,
@@ -12754,9 +12769,9 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       this.printPanel(
         boxen(
           `${chalk.red('✖ Please specify a theme name')}\n\n` +
-          `${chalk.cyan('Usage:')}\n` +
-          `${chalk.white('/theme-info <theme-name>')}\n\n` +
-          `${chalk.gray('Example: /theme-info cyberpunk')}`,
+            `${chalk.cyan('Usage:')}\n` +
+            `${chalk.white('/theme-info <theme-name>')}\n\n` +
+            `${chalk.gray('Example: /theme-info cyberpunk')}`,
           {
             title: '❌ Error',
             padding: 1,
@@ -12783,9 +12798,9 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         this.printPanel(
           boxen(
             `${chalk.green('✓ Theme Created Successfully!')}\n\n` +
-            `${chalk.cyan('Theme:')} ${chalk.yellow(theme.name)}\n` +
-            `${chalk.gray('Description:')} ${theme.description}\n\n` +
-            `${chalk.gray('Use /theme set ' + theme.name + ' to apply it')}`,
+              `${chalk.cyan('Theme:')} ${chalk.yellow(theme.name)}\n` +
+              `${chalk.gray('Description:')} ${theme.description}\n\n` +
+              `${chalk.gray('Use /theme set ' + theme.name + ' to apply it')}`,
             {
               title: '🎨 Theme Created',
               padding: 1,
@@ -12818,9 +12833,9 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       this.printPanel(
         boxen(
           `${chalk.red('✖ Please specify a theme name')}\n\n` +
-          `${chalk.cyan('Usage:')}\n` +
-          `${chalk.white('/theme-edit <theme-name>')}\n\n` +
-          `${chalk.gray('Example: /theme-edit cyberpunk')}`,
+            `${chalk.cyan('Usage:')}\n` +
+            `${chalk.white('/theme-edit <theme-name>')}\n\n` +
+            `${chalk.gray('Example: /theme-edit cyberpunk')}`,
           {
             title: '❌ Error',
             padding: 1,
@@ -12841,8 +12856,8 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         this.printPanel(
           boxen(
             `${chalk.green('✓ Theme Edited Successfully!')}\n\n` +
-            `${chalk.cyan('Theme:')} ${chalk.yellow(themeName)}\n\n` +
-            `${chalk.gray('Changes are applied immediately')}`,
+              `${chalk.cyan('Theme:')} ${chalk.yellow(themeName)}\n\n` +
+              `${chalk.gray('Changes are applied immediately')}`,
             {
               title: '🎨 Theme Updated',
               padding: 1,
@@ -12870,16 +12885,13 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       const theme = themeManager.getTheme(themeName)
       if (!theme) {
         this.printPanel(
-          boxen(
-            `${chalk.red('✖ Theme not found')}\n\n${chalk.gray(`Theme: ${themeName}`)}`,
-            {
-              title: '❌ Error',
-              padding: 1,
-              margin: 1,
-              borderStyle: 'round',
-              borderColor: 'red',
-            }
-          )
+          boxen(`${chalk.red('✖ Theme not found')}\n\n${chalk.gray(`Theme: ${themeName}`)}`, {
+            title: '❌ Error',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'red',
+          })
         )
         return { shouldExit: false, shouldUpdatePrompt: false }
       }
@@ -12902,9 +12914,9 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       this.printPanel(
         boxen(
           `${chalk.red('✖ Please specify a theme name')}\n\n` +
-          `${chalk.cyan('Usage:')}\n` +
-          `${chalk.white('/theme-validate <theme-name>')}\n\n` +
-          `${chalk.gray('Example: /theme-validate cyberpunk')}`,
+            `${chalk.cyan('Usage:')}\n` +
+            `${chalk.white('/theme-validate <theme-name>')}\n\n` +
+            `${chalk.gray('Example: /theme-validate cyberpunk')}`,
           {
             title: '❌ Error',
             padding: 1,
@@ -12922,16 +12934,13 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       const theme = themeManager.getTheme(themeName)
       if (!theme) {
         this.printPanel(
-          boxen(
-            `${chalk.red('✖ Theme not found')}\n\n${chalk.gray(`Theme: ${themeName}`)}`,
-            {
-              title: '❌ Error',
-              padding: 1,
-              margin: 1,
-              borderStyle: 'round',
-              borderColor: 'red',
-            }
-          )
+          boxen(`${chalk.red('✖ Theme not found')}\n\n${chalk.gray(`Theme: ${themeName}`)}`, {
+            title: '❌ Error',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'red',
+          })
         )
         return { shouldExit: false, shouldUpdatePrompt: false }
       }
@@ -12941,12 +12950,12 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       this.printPanel(
         boxen(
           `${chalk.yellow(theme.name)} - Validation Results\n\n` +
-          `${chalk.cyan('Completeness:')} ${validation.completeness}%\n` +
-          `${chalk.cyan('Accessibility Score:')} ${validation.accessibility.score}/100\n\n` +
-          `${validation.accessibility.passesWCAG_AA ? chalk.green('✓') : chalk.red('✖')} WCAG AA Compliance\n` +
-          `${validation.accessibility.passesWCAG_AAA ? chalk.green('✓') : chalk.yellow('○')} WCAG AAA Compliance\n\n` +
-          `${chalk.gray(`Issues found: ${validation.issues.length}`)}\n` +
-          `${chalk.gray(`Suggestions: ${validation.accessibility.suggestions.length}`)}`,
+            `${chalk.cyan('Completeness:')} ${validation.completeness}%\n` +
+            `${chalk.cyan('Accessibility Score:')} ${validation.accessibility.score}/100\n\n` +
+            `${validation.accessibility.passesWCAG_AA ? chalk.green('✓') : chalk.red('✖')} WCAG AA Compliance\n` +
+            `${validation.accessibility.passesWCAG_AAA ? chalk.green('✓') : chalk.yellow('○')} WCAG AAA Compliance\n\n` +
+            `${chalk.gray(`Issues found: ${validation.issues.length}`)}\n` +
+            `${chalk.gray(`Suggestions: ${validation.accessibility.suggestions.length}`)}`,
           {
             title: '♿ Theme Validation',
             padding: 1,
@@ -12980,6 +12989,816 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       console.log(chalk.red(`\n✗ Error: ${error.message}\n`))
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
+  }
+
+  // ============================================================================
+  // Plugin Commands
+  // ============================================================================
+
+  /**
+   * Handle plugins command - list all plugins
+   */
+  private async pluginsCommand(args: string[]): Promise<{ shouldExit: boolean; shouldUpdatePrompt: boolean }> {
+    // If no args, show plugins panel
+    if (args.length === 0) {
+      return this.showPluginsPanel()
+    }
+
+    // Handle 'info' subcommand
+    if (args[0] === 'info' && args[1]) {
+      return this.pluginInfoCommand([args[1]])
+    }
+
+    // Handle other subcommands
+    const subcommand = args[0]
+    if (['create', 'install', 'uninstall', 'enable', 'disable', 'reload'].includes(subcommand)) {
+      return this.pluginCommand(args)
+    }
+
+    // Unknown subcommand - show help
+    return this.showPluginsPanel()
+  }
+
+  /**
+   * Show plugins panel with all installed plugins
+   */
+  private async showPluginsPanel(): Promise<{
+    shouldExit: boolean
+    shouldUpdatePrompt: boolean
+  }> {
+    try {
+      const { pluginManager } = await import('../core/plugin-manager')
+      const stats = pluginManager.getStats()
+      const plugins = pluginManager.getAllPlugins()
+
+      let pluginList: string
+      if (plugins.length === 0) {
+        pluginList = `${chalk.gray('  No plugins installed\n\n')}\
+${chalk.cyan('Commands:')}\n\
+${chalk.white('  /plugin create           - Create new plugin with AI')}\n\
+${chalk.white('  /plugin install <path>  - Install from local path')}\n\
+${chalk.white('  /plugin install git@... - Install from git URL')}`
+      } else {
+        pluginList = plugins
+          .map((plugin) => {
+            const icon = plugin.state === 'active' ? '🟢' : plugin.state === 'error' ? '🔴' : '🟡'
+            const stateColor =
+              plugin.state === 'active' ? chalk.green : plugin.state === 'error' ? chalk.red : chalk.yellow
+            return `  ${icon} ${chalk.white(plugin.manifest.metadata.name)} v${plugin.manifest.metadata.version}\
+${chalk.gray('\n     ID:')} ${plugin.manifest.metadata.id}\
+${chalk.gray('\n     State:')} ${stateColor(plugin.state)}\
+${chalk.gray('\n     Tools:')} ${plugin.registeredTools.length}\
+${chalk.gray('\n     Agents:')} ${plugin.registeredAgents.length}`
+          })
+          .join('\n\n')
+      }
+
+      this.printPanel(
+        boxen(
+          `${chalk.cyan('Statistics:')}\
+${chalk.green('\n  Total:')} ${stats.totalPlugins}\
+${chalk.green('\n  Active:')} ${stats.activePlugins}\
+${chalk.green('\n  Loaded:')} ${stats.loadedPlugins}\
+${chalk.green('\n  Errors:')} ${stats.errorPlugins}\
+${chalk.green('\n  Tools:')} ${stats.totalTools}\
+${chalk.green('\n  Agents:')} ${stats.totalAgents}\n\n` +
+            `${chalk.cyan('Installed Plugins:')}\n${pluginList}\n\n` +
+            `${chalk.cyan('Commands:')}\
+${chalk.white('\n  /plugin create "..."       - Create plugin from description')}\
+${chalk.white('\n  /plugin install <path>    - Install from local path')}\
+${chalk.white('\n  /plugin uninstall <name>  - Uninstall plugin')}\
+${chalk.white('\n  /plugin enable <name>     - Enable plugin')}\
+${chalk.white('\n  /plugin disable <name>    - Disable plugin')}\
+${chalk.white('\n  /plugin reload <name>     - Hot reload plugin')}`,
+          {
+            title: '🔌 Plugin Manager',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'cyan',
+          }
+        )
+      )
+    } catch (error: any) {
+      this.printPanel(
+        boxen(`${chalk.red('✖ Error loading plugins')}\n\n${chalk.gray('Error:')} ${error.message}`, {
+          title: '❌ Error',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+      )
+    }
+
+    return { shouldExit: false, shouldUpdatePrompt: false }
+  }
+
+  /**
+   * Handle plugin command - show plugin info or subcommands
+   */
+  private async pluginInfoCommand(args: string[]): Promise<{ shouldExit: boolean; shouldUpdatePrompt: boolean }> {
+    if (args.length === 0) {
+      this.printPanel(
+        boxen(
+          `${chalk.red('✖ Please specify a plugin name')}\n\n` +
+            `${chalk.cyan('Usage:')}\n` +
+            `${chalk.white('/plugin info <plugin-id>')}\n\n` +
+            `${chalk.gray('Example: /plugin info my-plugin')}`,
+          {
+            title: '❌ Error',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'red',
+          }
+        )
+      )
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+
+    const pluginId = args[0]
+
+    try {
+      const { pluginManager } = await import('../core/plugin-manager')
+      const plugin = pluginManager.getPlugin(pluginId)
+
+      if (!plugin) {
+        this.printPanel(
+          boxen(
+            `${chalk.red('✖ Plugin not found')}\n\n` +
+              `${chalk.gray('Plugin ID:')} ${pluginId}\n\n` +
+              `${chalk.cyan('Use /plugins to list all installed plugins')}`,
+            {
+              title: '❌ Not Found',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'red',
+            }
+          )
+        )
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
+
+      const stateColor = plugin.state === 'active' ? chalk.green : plugin.state === 'error' ? chalk.red : chalk.yellow
+
+      this.printPanel(
+        boxen(
+          `${chalk.cyan('Name:')} ${chalk.white(plugin.manifest.metadata.name)}\n` +
+            `${chalk.cyan('ID:')} ${plugin.manifest.metadata.id}\n` +
+            `${chalk.cyan('Version:')} ${plugin.manifest.metadata.version}\n` +
+            `${chalk.cyan('Description:')} ${plugin.manifest.metadata.description}\n` +
+            `${chalk.cyan('Author:')} ${plugin.manifest.metadata.author.name}\n` +
+            `${chalk.cyan('Category:')} ${plugin.manifest.metadata.category}\n` +
+            `${chalk.cyan('State:')} ${stateColor(plugin.state)}\n` +
+            `${chalk.cyan('Health:')} ${plugin.health}\n` +
+            `${chalk.cyan('Tools:')} ${plugin.registeredTools.length}\n` +
+            `${chalk.cyan('Agents:')} ${plugin.registeredAgents.length}\n` +
+            `${chalk.cyan('Path:')} ${plugin.path}\n` +
+            `${chalk.cyan('Loaded:')} ${plugin.loadedAt?.toISOString() || 'N/A'}\n` +
+            `${chalk.cyan('Activated:')} ${plugin.activatedAt?.toISOString() || 'N/A'}`,
+          {
+            title: '🔌 Plugin Info',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'cyan',
+          }
+        )
+      )
+    } catch (error: any) {
+      this.printPanel(
+        boxen(`${chalk.red('✖ Error loading plugin')}\n\n${chalk.gray('Error:')} ${error.message}`, {
+          title: '❌ Error',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+      )
+    }
+
+    return { shouldExit: false, shouldUpdatePrompt: false }
+  }
+
+  /**
+   * Handle plugin command - show plugin info or subcommands
+   */
+  private async pluginCommand(args: string[]): Promise<{ shouldExit: boolean; shouldUpdatePrompt: boolean }> {
+    if (args.length === 0) {
+      return this.pluginsCommand([])
+    }
+
+    const subcommand = args[0]
+
+    if (subcommand === 'info' && args[1]) {
+      return this.pluginInfoCommand([args[1]])
+    } else if (subcommand === 'create') {
+      return this.pluginCreateCommand(args.slice(1))
+    } else if (subcommand === 'install' && args[1]) {
+      return this.pluginInstallCommand([args[1]])
+    } else if (subcommand === 'enable' && args[1]) {
+      return this.pluginEnableCommand([args[1]])
+    } else if (subcommand === 'disable' && args[1]) {
+      return this.pluginDisableCommand([args[1]])
+    } else if (subcommand === 'reload' && args[1]) {
+      return this.pluginReloadCommand(args.slice(1))
+    } else if (subcommand === 'uninstall' && args[1]) {
+      return this.pluginUninstallCommand([args[1]])
+    }
+
+    this.printPanel(
+      boxen(
+        `${chalk.red('✖ Unknown plugin subcommand')}\n\n` +
+          `${chalk.cyan('Usage:')}\n` +
+          `${chalk.white('/plugin                    - List all plugins')}\n` +
+          `${chalk.white('/plugin create             - Create new plugin')}\n` +
+          `${chalk.white('/plugin create "..."       - Create from AI description')}\n` +
+          `${chalk.white('/plugin install <path>     - Install plugin')}\n` +
+          `${chalk.white('/plugin info <name>        - Show plugin details')}\n` +
+          `${chalk.white('/plugin enable <name>      - Enable plugin')}\n` +
+          `${chalk.white('/plugin disable <name>     - Disable plugin')}\n` +
+          `${chalk.white('/plugin reload <name>      - Reload plugin')}\n` +
+          `${chalk.white('/plugin uninstall <name>   - Uninstall plugin')}`,
+        {
+          title: '❌ Unknown Command',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        }
+      )
+    )
+
+    return { shouldExit: false, shouldUpdatePrompt: false }
+  }
+
+  /**
+   * Handle plugin-create command - AI or interactive wizard
+   */
+  private async pluginCreateCommand(args: string[]): Promise<{ shouldExit: boolean; shouldUpdatePrompt: boolean }> {
+    try {
+      // If natural language description provided, use AI generator
+      if (args.length > 0) {
+        const description = args.join(' ')
+        console.log(chalk.cyan.bold('\n🤖 AI Plugin Generator'))
+        console.log(chalk.gray('Creating plugin from: ') + chalk.white(`"${description}"\n`))
+
+        const { inputQueue } = await import('../core/input-queue')
+        inputQueue.enableBypass()
+
+        try {
+          const { AIPluginGenerator } = await import('../plugins/wizards/ai-plugin-generator')
+          const generator = new AIPluginGenerator()
+
+          // Generate plugin spec from description
+          const spec = await generator.generateFromDescription(description)
+
+          if (!spec) {
+            console.log(chalk.red('\n✗ Failed to generate plugin specification'))
+            return { shouldExit: false, shouldUpdatePrompt: false }
+          }
+
+          console.log(chalk.cyan('\nGenerated plugin specification:'))
+          console.log(chalk.white(`  ID: ${spec.id}`))
+          console.log(chalk.white(`  Name: ${spec.name}`))
+          console.log(chalk.white(`  Category: ${spec.category}`))
+          console.log(chalk.white(`  Tools: ${spec.tools.length}`))
+
+          // Confirm and create
+          const inquirer = (await import('inquirer')).default
+          const { confirm } = await inquirer.prompt([
+            {
+              type: 'confirm',
+              name: 'confirm',
+              message: 'Create this plugin?',
+              default: true,
+            },
+          ])
+
+          if (!confirm) {
+            console.log(chalk.yellow('\nPlugin creation cancelled'))
+            return { shouldExit: false, shouldUpdatePrompt: false }
+          }
+
+          const result = await generator.createPluginFromSpec(spec)
+
+          if (result.success) {
+            this.printPanel(
+              boxen(
+                `${chalk.green('✓ Plugin created successfully!')}\n\n` +
+                  `${chalk.cyan('Plugin:')} ${spec.name}\n` +
+                  `${chalk.cyan('ID:')} ${spec.id}\n` +
+                  `${chalk.cyan('Path:')} ${result.path}\n\n` +
+                  `${chalk.gray('Next steps:')}\n` +
+                  `${chalk.white('  cd ' + result.path)}\n` +
+                  `${chalk.white('  npm install')}\n` +
+                  `${chalk.white('  /plugin install .')}`,
+                {
+                  title: '🤖 Plugin Created',
+                  padding: 1,
+                  margin: 1,
+                  borderStyle: 'round',
+                  borderColor: 'green',
+                }
+              )
+            )
+            return { shouldExit: false, shouldUpdatePrompt: true }
+          } else {
+            this.printPanel(
+              boxen(`${chalk.red('✖ Error creating plugin')}\n\n${chalk.gray('Error:')} ${result.error}`, {
+                title: '❌ Error',
+                padding: 1,
+                margin: 1,
+                borderStyle: 'round',
+                borderColor: 'red',
+              })
+            )
+          }
+        } finally {
+          inputQueue.disableBypass()
+        }
+
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
+
+      // No arguments - use interactive wizard
+      const { inputQueue } = await import('../core/input-queue')
+      inputQueue.enableBypass()
+
+      try {
+        const { PluginCreationWizard } = await import('../plugins/wizards/plugin-creation-wizard')
+        const wizard = new PluginCreationWizard()
+        const plugin = await wizard.start()
+
+        if (plugin) {
+          this.printPanel(
+            boxen(
+              `${chalk.green('✓ Plugin created successfully!')}\n\n` +
+                `${chalk.cyan('Plugin:')} ${plugin.name}\n` +
+                `${chalk.cyan('ID:')} ${plugin.id}\n` +
+                `${chalk.cyan('Category:')} ${plugin.category}\n` +
+                `${chalk.cyan('Path:')} ${plugin.path}\n\n` +
+                `${chalk.gray('Use /plugin install to install the plugin')}`,
+              {
+                title: '🔌 Plugin Created',
+                padding: 1,
+                margin: 1,
+                borderStyle: 'round',
+                borderColor: 'green',
+              }
+            )
+          )
+          return { shouldExit: false, shouldUpdatePrompt: true }
+        }
+      } finally {
+        inputQueue.disableBypass()
+      }
+    } catch (error: any) {
+      console.log(chalk.red(`\n✗ Error: ${error.message}\n`))
+    }
+
+    return { shouldExit: false, shouldUpdatePrompt: false }
+  }
+
+  /**
+   * Handle plugin-install command
+   */
+  private async pluginInstallCommand(args: string[]): Promise<{ shouldExit: boolean; shouldUpdatePrompt: boolean }> {
+    if (args.length === 0) {
+      this.printPanel(
+        boxen(
+          `${chalk.red('✖ Please specify a plugin path or git URL')}\n\n` +
+            `${chalk.cyan('Usage:')}\n` +
+            `${chalk.white('/plugin install <path>    - Install from local path')}\n` +
+            `${chalk.white('/plugin install git@...  - Install from git')}`,
+          {
+            title: '❌ Error',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'red',
+          }
+        )
+      )
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+
+    const source = args[0]
+
+    try {
+      const { PluginInstallWizard } = await import('../plugins/wizards/plugin-install-wizard')
+      const wizard = new PluginInstallWizard()
+      const result = await wizard.install(source)
+
+      if (result.success) {
+        this.printPanel(
+          boxen(
+            `${chalk.green('✓ Plugin installed successfully!')}\n\n` +
+              `${chalk.cyan('Plugin:')} ${result.name}\n` +
+              `${chalk.cyan('ID:')} ${result.id}\n\n` +
+              `${chalk.gray('Use /plugin info ')}${result.id}${chalk.gray(' to view details')}`,
+            {
+              title: '🔌 Installed',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'green',
+            }
+          )
+        )
+        return { shouldExit: false, shouldUpdatePrompt: true }
+      } else {
+        this.printPanel(
+          boxen(`${chalk.red('✖ Failed to install plugin')}\n\n${chalk.gray('Source:')} ${source}`, {
+            title: '❌ Error',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'red',
+          })
+        )
+      }
+    } catch (error: any) {
+      this.printPanel(
+        boxen(`${chalk.red('✖ Error installing plugin')}\n\n${chalk.gray('Error:')} ${error.message}`, {
+          title: '❌ Error',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+      )
+    }
+
+    return { shouldExit: false, shouldUpdatePrompt: false }
+  }
+
+  /**
+   * Handle plugin-uninstall command
+   */
+  private async pluginUninstallCommand(args: string[]): Promise<{ shouldExit: boolean; shouldUpdatePrompt: boolean }> {
+    if (args.length === 0) {
+      this.printPanel(
+        boxen(
+          `${chalk.red('✖ Please specify a plugin ID')}\n\n` +
+            `${chalk.cyan('Usage:')}\n` +
+            `${chalk.white('/plugin uninstall <plugin-id>')}`,
+          {
+            title: '❌ Error',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'red',
+          }
+        )
+      )
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+
+    const pluginId = args[0]
+
+    try {
+      const { pluginManager } = await import('../core/plugin-manager')
+      const plugin = pluginManager.getPlugin(pluginId)
+
+      if (!plugin) {
+        this.printPanel(
+          boxen(`${chalk.red('✖ Plugin not found')}\n\n` + `${chalk.gray('Plugin ID:')} ${pluginId}`, {
+            title: '❌ Not Found',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'red',
+          })
+        )
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
+
+      const success = await pluginManager.unloadPlugin(pluginId)
+
+      if (success) {
+        this.printPanel(
+          boxen(
+            `${chalk.green('✓ Plugin uninstalled')}\n\n` +
+              `${chalk.cyan('Plugin:')} ${plugin.manifest.metadata.name}\n` +
+              `${chalk.cyan('ID:')} ${pluginId}`,
+            {
+              title: '🔌 Uninstalled',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'green',
+            }
+          )
+        )
+        return { shouldExit: false, shouldUpdatePrompt: true }
+      } else {
+        this.printPanel(
+          boxen(`${chalk.red('✖ Failed to uninstall plugin')}\n\n` + `${chalk.cyan('ID:')} ${pluginId}`, {
+            title: '❌ Error',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'red',
+          })
+        )
+      }
+    } catch (error: any) {
+      this.printPanel(
+        boxen(`${chalk.red('✖ Error uninstalling plugin')}\n\n` + `${chalk.gray('Error:')} ${error.message}`, {
+          title: '❌ Error',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+      )
+    }
+
+    return { shouldExit: false, shouldUpdatePrompt: false }
+  }
+
+  /**
+   * Handle plugin-enable command
+   */
+  private async pluginEnableCommand(args: string[]): Promise<{ shouldExit: boolean; shouldUpdatePrompt: boolean }> {
+    if (args.length === 0) {
+      this.printPanel(
+        boxen(
+          `${chalk.red('✖ Please specify a plugin ID')}\n\n` +
+            `${chalk.cyan('Usage:')}\n` +
+            `${chalk.white('/plugin enable <plugin-id>')}`,
+          {
+            title: '❌ Error',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'red',
+          }
+        )
+      )
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+
+    const pluginId = args[0]
+
+    try {
+      const { pluginManager } = await import('../core/plugin-manager')
+      const plugin = pluginManager.getPlugin(pluginId)
+
+      if (!plugin) {
+        this.printPanel(
+          boxen(`${chalk.red('✖ Plugin not found')}\n\n${chalk.gray('ID:')} ${pluginId}`, {
+            title: '❌ Not Found',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'red',
+          })
+        )
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
+
+      if (plugin.state === 'active') {
+        this.printPanel(
+          boxen(
+            `${chalk.yellow('⚠ Plugin already active')}\n\n${chalk.cyan('Plugin:')} ${plugin.manifest.metadata.name}`,
+            {
+              title: 'ℹ️ Already Active',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'yellow',
+            }
+          )
+        )
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
+
+      const success = await pluginManager.activatePlugin(pluginId)
+
+      if (success) {
+        this.printPanel(
+          boxen(`${chalk.green('✓ Plugin enabled')}\n\n${chalk.cyan('Plugin:')} ${plugin.manifest.metadata.name}`, {
+            title: '🔌 Enabled',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'green',
+          })
+        )
+        return { shouldExit: false, shouldUpdatePrompt: true }
+      } else {
+        this.printPanel(
+          boxen(`${chalk.red('✖ Failed to enable plugin')}\n\n${chalk.gray('ID:')} ${pluginId}`, {
+            title: '❌ Error',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'red',
+          })
+        )
+      }
+    } catch (error: any) {
+      this.printPanel(
+        boxen(`${chalk.red('✖ Error enabling plugin')}\n\n${chalk.gray('Error:')} ${error.message}`, {
+          title: '❌ Error',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+      )
+    }
+
+    return { shouldExit: false, shouldUpdatePrompt: false }
+  }
+
+  /**
+   * Handle plugin-disable command
+   */
+  private async pluginDisableCommand(args: string[]): Promise<{ shouldExit: boolean; shouldUpdatePrompt: boolean }> {
+    if (args.length === 0) {
+      this.printPanel(
+        boxen(
+          `${chalk.red('✖ Please specify a plugin ID')}\n\n${chalk.cyan('Usage:')}\n${chalk.white('/plugin disable <plugin-id>')}`,
+          {
+            title: '❌ Error',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'red',
+          }
+        )
+      )
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+
+    const pluginId = args[0]
+
+    try {
+      const { pluginManager } = await import('../core/plugin-manager')
+      const plugin = pluginManager.getPlugin(pluginId)
+
+      if (!plugin) {
+        this.printPanel(
+          boxen(`${chalk.red('✖ Plugin not found')}\n\n${chalk.gray('ID:')} ${pluginId}`, {
+            title: '❌ Not Found',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'red',
+          })
+        )
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
+
+      if (plugin.state !== 'active') {
+        this.printPanel(
+          boxen(
+            `${chalk.yellow('⚠ Plugin is not active')}\n\n${chalk.cyan('Plugin:')} ${plugin.manifest.metadata.name}`,
+            {
+              title: 'ℹ️ Not Active',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'yellow',
+            }
+          )
+        )
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
+
+      const success = await pluginManager.deactivatePlugin(pluginId)
+
+      if (success) {
+        this.printPanel(
+          boxen(`${chalk.green('✓ Plugin disabled')}\n\n${chalk.cyan('Plugin:')} ${plugin.manifest.metadata.name}`, {
+            title: '🔌 Disabled',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'green',
+          })
+        )
+        return { shouldExit: false, shouldUpdatePrompt: true }
+      } else {
+        this.printPanel(
+          boxen(`${chalk.red('✖ Failed to disable plugin')}\n\n${chalk.gray('ID:')} ${pluginId}`, {
+            title: '❌ Error',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'red',
+          })
+        )
+      }
+    } catch (error: any) {
+      this.printPanel(
+        boxen(`${chalk.red('✖ Error disabling plugin')}\n\n${chalk.gray('Error:')} ${error.message}`, {
+          title: '❌ Error',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+      )
+    }
+
+    return { shouldExit: false, shouldUpdatePrompt: false }
+  }
+
+  /**
+   * Handle plugin-reload command
+   */
+  private async pluginReloadCommand(args: string[]): Promise<{ shouldExit: boolean; shouldUpdatePrompt: boolean }> {
+    const allFlag = args.includes('--all')
+
+    if (!allFlag && args.length === 0) {
+      this.printPanel(
+        boxen(
+          `${chalk.red('✖ Please specify a plugin ID or use --all')}\n\n` +
+            `${chalk.cyan('Usage:')}\n` +
+            `${chalk.white('/plugin reload <plugin-id>  - Reload specific plugin')}\n` +
+            `${chalk.white('/plugin reload --all      - Reload all plugins')}`,
+          {
+            title: '❌ Error',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'red',
+          }
+        )
+      )
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+
+    try {
+      const { pluginManager } = await import('../core/plugin-manager')
+
+      if (allFlag) {
+        const plugins = pluginManager.getAllPlugins()
+        let successCount = 0
+
+        for (const plugin of plugins) {
+          const success = await pluginManager.reloadPlugin(plugin.manifest.metadata.id)
+          if (success) successCount++
+        }
+
+        this.printPanel(
+          boxen(
+            `${chalk.green('✓ Reloaded plugins')}\n\n` + `${chalk.cyan('Success:')} ${successCount}/${plugins.length}`,
+            {
+              title: '🔌 Reload Complete',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'green',
+            }
+          )
+        )
+      } else {
+        const pluginId = args[0]
+        const success = await pluginManager.reloadPlugin(pluginId)
+
+        if (success) {
+          this.printPanel(
+            boxen(`${chalk.green('✓ Plugin reloaded')}\n\n${chalk.cyan('ID:')} ${pluginId}`, {
+              title: '🔌 Reloaded',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'green',
+            })
+          )
+          return { shouldExit: false, shouldUpdatePrompt: true }
+        } else {
+          this.printPanel(
+            boxen(`${chalk.red('✖ Failed to reload plugin')}\n\n${chalk.gray('ID:')} ${pluginId}`, {
+              title: '❌ Error',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'red',
+            })
+          )
+        }
+      }
+    } catch (error: any) {
+      this.printPanel(
+        boxen(`${chalk.red('✖ Error reloading plugin')}\n\n${chalk.gray('Error:')} ${error.message}`, {
+          title: '❌ Error',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+      )
+    }
+
+    return { shouldExit: false, shouldUpdatePrompt: false }
   }
 
   /**
@@ -13798,7 +14617,6 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           info: 'ℹ︎',
           warn: '⚠︎',
           error: '✖',
-
         }[log.level]
 
         const timestamp = new Date(log.timestamp).toLocaleTimeString()
@@ -13830,9 +14648,9 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       this.printPanel(
         boxen(
           chalk.green('✓ BrowseGPT Session Created') +
-          '\n\n' +
-          chalk.white(`Session ID: ${chalk.cyan(id)}\n\n`) +
-          chalk.gray('Use this session ID with other /browse-* commands'),
+            '\n\n' +
+            chalk.white(`Session ID: ${chalk.cyan(id)}\n\n`) +
+            chalk.gray('Use this session ID with other /browse-* commands'),
           {
             padding: 1,
             margin: 1,
@@ -13870,18 +14688,18 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       this.printPanel(
         boxen(
           chalk.blue('🔍 Search Results') +
-          '\n\n' +
-          chalk.white(`Query: ${chalk.cyan(query)}\n`) +
-          chalk.white(`Found: ${chalk.green(results.results.length)} results\n\n`) +
-          results.results
-            .slice(0, 3)
-            .map(
-              (result, index) =>
-                `${chalk.cyan(`${index + 1}.`)} ${result.title}\n` +
-                `   ${chalk.gray(result.url)}\n` +
-                `   ${chalk.dim(result.snippet.slice(0, 80))}...`
-            )
-            .join('\n\n'),
+            '\n\n' +
+            chalk.white(`Query: ${chalk.cyan(query)}\n`) +
+            chalk.white(`Found: ${chalk.green(results.results.length)} results\n\n`) +
+            results.results
+              .slice(0, 3)
+              .map(
+                (result, index) =>
+                  `${chalk.cyan(`${index + 1}.`)} ${result.title}\n` +
+                  `   ${chalk.gray(result.url)}\n` +
+                  `   ${chalk.dim(result.snippet.slice(0, 80))}...`
+              )
+              .join('\n\n'),
           {
             padding: 1,
             margin: 1,
@@ -13914,11 +14732,11 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       this.printPanel(
         boxen(
           chalk.green('📄 Page Content Extracted') +
-          '\n\n' +
-          chalk.white(`Title: ${chalk.cyan(content.title)}\n`) +
-          chalk.white(`URL: ${chalk.gray(content.url)}\n`) +
-          chalk.white(`Content: ${chalk.yellow(content.text.length)} characters\n\n`) +
-          (content.summary ? `${chalk.bold('AI Summary:')}\n${content.summary}` : ''),
+            '\n\n' +
+            chalk.white(`Title: ${chalk.cyan(content.title)}\n`) +
+            chalk.white(`URL: ${chalk.gray(content.url)}\n`) +
+            chalk.white(`Content: ${chalk.yellow(content.text.length)} characters\n\n`) +
+            (content.summary ? `${chalk.bold('AI Summary:')}\n${content.summary}` : ''),
           {
             padding: 1,
             margin: 1,
@@ -13975,17 +14793,17 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       this.printPanel(
         boxen(
           chalk.blue('🌐 Active Browsing Sessions') +
-          '\n\n' +
-          sessions
-            .map(
-              (session) =>
-                `${chalk.cyan(session.id)}\n` +
-                `  Browser: ${chalk.gray(session.browserId.slice(0, 12))}...\n` +
-                `  Created: ${chalk.yellow(session.created.toLocaleString())}\n` +
-                `  History: ${chalk.green(session.historyCount)} items\n` +
-                `  Status: ${session.active ? chalk.green('Active') : chalk.red('Inactive')}`
-            )
-            .join('\n\n'),
+            '\n\n' +
+            sessions
+              .map(
+                (session) =>
+                  `${chalk.cyan(session.id)}\n` +
+                  `  Browser: ${chalk.gray(session.browserId.slice(0, 12))}...\n` +
+                  `  Created: ${chalk.yellow(session.created.toLocaleString())}\n` +
+                  `  History: ${chalk.green(session.historyCount)} items\n` +
+                  `  Status: ${session.active ? chalk.green('Active') : chalk.red('Inactive')}`
+              )
+              .join('\n\n'),
           {
             padding: 1,
             margin: 1,
@@ -14020,12 +14838,12 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       this.printPanel(
         boxen(
           chalk.blue(`📊 Session Info: ${sessionId}`) +
-          '\n\n' +
-          chalk.white(`Browser ID: ${chalk.gray(info.browserId)}\n`) +
-          chalk.white(`Created: ${chalk.yellow(info.created.toLocaleString())}\n`) +
-          chalk.white(`Last Activity: ${chalk.yellow(info.lastActivity.toLocaleString())}\n`) +
-          chalk.white(`History Items: ${chalk.green(info.historyCount)}\n`) +
-          chalk.white(`Status: ${info.active ? chalk.green('Active') : chalk.red('Inactive')}`),
+            '\n\n' +
+            chalk.white(`Browser ID: ${chalk.gray(info.browserId)}\n`) +
+            chalk.white(`Created: ${chalk.yellow(info.created.toLocaleString())}\n`) +
+            chalk.white(`Last Activity: ${chalk.yellow(info.lastActivity.toLocaleString())}\n`) +
+            chalk.white(`History Items: ${chalk.green(info.historyCount)}\n`) +
+            chalk.white(`Status: ${info.active ? chalk.green('Active') : chalk.red('Inactive')}`),
           {
             padding: 1,
             margin: 1,
@@ -14078,8 +14896,8 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       this.printPanel(
         boxen(
           chalk.green(`🧹 Cleanup Complete`) +
-          '\n\n' +
-          chalk.white(`Cleaned up ${chalk.yellow(cleaned)} inactive sessions`),
+            '\n\n' +
+            chalk.white(`Cleaned up ${chalk.yellow(cleaned)} inactive sessions`),
           {
             padding: 1,
             margin: 1,
@@ -14130,12 +14948,12 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       this.printPanel(
         boxen(
           chalk.blue('⚡ Quick Browse Results') +
-          '\n\n' +
-          chalk.white(`Query: ${chalk.cyan(query)}\n`) +
-          chalk.white(`Visited: ${chalk.yellow(content.title)}\n`) +
-          chalk.white(`URL: ${chalk.gray(firstResult.url)}\n\n`) +
-          chalk.bold('AI Analysis:\n') +
-          chalk.white(chatResponse),
+            '\n\n' +
+            chalk.white(`Query: ${chalk.cyan(query)}\n`) +
+            chalk.white(`Visited: ${chalk.yellow(content.title)}\n`) +
+            chalk.white(`URL: ${chalk.gray(firstResult.url)}\n\n`) +
+            chalk.bold('AI Analysis:\n') +
+            chalk.white(chatResponse),
           {
             padding: 1,
             margin: 1,
@@ -14194,10 +15012,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       // Display summary
       const summaryBox = boxen(
         (result.success ? chalk.green('✓ Command executed successfully') : chalk.red('✖ Command failed')) +
-        '\n' +
-        chalk.gray(`Exit Code: ${result.exitCode}\n`) +
-        chalk.gray(`Duration: ${(result.duration / 1000).toFixed(2)}s\n`) +
-        chalk.gray(`Sandbox: ${result.sandboxDir}`),
+          '\n' +
+          chalk.gray(`Exit Code: ${result.exitCode}\n`) +
+          chalk.gray(`Duration: ${(result.duration / 1000).toFixed(2)}s\n`) +
+          chalk.gray(`Sandbox: ${result.sandboxDir}`),
         {
           title: `🏝️  Sandbox Result (${session.id})`,
           padding: 1,
@@ -14289,9 +15107,9 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       const summaryBox = boxen(
         (result.success ? chalk.green('✓ Script executed successfully') : chalk.red('✖ Script failed')) +
-        '\n' +
-        chalk.gray(`Exit Code: ${result.exitCode}\n`) +
-        chalk.gray(`Duration: ${(result.duration / 1000).toFixed(2)}s`),
+          '\n' +
+          chalk.gray(`Exit Code: ${result.exitCode}\n`) +
+          chalk.gray(`Duration: ${(result.duration / 1000).toFixed(2)}s`),
         {
           title: `🏝️  Script Result (${session.id})`,
           padding: 1,
@@ -14465,28 +15283,28 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       const panel = boxen(
         chalk.cyan.bold(`👤 User Profile\n\n`) +
-        chalk.gray(`Email: ${chalk.cyan(profile.email || 'N/A')}\n`) +
-        chalk.gray(`Username: ${chalk.cyan(profile.username || 'N/A')}\n`) +
-        chalk.gray(`Tier: ${chalk.cyan(profile.subscription_tier.toUpperCase())}\n`) +
-        chalk.gray(`Member Since: ${chalk.cyan(new Date(currentUser.created_at).toLocaleDateString())}\n\n`) +
-        chalk.cyan.bold(`⚙️ Preferences\n\n`) +
-        chalk.gray(`Theme: ${chalk.cyan(profile.preferences.theme)}\n`) +
-        chalk.gray(
-          `Notifications: ${profile.preferences.notifications ? chalk.green('✓ Enabled') : chalk.red('✗ Disabled')}\n`
-        ) +
-        chalk.gray(
-          `Analytics: ${profile.preferences.analytics ? chalk.green('✓ Enabled') : chalk.red('✗ Disabled')}\n\n`
-        ) +
-        chalk.cyan.bold(`📊 Usage & Quotas\n\n`) +
-        chalk.gray(`Sessions: `) +
-        sessionColor(`${profile.usage.sessionsThisMonth}/${profile.quotas.sessionsPerMonth}`) +
-        chalk.gray(` (${sessionColor(sessionPercent + '%')})\n`) +
-        chalk.gray(`Tokens: `) +
-        tokenColor(`${profile.usage.tokensThisMonth}/${profile.quotas.tokensPerMonth}`) +
-        chalk.gray(` (${tokenColor(tokenPercent + '%')})\n`) +
-        chalk.gray(`API Calls/Hour: `) +
-        apiColor(`${profile.usage.apiCallsThisHour}/${profile.quotas.apiCallsPerHour}`) +
-        chalk.gray(` (${apiColor(apiPercent + '%')})\n`),
+          chalk.gray(`Email: ${chalk.cyan(profile.email || 'N/A')}\n`) +
+          chalk.gray(`Username: ${chalk.cyan(profile.username || 'N/A')}\n`) +
+          chalk.gray(`Tier: ${chalk.cyan(profile.subscription_tier.toUpperCase())}\n`) +
+          chalk.gray(`Member Since: ${chalk.cyan(new Date(currentUser.created_at).toLocaleDateString())}\n\n`) +
+          chalk.cyan.bold(`⚙️ Preferences\n\n`) +
+          chalk.gray(`Theme: ${chalk.cyan(profile.preferences.theme)}\n`) +
+          chalk.gray(
+            `Notifications: ${profile.preferences.notifications ? chalk.green('✓ Enabled') : chalk.red('✗ Disabled')}\n`
+          ) +
+          chalk.gray(
+            `Analytics: ${profile.preferences.analytics ? chalk.green('✓ Enabled') : chalk.red('✗ Disabled')}\n\n`
+          ) +
+          chalk.cyan.bold(`📊 Usage & Quotas\n\n`) +
+          chalk.gray(`Sessions: `) +
+          sessionColor(`${profile.usage.sessionsThisMonth}/${profile.quotas.sessionsPerMonth}`) +
+          chalk.gray(` (${sessionColor(sessionPercent + '%')})\n`) +
+          chalk.gray(`Tokens: `) +
+          tokenColor(`${profile.usage.tokensThisMonth}/${profile.quotas.tokensPerMonth}`) +
+          chalk.gray(` (${tokenColor(tokenPercent + '%')})\n`) +
+          chalk.gray(`API Calls/Hour: `) +
+          apiColor(`${profile.usage.apiCallsThisHour}/${profile.quotas.apiCallsPerHour}`) +
+          chalk.gray(` (${apiColor(apiPercent + '%')})\n`),
         {
           title: '📋 User Dashboard',
           padding: 1,
@@ -14659,7 +15477,9 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
             } else if (event.type === 'text_delta') {
               process.stdout.write(event.content || '')
             } else if (event.type === 'complete') {
-              console.log(chalk.gray(`\n⏱️ Tokens: ${event.usage?.totalTokens || 0} | Cost: $${event.costUsd?.toFixed(4) || 0}`))
+              console.log(
+                chalk.gray(`\n⏱️ Tokens: ${event.usage?.totalTokens || 0} | Cost: $${event.costUsd?.toFixed(4) || 0}`)
+              )
             }
             result = event
           }
@@ -14687,11 +15507,13 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
         const panel = boxen(
           chalk.cyan.bold(`📚 ${skill.name}\n\n`) +
-          chalk.gray(`Description: ${chalk.white(skill.description)}\n`) +
-          chalk.gray(`Category: ${chalk.yellow(skill.category)}\n`) +
-          chalk.gray(`Risk Level: ${skill.riskLevel === 'high' ? chalk.red(skill.riskLevel) : skill.riskLevel === 'medium' ? chalk.yellow(skill.riskLevel) : chalk.green(skill.riskLevel)}\n`) +
-          chalk.gray(`Tools: ${chalk.cyan(skill.tools.join(', '))}\n\n`) +
-          chalk.gray.dim(`Prompt:\n${skill.prompt.substring(0, 200)}...`),
+            chalk.gray(`Description: ${chalk.white(skill.description)}\n`) +
+            chalk.gray(`Category: ${chalk.yellow(skill.category)}\n`) +
+            chalk.gray(
+              `Risk Level: ${skill.riskLevel === 'high' ? chalk.red(skill.riskLevel) : skill.riskLevel === 'medium' ? chalk.yellow(skill.riskLevel) : chalk.green(skill.riskLevel)}\n`
+            ) +
+            chalk.gray(`Tools: ${chalk.cyan(skill.tools.join(', '))}\n\n`) +
+            chalk.gray.dim(`Prompt:\n${skill.prompt.substring(0, 200)}...`),
           {
             padding: 1,
             margin: 1,
@@ -14769,19 +15591,12 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
   private async skillsListCommand(_args: string[]): Promise<CommandResult> {
     const skills = claudeAgentProvider.listSkills()
 
-    const lines: string[] = [
-      chalk.blue.bold('⚡ Available Skills'),
-      chalk.gray('─'.repeat(40)),
-      '',
-    ]
+    const lines: string[] = [chalk.blue.bold('⚡ Available Skills'), chalk.gray('─'.repeat(40)), '']
 
     for (const skill of skills) {
-      const riskColor = skill.riskLevel === 'high' ? chalk.red : skill.riskLevel === 'medium' ? chalk.yellow : chalk.green
-      lines.push(
-        chalk.cyan(`  ${skill.name}`) +
-        chalk.gray(` [${skill.category}]`) +
-        riskColor(` ${skill.riskLevel}`)
-      )
+      const riskColor =
+        skill.riskLevel === 'high' ? chalk.red : skill.riskLevel === 'medium' ? chalk.yellow : chalk.green
+      lines.push(chalk.cyan(`  ${skill.name}`) + chalk.gray(` [${skill.category}]`) + riskColor(` ${skill.riskLevel}`))
       lines.push(chalk.gray(`    ${skill.description}`))
       lines.push('')
     }
@@ -14816,7 +15631,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
     // Parse options
     let subagents: string[] = []
-    let promptParts: string[] = []
+    const promptParts: string[] = []
 
     for (const arg of args) {
       if (arg.startsWith('--subagents=')) {
@@ -14834,7 +15649,9 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         console.log(chalk.gray(`Subagents: ${subagents.join(', ')}`))
       }
 
-      for await (const event of claudeAgentProvider.executeAgent(prompt, { subagents })) {
+      for await (const event of claudeAgentProvider.executeAgent(prompt, {
+        subagents,
+      })) {
         if (event.type === 'thinking' && claudeAgentProvider.getConfig().showThinking) {
           console.log(chalk.gray(`💭 ${event.content?.substring(0, 100)}...`))
         } else if (event.type === 'tool_call') {
@@ -14842,7 +15659,9 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         } else if (event.type === 'text_delta') {
           process.stdout.write(event.content || '')
         } else if (event.type === 'complete') {
-          console.log(chalk.gray(`\n⏱️ Tokens: ${event.usage?.totalTokens || 0} | Cost: $${event.costUsd?.toFixed(4) || 0}`))
+          console.log(
+            chalk.gray(`\n⏱️ Tokens: ${event.usage?.totalTokens || 0} | Cost: $${event.costUsd?.toFixed(4) || 0}`)
+          )
         }
       }
 
@@ -14877,11 +15696,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
   private async subagentsListCommand(_args: string[]): Promise<CommandResult> {
     const subagents = claudeAgentProvider.listSubagents()
 
-    const lines: string[] = [
-      chalk.blue.bold('🤖 Available Subagents'),
-      chalk.gray('─'.repeat(40)),
-      '',
-    ]
+    const lines: string[] = [chalk.blue.bold('🤖 Available Subagents'), chalk.gray('─'.repeat(40)), '']
 
     for (const agent of subagents) {
       lines.push(chalk.cyan(`  ${agent.name}`) + chalk.gray(` [${agent.model || 'inherit'}]`))
@@ -14966,15 +15781,15 @@ export async function handleBrowserCommand(args: string[]): Promise<void> {
       console.log(
         boxen(
           `${chalk.red('⚠︎  Browser Mode Unavailable')}\n\n` +
-          `Docker is required but not available.\n\n` +
-          `${chalk.yellow('Requirements:')}\n` +
-          `• Docker installed and running\n` +
-          `• Sufficient memory (2GB+ recommended)\n` +
-          `• Available ports for noVNC (6080+)\n\n` +
-          `${chalk.blue('Install Docker:')}\n` +
-          `• macOS: brew install --cask docker\n` +
-          `• Linux: apt install docker.io\n` +
-          `• Windows: Docker Desktop`,
+            `Docker is required but not available.\n\n` +
+            `${chalk.yellow('Requirements:')}\n` +
+            `• Docker installed and running\n` +
+            `• Sufficient memory (2GB+ recommended)\n` +
+            `• Available ports for noVNC (6080+)\n\n` +
+            `${chalk.blue('Install Docker:')}\n` +
+            `• macOS: brew install --cask docker\n` +
+            `• Linux: apt install docker.io\n` +
+            `• Windows: Docker Desktop`,
           {
             padding: 1,
             margin: 1,
@@ -15002,19 +15817,19 @@ export async function handleBrowserCommand(args: string[]): Promise<void> {
       console.log(
         boxen(
           `${chalk.green('✓ Browser Mode Active!')}\n\n` +
-          `${chalk.blue('🖥️  noVNC Viewer:')} ${chalk.cyan(result.noVncUrl || 'Starting...')}\n` +
-          `${chalk.blue('🌐 Session:')} ${result.session?.sessionId.slice(0, 12) || 'Unknown'}\n` +
-          `${chalk.blue('🐳 Container:')} ${result.container?.name || 'Unknown'}\n\n` +
-          `${chalk.yellow('💬 Chat with the browser:')}\n` +
-          `• "go to google.com"\n` +
-          `• "click on search button"\n` +
-          `• "type hello world"\n` +
-          `• "take a screenshot"\n` +
-          `• "scroll down"\n\n` +
-          `${chalk.gray('Commands:')}\n` +
-          `• ${chalk.cyan('/browser-status')} - Show browser status\n` +
-          `• ${chalk.cyan('/browser-screenshot')} - Take screenshot\n` +
-          `• ${chalk.cyan('/browser-exit')} - Exit browser mode`,
+            `${chalk.blue('🖥️  noVNC Viewer:')} ${chalk.cyan(result.noVncUrl || 'Starting...')}\n` +
+            `${chalk.blue('🌐 Session:')} ${result.session?.sessionId.slice(0, 12) || 'Unknown'}\n` +
+            `${chalk.blue('🐳 Container:')} ${result.container?.name || 'Unknown'}\n\n` +
+            `${chalk.yellow('💬 Chat with the browser:')}\n` +
+            `• "go to google.com"\n` +
+            `• "click on search button"\n` +
+            `• "type hello world"\n` +
+            `• "take a screenshot"\n` +
+            `• "scroll down"\n\n` +
+            `${chalk.gray('Commands:')}\n` +
+            `• ${chalk.cyan('/browser-status')} - Show browser status\n` +
+            `• ${chalk.cyan('/browser-screenshot')} - Take screenshot\n` +
+            `• ${chalk.cyan('/browser-exit')} - Exit browser mode`,
           {
             padding: 1,
             margin: 1,
@@ -15027,12 +15842,12 @@ export async function handleBrowserCommand(args: string[]): Promise<void> {
       console.log(
         boxen(
           `${chalk.red('✖ Browser Mode Failed')}\n\n` +
-          `${chalk.white('Error:')} ${result.error || 'Unknown error'}\n\n` +
-          `${chalk.yellow('Common Issues:')}\n` +
-          `• Docker not running\n` +
-          `• Insufficient memory\n` +
-          `• Port conflicts\n` +
-          `• Missing Docker permissions`,
+            `${chalk.white('Error:')} ${result.error || 'Unknown error'}\n\n` +
+            `${chalk.yellow('Common Issues:')}\n` +
+            `• Docker not running\n` +
+            `• Insufficient memory\n` +
+            `• Port conflicts\n` +
+            `• Missing Docker permissions`,
           {
             padding: 1,
             margin: 1,
@@ -15058,11 +15873,11 @@ export async function handleBrowserStatus(): Promise<void> {
       console.log(
         boxen(
           `${chalk.yellow('🌐 Browser Mode Status')}\n\n` +
-          `${chalk.gray('Status:')} ${chalk.red('Inactive')}\n\n` +
-          `${chalk.blue('Start browser mode:')}\n` +
-          `${chalk.cyan('/browser')} [url] - Start browser session\n\n` +
-          `${chalk.gray('Example:')}\n` +
-          `${chalk.dim('/browser https://google.com')}`,
+            `${chalk.gray('Status:')} ${chalk.red('Inactive')}\n\n` +
+            `${chalk.blue('Start browser mode:')}\n` +
+            `${chalk.cyan('/browser')} [url] - Start browser session\n\n` +
+            `${chalk.gray('Example:')}\n` +
+            `${chalk.dim('/browser https://google.com')}`,
           {
             padding: 1,
             margin: 1,
@@ -15080,24 +15895,24 @@ export async function handleBrowserStatus(): Promise<void> {
     console.log(
       boxen(
         `${chalk.green('🌐 Browser Mode Status')}\n\n` +
-        `${chalk.blue('Status:')} ${chalk.green('Active')}\n` +
-        `${chalk.blue('Mode:')} ${status.mode}\n\n` +
-        `${chalk.cyan('Session Info:')}\n` +
-        `• ID: ${session.id.slice(0, 12)}...\n` +
-        `• Status: ${session.status}\n` +
-        `• Messages: ${session.messageCount}\n` +
-        `• Created: ${session.createdAt.toLocaleTimeString()}\n` +
-        `• Last Activity: ${session.lastActivity.toLocaleTimeString()}\n\n` +
-        `${chalk.cyan('Current Page:')}\n` +
-        `• URL: ${session.currentUrl}\n` +
-        `• Title: ${session.title || 'No title'}\n\n` +
-        `${chalk.cyan('Container Info:')}\n` +
-        `• Name: ${container.name}\n` +
-        `• Status: ${container.status}\n` +
-        `• noVNC: ${container.noVncUrl}\n` +
-        `• Port: ${container.displayPort}\n\n` +
-        `${chalk.cyan('Capabilities:')}\n` +
-        `${status.capabilities.map((cap) => `• ${cap}`).join('\n')}`,
+          `${chalk.blue('Status:')} ${chalk.green('Active')}\n` +
+          `${chalk.blue('Mode:')} ${status.mode}\n\n` +
+          `${chalk.cyan('Session Info:')}\n` +
+          `• ID: ${session.id.slice(0, 12)}...\n` +
+          `• Status: ${session.status}\n` +
+          `• Messages: ${session.messageCount}\n` +
+          `• Created: ${session.createdAt.toLocaleTimeString()}\n` +
+          `• Last Activity: ${session.lastActivity.toLocaleTimeString()}\n\n` +
+          `${chalk.cyan('Current Page:')}\n` +
+          `• URL: ${session.currentUrl}\n` +
+          `• Title: ${session.title || 'No title'}\n\n` +
+          `${chalk.cyan('Container Info:')}\n` +
+          `• Name: ${container.name}\n` +
+          `• Status: ${container.status}\n` +
+          `• noVNC: ${container.noVncUrl}\n` +
+          `• Port: ${container.displayPort}\n\n` +
+          `${chalk.cyan('Capabilities:')}\n` +
+          `${status.capabilities.map((cap) => `• ${cap}`).join('\n')}`,
         {
           padding: 1,
           margin: 1,
@@ -15130,10 +15945,10 @@ export async function handleBrowserExit(): Promise<void> {
     console.log(
       boxen(
         `${chalk.green('✓ Browser Mode Exited')}\n\n` +
-        `• Session ended successfully\n` +
-        `• Container stopped and removed\n` +
-        `• Resources cleaned up\n\n` +
-        `${chalk.gray('Start again with:')} ${chalk.cyan('/browser')} [url]`,
+          `• Session ended successfully\n` +
+          `• Container stopped and removed\n` +
+          `• Resources cleaned up\n\n` +
+          `${chalk.gray('Start again with:')} ${chalk.cyan('/browser')} [url]`,
         {
           padding: 1,
           margin: 1,
@@ -15167,12 +15982,12 @@ export async function handleBrowserScreenshot(): Promise<void> {
       console.log(
         boxen(
           `${chalk.green('📸 Screenshot Captured')}\n\n` +
-          `• Page: ${status.session?.currentUrl || 'Unknown'}\n` +
-          `• Title: ${status.session?.title || 'No title'}\n` +
-          `• Time: ${new Date().toLocaleTimeString()}\n` +
-          `• Type: Full page\n\n` +
-          `${chalk.gray('Screenshot data:')} ${screenshot.length} chars\n` +
-          `${chalk.blue('🖥️  View in browser:')} ${status.container?.noVncUrl || 'N/A'}`,
+            `• Page: ${status.session?.currentUrl || 'Unknown'}\n` +
+            `• Title: ${status.session?.title || 'No title'}\n` +
+            `• Time: ${new Date().toLocaleTimeString()}\n` +
+            `• Type: Full page\n\n` +
+            `${chalk.gray('Screenshot data:')} ${screenshot.length} chars\n` +
+            `${chalk.blue('🖥️  View in browser:')} ${status.container?.noVncUrl || 'N/A'}`,
           {
             padding: 1,
             margin: 1,
@@ -15199,17 +16014,17 @@ export async function handleBrowserInfo(): Promise<void> {
   console.log(
     boxen(
       `${chalk.blue.bold('🌐 Browser Mode Information')}\n\n` +
-      `${chalk.cyan('Description:')}\n${info.description}\n\n` +
-      `${chalk.cyan('Status:')} ${available ? chalk.green('Available') : chalk.red('Unavailable')}\n\n` +
-      `${chalk.cyan('Features:')}\n${info.features.map((f) => `• ${f}`).join('\n')}\n\n` +
-      `${chalk.cyan('Requirements:')}\n${info.requirements.map((r) => `• ${r}`).join('\n')}\n\n` +
-      `${chalk.cyan('Capabilities:')}\n${info.capabilities.map((c) => `• ${c}`).join('\n')}\n\n` +
-      `${chalk.cyan('Commands:')}\n` +
-      `• ${chalk.green('/browser')} [url] - Start browser mode\n` +
-      `• ${chalk.green('/browser-status')} - Show status\n` +
-      `• ${chalk.green('/browser-screenshot')} - Take screenshot\n` +
-      `• ${chalk.green('/browser-exit')} - Exit mode\n` +
-      `• ${chalk.green('/browser-info')} - Show this info`,
+        `${chalk.cyan('Description:')}\n${info.description}\n\n` +
+        `${chalk.cyan('Status:')} ${available ? chalk.green('Available') : chalk.red('Unavailable')}\n\n` +
+        `${chalk.cyan('Features:')}\n${info.features.map((f) => `• ${f}`).join('\n')}\n\n` +
+        `${chalk.cyan('Requirements:')}\n${info.requirements.map((r) => `• ${r}`).join('\n')}\n\n` +
+        `${chalk.cyan('Capabilities:')}\n${info.capabilities.map((c) => `• ${c}`).join('\n')}\n\n` +
+        `${chalk.cyan('Commands:')}\n` +
+        `• ${chalk.green('/browser')} [url] - Start browser mode\n` +
+        `• ${chalk.green('/browser-status')} - Show status\n` +
+        `• ${chalk.green('/browser-screenshot')} - Take screenshot\n` +
+        `• ${chalk.green('/browser-exit')} - Exit mode\n` +
+        `• ${chalk.green('/browser-info')} - Show this info`,
       {
         padding: 1,
         margin: 1,
@@ -15381,7 +16196,7 @@ export async function handleGoatSDKCommand(args: string[]): Promise<void> {
     console.log(
       boxen(
         `Failed to execute GOAT command: ${error.message}` +
-        '\n\nTips:\n- Ensure GOAT_EVM_PRIVATE_KEY is set\n- Run /goat init first\n- Use /goat status to check setup',
+          '\n\nTips:\n- Ensure GOAT_EVM_PRIVATE_KEY is set\n- Run /goat init first\n- Use /goat status to check setup',
         {
           title: 'GOAT Error',
           padding: 1,

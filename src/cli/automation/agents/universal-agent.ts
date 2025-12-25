@@ -218,7 +218,7 @@ export class UniversalAgent extends EventEmitter implements Agent {
         retryableErrors: ['NetworkError', 'TimeoutError', 'ENOENT'],
       },
       enabledTools: ['file-system', 'code-analysis', 'execution', 'git', 'npm'],
-      guidanceFiles: ['NIKOCLI.md', 'README.md', 'package.json'],
+      guidanceFiles: ['NIKOCLI.md', 'README.md', 'package.json', 'todo.md'],
       logLevel: 'info',
       permissions: {
         canReadFiles: true,

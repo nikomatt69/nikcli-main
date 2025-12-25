@@ -4,7 +4,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import path, { extname, join, relative, resolve } from 'node:path'
 import chalk from 'chalk'
 import { advancedUI } from '../ui/advanced-cli-ui'
-import { WorkspaceCacheManager, FileMetadata } from './workspace-cache-manager'
+import { type FileMetadata, WorkspaceCacheManager } from './workspace-cache-manager'
 
 export interface FileEmbedding {
   path: string
@@ -127,7 +127,7 @@ export class WorkspaceRAG {
       try {
         const pkg = JSON.parse(readFileSync(packageJsonPath, 'utf-8'))
         return pkg.name || 'unnamed-project'
-      } catch { }
+      } catch {}
     }
     return require('node:path').basename(path)
   }
@@ -148,7 +148,9 @@ export class WorkspaceRAG {
         return this.context
       }
       if (!process.env.NIKCLI_QUIET_STARTUP) {
-        advancedUI.logInfo(chalk.yellow(`🔄 Incremental update: ${changes.changed.length} changed, ${changes.added.length} added`))
+        advancedUI.logInfo(
+          chalk.yellow(`🔄 Incremental update: ${changes.changed.length} changed, ${changes.added.length} added`)
+        )
       }
       // Aggiorna solo i file modificati
       await this.updateChangedFiles(changes)
@@ -181,7 +183,7 @@ export class WorkspaceRAG {
   /**
    * Aggiorna solo i file che sono cambiati
    */
-  private async updateChangedFiles(changes: { changed: string[], removed: string[], added: string[] }): Promise<void> {
+  private async updateChangedFiles(changes: { changed: string[]; removed: string[]; added: string[] }): Promise<void> {
     // Rimuovi file cancellati
     for (const path of changes.removed) {
       this.context.files.delete(path)

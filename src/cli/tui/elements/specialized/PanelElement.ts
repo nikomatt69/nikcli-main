@@ -3,9 +3,9 @@
  * Base element for all panel-type UI components
  */
 
-import { BaseElement, ElementConfig, OpenTUIElement } from '../base/BaseElement'
 import { eventBus } from '../../core/EventBus'
 import { tuiState } from '../../core/TUIState'
+import { BaseElement, type ElementConfig, type OpenTUIElement } from '../base/BaseElement'
 
 export interface PanelElementConfig extends ElementConfig {
   type: 'panel'
@@ -43,7 +43,7 @@ export class PanelElement extends BaseElement {
         width: this.config.width,
         height: this.config.height,
         border: this.config.border,
-        style: this.config.style
+        style: this.config.style,
       },
       visible: this.config.hidden !== true,
       focused: false,
@@ -60,7 +60,7 @@ export class PanelElement extends BaseElement {
         }
       },
       clear: () => {
-        this.element.children.forEach(child => {
+        this.element.children.forEach((child) => {
           child.parent = null
         })
         this.element.children = []
@@ -82,7 +82,7 @@ export class PanelElement extends BaseElement {
       },
       destroy: () => {
         this.content?.clear()
-      }
+      },
     }
   }
 
@@ -101,7 +101,7 @@ export class PanelElement extends BaseElement {
     eventBus.emit('tui:panel:mounted', {
       panelId,
       id: this.config.id,
-      title: (this.config as PanelElementConfig).title
+      title: (this.config as PanelElementConfig).title,
     })
   }
 
@@ -112,7 +112,7 @@ export class PanelElement extends BaseElement {
 
     eventBus.emit('tui:panel:unmounted', {
       panelId,
-      id: this.config.id
+      id: this.config.id,
     })
   }
 
@@ -139,7 +139,7 @@ export class PanelElement extends BaseElement {
         show: () => {},
         hide: () => {},
         update: () => {},
-        destroy: () => {}
+        destroy: () => {},
       }
       this.element.append(this.titleBar)
     }
@@ -154,7 +154,7 @@ export class PanelElement extends BaseElement {
         parent: this.element,
         children: [],
         props: {
-          scrollable: this.config.scrollable !== false
+          scrollable: this.config.scrollable !== false,
         },
         visible: true,
         focused: false,
@@ -170,7 +170,7 @@ export class PanelElement extends BaseElement {
           }
         },
         clear: () => {
-          this.content!.children.forEach(child => {
+          this.content!.children.forEach((child) => {
             child.parent = null
           })
           this.content!.children = []
@@ -192,7 +192,7 @@ export class PanelElement extends BaseElement {
         },
         destroy: () => {
           this.content?.clear()
-        }
+        },
       }
       this.element.append(this.content)
     }
@@ -257,7 +257,7 @@ export class PanelElement extends BaseElement {
    * Update panel title
    */
   updateTitle(title: string): void {
-    (this.config as PanelElementConfig).title = title
+    ;(this.config as PanelElementConfig).title = title
     if (this.titleBar) {
       this.titleBar.text = title
       this.titleBar.update({ text: title })
@@ -268,7 +268,7 @@ export class PanelElement extends BaseElement {
    * Update panel content
    */
   updateContent(content: string): void {
-    (this.config as PanelElementConfig).content = content
+    ;(this.config as PanelElementConfig).content = content
     if (this.content) {
       this.content.text = content
       this.content.update({ text: content })
@@ -305,7 +305,7 @@ export class PanelElement extends BaseElement {
       show: () => {},
       hide: () => {},
       update: () => {},
-      destroy: () => {}
+      destroy: () => {},
     }
   }
 
@@ -338,7 +338,7 @@ export class PanelElement extends BaseElement {
       show: () => {},
       hide: () => {},
       update: () => {},
-      destroy: () => {}
+      destroy: () => {},
     }
   }
 
@@ -371,7 +371,7 @@ export class PanelElement extends BaseElement {
       show: () => {},
       hide: () => {},
       update: () => {},
-      destroy: () => {}
+      destroy: () => {},
     }
   }
 
@@ -393,7 +393,7 @@ export class PanelElement extends BaseElement {
       parent: this.content!,
       children: [],
       props: { todos },
-      text: todos.map(todo => `${todo.completed ? '✓' : '○'} ${todo.text}`).join('\n'),
+      text: todos.map((todo) => `${todo.completed ? '✓' : '○'} ${todo.text}`).join('\n'),
       visible: true,
       focused: false,
       append: () => {},
@@ -404,7 +404,7 @@ export class PanelElement extends BaseElement {
       show: () => {},
       hide: () => {},
       update: () => {},
-      destroy: () => {}
+      destroy: () => {},
     }
   }
 
@@ -426,7 +426,7 @@ export class PanelElement extends BaseElement {
       parent: this.content!,
       children: [],
       props: { agents },
-      text: agents.map(agent => `${agent.name} (${agent.status})`).join('\n'),
+      text: agents.map((agent) => `${agent.name} (${agent.status})`).join('\n'),
       visible: true,
       focused: false,
       append: () => {},
@@ -437,7 +437,7 @@ export class PanelElement extends BaseElement {
       show: () => {},
       hide: () => {},
       update: () => {},
-      destroy: () => {}
+      destroy: () => {},
     }
   }
 
@@ -448,7 +448,7 @@ export class PanelElement extends BaseElement {
     this.isPinned = true
     ;(this.config as PanelElementConfig).pinned = true
     eventBus.emit('tui:panel:pinned', {
-      panelId: (this.config as PanelElementConfig).panelId || this.config.id
+      panelId: (this.config as PanelElementConfig).panelId || this.config.id,
     })
   }
 
@@ -459,7 +459,7 @@ export class PanelElement extends BaseElement {
     this.isPinned = false
     ;(this.config as PanelElementConfig).pinned = false
     eventBus.emit('tui:panel:unpinned', {
-      panelId: (this.config as PanelElementConfig).panelId || this.config.id
+      panelId: (this.config as PanelElementConfig).panelId || this.config.id,
     })
   }
 
@@ -483,7 +483,7 @@ export class PanelElement extends BaseElement {
     this.isClosed = true
     this.hide()
     eventBus.emit('tui:panel:closed', {
-      panelId: (this.config as PanelElementConfig).panelId || this.config.id
+      panelId: (this.config as PanelElementConfig).panelId || this.config.id,
     })
   }
 
@@ -495,7 +495,7 @@ export class PanelElement extends BaseElement {
 
     eventBus.emit('tui:panel:split', {
       panelId: (this.config as PanelElementConfig).panelId || this.config.id,
-      direction
+      direction,
     })
 
     // TODO: Return new PanelElement instance
@@ -509,7 +509,7 @@ export class PanelElement extends BaseElement {
     // TODO: Implement resize logic
     eventBus.emit('tui:panel:resized', {
       panelId: (this.config as PanelElementConfig).panelId || this.config.id,
-      percent
+      percent,
     })
   }
 

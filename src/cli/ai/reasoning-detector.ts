@@ -561,9 +561,7 @@ export class ReasoningDetector {
         // AI SDK v4: uses budgetTokens (camelCase), NOT budget_tokens
         return {
           anthropic: {
-            thinking: enabled
-              ? { type: 'enabled' as const, budgetTokens }
-              : { type: 'disabled' as const },
+            thinking: enabled ? { type: 'enabled' as const, budgetTokens } : { type: 'disabled' as const },
           },
         }
 

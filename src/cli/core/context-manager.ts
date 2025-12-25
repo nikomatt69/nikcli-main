@@ -169,7 +169,10 @@ export class ContextManager {
     }
 
     if (removedCount > 0) {
-      advancedUI.logFunctionUpdate('warning', `⚠︎ Trimmed ${removedCount} oldest message metrics to cap at ${this.MAX_METRICS_SIZE}`)
+      advancedUI.logFunctionUpdate(
+        'warning',
+        `⚠︎ Trimmed ${removedCount} oldest message metrics to cap at ${this.MAX_METRICS_SIZE}`
+      )
     }
   }
   /**
@@ -347,7 +350,9 @@ export class ContextManager {
    */
   optimizeContext(messages: CoreMessage[]): { optimizedMessages: CoreMessage[]; metrics: ContextMetrics } {
     // For sync compatibility, use a simplified version without RAG integration
-    advancedUI.logInfo(chalk.blue('⚡︎ Using legacy context optimization (consider upgrading to optimizeContextAdvanced)'))
+    advancedUI.logInfo(
+      chalk.blue('⚡︎ Using legacy context optimization (consider upgrading to optimizeContextAdvanced)')
+    )
 
     this.checkMetricsSize()
     if (messages.length === 0) {
@@ -395,7 +400,10 @@ export class ContextManager {
       }
     }
 
-    advancedUI.logFunctionUpdate('warning', `⚠︎ Context optimization needed: ${totalTokens} tokens > ${this.activeMaxTokens} limit`)
+    advancedUI.logFunctionUpdate(
+      'warning',
+      `⚠︎ Context optimization needed: ${totalTokens} tokens > ${this.activeMaxTokens} limit`
+    )
 
     // Use enhanced compression but synchronously
     const optimized = this.compressContextIntelligent(messages)
@@ -1066,12 +1074,12 @@ export class ContextManager {
       const sentences = content.split(/[.!?]+/)
       questions.push(...sentences.filter((s) => s.includes('?')))
 
-        // Track actions
-        ;['create', 'modify', 'delete', 'fix', 'implement', 'test'].forEach((action) => {
-          if (content.toLowerCase().includes(action)) {
-            actions.add(action)
-          }
-        })
+      // Track actions
+      ;['create', 'modify', 'delete', 'fix', 'implement', 'test'].forEach((action) => {
+        if (content.toLowerCase().includes(action)) {
+          actions.add(action)
+        }
+      })
     })
 
     if (actions.size > 0) summary.push(`Actions: ${Array.from(actions).join(', ')}`)

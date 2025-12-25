@@ -88,7 +88,7 @@ export class GuidanceManager {
   }
 
   private async scanProjectGuidance(dir: string): Promise<void> {
-    const guidanceTypes = ['CLAUDE.md', 'CODEX.md', 'AGENTS.md', 'NIKOCLI.md']
+    const guidanceTypes = ['CLAUDE.md', 'CODEX.md', 'AGENTS.md', 'NIKOCLI.md', 'todo.md']
 
     try {
       const items = fs.readdirSync(dir, { withFileTypes: true })

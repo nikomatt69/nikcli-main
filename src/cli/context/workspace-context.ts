@@ -1,13 +1,12 @@
 import { createHash } from 'node:crypto'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import { bunFile, bunGlob, fileExistsSync, readTextSync } from '../utils/bun-compat'
-
 import { tool } from 'ai'
 import chalk from 'chalk'
 import { z } from 'zod'
 import { toolsManager } from '../tools/tools-manager'
 import { advancedUI } from '../ui/advanced-cli-ui'
+import { bunFile, bunGlob, fileExistsSync, readTextSync } from '../utils/bun-compat'
 // Import new unified components
 import { createFileFilter, type FileFilterSystem } from './file-filter-system'
 import { unifiedRAGSystem } from './rag-system'
@@ -137,12 +136,12 @@ export class WorkspaceContextManager {
     path: string
     max?: number
   }> = [
-      { kind: 'directory', path: 'src/cli/background-agents', max: 8 },
-      { kind: 'directory', path: 'src/cli/cloud', max: 6 },
-      { kind: 'directory', path: 'src/cli/github-bot', max: 4 },
-      { kind: 'file', path: 'src/cli/core/api-key-manager.ts' },
-      { kind: 'file', path: 'src/cli/core/config-manager.ts' },
-    ]
+    { kind: 'directory', path: 'src/cli/background-agents', max: 8 },
+    { kind: 'directory', path: 'src/cli/cloud', max: 6 },
+    { kind: 'directory', path: 'src/cli/github-bot', max: 4 },
+    { kind: 'file', path: 'src/cli/core/api-key-manager.ts' },
+    { kind: 'file', path: 'src/cli/core/config-manager.ts' },
+  ]
 
   // Integrated components
   private fileFilter: FileFilterSystem
@@ -193,7 +192,7 @@ export class WorkspaceContextManager {
       respectGitignore: true,
       maxFileSize: 1024 * 1024, // 1MB
       maxTotalFiles: 1000,
-      includeExtensions: ['.ts', '.js', '.tsx', '.jsx', '.py', '.md', '.json', '.yaml', '.yml',],
+      includeExtensions: ['.ts', '.js', '.tsx', '.jsx', '.py', '.md', '.json', '.yaml', '.yml'],
       excludeExtensions: [],
       excludeDirectories: ['node_modules', 'dist', 'build', '.cache', '.git'],
       excludePatterns: [],
@@ -279,28 +278,31 @@ export class WorkspaceContextManager {
     // RAG search promise (if available)
     let ragSearchPromise: Promise<ContextSearchResult[]> | null = null
     if (useRAG && this.context.ragAvailable && this.ragInitialized) {
-      ragSearchPromise = unifiedRAGSystem.search(query, {
-        limit: Math.ceil(limit * 0.6),
-        semanticOnly: true,
-      }).then((ragResults) => {
-        const transformedResults: ContextSearchResult[] = []
-        for (const ragResult of ragResults) {
-          const file = this.context.files.get(ragResult.path)
-          if (file) {
-            transformedResults.push({
-              file,
-              score: ragResult.score,
-              matchType: 'semantic',
-              snippet: `${ragResult.content.substring(0, 200)}...`,
-              highlights: [query],
-            })
+      ragSearchPromise = unifiedRAGSystem
+        .search(query, {
+          limit: Math.ceil(limit * 0.6),
+          semanticOnly: true,
+        })
+        .then((ragResults) => {
+          const transformedResults: ContextSearchResult[] = []
+          for (const ragResult of ragResults) {
+            const file = this.context.files.get(ragResult.path)
+            if (file) {
+              transformedResults.push({
+                file,
+                score: ragResult.score,
+                matchType: 'semantic',
+                snippet: `${ragResult.content.substring(0, 200)}...`,
+                highlights: [query],
+              })
+            }
           }
-        }
-        return transformedResults
-      }).catch((_error) => {
-        console.log(chalk.yellow('⚠︎ RAG search failed, using local semantic search'))
-        return []
-      })
+          return transformedResults
+        })
+        .catch((_error) => {
+          console.log(chalk.yellow('⚠︎ RAG search failed, using local semantic search'))
+          return []
+        })
       searchPromises.push(ragSearchPromise)
     }
 

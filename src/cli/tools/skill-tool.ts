@@ -1,6 +1,6 @@
 import { z } from 'zod'
-import { type AnthropicSkill, skillProvider } from '../providers/skills'
 import { claudeAgentProvider, type SkillExecutionResult } from '../providers/claude-agents'
+import { type AnthropicSkill, skillProvider } from '../providers/skills'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
 
 // ====================== ZOD SCHEMAS ======================
@@ -47,10 +47,7 @@ export class SkillTool extends BaseTool {
   /**
    * Execute a skill by name
    */
-  async execute(
-    skillName: string,
-    options: SkillExecuteOptions = { stream: true }
-  ): Promise<ToolExecutionResult> {
+  async execute(skillName: string, options: SkillExecuteOptions = { stream: true }): Promise<ToolExecutionResult> {
     const startTime = Date.now()
 
     try {
@@ -79,10 +76,7 @@ export class SkillTool extends BaseTool {
     }
   }
 
-  private async executeSkill(
-    skillName: string,
-    options: SkillExecuteOptions
-  ): Promise<SkillToolResult> {
+  private async executeSkill(skillName: string, options: SkillExecuteOptions): Promise<SkillToolResult> {
     // Validate options
     const validatedOptions = SkillExecuteOptionsSchema.parse(options)
 
@@ -140,10 +134,7 @@ export class SkillTool extends BaseTool {
   /**
    * Install a skill from the Anthropic repository
    */
-  async installSkill(
-    skillName: string,
-    options: SkillInstallOptions = { force: false }
-  ): Promise<ToolExecutionResult> {
+  async installSkill(skillName: string, options: SkillInstallOptions = { force: false }): Promise<ToolExecutionResult> {
     const startTime = Date.now()
 
     try {

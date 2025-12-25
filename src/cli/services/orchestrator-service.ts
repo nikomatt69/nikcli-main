@@ -8,12 +8,12 @@ import { MiddlewareBootstrap, middlewareManager } from '../middleware'
 import { ExecutionPolicyManager } from '../policies/execution-policy'
 import { advancedUI } from '../ui/advanced-cli-ui'
 import { diffManager } from '../ui/diff-manager'
+import { logger } from '../utils/logger'
+import { structuredLogger } from '../utils/structured-logger'
 import { type AgentTask, agentService } from './agent-service'
 import { lspService } from './lsp-service'
 import { planningService } from './planning-service'
 import { toolService } from './tool-service'
-import { logger } from '../utils/logger'
-import { structuredLogger } from '../utils/structured-logger'
 // Ensure session todo tools are registered for Plan Mode
 import '../tools/todo-tools'
 
@@ -167,7 +167,11 @@ export class OrchestratorService extends EventEmitter {
       const nikCliActive = (global as any).__nikCLI?.eventsSubscribed
       if (!nikCliActive) {
         structuredLogger.info('OrchestratorService', `Agent ${task.agentType} started`)
-        logger.debug('Agent task started', { agentType: task.agentType, taskId: task.id, taskPreview: task.task.slice(0, 50) })
+        logger.debug('Agent task started', {
+          agentType: task.agentType,
+          taskId: task.id,
+          taskPreview: task.task.slice(0, 50),
+        })
       }
     })
 
@@ -175,7 +179,12 @@ export class OrchestratorService extends EventEmitter {
       // Avoid duplicate logging if NikCLI is active
       const nikCliActive = (global as any).__nikCLI?.eventsSubscribed
       if (!nikCliActive) {
-        logger.debug('Agent task progress', { agentType: task.agentType, taskId: task.id, progress: update.progress, description: update.description })
+        logger.debug('Agent task progress', {
+          agentType: task.agentType,
+          taskId: task.id,
+          progress: update.progress,
+          description: update.description,
+        })
       }
     })
 
@@ -183,7 +192,12 @@ export class OrchestratorService extends EventEmitter {
       // Avoid duplicate logging if NikCLI is active
       const nikCliActive = (global as any).__nikCLI?.eventsSubscribed
       if (!nikCliActive) {
-        logger.debug('Agent tool usage', { agentType: task.agentType, taskId: task.id, tool: update.tool, description: update.description })
+        logger.debug('Agent tool usage', {
+          agentType: task.agentType,
+          taskId: task.id,
+          tool: update.tool,
+          description: update.description,
+        })
       }
     })
 
@@ -603,14 +617,17 @@ export class OrchestratorService extends EventEmitter {
     const toolHistory = toolService.getExecutionHistory().slice(-5)
     const planStats = planningService.getStatistics()
 
-    logger.debug('Showing services status', { lspCount: lspStatus.length, toolHistoryCount: toolHistory.length, planStats })
+    logger.debug('Showing services status', {
+      lspCount: lspStatus.length,
+      toolHistoryCount: toolHistory.length,
+      planStats,
+    })
 
     structuredLogger.info('OrchestratorService', 'Services Status')
     advancedUI.logInfo('Services Status', 'Status')
 
     lspStatus.forEach((server) => {
-      const statusColor =
-        server.status === 'running' ? 'green' : server.status === 'error' ? 'red' : 'yellow'
+      const statusColor = server.status === 'running' ? 'green' : server.status === 'error' ? 'red' : 'yellow'
       advancedUI.logInfo(`  ● ${server.name}: ${server.status}`, `LSP (${statusColor})`)
     })
 

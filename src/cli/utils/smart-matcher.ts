@@ -51,11 +51,7 @@ export class SmartMatcher {
   /**
    * Find best match for a search pattern in content
    */
-  public findBestMatch(
-    content: string,
-    searchPattern: string,
-    options: MatchOptions = {}
-  ): MatchResult {
+  public findBestMatch(content: string, searchPattern: string, options: MatchOptions = {}): MatchResult {
     const cacheKey = this.getCacheKey(content, searchPattern, options)
 
     if (this.matchCache.has(cacheKey)) {
@@ -71,11 +67,7 @@ export class SmartMatcher {
   /**
    * Compute the actual match (not cached)
    */
-  private computeMatch(
-    content: string,
-    searchPattern: string,
-    options: MatchOptions
-  ): MatchResult {
+  private computeMatch(content: string, searchPattern: string, options: MatchOptions): MatchResult {
     const fuzzyThreshold = options.fuzzyThreshold ?? 0.85
     const ignoreWhitespace = options.ignoreWhitespace ?? false
     const ignoreIndentation = options.ignoreIndentation ?? false
@@ -128,7 +120,7 @@ export class SmartMatcher {
       return {
         found: false,
         confidence: 0,
-        alternatives: suggestions.map(s => ({
+        alternatives: suggestions.map((s) => ({
           lineNumber: s.lineNumber,
           content: s.content,
           similarity: s.similarity,
@@ -145,7 +137,7 @@ export class SmartMatcher {
           type: 'AMBIGUOUS_MATCH',
           message: `Pattern found ${matches.length} times. Use replaceAll or provide more context.`,
         },
-        alternatives: matches.map(m => ({
+        alternatives: matches.map((m) => ({
           lineNumber: m.lineNumber + 1,
           content: m.line,
           similarity: m.confidence,
@@ -155,9 +147,7 @@ export class SmartMatcher {
     }
 
     // Found match - select the best one
-    const bestMatch = matches.reduce((best, current) =>
-      current.confidence > best.confidence ? current : best
-    )
+    const bestMatch = matches.reduce((best, current) => (current.confidence > best.confidence ? current : best))
 
     return {
       found: true,

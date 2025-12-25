@@ -3,21 +3,21 @@
  * Main entry point for NikCLI TUI functionality
  */
 
-import { TUIApplication, tuiApplication } from './TUIApplication'
 import { eventBus } from './core/EventBus'
-import { tuiState, TUIStateManager } from './core/TUIState'
 import { navigationSystem } from './core/NavigationSystem'
-import { layoutManager } from './layout/LayoutManager'
+import { TUIStateManager, tuiState } from './core/TUIState'
 import { BaseElement, type ElementConfig, type OpenTUIElement } from './elements/base/BaseElement'
 import { ElementManager, elementManager } from './elements/base/ElementManager'
 import { FocusManager, focusManager } from './elements/base/FocusManager'
+import { type ChatMessage, ChatPanel, type ChatPanelConfig } from './elements/panels/ChatPanel'
+import { DiffPanel, type DiffPanelConfig } from './elements/panels/DiffPanel'
+import { type TodoItem, TodoPanel, type TodoPanelConfig } from './elements/panels/TodoPanel'
 import { PanelElement, type PanelElementConfig } from './elements/specialized/PanelElement'
 import { StreamElement, type StreamElementConfig } from './elements/specialized/StreamElement'
-import { DiffPanel, type DiffPanelConfig } from './elements/panels/DiffPanel'
-import { TodoPanel, type TodoPanelConfig, type TodoItem } from './elements/panels/TodoPanel'
-import { ChatPanel, type ChatPanelConfig, type ChatMessage } from './elements/panels/ChatPanel'
 import { streamttyAdapter } from './integration/StreamttyAdapter'
 import { themeAdapter } from './integration/ThemeAdapter'
+import { layoutManager } from './layout/LayoutManager'
+import { TUIApplication, tuiApplication } from './TUIApplication'
 
 export { TUIApplication, tuiApplication }
 export { eventBus }
@@ -53,12 +53,7 @@ export async function startTUI(config?: any): Promise<void> {
  * Check if TUI is supported in current environment
  */
 export function isTUISupported(): boolean {
-  return Boolean(
-    process.stdin.isTTY &&
-    process.stdout.isTTY &&
-    process.env.TERM &&
-    process.env.TERM !== 'dumb'
-  )
+  return Boolean(process.stdin.isTTY && process.stdout.isTTY && process.env.TERM && process.env.TERM !== 'dumb')
 }
 
 /**
@@ -74,7 +69,7 @@ export function getTUICapabilities(): {
     mouse: true, // TODO: Detect mouse support
     keyboard: true, // TODO: Detect keyboard support
     colors: true, // TODO: Detect color support
-    unicode: true // TODO: Detect unicode support
+    unicode: true, // TODO: Detect unicode support
   }
 }
 
@@ -94,5 +89,5 @@ export default {
   elementManager,
   focusManager,
   streamttyAdapter,
-  themeAdapter
+  themeAdapter,
 }

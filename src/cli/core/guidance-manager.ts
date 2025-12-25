@@ -8,7 +8,7 @@ import path from 'node:path'
  */
 export class GuidanceManager {
   private files = [
-    path.join(os.homedir(), '.nikcli', 'AGENTS.md', 'CLAUDE.md', 'NIKOCLI.md', 'CODEX.md'),
+    path.join(os.homedir(), '.nikcli', 'AGENTS.md', 'CLAUDE.md', 'NIKOCLI.md', 'CODEX.md', 'todo.md'),
     'AGENTS.md',
     path.join(process.cwd(), 'AGENTS.md'),
   ]

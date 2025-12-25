@@ -7,11 +7,6 @@
  */
 
 import { EventEmitter } from 'node:events'
-import type { AgentInstance } from './agent-router'
-import type { AgentTask as RouterAgentTask, TaskPriority as RouterTaskPriority } from './agent-router'
-import type { AgentMetrics as BaseAgentMetrics } from './base-agent'
-import { BaseAgent } from './base-agent'
-import { EventBus, EventTypes } from './event-bus'
 import type {
   Agent,
   AgentConfig,
@@ -23,6 +18,10 @@ import type {
   AgentTodo,
   TaskPriority,
 } from '../../types/types'
+import type { AgentInstance, AgentTask as RouterAgentTask, TaskPriority as RouterTaskPriority } from './agent-router'
+import type { AgentMetrics as BaseAgentMetrics } from './base-agent'
+import { BaseAgent } from './base-agent'
+import { EventBus, EventTypes } from './event-bus'
 
 // ============================================================
 // POLYMARKET AGENT TYPES

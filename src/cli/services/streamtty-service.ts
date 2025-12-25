@@ -1,3 +1,4 @@
+import { EventEmitter } from 'node:events'
 import {
   applySyntaxHighlight,
   colorizeBlock,
@@ -9,7 +10,6 @@ import {
   StreamProtocol,
   syntaxColors,
 } from '@nicomatt69/streamtty'
-import { EventEmitter } from 'node:events'
 import chalk from 'chalk'
 import { TerminalOutputManager, terminalOutputManager } from '../ui/terminal-output-manager'
 
