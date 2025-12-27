@@ -28,16 +28,12 @@
     },
     "tabs": [
         {
-            "name": "API Reference",
-            "url": "api-reference"
+            "name": "CLI Reference",
+            "url": "cli-reference"
         },
         {
-            "name": "Developer Guide",
-            "url": "developer-guide"
-        },
-        {
-            "name": "Examples",
-            "url": "examples"
+            "name": "Agent System",
+            "url": "agent-system"
         }
     ],
     "anchors": [
@@ -66,12 +62,10 @@
                 "cli-reference/terminal-ops",
                 "cli-reference/vm-commands",
                 "cli-reference/web3-commands",
+                "cli-reference/browse-commands",
                 "cli-reference/security-commands",
                 "cli-reference/session-management",
-                "cli-reference/configuration",
-                "cli-reference/background-agents",
-                "cli-reference/daemon-commands",
-                "cli-reference/browse-commands"
+                "cli-reference/background-agents"
             ]
         },
         {
@@ -82,28 +76,9 @@
             ]
         },
         {
-            "group": "Planning System",
+            "group": "Advanced",
             "pages": [
-                "planning-system/overview",
-                "planning-system/plan-generation",
-                "planning-system/execution-flow",
-                "planning-system/plan-templates"
-            ]
-        },
-        {
-            "group": "Context & RAG",
-            "pages": [
-                "context-rag/overview",
-                "context-rag/workspace-indexing",
-                "context-rag/semantic-search",
-                "context-rag/embeddings"
-            ]
-        },
-        {
-            "group": "Architecture",
-            "pages": [
-                "architecture/overview",
-                "architecture/layered-design"
+                "advanced/token-management"
             ]
         },
         {
@@ -111,19 +86,6 @@
             "pages": [
                 "troubleshooting/common-issues",
                 "troubleshooting/faq"
-            ]
-        },
-        {
-            "group": "Core APIs",
-            "pages": [
-                "api-reference/core-apis"
-            ]
-        },
-        {
-            "group": "Examples",
-            "pages": [
-                "examples/basic-workflows",
-                "examples/advanced-automation"
             ]
         }
     ],
@@ -138,15 +100,5 @@
     },
     "search": {
         "prompt": "Search NikCLI documentation..."
-    },
-    "analytics": {
-        "ga4": {
-            "measurementId": "G-XXXXXXXXXX"
-        }
-    },
-    "api": {
-        "playground": {
-            "mode": "show"
-        }
     }
 }

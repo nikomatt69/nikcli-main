@@ -1,381 +1,421 @@
 ---
 title: "CLI Commands Overview"
-description: "Complete reference of all NikCLI slash commands with syntax and examples"
+description: "Complete reference of all NikCLI slash commands"
 ---
 
 # CLI Commands Overview
 
-NikCLI provides 144 interactive slash commands organized into functional categories. All commands are prefixed with `/` and can be used in the interactive CLI session.
-
-## Quick Reference
-
-| Command | Category | Description |
-|---------|----------|-------------|
-| `/help` | System | Show comprehensive help and command reference |
-| `/quit`, `/exit` | System | Exit NikCLI safely |
-| `/clear` | System | Clear current session context |
-| `/debug` | System | Show detailed debug information |
-| `/status` | System | Show comprehensive system status and health |
+NikCLI provides 150+ interactive slash commands organized into functional categories. All commands are prefixed with `/`.
 
 ## Command Categories
 
-### 🏠 System Commands
-Core system operations and information.
+### System Commands
 
 | Command | Description | Example |
 |---------|-------------|---------|
-| `/help` | Show comprehensive help guide | `/help` |
-| `/quit`, `/exit` | Exit NikCLI safely | `/quit` |
-| `/clear` | Clear current session context | `/clear` |
-| `/debug` | Show detailed debug information | `/debug` |
-| `/dashboard [action]` | Toggle analytics dashboard | `/dashboard start` |
-| `/stats` | Show session statistics | `/stats` |
-| `/system [info]` | Show system information | `/system` |
+| `/help` | Show comprehensive help | `/help` |
+| `/exit`, `/quit` | Exit NikCLI | `/exit` |
+| `/clear` | Clear session context | `/clear` |
+| `/status` | Show system status | `/status` |
+| `/debug` | Show debug information | `/debug` |
+| `/init [--force]` | Initialize project context | `/init` |
+| `/dashboard` | Toggle analytics dashboard | `/dashboard start` |
 
-### 🤖 AI Model Management
-Configure and manage AI models and providers.
-
-| Command | Description | Example |
-|---------|-------------|---------|
-| `/model [name]` | Switch AI model or show current | `/model claude-3-5-sonnet` |
-| `/models` | List available AI models | `/models` |
-| `/set-key [provider]` | Set API keys for AI providers | `/set-key anthropic` |
-| `/router [action]` | Configure model routing | `/router status` |
-| `/temp [value]` | Set model temperature (0.0-2.0) | `/temp 0.7` |
-
-### ⚙️ Configuration
-System configuration and environment management.
+### AI Model Management
 
 | Command | Description | Example |
 |---------|-------------|---------|
-| `/config` | Show current configuration | `/config` |
-| `/env [var] [value]` | Manage environment variables | `/env NODE_ENV production` |
-| `/style [action]` | Configure output styles | `/style set compact` |
-| `/styles` | List available output styles | `/styles` |
+| `/model <name>` | Switch AI model | `/model claude-3-5-sonnet` |
+| `/models` | List available models | `/models` |
+| `/temp <0.0-2.0>` | Set temperature | `/temp 0.7` |
+| `/system <prompt>` | Set system prompt | `/system "You are a React expert"` |
+| `/router [action]` | Control model routing | `/router status` |
 
-### 👥 Agent Management
-Control AI agents and autonomous execution.
-
-| Command | Description | Example |
-|---------|-------------|---------|
-| `/agents` | List all available AI agents | `/agents` |
-| `/agent [name] [task]` | Execute task with specific agent | `/agent backend-expert "optimize API"` |
-| `/auto [task]` | Fully autonomous task execution | `/auto "build React app"` |
-| `/parallel [tasks]` | Execute multiple tasks in parallel | `/parallel "test, lint, build"` |
-| `/factory` | Show agent factory status | `/factory` |
-| `/create-agent [spec]` | Create custom agent | `/create-agent frontend` |
-| `/launch-agent [name]` | Launch created agent | `/launch-agent my-agent` |
-
-### 📋 Planning & Todo Management
-Task planning and execution tracking.
+### API Key Management
 
 | Command | Description | Example |
 |---------|-------------|---------|
-| `/plan [task]` | Generate execution plan | `/plan "migrate to TypeScript"` |
-| `/todo [action]` | Manage todo items | `/todo add "fix bug #123"` |
-| `/todos` | Show all todos | `/todos` |
-| `/compact [mode]` | Toggle compact display | `/compact on` |
-| `/super-compact` | Ultra-compact display mode | `/super-compact` |
-| `/approval [action]` | Manage approval system | `/approval enable` |
-| `/plan-clean` | Clean completed plan items | `/plan-clean` |
-| `/todo-hide` | Hide completed todos | `/todo-hide` |
-| `/todo-show` | Show all todos | `/todo-show` |
+| `/set-key <provider> <key>` | Set AI provider key | `/set-key anthropic sk-ant-...` |
+| `/set-key-redis` | Configure Redis/Upstash | `/set-key-redis` |
+| `/set-vector-key` | Configure Upstash Vector | `/set-vector-key` |
+| `/set-key-bb` | Configure Browserbase | `/set-key-bb` |
+| `/set-key-figma` | Configure Figma | `/set-key-figma` |
+| `/set-coin-keys` | Configure Coinbase | `/set-coin-keys` |
+| `/set-key-nikdrive <key>` | Configure NikDrive | `/set-key-nikdrive` |
 
-### 🔒 Security Commands
-Security settings and approval management.
+### Embedding Models
 
 | Command | Description | Example |
 |---------|-------------|---------|
-| `/security [action]` | Configure security settings | `/security status` |
-| `/dev-mode [on\|off]` | Toggle development mode | `/dev-mode on` |
-| `/safe-mode` | Enable safe mode | `/safe-mode` |
-| `/clear-approvals` | Clear pending approvals | `/clear-approvals` |
+| `/embed-model <name>` | Switch embedding model | `/embed-model text-embedding-3-large` |
+| `/embed-models` | List embedding models | `/embed-models` |
+| `/embed` | Show embedding stats | `/embed` |
+| `/set-key-embed <provider> <key>` | Set embedding API key | `/set-key-embed openai sk-...` |
 
-### 📁 File Operations
-File system operations and content management.
-
-| Command | Description | Example |
-|---------|-------------|---------|
-| `/read [file]` | Read file contents | `/read package.json` |
-| `/write [file] [content]` | Write content to file | `/write README.md "# Project"` |
-| `/edit [file]` | Edit file interactively | `/edit src/app.ts` |
-| `/ls [path]` | List files and directories | `/ls src/` |
-| `/search [pattern]` | Search files by pattern | `/search "TODO"` |
-| `/grep [pattern]` | Search file contents | `/grep "function.*export"` |
-
-### 💻 Terminal Operations
-Command execution and process management.
+### Configuration
 
 | Command | Description | Example |
 |---------|-------------|---------|
-| `/run [command]` | Execute shell command | `/run npm install` |
-| `/sh [command]` | Execute shell command (alias) | `/sh ls -la` |
-| `/bash [command]` | Execute bash command | `/bash echo $PATH` |
-| `/install [package]` | Install packages | `/install lodash` |
-| `/npm [args]` | Run npm commands | `/npm run build` |
-| `/yarn [args]` | Run yarn commands | `/yarn add react` |
-| `/git [args]` | Run git commands | `/git status` |
-| `/docker [args]` | Run docker commands | `/docker ps` |
-| `/ps` | Show running processes | `/ps` |
-| `/kill [pid]` | Kill process by PID | `/kill 1234` |
+| `/config` | Show configuration | `/config` |
+| `/env <path>` | Import .env file | `/env .env.local` |
+| `/style` | Show style options | `/style` |
+| `/styles` | List available styles | `/styles` |
+| `/history <on\|off>` | Toggle chat history | `/history on` |
 
-### 🏗️ Project Operations
-Build, test, and project management commands.
+### Mode Control
+
+| Command | Description | Example |
+|---------|-------------|---------|
+| `/default` | Switch to default mode | `/default` |
+| `/plan [task]` | Toggle/generate plan | `/plan "implement auth"` |
+| `/vm` | Switch to VM mode | `/vm` |
+| `/compact` | Compact session memory | `/compact` |
+| `/super-compact` | Aggressive compaction | `/super-compact` |
+
+### Agent Management
+
+| Command | Description | Example |
+|---------|-------------|---------|
+| `/agents` | List all agents | `/agents` |
+| `/agent <name> <task>` | Run specific agent | `/agent react-expert "create form"` |
+| `/auto <task>` | Autonomous execution | `/auto "build todo app"` |
+| `/parallel <agents> <task>` | Run agents in parallel | `/parallel "react,backend" "create API"` |
+| `/factory` | Show agent factory | `/factory` |
+| `/create-agent [--vm] <name> <spec>` | Create agent | `/create-agent myagent "React specialist"` |
+| `/launch-agent <id> [task]` | Launch agent | `/launch-agent react-expert "create navbar"` |
+
+### Blueprint Management
+
+| Command | Description | Example |
+|---------|-------------|---------|
+| `/blueprints` | List blueprints | `/blueprints` |
+| `/blueprint <id>` | Show blueprint details | `/blueprint react-template` |
+| `/delete-blueprint <id>` | Delete blueprint | `/delete-blueprint old` |
+| `/export-blueprint <id> <file>` | Export blueprint | `/export-blueprint my-bp out.json` |
+| `/import-blueprint <file>` | Import blueprint | `/import-blueprint template.json` |
+| `/search-blueprints <query>` | Search blueprints | `/search-blueprints "react"` |
+
+### Planning & Todo
+
+| Command | Description | Example |
+|---------|-------------|---------|
+| `/todo [action]` | Manage todos | `/todo show` |
+| `/todos [on\|off]` | Toggle auto-todos | `/todos on` |
+| `/plan-clean` | Clean plan view | `/plan-clean` |
+| `/todo-hide` | Hide todo display | `/todo-hide` |
+| `/todo-show` | Show todo display | `/todo-show` |
+| `/approval` | Show approval panel | `/approval` |
+
+### File Operations
+
+| Command | Description | Example |
+|---------|-------------|---------|
+| `/read <file>` | Read file contents | `/read src/index.ts` |
+| `/write <file> <content>` | Write to file | `/write output.txt "Hello"` |
+| `/edit <file>` | Edit file interactively | `/edit package.json` |
+| `/ls [directory]` | List files | `/ls src/` |
+| `/search <query> [dir]` | Search in files | `/search "TODO" src/` |
+| `/grep <query> [dir]` | Alias for search | `/grep "function" lib/` |
+
+### Terminal Operations
+
+| Command | Description | Example |
+|---------|-------------|---------|
+| `/run <command>` | Execute command | `/run npm start` |
+| `/sh <command>` | Alias for run | `/sh ls -la` |
+| `/bash <command>` | Alias for run | `/bash echo $PATH` |
+| `/install <packages>` | Install packages | `/install react express --dev` |
+| `/npm <args>` | Run npm | `/npm install axios` |
+| `/yarn <args>` | Run yarn | `/yarn add lodash` |
+| `/git <args>` | Run git | `/git status` |
+| `/docker <args>` | Run docker | `/docker ps` |
+| `/ps` | List processes | `/ps` |
+| `/kill <pid>` | Kill process | `/kill 1234` |
+| `/ssh <user@host> [port] [dir]` | SSH connect | `/ssh user@host 22` |
+
+### Project Operations
 
 | Command | Description | Example |
 |---------|-------------|---------|
 | `/build` | Build project | `/build` |
-| `/test [args]` | Run tests | `/test --watch` |
+| `/test [pattern]` | Run tests | `/test auth.test.ts` |
 | `/lint` | Run linter | `/lint` |
-| `/create [type] [name]` | Create new project | `/create react my-app` |
+| `/create <type> <name>` | Create project | `/create component Button` |
 
-### 🖥️ Virtual Machine Operations
-Container and VM management for isolated development.
-
-| Command | Description | Example |
-|---------|-------------|---------|
-| `/vm [action]` | VM operations | `/vm list` |
-| `/vm-create [config]` | Create new VM | `/vm-create node:18` |
-| `/vm-list` | List all VMs | `/vm-list` |
-| `/vm-stop [id]` | Stop VM | `/vm-stop vm-123` |
-| `/vm-remove [id]` | Remove VM | `/vm-remove vm-123` |
-| `/vm-connect [id]` | Connect to VM | `/vm-connect vm-123` |
-| `/vm-logs [id]` | Show VM logs | `/vm-logs vm-123` |
-| `/vm-status [id]` | Show VM status | `/vm-status vm-123` |
-| `/vm-exec [id] [cmd]` | Execute command in VM | `/vm-exec vm-123 "npm test"` |
-| `/vm-dashboard` | Show VM dashboard | `/vm-dashboard` |
-| `/vm-health` | Check VM health | `/vm-health` |
-| `/vm-backup [id]` | Backup VM state | `/vm-backup vm-123` |
-| `/vm-stats [id]` | Show VM statistics | `/vm-stats vm-123` |
-
-### 🎨 Vision & Image Operations
-Image analysis and generation capabilities.
+### Session Management
 
 | Command | Description | Example |
 |---------|-------------|---------|
-| `/analyze-image [path]` | Analyze image with AI | `/analyze-image screenshot.png` |
-| `/vision [path]` | Analyze image (alias) | `/vision diagram.jpg` |
-| `/generate-image [prompt]` | Generate image from text | `/generate-image "sunset over mountains"` |
-| `/create-image [prompt]` | Generate image (alias) | `/create-image "logo design"` |
-| `/images` | Discover and analyze images | `/images` |
+| `/new [title]` | New session | `/new "feature-auth"` |
+| `/sessions` | List sessions | `/sessions` |
+| `/export [sessionId]` | Export to markdown | `/export` |
+| `/stats` | Show usage statistics | `/stats` |
+| `/resume [session-id]` | Resume session | `/resume abc123` |
+| `/work-sessions` | List work sessions | `/work-sessions` |
+| `/save-session [name]` | Save session | `/save-session checkpoint` |
+| `/delete-session <id>` | Delete session | `/delete-session old` |
+| `/export-session <id> <path>` | Export session file | `/export-session abc out.md` |
 
-### 🌐 Web3 & Blockchain Operations
-Blockchain interactions and DeFi operations.
-
-| Command | Description | Example |
-|---------|-------------|---------|
-| `/web3 [action]` | Web3 operations | `/web3 wallet` |
-| `/blockchain [action]` | Blockchain operations (alias) | `/blockchain status` |
-| `/goat [action]` | GOAT SDK operations | `/goat init` |
-| `/defi [action]` | DeFi operations | `/defi balance` |
-| `/polymarket [action]` | Polymarket trading | `/polymarket markets` |
-| `/web3-toolchain [action]` | Web3 toolchain operations | `/web3-toolchain list` |
-| `/w3-toolchain [action]` | Web3 toolchain (alias) | `/w3-toolchain status` |
-| `/defi-toolchain [action]` | DeFi toolchain operations | `/defi-toolchain execute` |
-
-### 🔍 Diagnostics & Monitoring
-System diagnostics and health monitoring.
+### Edit History
 
 | Command | Description | Example |
 |---------|-------------|---------|
-| `/diagnostic [action]` | Run diagnostics | `/diagnostic scan` |
-| `/diag [action]` | Run diagnostics (alias) | `/diag status` |
-| `/monitor [action]` | Start monitoring | `/monitor start` |
-| `/diag-status` | Show diagnostic status | `/diag-status` |
-
-### 🧠 Memory & Context Management
-Memory operations and context management.
-
-| Command | Description | Example |
-|---------|-------------|---------|
-| `/remember [content]` | Store information in memory | `/remember "API key is in .env"` |
-| `/recall [query]` | Recall stored information | `/recall "API key"` |
-| `/memory [action]` | Manage memory system | `/memory stats` |
-| `/forget [query]` | Remove from memory | `/forget "old API key"` |
-| `/context [action]` | Show execution context | `/context` |
-| `/index [action]` | Manage workspace index | `/index rebuild` |
-
-### 📸 Snapshot Management
-State snapshots and restoration.
-
-| Command | Description | Example |
-|---------|-------------|---------|
-| `/snapshot [name]` | Create state snapshot | `/snapshot "before-refactor"` |
-| `/snap [name]` | Create snapshot (alias) | `/snap "working-state"` |
-| `/restore [name]` | Restore from snapshot | `/restore "before-refactor"` |
-| `/snapshots` | List all snapshots | `/snapshots` |
-
-### 🎨 Figma Integration
-Figma design tool integration.
-
-| Command | Description | Example |
-|---------|-------------|---------|
-| `/figma-info [url]` | Get Figma file info | `/figma-info https://figma.com/file/...` |
-| `/figma-export [url]` | Export Figma assets | `/figma-export https://figma.com/file/...` |
-| `/figma-to-code [url]` | Convert Figma to code | `/figma-to-code https://figma.com/file/...` |
-| `/figma-open [url]` | Open Figma file | `/figma-open https://figma.com/file/...` |
-| `/figma-tokens [action]` | Manage design tokens | `/figma-tokens extract` |
-| `/figma-config` | Configure Figma integration | `/figma-config` |
-| `/figma-create [spec]` | Create Figma designs | `/figma-create "landing page"` |
-
-### 💼 Session Management
-Work session and state management.
-
-| Command | Description | Example |
-|---------|-------------|---------|
-| `/new [name]` | Create new session | `/new "feature-branch"` |
-| `/sessions` | List all sessions | `/sessions` |
-| `/resume [name]` | Resume work session | `/resume "feature-branch"` |
-| `/work-sessions` | Manage work sessions | `/work-sessions` |
-| `/save-session [name]` | Save current session | `/save-session "checkpoint"` |
-| `/delete-session [name]` | Delete session | `/delete-session "old-work"` |
-| `/export-session [name]` | Export session data | `/export-session "project-state"` |
-| `/export [format]` | Export current state | `/export json` |
-
-### ↩️ Edit History
-Undo/redo and edit history management.
-
-| Command | Description | Example |
-|---------|-------------|---------|
-| `/undo [steps]` | Undo recent changes | `/undo 3` |
-| `/redo [steps]` | Redo undone changes | `/redo 1` |
+| `/undo [count]` | Undo edits | `/undo 3` |
+| `/redo [count]` | Redo edits | `/redo 2` |
 | `/edit-history` | Show edit history | `/edit-history` |
-| `/history [action]` | Manage command history | `/history clear` |
 
-### 🔄 Background Agents
-Background job management (via nikctl integration).
+### Memory & Context
 
 | Command | Description | Example |
 |---------|-------------|---------|
-| `/bg-agent [action]` | Manage background agents | `/bg-agent start` |
-| `/bg-jobs` | List background jobs | `/bg-jobs` |
-| `/bg-status [id]` | Show job status | `/bg-status job-123` |
-| `/bg-logs [id]` | Stream job logs | `/bg-logs job-123` |
+| `/remember "fact"` | Store in memory | `/remember "uses React 18"` |
+| `/recall "query"` | Search memories | `/recall "framework"` |
+| `/forget <id>` | Delete memory | `/forget mem-123` |
+| `/memory [action]` | Memory operations | `/memory stats` |
+| `/context` | Manage context | `/context` |
+| `/index <path>` | Index files | `/index src/` |
 
-### 🌐 Web Browsing
-Automated web browsing and interaction.
-
-| Command | Description | Example |
-|---------|-------------|---------|
-| `/browse-session [action]` | Manage browse sessions | `/browse-session start` |
-| `/browse-search [query]` | Search the web | `/browse-search "React hooks"` |
-| `/browse-visit [url]` | Visit webpage | `/browse-visit https://example.com` |
-| `/browse-chat [message]` | Chat about current page | `/browse-chat "summarize this"` |
-| `/browse-sessions` | List browse sessions | `/browse-sessions` |
-| `/browse-info` | Show current page info | `/browse-info` |
-| `/browse-close [id]` | Close browse session | `/browse-close session-1` |
-| `/browse-cleanup` | Clean up sessions | `/browse-cleanup` |
-| `/browse-quick [query]` | Quick search and summarize | `/browse-quick "latest React news"` |
-
-### 📋 Blueprint Management
-Code blueprints and templates.
+### Snapshot Management
 
 | Command | Description | Example |
 |---------|-------------|---------|
-| `/blueprints` | List all blueprints | `/blueprints` |
-| `/blueprint [name]` | Show blueprint details | `/blueprint react-component` |
-| `/delete-blueprint [name]` | Delete blueprint | `/delete-blueprint old-template` |
-| `/export-blueprint [name]` | Export blueprint | `/export-blueprint my-template` |
-| `/import-blueprint [file]` | Import blueprint | `/import-blueprint template.json` |
-| `/search-blueprints [query]` | Search blueprints | `/search-blueprints "react"` |
+| `/snapshot <name> [type]` | Create snapshot | `/snapshot backup full` |
+| `/snap <name>` | Quick snapshot | `/snap quick-save` |
+| `/restore <id>` | Restore snapshot | `/restore snap-123` |
+| `/snapshots [query]` | List snapshots | `/snapshots` |
 
-### 🔄 Streaming & Output
-Output formatting and streaming control.
+### Vision & Image
 
 | Command | Description | Example |
 |---------|-------------|---------|
-| `/stream [action]` | Control output streaming | `/stream enable` |
-| `/default` | Switch to default mode | `/default` |
-| `/pro` | Switch to pro mode | `/pro` |
+| `/analyze-image <path>` | Analyze image | `/analyze-image screen.png` |
+| `/vision <path>` | Alias for analyze-image | `/vision diagram.jpg` |
+| `/generate-image "prompt"` | Generate image | `/generate-image "sunset"` |
+| `/create-image "prompt"` | Alias | `/create-image "logo"` |
+| `/images` | Discover images | `/images` |
 
-## Usage Examples
+### Browser Mode
 
-### Basic Workflow
-```bash
-# Start new session
-/new "feature-development"
+| Command | Description | Example |
+|---------|-------------|---------|
+| `/browser [url]` | Start browser mode | `/browser https://example.com` |
+| `/browser-status` | Show browser status | `/browser-status` |
+| `/browser-screenshot` | Take screenshot | `/browser-screenshot` |
+| `/browser-exit` | Exit browser mode | `/browser-exit` |
+| `/browser-info` | Show capabilities | `/browser-info` |
 
-# Check system status
-/debug
+### Web Browsing (BrowseGPT)
 
-# Set AI model
-/model claude-3-5-sonnet
+| Command | Description | Example |
+|---------|-------------|---------|
+| `/browse-session [id]` | Create session | `/browse-session` |
+| `/browse-search <id> <query>` | Search web | `/browse-search s1 "React hooks"` |
+| `/browse-visit <id> <url> [prompt]` | Visit page | `/browse-visit s1 https://react.dev` |
+| `/browse-chat <id> <msg>` | Chat about content | `/browse-chat s1 "summarize"` |
+| `/browse-sessions` | List sessions | `/browse-sessions` |
+| `/browse-info <id>` | Session info | `/browse-info s1` |
+| `/browse-close <id>` | Close session | `/browse-close s1` |
+| `/browse-cleanup` | Cleanup sessions | `/browse-cleanup` |
+| `/browse-quick <query>` | Quick search | `/browse-quick "React 19 features"` |
 
-# Create execution plan
-/plan "implement user authentication"
+### VM Container Management
 
-# Execute with agent
-/agent backend-expert "create JWT auth middleware"
+| Command | Description | Example |
+|---------|-------------|---------|
+| `/vm` | Show VM help | `/vm` |
+| `/vm-create <repo\|os>` | Create VM | `/vm-create ubuntu` |
+| `/vm-list` | List containers | `/vm-list` |
+| `/vm-stop <id>` | Stop container | `/vm-stop abc123` |
+| `/vm-remove <id>` | Remove container | `/vm-remove abc123` |
+| `/vm-connect <id>` | Connect to VM | `/vm-connect abc123` |
+| `/vm-create-pr <id> "title" "desc"` | Create PR | `/vm-create-pr abc "Fix" "Bug fix"` |
+| `/vm-logs <id> [lines]` | View logs | `/vm-logs abc 50` |
+| `/vm-mode` | Enter VM chat mode | `/vm-mode` |
+| `/vm-switch` | Switch VM | `/vm-switch` |
+| `/vm-dashboard` | Show dashboard | `/vm-dashboard` |
+| `/vm-select [id]` | Select VM | `/vm-select abc` |
+| `/vm-status [id]` | Show status | `/vm-status abc` |
+| `/vm-exec <cmd>` | Execute in VM | `/vm-exec npm test` |
+| `/vm-ls [dir]` | List VM files | `/vm-ls /app` |
+| `/vm-broadcast <msg>` | Broadcast to VMs | `/vm-broadcast "restart"` |
+| `/vm-health` | Health check | `/vm-health` |
+| `/vm-backup [id]` | Backup VM | `/vm-backup abc` |
+| `/vm-stats` | Show statistics | `/vm-stats` |
 
-# Save progress
-/save-session "auth-implementation"
-```
+### Background Agents
 
-### Development Workflow
-```bash
-# Create VM for isolated development
-/vm-create node:18
+| Command | Description | Example |
+|---------|-------------|---------|
+| `/bg-agent <task>` | Create background job | `/bg-agent "build and test"` |
+| `/bg-jobs [status]` | List jobs | `/bg-jobs running` |
+| `/bg-status <jobId>` | Job status | `/bg-status job-123` |
+| `/bg-logs <jobId> [limit]` | View logs | `/bg-logs job-123 100` |
 
-# Connect to VM
-/vm-connect vm-123
+### Web3 & Blockchain
 
-# Install dependencies
-/npm install
+| Command | Description | Example |
+|---------|-------------|---------|
+| `/web3 status` | AgentKit status | `/web3 status` |
+| `/web3 init` | Initialize AgentKit | `/web3 init` |
+| `/web3 wallet` | Show wallet | `/web3 wallet` |
+| `/web3 balance` | Check balance | `/web3 balance` |
+| `/web3 transfer <amt> <to>` | Transfer tokens | `/web3 transfer 0.5 0x...` |
+| `/web3 chat "msg"` | Natural language | `/web3 chat "send 1 ETH"` |
+| `/blockchain` | Alias for web3 | `/blockchain status` |
+| `/goat` | GOAT SDK ops | `/goat status` |
+| `/defi` | DeFi operations | `/defi balance` |
+| `/polymarket` | Polymarket trading | `/polymarket markets` |
 
-# Run tests
-/test --watch
+### Web3 Toolchains
 
-# Build project
-/build
+| Command | Description | Example |
+|---------|-------------|---------|
+| `/web3-toolchain list` | List toolchains | `/web3-toolchain list` |
+| `/web3-toolchain run <name>` | Execute toolchain | `/web3-toolchain run defi-analysis` |
+| `/web3-toolchain status` | Toolchain status | `/web3-toolchain status` |
+| `/web3-toolchain cancel <id>` | Cancel toolchain | `/web3-toolchain cancel tc-123` |
+| `/defi-toolchain analyze` | DeFi analysis | `/defi-toolchain analyze` |
+| `/defi-toolchain yield` | Yield farming | `/defi-toolchain yield` |
+| `/defi-toolchain portfolio` | Portfolio management | `/defi-toolchain portfolio` |
 
-# Check status
-/vm-status vm-123
-```
+### Figma Integration
 
-### Web3 Development
-```bash
-# Initialize Web3 environment
-/goat init
+| Command | Description | Example |
+|---------|-------------|---------|
+| `/figma-config` | Show config status | `/figma-config` |
+| `/figma-info <file-id>` | Get file info | `/figma-info abc123` |
+| `/figma-export <file-id> [format]` | Export designs | `/figma-export abc png` |
+| `/figma-to-code <file-id> [framework]` | Generate code | `/figma-to-code abc react` |
+| `/figma-open <url>` | Open in desktop | `/figma-open https://...` |
+| `/figma-tokens <file-id> [format]` | Extract tokens | `/figma-tokens abc css` |
+| `/figma-create <path>` | Create from component | `/figma-create src/Button.tsx` |
 
-# Check wallet status
-/goat wallet
+### Documentation System
 
-# Deploy contract
-/web3-toolchain execute deploy-contract
+| Command | Description | Example |
+|---------|-------------|---------|
+| `/docs` | Documentation help | `/docs` |
+| `/doc-search <query>` | Search docs | `/doc-search "authentication"` |
+| `/doc-add <url\|file>` | Add documentation | `/doc-add https://react.dev` |
+| `/doc-stats` | Show statistics | `/doc-stats` |
+| `/doc-list` | List loaded docs | `/doc-list` |
+| `/doc-tag <id> <tags>` | Tag documentation | `/doc-tag doc1 "react,hooks"` |
+| `/doc-sync` | Sync with cloud | `/doc-sync` |
+| `/doc-load <id>` | Load documentation | `/doc-load react-docs` |
+| `/doc-context` | Show doc context | `/doc-context` |
+| `/doc-unload <id>` | Unload documentation | `/doc-unload doc1` |
+| `/doc-suggest` | Get suggestions | `/doc-suggest` |
 
-# Check balance
-/goat balance
+### CAD & G-code
 
-# Monitor transactions
-/polymarket positions
-```
+| Command | Description | Example |
+|---------|-------------|---------|
+| `/cad` | CAD operations | `/cad` |
+| `/gcode` | G-code generation | `/gcode` |
+
+### Security
+
+| Command | Description | Example |
+|---------|-------------|---------|
+| `/security [action]` | Manage security | `/security status` |
+| `/dev-mode [enable\|status]` | Developer mode | `/dev-mode enable` |
+| `/safe-mode` | Enable safe mode | `/safe-mode` |
+| `/clear-approvals` | Clear approvals | `/clear-approvals` |
+
+### Caching
+
+| Command | Description | Example |
+|---------|-------------|---------|
+| `/cache [action]` | Manage cache | `/cache stats` |
+| `/redis-enable` | Enable Redis | `/redis-enable` |
+| `/redis-disable` | Disable Redis | `/redis-disable` |
+| `/redis-status` | Check status | `/redis-status` |
+| `/tokens` | Show token usage | `/tokens` |
+
+### Diagnostics
+
+| Command | Description | Example |
+|---------|-------------|---------|
+| `/diagnostic [action]` | Run diagnostics | `/diagnostic start` |
+| `/diag` | Alias | `/diag status` |
+| `/monitor` | Start monitoring | `/monitor` |
+| `/diag-status` | Diagnostic status | `/diag-status` |
+
+### Cloud Services
+
+| Command | Description | Example |
+|---------|-------------|---------|
+| `/supabase [action]` | Supabase connection | `/supabase connect` |
+| `/db <resource> <action>` | Inspect data | `/db sessions list` |
+| `/session-sync [action]` | Sync sessions | `/session-sync push` |
+| `/nikdrive` | Cloud storage | `/nikdrive status` |
+
+### Authentication
+
+| Command | Description | Example |
+|---------|-------------|---------|
+| `/auth [action]` | Auth management | `/auth status` |
+| `/signin` | Sign in | `/signin` |
+| `/signup` | Create account | `/signup` |
+| `/profile` | Show profile | `/profile` |
+
+### Skills & MCP
+
+| Command | Description | Example |
+|---------|-------------|---------|
+| `/mcp` | MCP commands | `/mcp` |
+| `/skill [action]` | Skill management | `/skill list` |
+| `/skills` | List skills | `/skills` |
+| `/sdk-agent <prompt>` | Execute SDK agent | `/sdk-agent "create todo app"` |
+| `/subagent` | Subagent execution | `/subagent` |
+| `/subagents` | List subagents | `/subagents` |
+
+### Guidance System
+
+| Command | Description | Example |
+|---------|-------------|---------|
+| `/guidance` | Guidance status | `/guidance` |
+| `/guidance list` | List guidance files | `/guidance list` |
+| `/guidance create <type> <loc>` | Create guidance | `/guidance create claude global` |
+| `/guidance reload` | Reload files | `/guidance reload` |
+| `/guidance stats` | Show statistics | `/guidance stats` |
+
+### Queue & Execution
+
+| Command | Description | Example |
+|---------|-------------|---------|
+| `/queue [action]` | Manage input queue | `/queue status` |
+| `/parallel-logs` | Parallel exec logs | `/parallel-logs` |
+| `/parallel-status` | Parallel status | `/parallel-status` |
 
 ## Command Aliases
 
-Many commands have shorter aliases for convenience:
-
-- `/q` → `/quit`
-- `/h` → `/help`
-- `/ls` → `/list`
-- `/sh` → `/run`
-- `/diag` → `/diagnostic`
-- `/snap` → `/snapshot`
-
-## Getting Help
-
-- Use `/help` for comprehensive command reference
-- Use `/help [command]` for specific command help
-- Use `/debug` to troubleshoot issues
-- Use `/status` to check system health
+| Alias | Full Command |
+|-------|--------------|
+| `/q` | `/quit` |
+| `/h` | `/help` |
+| `/sh` | `/run` |
+| `/diag` | `/diagnostic` |
+| `/snap` | `/snapshot` |
+| `/browse` | `/browser` |
 
 ## Prerequisites
 
 Some commands require additional setup:
 
-- **Web3 commands**: Require wallet configuration and API keys
-- **Figma commands**: Require Figma access token
-- **Background agents**: Require nikd daemon running
-- **VM commands**: Require Docker installation
-- **Image commands**: Require vision model access
+- **Web3**: Wallet configuration and API keys
+- **Figma**: Figma access token
+- **Background agents**: nikd daemon running
+- **VM commands**: Docker installation
+- **Image commands**: Vision model access
 
-For detailed setup instructions, see the [Configuration Guide](/configuration/cli-setup).
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Agent Commands" icon="robot" href="/cli-reference/agent-commands">
+    Detailed agent documentation
+  </Card>
+  <Card title="VM Commands" icon="server" href="/cli-reference/vm-commands">
+    VM container management
+  </Card>
+</CardGroup>

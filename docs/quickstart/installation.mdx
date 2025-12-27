@@ -1,327 +1,165 @@
 ---
 title: "Installation"
-description: "Get NikCLI up and running in minutes with our universal installer"
+description: "Install NikCLI on your system"
 icon: "download"
 ---
 
-# Installation Guide
+# Installation
 
-NikCLI supports **universal installation** across all major package managers with intelligent auto-detection and fallback mechanisms.
+NikCLI can be installed via npm, yarn, pnpm, or bun.
 
-## 🚀 Quick Install (Recommended)
+## Requirements
 
-### Universal Installer
+- **Node.js**: v18.0.0 or higher
+- **Package Manager**: npm, yarn, pnpm, or bun
+- **Operating System**: macOS, Linux, or Windows
 
-The universal installer automatically detects your system and uses the best available package manager:
+## Quick Install
 
 <Tabs>
-  <Tab title="Unix/macOS">
+  <Tab title="npm">
     ```bash
-    # Universal installer with auto-detection
-    curl -fsSL https://raw.githubusercontent.com/nikomatt69/nikcli-main/main/installer/install.sh | bash
+    npm install -g @nicomatt69/nikcli
     ```
   </Tab>
-  
-  <Tab title="Windows PowerShell">
-    ```powershell
-    # Windows PowerShell installer
-    iwr -useb https://raw.githubusercontent.com/nikomatt69/nikcli-main/main/installer/install.ps1 | iex
+  <Tab title="yarn">
+    ```bash
+    yarn global add @nicomatt69/nikcli
     ```
   </Tab>
-  
-  <Tab title="Windows CMD">
-    ```cmd
-    # Windows CMD installer
-    powershell -Command "iwr -useb https://raw.githubusercontent.com/nikomatt69/nikcli-main/main/installer/install.ps1 | iex"
+  <Tab title="pnpm">
+    ```bash
+    pnpm add -g @nicomatt69/nikcli
+    ```
+  </Tab>
+  <Tab title="bun">
+    ```bash
+    bun add -g @nicomatt69/nikcli
     ```
   </Tab>
 </Tabs>
 
-### Specify Package Manager
+## Universal Installer Script
 
-Force a specific package manager if needed:
-
-```bash
-# Force specific package manager
-curl -fsSL https://raw.githubusercontent.com/nikomatt69/nikcli-main/main/installer/install.sh | bash -s pnpm
-
-# Windows PowerShell with specific manager
-iwr -useb https://raw.githubusercontent.com/nikomatt69/nikcli-main/main/installer/install.ps1 | iex -PackageManager yarn
-```
-
-## 📦 Manual Installation
-
-Choose your preferred package manager:
-
-<AccordionGroup>
-  <Accordion title="npm">
+<Tabs>
+  <Tab title="Unix/macOS">
     ```bash
-    # Install globally
-    npm install -g @nicomatt69/nikcli
-    
-    # Verify installation
-    nikcli --version
+    curl -fsSL https://raw.githubusercontent.com/nikomatt69/nikcli-main/main/installer/install.sh | bash
     ```
-    
-    **Requirements:**
-    - Node.js 18+ 
-    - npm 8+
-  </Accordion>
-  
-  <Accordion title="yarn">
-    ```bash
-    # Install globally
-    yarn global add @nicomatt69/nikcli
-    
-    # Verify installation
-    nikcli --version
+  </Tab>
+  <Tab title="Windows PowerShell">
+    ```powershell
+    iwr -useb https://raw.githubusercontent.com/nikomatt69/nikcli-main/main/installer/install.ps1 | iex
     ```
-    
-    **Requirements:**
-    - Node.js 18+
-    - Yarn 1.22+ or Yarn 3+
-  </Accordion>
-  
-  <Accordion title="pnpm">
-    ```bash
-    # Install globally
-    pnpm install -g @nicomatt69/nikcli
-    
-    # Verify installation
-    nikcli --version
-    ```
-    
-    **Requirements:**
-    - Node.js 18+
-    - pnpm 7+
-  </Accordion>
-  
-  <Accordion title="bun">
-    ```bash
-    # Install globally
-    bun install -g @nicomatt69/nikcli
-    
-    # Verify installation
-    nikcli --version
-    ```
-    
-    **Requirements:**
-    - Bun 1.0+
-  </Accordion>
-</AccordionGroup>
+  </Tab>
+</Tabs>
 
-## 🔧 Development Setup
-
-For contributing to NikCLI or running from source:
+## Install from Source
 
 ```bash
 # Clone repository
 git clone https://github.com/nikomatt69/nikcli-main
 cd nikcli-main
 
-# Install dependencies (uses pnpm for optimal performance)
+# Install dependencies
 pnpm install
 
-# Build and start
+# Build
 pnpm run build
-pnpm start
+
+# Link globally
+npm link
 ```
 
-**Development Scripts:**
-
-<CardGroup cols={2}>
-  <Card title="Development" icon="code">
-    ```bash
-    pnpm start          # Start in development mode
-    pnpm run dev        # Development with watch mode
-    ```
-  </Card>
-  <Card title="Building" icon="hammer">
-    ```bash
-    pnpm run build      # Compile TypeScript
-    pnpm run build:binary # Create binary distribution
-    ```
-  </Card>
-  <Card title="Testing" icon="flask">
-    ```bash
-    pnpm test           # Run test suite
-    pnpm run test:watch # Watch mode testing
-    ```
-  </Card>
-  <Card title="Quality" icon="check">
-    ```bash
-    pnpm run lint       # Run linter
-    pnpm run format     # Format code
-    ```
-  </Card>
-</CardGroup>
-
-## ✅ Verification
-
-After installation, verify everything is working:
+## Verify Installation
 
 ```bash
 # Check version
 nikcli --version
 
+# Expected output
+NikCLI v1.6.0
+```
+
+## API Key Setup
+
+NikCLI requires at least one AI provider API key:
+
+```bash
 # Start NikCLI
 nikcli
 
-# Check available commands
-/help
-
-# Test basic functionality
-/read package.json
+# Set your preferred provider key
+/set-key anthropic sk-ant-...
+/set-key openai sk-...
+/set-key google AIza...
+/set-key openrouter sk-or-v1-...
+/set-key groq gsk_...
+/set-key cerebras <key>
 ```
 
-<Note>
-  The first run will create configuration files in `~/.nikcli/` and guide you through initial setup.
-</Note>
-
-## 🔐 Security Features
-
-Our installers include built-in security measures:
-
-<CardGroup cols={2}>
-  <Card title="Verification" icon="shield-check">
-    - Automatic Node.js version validation
-    - Package manager detection and validation
-    - Source verification from official npm registry
-  </Card>
-  <Card title="Safety" icon="lock">
-    - No elevated privileges required
-    - Fallback mechanisms for failed installations
-    - No data collection or telemetry
-  </Card>
-</CardGroup>
-
-## 🐛 Troubleshooting
-
-### Common Issues
+## Troubleshooting
 
 <AccordionGroup>
   <Accordion title="Permission Errors">
-    **Problem:** Permission denied during global installation
-    
-    **Solutions:**
     ```bash
-    # Option 1: Use npm with --unsafe-perm
-    npm install -g @nicomatt69/nikcli --unsafe-perm
-    
-    # Option 2: Use npx instead of global install
+    # Option 1: Fix npm permissions (recommended)
+    mkdir ~/.npm-global
+    npm config set prefix '~/.npm-global'
+    echo 'export PATH=~/.npm-global/bin:$PATH' >> ~/.bashrc
+    source ~/.bashrc
+    npm install -g @nicomatt69/nikcli
+
+    # Option 2: Use npx
     npx @nicomatt69/nikcli
-    
-    # Option 3: Use local installation
-    npm install @nicomatt69/nikcli
-    npx nikcli
     ```
   </Accordion>
-  
+
   <Accordion title="Node.js Version Issues">
-    **Problem:** Node.js version too old
-    
-    **Solutions:**
     ```bash
-    # Check Node.js version
+    # Check version
     node --version
-    
-    # Update Node.js (using nvm)
+
+    # Update with nvm
     nvm install 18
     nvm use 18
-    
-    # Or download from nodejs.org
-    # https://nodejs.org/
     ```
   </Accordion>
-  
+
   <Accordion title="Package Manager Conflicts">
-    **Problem:** Multiple package managers causing conflicts
-    
-    **Solutions:**
     ```bash
-    # Clear npm cache
     npm cache clean --force
-    
-    # Clear yarn cache
-    yarn cache clean
-    
-    # Clear pnpm cache
-    pnpm store prune
-    
-    # Try with specific package manager
-    curl -fsSL https://raw.githubusercontent.com/nikomatt69/nikcli-main/main/installer/install.sh | bash -s npm
-    ```
-  </Accordion>
-  
-  <Accordion title="Network Issues">
-    **Problem:** Installation fails due to network issues
-    
-    **Solutions:**
-    ```bash
-    # Use different registry
-    npm install -g @nicomatt69/nikcli --registry https://registry.npmjs.org/
-    
-    # Use proxy if needed
-    npm install -g @nicomatt69/nikcli --proxy http://proxy.company.com:8080
-    
-    # Try offline installation
-    npm pack @nicomatt69/nikcli
-    npm install -g nikcli-*.tgz
+    npm uninstall -g @nicomatt69/nikcli
+    npm install -g @nicomatt69/nikcli
     ```
   </Accordion>
 </AccordionGroup>
 
-### Getting Help
+## Environment Variables
 
-If you encounter issues not covered here:
+Optional environment variables for enhanced features:
 
-<CardGroup cols={2}>
-  <Card title="GitHub Issues" icon="github">
-    [Report bugs and request features](https://github.com/nikomatt69/nikcli-main/issues)
-  </Card>
-  <Card title="Documentation" icon="book">
-    [Complete documentation](https://nikcli.mintlify.app)
-  </Card>
-  <Card title="Discord Community" icon="message-circle">
-    [Join our community](https://discord.gg/nikcli)
-  </Card>
-  <Card title="Email Support" icon="mail">
-    [support@nikcli.dev](mailto:support@nikcli.dev)
-  </Card>
-</CardGroup>
+```bash
+# Redis/Upstash caching
+export REDIS_URL="redis://..."
+export UPSTASH_REDIS_REST_URL="https://..."
+export UPSTASH_REDIS_REST_TOKEN="..."
 
-## 🎯 Next Steps
+# Supabase integration
+export SUPABASE_URL="https://..."
+export SUPABASE_ANON_KEY="..."
 
-Once installation is complete:
+# Quiet startup
+export NIKCLI_QUIET_STARTUP=true
+```
 
-<Steps>
-  <Step title="Configure API Keys">
-    Set up your AI provider API keys for full functionality
-  </Step>
-  <Step title="Try Your First Command">
-    Start with simple file operations to get familiar
-  </Step>
-  <Step title="Explore Agent System">
-    Learn about the Universal Agent and VM Agent
-  </Step>
-  <Step title="Master Advanced Features">
-    Discover planning mode, parallel execution, and more
-  </Step>
-</Steps>
+## Next Steps
 
 <CardGroup cols={2}>
-  <Card
-    title="First Steps"
-    icon="play"
-    href="/quickstart/first-steps"
-  >
-    Learn basic commands and workflows
+  <Card title="First Steps" icon="play" href="/quickstart/first-steps">
+    Learn the essential commands
   </Card>
-  <Card
-    title="Configuration"
-    icon="settings"
-    href="/quickstart/configuration"
-  >
-    Set up API keys and preferences
+  <Card title="Configuration" icon="gear" href="/quickstart/configuration">
+    Configure models and settings
   </Card>
 </CardGroup>
