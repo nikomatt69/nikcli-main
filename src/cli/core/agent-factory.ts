@@ -10,6 +10,7 @@ import { AgentTaskResultSchema } from '../schemas/core-schemas'
 import { toolsManager } from '../tools/migration-to-secure-tools' // deprecated, for backward compatibility
 import { advancedUI } from '../ui/advanced-cli-ui'
 import { CircuitBreaker } from '../utils/circuit-breaker'
+import { isInterruptRequested } from '../utils/interrupt-flag'
 import { agentStream } from './agent-stream'
 import { agentTodoManager } from './agent-todo-manager'
 import { blueprintStorage } from './blueprint-storage'
@@ -492,6 +493,11 @@ Analyze the current state and provide insights based on your specialization.`,
       },
     ]
 
+    // Check for interrupt before AI call
+    if (isInterruptRequested()) {
+      throw new Error('Operation cancelled by user')
+    }
+
     const analysis = await modelProvider.generateResponse({ messages })
 
     return {
@@ -529,6 +535,11 @@ Generate the necessary files and code to complete this implementation.`,
           content: `Implement: ${todo.description}`,
         },
       ]
+
+      // Check for interrupt before AI call
+      if (isInterruptRequested()) {
+        throw new Error('Operation cancelled by user')
+      }
 
       const implementation = await modelProvider.generateResponse({ messages })
 
@@ -588,6 +599,11 @@ Autonomy level: ${this.blueprint.autonomyLevel}`,
         content: todo.description,
       },
     ]
+
+    // Check for interrupt before AI call
+    if (isInterruptRequested()) {
+      throw new Error('Operation cancelled by user')
+    }
 
     const result = await modelProvider.generateResponse({ messages })
 
@@ -938,6 +954,11 @@ Context Scope: ${requirements.contextScope || 'project'}`,
     ]
 
     try {
+      // Check for interrupt before starting AI generation
+      if (isInterruptRequested()) {
+        throw new Error('Operation cancelled by user')
+      }
+
       advancedUI.logInfo(chalk.gray('Generating AI blueprint...'))
       const response = await modelProvider.generateResponse({ messages })
 

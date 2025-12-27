@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events'
-import type { AgentTodo } from '../../core/agent-todo-manager'
+import type { AgentTodo } from '../core/agent-todo-manager'
 import type {
   AgentContextSlice,
   ContextBudget,
@@ -129,7 +129,10 @@ export class AdaptiveContextOptimizer extends EventEmitter {
     taskId: string,
     agentId: string,
     todos: AgentTodo[],
-    customPreferences?: Partial<{ maxContextTokens: number; sharedContextRatio: number }>
+    customPreferences?: Partial<{
+      maxContextTokens: number
+      sharedContextRatio: number
+    }>
   ): OptimizationResult {
     const complexity = this.calculateTaskComplexity(todos)
 
@@ -224,7 +227,6 @@ ${
 
   private generateTaskContext(todos: AgentTodo[]): string {
     const activeTodos = todos.filter((t) => t.status === 'in_progress' || t.status === 'planning')
-    const pendingTodos = todos.filter((t) => t.status === 'pending')
     const blockedTodos = todos.filter((t) => t.status === 'blocked')
 
     return `## Current Execution Context
@@ -232,7 +234,6 @@ ${
 **In Progress:** ${activeTodos.length}
 ${activeTodos.map((t) => `- ${t.title}`).join('\n') || '  None'}
 
-**Pending:** ${pendingTodos.length}
 **Blocked:** ${blockedTodos.length}
 
 **Progress:** ${Math.round((todos.filter((t) => t.status === 'completed').length / Math.max(1, todos.length)) * 100)}% complete`

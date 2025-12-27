@@ -92,7 +92,7 @@ export class WebSearchTool extends BaseTool {
         canAccessNetwork: true,
         maxExecutionTime: 300000,
         maxMemoryUsage: 512 * 1024 * 1024,
-        requiresApproval: false,
+        requiresApproval: true,
       },
       inputSchema: WebSearchOptionsSchema,
       outputSchema: z.any(),

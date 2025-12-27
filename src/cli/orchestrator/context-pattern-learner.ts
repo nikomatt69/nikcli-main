@@ -1,7 +1,7 @@
 import { EventEmitter } from 'node:events'
-import type { AgentTodo } from '../../core/agent-todo-manager'
+import type { AgentTodo } from '../core/agent-todo-manager'
 import type { ExecutionOutcome, PatternInsight, SuccessPrediction } from './types/orchestrator-types'
-import { userPreferenceManager } from './user-preference-manager'
+import { UserPreferenceManager } from './user-preference-manager'
 
 interface PatternData {
   patternType: string
@@ -36,11 +36,11 @@ export class ContextPatternLearner extends EventEmitter {
     maxBudgetDecrease: 0.7,
   }
 
-  private preferenceManager: userPreferenceManager
+  private preferenceManager: UserPreferenceManager
 
   constructor() {
     super()
-    this.preferenceManager = userPreferenceManager
+    this.preferenceManager = new UserPreferenceManager()
   }
 
   async learn(outcome: ExecutionOutcome, todos: AgentTodo[]): Promise<void> {
@@ -153,7 +153,11 @@ export class ContextPatternLearner extends EventEmitter {
 
     if (newMaxTokens !== currentMaxTokens) {
       this.preferenceManager.updateMaxContextTokens(newMaxTokens)
-      this.emit('budgetAdapted', { from: currentMaxTokens, to: newMaxTokens, reason: data.patternType })
+      this.emit('budgetAdapted', {
+        from: currentMaxTokens,
+        to: newMaxTokens,
+        reason: data.patternType,
+      })
     }
 
     const agentCount = this.preferenceManager.getPreferredAgentCount()
@@ -171,7 +175,11 @@ export class ContextPatternLearner extends EventEmitter {
 
     if (newAgentCount !== agentCount) {
       this.preferenceManager.updateAgentCount(newAgentCount)
-      this.emit('agentCountAdapted', { from: agentCount, to: newAgentCount, reason: data.patternType })
+      this.emit('agentCountAdapted', {
+        from: agentCount,
+        to: newAgentCount,
+        reason: data.patternType,
+      })
     }
   }
 
@@ -295,7 +303,11 @@ export class ContextPatternLearner extends EventEmitter {
     })
   }
 
-  getStats(): { totalPatterns: number; activePatterns: number; avgSuccessRate: number } {
+  getStats(): {
+    totalPatterns: number
+    activePatterns: number
+    avgSuccessRate: number
+  } {
     const patterns = Array.from(this.patterns.values())
     const activePatterns = patterns.filter((p) => p.sampleCount >= this.config.minSamplesForLearning)
     const avgSuccessRate =

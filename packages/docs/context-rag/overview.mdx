@@ -1,203 +1,331 @@
 ---
 title: 'Context & RAG Overview'
-description: 'Intelligent workspace understanding through advanced Retrieval-Augmented Generation'
+description: 'Intelligent workspace understanding through advanced Retrieval-Augmented Generation and Context Orchestration'
 icon: 'brain'
 ---
 
 # Context & RAG System
 
-NikCLI's Context & RAG (Retrieval-Augmented Generation) system provides intelligent workspace understanding by combining semantic search, vector embeddings, and workspace analysis. This enables AI agents to access relevant code context efficiently, reducing token usage while improving response accuracy.
+NikCLI's Context & RAG system is a **two-layered architecture** combining:
+
+1. **Orchestration Layer** - Manages task context, user preferences, and adaptive optimization
+2. **Embedding Layer** - Handles vector embeddings for semantic similarity and RAG
+
+This system enables AI agents to access relevant code context efficiently, reducing token usage while improving response accuracy.
 
 ## Architecture Overview
 
-The Context & RAG system consists of several integrated components:
-
 ```mermaid
 graph TB
-    A[User Query] --> B[Semantic Search Engine]
-    B --> C[Query Analysis]
-    C --> D[Intent Detection]
-    C --> E[Entity Extraction]
+    subgraph "Orchestration Layer"
+        CO[ContextOrchestrator]
+        ACO[AdaptiveContextOptimizer]
+        CPL[ContextPatternLearner]
+        UPM[UserPreferenceManager]
+        PTM[ParallelTaskContextManager]
+    end
 
-    D --> F[Unified RAG System]
-    E --> F
+    subgraph "Embedding Layer"
+        UEI[UnifiedEmbeddingInterface]
+        ASE[AiSdkEmbeddingProvider]
+        TEM[ToolEmbeddingsCacheManager]
+    end
 
-    F --> G[Vector Store Manager]
-    F --> H[Workspace RAG]
-    F --> I[BM25 Search]
+    subgraph "RAG System"
+        RAG[unifiedRAGSystem]
+        SSE[semantic-search-engine]
+        WC[workspace-context]
+    end
 
-    G --> J[ChromaDB/Upstash]
-    H --> K[Local Analysis]
-    I --> K
+    CO --> ACO
+    CO --> CPL
+    CO --> UPM
+    CO --> PTM
+    CO --> RAG
 
-    J --> L[Search Results]
-    K --> L
-
-    L --> M[Re-ranking & Deduplication]
-    M --> N[Context Window Optimization]
-    N --> O[AI Agent Context]
+    UEI --> ASE
+    UEI --> TEM
+    RAG --> SSE
+    RAG --> WC
 ```
 
-## Core Components
+## Orchestration Layer
 
-### 1. Unified RAG System
+Located in `src/cli/orchestrator/` - 5 core files managing task execution and context.
 
-The central orchestrator combining multiple search strategies:
+### 1. ContextOrchestrator
 
-- **Vector Search**: Semantic similarity using embeddings
-- **Workspace Analysis**: Local file analysis and importance scoring
-- **BM25 Search**: Keyword-based sparse search for precise matching
-- **Hybrid Mode**: Combines all strategies for optimal results
+**File:** `src/cli/orchestrator/context-orchestrator.ts`
 
-### 2. Semantic Search Engine
+Central coordinator that orchestrates all context components:
+
+**Key Responsibilities:**
+- Orchestrates tasks across multiple agents
+- Manages dynamic token budgets (85% context / 15% output reserved)
+- Calculates optimal agent counts based on task complexity
+- Applies verbosity filtering to context (minimal/standard/detailed)
+- Records usage metrics and feeds them to the pattern learner
+- Emits events for monitoring (`orchestrated`, `usageRecorded`)
+
+**Key Methods:**
+```typescript
+async orchestrate(todos: AgentTodo[], taskId: string): Promise<OrchestrationResult>
+async recordUsage(sessionId: string, usage: Usage, model: string)
+async reportOutcome(chainId: string, agentId: string, outcome: ExecutionOutcome)
+getStatus(): OrchestratorStatus
+```
+
+**Dynamic Budget Management:**
+- Base budget comes from `UserPreferenceManager.getMaxContextTokens()`
+- 85% allocated for context, 15% reserved for output
+- Adjusts based on historical completion token usage
+
+### 2. AdaptiveContextOptimizer
+
+**File:** `src/cli/orchestrator/adaptive-context-optimizer.ts`
+
+Calculates task complexity and generates optimized context slices:
+
+**Complexity Calculation:**
+```typescript
+calculateTaskComplexity(todos: AgentTodo[]): TaskComplexityMetrics
+```
+
+Returns metrics with score (0-100) based on:
+- **Code complexity (35% weight)** - implementation/refactoring tasks
+- **Dependency complexity (25% weight)** - number of dependencies
+- **Scope complexity (20% weight)** - description length
+- **Interdependency complexity (20% weight)** - dependent tasks and priority
+
+**Context Slice Generation:**
+```typescript
+calculateOptimalSlice(): AgentContextSlice
+```
+
+Creates context slice with:
+- Shared context (common task info)
+- Agent-specific context (agent's assigned tasks)
+- Task context (current execution status)
+- Token allocations based on model limits
+
+**Model Limits:**
+| Model | Context Limit |
+|-------|---------------|
+| Claude Opus/Sonnet/Haiku 4.5 | 200K |
+| GPT-4o | 128K |
+| Gemini 1.5 Pro | 2M |
+| Gemini 1.5 Flash | 1M |
+
+### 3. ContextPatternLearner
+
+**File:** `src/cli/orchestrator/context-pattern-learner.ts`
+
+Learns from execution outcomes to improve future decisions:
+
+**Pattern Extraction:**
+Categorizes outcomes by:
+- Complexity level (high/medium/low)
+- Agent efficiency (single_agent_efficient/standard/multiple)
+- Task count (many/medium/few)
+- Efficiency ratio (high/medium/low)
+
+**Adaptive Preferences:**
+```typescript
+adjustMaxContextTokens(successRate: number, efficiency: number): number
+adjustAgentCount(outcome: ExecutionOutcome): number
+```
+
+- Adjusts `maxContextTokens` based on success rate and efficiency
+- Adjusts preferred agent count based on outcomes
+- Uses adaptation rate (15%) with budget caps (max 1.3x increase, 0.7x decrease)
+
+**Prediction:**
+```typescript
+predictSuccess(complexity: number, agents: number, budget: number): SuccessPrediction
+```
+Provides success probability with recommendations.
+
+**Cleanup:** Removes patterns older than 60 days with <3 samples
+
+### 4. UserPreferenceManager
+
+**File:** `src/cli/orchestrator/user-preference-manager.ts`
+
+Persists and manages user preferences:
+
+**Storage:** `~/.nikcli/user-preferences.json`
+
+**Auto-save:** Flushes changes every 30 seconds
+
+**Preferences Managed:**
+| Preference | Type | Default |
+|------------|------|---------|
+| `preferredAgentCount` | number | 1-10 |
+| `maxContextTokens` | number | 10K-100K |
+| `sharedContextRatio` | number | 0.1-0.9 |
+| `contextVerbosity` | enum | minimal/standard/detailed |
+| `parallelExecution` | boolean | false |
+| `maxParallelAgents` | number | 1-5 |
+
+**Key Methods:**
+```typescript
+getMaxContextTokens(): number
+getMaxParallelAgents(): number
+getContextVerbosity(): 'minimal' | 'standard' | 'detailed'
+async updateMaxContextTokens(newValue: number): Promise<void>
+async updateAgentCount(count: number): Promise<void>
+```
+
+### 5. ParallelTaskContextManager
+
+**File:** `src/cli/orchestrator/parallel-task-context-manager.ts`
+
+Manages task chains and agent context allocation:
+
+**Chain Management:**
+```typescript
+createChainContext(todos: AgentTodo[], chainId: string): TaskChain
+createExecutionPlan(todos: AgentTodo[], maxAgents: number): ExecutionPlan
+```
+
+**Dependency-Based Grouping:**
+Groups tasks by dependency level into execution waves:
+```typescript
+groupByDependencyLevel(todos: AgentTodo[]): AgentTodo[][]
+```
+
+**Strategy Determination:**
+| Tasks | Strategy |
+|-------|----------|
+| 1 | `sequential` |
+| 2-3 | `hybrid` |
+| 4+ | `parallel` |
+
+**Agent Context Retrieval:**
+```typescript
+getAgentContext(chainId: string, agentId: string): AgentContextSlice
+```
+Merges shared + agent-specific + task context.
+
+## Embedding Layer
+
+### AiSdkEmbeddingProvider
+
+**File:** `src/cli/context/ai-sdk-embedding-provider.ts`
+
+Unified embedding provider with multi-provider support:
+
+**Supported Providers:**
+- OpenAI (`text-embedding-3-small`, `text-embedding-3-large`)
+- Google (`embedding-001`, `text-embedding-004`)
+- OpenRouter (via AI SDK compatible endpoints)
+
+**Features:**
+- Automatic provider fallback on failure
+- Redis-based caching via `redisProvider`
+- Adaptive batching based on text length and success rate
+- Retry with exponential backoff
+- Cost tracking per provider
+
+### UnifiedEmbeddingInterface
+
+**File:** `src/cli/context/unified-embedding-interface.ts`
+
+Standardized embedding interface for all NikCLI components:
+
+**Features:**
+- Memory cache (10K entries, 24-hour TTL)
+- Persistent cache to `~/.nikcli/vector-cache/unified-embeddings.json`
+- Cosine similarity calculation
+- Dimension validation
+- Performance statistics
+
+### ToolEmbeddingsCacheManager
+
+**File:** `src/cli/ai/tool-embeddings-cache.ts`
+
+Pre-computed tool description embeddings for fast semantic search:
+
+**Storage:** `~/.nikcli/tool-embeddings-cache.json`
+
+**Features:**
+- TF-IDF style fallback embeddings (384 dimensions)
+- Hash-based change detection to skip unchanged tools
+- Zero-latency lookups (~1-2ms)
+- Built at startup from all registered tools
+
+## RAG System
+
+### UnifiedRAGSystem
+
+**File:** `src/cli/context/rag-system.ts`
+
+Combines multiple search strategies:
+
+| Strategy | Purpose | Best For |
+|----------|---------|----------|
+| Vector Search | Semantic similarity | Conceptual queries |
+| Workspace RAG | Local file analysis | File discovery |
+| BM25 Search | Keyword matching | Exact matches |
+
+### SemanticSearchEngine
+
+**File:** `src/cli/context/semantic-search-engine.ts`
 
 Advanced query understanding with:
-
-- Intent detection (code search, explanation, debugging, etc.)
+- Intent detection (code search, explanation, debugging)
 - Entity extraction (functions, classes, files, technologies)
-- Query expansion with synonyms and related concepts
+- Query expansion with synonyms
 - Multi-dimensional relevance scoring
 
-### 3. Vector Store Abstraction
+## Data Flow
 
-Unified interface supporting multiple vector databases:
-
-- **ChromaDB**: Local or cloud vector storage
-- **Upstash Vector**: Serverless vector database with Redis fallback
-- **Local Filesystem**: Zero-configuration fallback option
-- Automatic health monitoring and failover
-
-### 4. Workspace Context Manager
-
-Intelligent workspace analysis:
-
-- File filtering with gitignore support
-- Language and framework detection
-- Importance scoring based on file content and location
-- Real-time change detection
-
-## Key Features
-
-### Intelligent File Filtering
-
-The system automatically filters files to index only relevant code:
-
-```typescript
-// Automatically excludes:
-// - node_modules, dist, build directories
-// - Binary files and large datasets
-// - Git internal files
-// - Files exceeding size limits
-
-// Prioritizes:
-// - Source code files
-// - Configuration files
-// - Documentation
-// - Test files (lower priority)
+### Task Submission Flow
+```
+User submits task
+        |
+        v
+ContextOrchestrator.orchestrate(todos, taskId)
+        |
+        +---> AdaptiveContextOptimizer.calculateTaskComplexity()
+        +---> ParallelTaskContextManager.createExecutionPlan()
+        +---> ContextPatternLearner.predictSuccess()
+        |
+        v
+Returns: contextSlices, budget, executionPlan
 ```
 
-### Smart Chunking
-
-Code and documentation are intelligently chunked to preserve context:
-
-**Code Chunking**:
-- Keeps functions and classes together
-- Preserves logical block boundaries
-- Smart overlap for context continuity
-- Language-aware splitting
-
-**Markdown Chunking**:
-- Splits by header hierarchy
-- Maintains document structure
-- Preserves cross-references
-
-### Token-Aware Optimization
-
-Results are optimized for AI context windows:
-
-```typescript
-// Automatic truncation at semantic boundaries
-const results = await unifiedRAGSystem.searchWithTokenLimit(
-  query,
-  2000, // Max tokens
-  { limit: 20 }
-);
-
-// Results truncated to:
-// - ~2000 tokens total
-// - Preserved sentence/paragraph boundaries
-// - Most relevant content prioritized
+### Execution Feedback Loop
+```
+Agent execution completes
+        |
+        v
+ContextOrchestrator.recordUsage() + reportOutcome()
+        |
+        +---> ContextPatternLearner.learn()
+        |         |
+        |         +---> UserPreferenceManager.updateMaxContextTokens()
+        |         +---> UserPreferenceManager.updateAgentCount()
+        |
+        +---> UserPreferenceManager.recordOutcome()
 ```
 
-## Search Strategies
-
-### 1. Vector Search
-
-Semantic similarity using embeddings:
-
-```typescript
-// High-level semantic understanding
-const results = await unifiedRAGSystem.searchSemantic(
-  "How does authentication work?",
-  { limit: 10, threshold: 0.7 }
-);
+### Embedding Request Flow
 ```
-
-**Best for**:
-- Conceptual queries
-- Natural language questions
-- Understanding intent
-
-### 2. Workspace Search
-
-Local file analysis and keyword matching:
-
-```typescript
-// File-based relevance scoring
-const results = await unifiedRAGSystem.search(
-  "authentication middleware",
-  { limit: 15 }
-);
-```
-
-**Best for**:
-- File discovery
-- Quick local searches
-- Zero external dependencies
-
-### 3. BM25 Search
-
-Statistical keyword matching:
-
-```typescript
-// Precise keyword matching
-// Enabled with: RAG_BM25_ENABLED=true
-const results = await unifiedRAGSystem.search(
-  "express authentication middleware",
-  { limit: 10 }
-);
-```
-
-**Best for**:
-- Exact keyword matching
-- Technical term searches
-- Complementing semantic search
-
-### 4. Hybrid Search
-
-Combines all strategies for optimal results:
-
-```typescript
-// Automatic strategy selection and blending
-const results = await unifiedRAGSystem.search(
-  "How to add JWT authentication?",
-  { limit: 20 }
-);
-
-// Combines:
-// - Vector search (60% weight)
-// - Workspace search (30% weight)
-// - BM25 search (10% weight)
+Component requests embeddings
+        |
+        v
+UnifiedEmbeddingInterface.generateEmbeddings()
+        |
+        +---> Memory cache check (Map)
+        +---> AiSdkEmbeddingProvider.generate()
+        |         |
+        |         +---> Redis cache check
+        |         +---> API call to provider
+        |         +---> Cache result
+        |
+        v
+Returns: EmbeddingResult[]
 ```
 
 ## Configuration
@@ -205,351 +333,80 @@ const results = await unifiedRAGSystem.search(
 ### Environment Variables
 
 ```bash
-# Vector Store Configuration
-UPSTASH_VECTOR_REST_URL=https://your-vector.upstash.io
-UPSTASH_VECTOR_REST_TOKEN=your_token
-UPSTASH_VECTOR_COLLECTION=nikcli-vectors
-
-# Or use ChromaDB
-CHROMA_URL=http://localhost:8005
-CHROMA_API_KEY=your_api_key
-CHROMA_TENANT=your_tenant
-CHROMA_DATABASE=nikcli
-
-# Performance Tuning
-RAG_RERANK_ENABLED=true
-RAG_BM25_ENABLED=true
-INDEXING_BATCH_SIZE=300
-EMBED_BATCH_SIZE=100
+# Embedding Provider
+OPENAI_API_KEY=sk-...
+GOOGLE_GENERATIVE_AI_API_KEY=...
+OPENROUTER_API_KEY=...
 
 # Caching
-CACHE_RAG=true
-CACHE_AI=true
+UPSTASH_REDIS_REST_URL=https://...
+UPSTASH_REDIS_REST_TOKEN=...
 ```
 
 ### Programmatic Configuration
 
 ```typescript
-import { unifiedRAGSystem } from '@nicomatt69/nikcli';
+import { ContextOrchestrator } from '@nikcli/orchestrator'
 
-// Update RAG configuration
-unifiedRAGSystem.updateConfig({
-  useVectorDB: true,
-  hybridMode: true,
-  maxIndexFiles: 1000,
-  chunkSize: 700,
-  overlapSize: 80,
-  enableSemanticSearch: true,
-  cacheEmbeddings: true,
-  costThreshold: 0.1 // Max $0.10 for indexing
-});
-```
-
-## Usage Examples
-
-### Basic Search
-
-```typescript
-import { unifiedRAGSystem } from '@nicomatt69/nikcli';
-
-// Initialize (happens automatically on CLI startup)
-await unifiedRAGSystem.startBackgroundInitialization();
-
-// Search for relevant context
-const results = await unifiedRAGSystem.search(
-  "authentication implementation",
-  { limit: 10 }
-);
-
-results.forEach(result => {
-  console.log(`${result.path} (score: ${result.score})`);
-  console.log(result.content.substring(0, 200));
-});
-```
-
-### Semantic Search
-
-```typescript
-// Advanced semantic search with intent detection
-const results = await unifiedRAGSystem.searchSemantic(
-  "How do I add user registration with email verification?",
-  {
-    limit: 15,
-    threshold: 0.6,
-    includeAnalysis: true
-  }
-);
-
-// Results include:
-// - Semantic breakdown (keyword, context, importance scores)
-// - Query intent and confidence
-// - Relevance factors explanation
-```
-
-### Project Analysis
-
-```typescript
-// Analyze workspace and build vector index
-const analysis = await unifiedRAGSystem.analyzeProject(process.cwd());
-
-console.log({
-  indexedFiles: analysis.indexedFiles,
-  embeddingsCost: `$${analysis.embeddingsCost.toFixed(4)}`,
-  processingTime: `${analysis.processingTime}ms`,
-  vectorDBStatus: analysis.vectorDBStatus,
-  fallbackMode: analysis.fallbackMode
-});
-```
-
-### Token-Optimized Search
-
-```typescript
-// Get results optimized for AI context window
-const results = await unifiedRAGSystem.searchWithTokenLimit(
-  "user authentication flow",
-  2000, // Max 2000 tokens
-  {
-    limit: 30, // Start with more results
-    semanticOnly: false
-  }
-);
-
-// Results automatically:
-// - Truncated at semantic boundaries
-// - Deduplicated by file path
-// - Sorted by relevance
-// - Optimized for ~2000 tokens total
-```
-
-## Performance Monitoring
-
-### Get Statistics
-
-```typescript
-// Get comprehensive performance metrics
-const stats = unifiedRAGSystem.getStats();
-
-console.log({
-  // Cache performance
-  embeddings: stats.caches.embeddings,
-  analysis: stats.caches.analysis,
-
-  // Search metrics
-  totalSearches: stats.performance.totalSearches,
-  averageLatency: stats.performance.averageLatencyMs,
-  cacheHitRate: stats.performance.cacheHitRate,
-
-  // Vector DB status
-  vectorDBAvailable: stats.vectorDBAvailable,
-  workspaceRAGAvailable: stats.workspaceRAGAvailable
-});
-```
-
-### Performance Report
-
-```typescript
-// Get detailed performance breakdown
-const metrics = unifiedRAGSystem.getPerformanceMetrics();
-
-console.log({
-  searches: metrics.searches, // By type
-  performance: metrics.performance, // Latency, errors
-  optimization: metrics.optimization // Cache hits, reranks
-});
-
-// Generate human-readable report
-unifiedRAGSystem.logPerformanceReport();
-// Output:
-// Search Distribution:
-//   Total Searches: 150
-//   Vector: 90 (60.0%)
-//   Workspace: 45 (30.0%)
-//   BM25: 15 (10.0%)
-// ...
+const orchestrator = new ContextOrchestrator({
+  maxAgents: 5,
+  enforceBudget: true,
+  enableLearning: true,
+  verbosity: 'standard'
+})
 ```
 
 ## Best Practices
 
-### 1. Optimize Indexing Costs
+### 1. Optimize Task Complexity
 
 ```typescript
-// Estimate costs before indexing
-const files = await glob('**/*.{ts,js,tsx,jsx}');
-const estimatedCost = await estimateIndexingCost(files, process.cwd());
-
-console.log(`Estimated indexing cost: $${estimatedCost.toFixed(4)}`);
-
-// Set cost threshold
-unifiedRAGSystem.updateConfig({
-  costThreshold: 0.10 // Stop if exceeds $0.10
-});
-```
-
-### 2. Use Appropriate Search Strategy
-
-```typescript
-// For conceptual queries -> Semantic search
-const conceptResults = await unifiedRAGSystem.searchSemantic(
-  "How does the payment system work?"
-);
-
-// For specific code lookups -> Hybrid search
-const codeResults = await unifiedRAGSystem.search(
-  "PaymentProcessor class"
-);
-
-// For exact matches -> Enable BM25
-process.env.RAG_BM25_ENABLED = 'true';
-const exactResults = await unifiedRAGSystem.search(
-  "validatePaymentMethod function"
-);
-```
-
-### 3. Leverage Caching
-
-```typescript
-// Embeddings are cached automatically
-// Force cache rebuild when needed:
-await unifiedRAGSystem.clearCaches();
-
-// Re-index project
-await unifiedRAGSystem.analyzeProject(process.cwd());
-```
-
-### 4. Monitor Performance
-
-```typescript
-// Regular performance checks
-setInterval(() => {
-  const metrics = unifiedRAGSystem.getPerformanceMetrics();
-
-  if (parseFloat(metrics.performance.errorRate) > 5) {
-    console.warn('High error rate detected');
-    // Consider clearing caches or re-initializing
+// Use clear, descriptive task descriptions
+const todos = [
+  {
+    id: '1',
+    description: 'Implement user authentication with JWT tokens',
+    tags: ['implementation', 'backend'],
+    priority: 'high',
+    dependencies: []
   }
-
-  if (metrics.performance.averageLatency > 500) {
-    console.warn('High latency detected');
-    // Consider optimizing query or reducing result limit
-  }
-}, 60000); // Check every minute
+]
 ```
 
-## Limitations
-
-### File Size Limits
+### 2. Configure Token Budget
 
 ```typescript
-// Default limits:
-// - Max file size: 1MB per file
-// - Max total files: 1000 files
-// - Max context size: 50KB per query
+import { UserPreferenceManager } from '@nikcli/orchestrator'
 
-// Adjust limits:
-unifiedRAGSystem.updateConfig({
-  maxIndexFiles: 2000, // Increase file limit
-});
+const prefs = new UserPreferenceManager()
+await prefs.updateMaxContextTokens(150000) // 150K tokens
+await prefs.updateAgentCount(3)
 ```
 
-### Vector Database Quotas
+### 3. Monitor Pattern Learning
 
 ```typescript
-// Free tier limits:
-// - ChromaDB free: ~300 documents
-// - Upstash free: ~10,000 vectors
-
-// Documents are automatically truncated when limits reached
-// Local fallback is used when quotas exceeded
-```
-
-### Search Accuracy
-
-```typescript
-// Factors affecting accuracy:
-// 1. Query quality (specific vs vague)
-// 2. Code documentation quality
-// 3. File organization
-// 4. Embedding model used
-
-// Improve accuracy:
-// - Write clear docstrings
-// - Use descriptive file/function names
-// - Organize code logically
-// - Use semantic search for conceptual queries
-```
-
-## Troubleshooting
-
-### Vector DB Connection Issues
-
-```typescript
-// Check connection status
-const stats = unifiedRAGSystem.getStats();
-
-if (!stats.vectorDBAvailable) {
-  console.warn('Vector DB unavailable, using workspace fallback');
-
-  // Verify environment variables
-  console.log({
-    upstashUrl: process.env.UPSTASH_VECTOR_REST_URL,
-    chromaUrl: process.env.CHROMA_URL
-  });
-}
-```
-
-### High Latency
-
-```typescript
-// Check search metrics
-const metrics = unifiedRAGSystem.getPerformanceMetrics();
-
-if (metrics.performance.averageLatency > 500) {
-  // Reduce result limit
-  const results = await unifiedRAGSystem.search(query, { limit: 5 });
-
-  // Or use cached results
-  const cachedResults = await unifiedRAGSystem.search(query);
-  // Second search will be much faster due to caching
-}
-```
-
-### Cache Management
-
-```typescript
-// Clear specific caches
-await unifiedRAGSystem.clearCaches();
-
-// Reset performance metrics
-unifiedRAGSystem.resetMetrics();
-
-// Check cache stats
-const stats = unifiedRAGSystem.getStats();
+const status = contextPatternLearner.getStatus()
 console.log({
-  embeddingsCacheHitRate: stats.caches.embeddings.hitRate,
-  analysisCacheHitRate: stats.caches.analysis.hitRate
-});
+  patternsLearned: status.patternCount,
+  averageSuccessRate: status.avgSuccessRate,
+  adaptationEnabled: status.learningEnabled
+})
 ```
 
-## Next Steps
+## Performance Metrics
 
-<CardGroup cols={2}>
-  <Card title="Workspace Indexing" icon="folder-tree" href="/context-rag/workspace-indexing">
-    Learn how NikCLI analyzes and indexes your workspace
-  </Card>
-  <Card title="Semantic Search" icon="magnifying-glass" href="/context-rag/semantic-search">
-    Understand advanced semantic search capabilities
-  </Card>
-  <Card title="Embeddings" icon="vector-square" href="/context-rag/embeddings">
-    Configure embedding providers and models
-  </Card>
-  <Card title="Cache System" icon="database" href="/context-rag/cache-system">
-    Optimize performance with intelligent caching
-  </Card>
-</CardGroup>
+| Metric | Typical Value |
+|--------|---------------|
+| Context Slice Generation | ~5ms |
+| Token Budget Calculation | ~2ms |
+| Pattern Learning | ~10ms |
+| Embedding Cache Lookup | ~1-2ms |
+| Full Orchestration | ~20-50ms |
 
 ## Related Documentation
 
-- [Agent System](/agent-system/overview) - How agents use context for decision-making
-- [Planning System](/planning-system/overview) - Context-driven plan generation
-- [Configuration](/configuration/yaml-config) - RAG configuration options
-- [Performance](/architecture/performance) - System performance optimization
+- [Architecture](/architecture/overview) - System architecture
+- [Agent System](/agent-system/overview) - How agents use context
+- [Planning System](/planning-system/overview) - Context-driven planning
+- [Semantic Search](/context-rag/semantic-search) - Search capabilities

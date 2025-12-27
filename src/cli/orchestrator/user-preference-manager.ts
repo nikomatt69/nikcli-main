@@ -27,7 +27,7 @@ const DEFAULT_PREFERENCES: UserPreferences = {
 
 export class UserPreferenceManager extends EventEmitter {
   private preferencesFile: string
-  private preferences: UserPreferences
+  private preferences: UserPreferences = { ...DEFAULT_PREFERENCES }
   private dirty: boolean = false
   private saveInterval: NodeJS.Timeout | null = null
   private initPromise: Promise<void> | null = null
@@ -58,7 +58,10 @@ export class UserPreferenceManager extends EventEmitter {
     for (const key of Object.keys(defaults) as (keyof UserPreferences)[]) {
       if (loaded[key] !== undefined) {
         if (key === 'learningStats' && typeof loaded[key] === 'object') {
-          result[key] = { ...defaults[key], ...loaded[key] } as UserPreferences['learningStats']
+          result[key] = {
+            ...defaults[key],
+            ...loaded[key],
+          } as UserPreferences['learningStats']
         } else {
           ;(result as any)[key] = loaded[key]
         }

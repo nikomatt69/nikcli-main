@@ -1,306 +1,387 @@
-// TODO: Consider refactoring for reduced complexity
-# NikCLI Architecture Documentation
-
-## Agent System Overview
-
-The NikCLI Agent System is a core component of the NikCLI autonomous development environment, enabling intelligent task orchestration, specialized agent delegation, and seamless integration with CLI workflows. This system leverages a modular architecture to handle cognitive planning, execution routing, and domain-specific operations. It is designed with TypeScript for type safety, scalability, and maintainability, adhering to best practices such as strict typing, interface definitions, and comprehensive error handling.
-
-The agent system mirrors the codebase structure in `src/agents/`, emphasizing separation of concerns: management, routing, and execution. Key files include `agent-manager.js` (transpiled from TypeScript) for lifecycle management and `agent-router.js` for dynamic task delegation. Recent integrations with Vim (via `vim-integration.ts`) enhance editor-CLI symbiosis, allowing real-time code suggestions and buffer synchronization in Vim sessions.
-
-This section provides an updated architectural breakdown, including code snippets that reflect production-ready patterns. All examples use ES modules, async/await for CLI compatibility, and Zod for runtime validation where applicable.
-
-### Core Principles
-- **Type Safety**: Full utilization of TypeScript generics, interfaces, and union types to prevent runtime errors in CLI operations.
-- **Modularity**: Agents are stateless where possible, with dependency injection for testability.
-- **CLI Patterns**: Asynchronous execution with progress reporting via console streams; error handling follows Node.js CLI standards (e.g., process.exit codes).
-- **Best Practices**: 
-  - Immutable data patterns for state management.
-  - JSDoc comments for complex logic.
-  - Production-ready: Includes logging, retries, and graceful degradation.
-
-### Agent Manager (`agent-manager.ts`)
-
-The `AgentManager` class orchestrates the lifecycle of all agents, including instantiation, health checks, and shutdown. It maintains a registry of specialized agents (e.g., Universal, React, Backend) and handles fallback routing. This mirrors the codebase's singleton pattern for global access in CLI contexts.
-
-Key responsibilities:
-- Register and initialize agents on startup.
-- Monitor agent availability and trigger fallbacks.
-- Integrate with TaskMaster AI for dynamic agent spawning.
-
-```typescript
-// src/agents/agent-manager.ts
-import { z } from 'zod'; // For runtime validation in CLI inputs
-import type { AgentRegistry, AgentInstance } from './types'; // Shared types for consistency
-
-/**
- * Configuration schema for agent registration.
- * Ensures CLI commands receive validated inputs.
- */
-const AgentConfigSchema = z.object({
-  id: z.string().min(1),
-  capabilities: z.array(z.string()).min(1),
-  priority: z.number().int().min(1).max(10),
-});
-
-/**
- * AgentManager: Central hub for agent lifecycle management.
- * Uses a Map for O(1) lookups in high-throughput CLI scenarios.
- * Complex logic: Health checks run in parallel with Promise.allSettled for non-blocking ops.
- */
-export class AgentManager {
-  private registry: Map<string, AgentInstance> = new Map();
-  private isInitialized = false;
-
-  /**
-   * Initializes the manager with a registry of agents.
-   * @param initialRegistry - Pre-defined agents (e.g., from config file).
-   * @throws ValidationError if configs are invalid.
-   */
-  async initialize(initialRegistry: AgentRegistry): Promise<void> {
-    // Validate all configs atomically
-    const validatedConfigs = initialRegistry.map(config => 
-      AgentConfigSchema.parse(config)
-    );
-
-    // Parallel instantiation for efficiency in CLI startup
-    const initPromises = validatedConfigs.map(async (config) => {
-      const agent = await this.createAgent(config);
-      this.registry.set(config.id, agent);
-      return agent.healthCheck(); // Non-blocking health probe
-    });
-
-    const results = await Promise.allSettled(initPromises);
-    const failures = results.filter(r => r.status === 'rejected');
-
-    if (failures.length > 0) {
-      // Graceful degradation: Log and continue with partial registry
-      console.error(`AgentManager: ${failures.length} agents failed to initialize.`);
-      // Production: Integrate with CLI logger for structured output
-    }
-
-    this.isInitialized = true;
-    console.log(`AgentManager: Initialized ${this.registry.size} agents.`);
-  }
-
-  /**
-   * Registers a new agent dynamically (e.g., during runtime for plugins).
-   * @param config - Agent configuration.
-   * @returns The instantiated agent.
-   */
-  private async createAgent(config: z.infer<typeof AgentConfigSchema>): Promise<AgentInstance> {
-    // Complex logic: Dependency injection via factory pattern
-    // Ensures agents can access shared services like TaskMaster AI
-    const factory = await import(`./agents/${config.id}-factory`); // Dynamic import for modularity
-    return factory.create(config.capabilities, config.priority);
-  }
-
-  /**
-   * Retrieves an agent by ID, with fallback to universal agent.
-   * @param agentId - The agent's unique identifier.
-   * @returns The agent instance or fallback.
-   */
-  getAgent(agentId: string): AgentInstance | null {
-    if (this.registry.has(agentId)) {
-      return this.registry.get(agentId)!;
-    }
-    // Fallback: Universal agent for resilience in CLI ops
-    console.warn(`AgentManager: Agent ${agentId} not found. Using universal fallback.`);
-    return this.registry.get('universal') || null;
-  }
-
-  /**
-   * Shuts down all agents gracefully (e.g., on CLI exit).
-   * Uses process signals for production CLI integration.
-   */
-  async shutdown(): Promise<void> {
-    if (!this.isInitialized) return;
-
-    const shutdownPromises = Array.from(this.registry.values()).map(agent => 
-      agent.shutdown?.() || Promise.resolve()
-    );
-    await Promise.all(shutdownPromises);
-    this.registry.clear();
-    this.isInitialized = false;
-    console.log('AgentManager: Shutdown complete.');
-  }
-}
-
-// Export for CLI entrypoints
-export const agentManager = new AgentManager(); // Singleton for global CLI access
-```
-
-**Production Notes**:
-- **Error Handling**: Uses `Promise.allSettled` to avoid cascading failures in parallel ops.
-- **CLI Integration**: Logs are console-friendly; extend with `chalk` for colored output.
-- **TypeScript Focus**: Generics in `AgentInstance` ensure type-safe delegation (defined in `types.ts`).
-
-### Agent Router (`agent-router.ts`)
-
-The `AgentRouter` handles task delegation based on complexity, dependencies, and agent capabilities. It uses a routing table for efficient matching and supports hybrid execution strategies (sequential/parallel). This component is pivotal for cognitive orchestration, routing tasks to specialized agents while monitoring progress.
-
-Key features:
-- Intent classification via NLP (integrated with AI Provider).
-- Dynamic routing with load balancing.
-- Recent Vim integration: Routes editor-specific tasks (e.g., buffer analysis) to Vim-enhanced agents.
-
-```typescript
-// src/agents/agent-router.ts
-import type { Task, RoutingStrategy } from './types'; // Includes Task complexity scale (1-10)
-import { agentManager } from './agent-manager'; // Dependency injection
-
-/**
- * Routing table entry for capability-based matching.
- * Complex logic: Uses regex patterns for intent extraction in CLI task parsing.
- */
-interface RouteEntry {
-  pattern: RegExp; // e.g., /frontend|react/i for React Agent
-  strategy: RoutingStrategy; // 'sequential' | 'parallel' | 'hybrid' | 'adaptive'
-  targetAgentId: string;
-}
-
-/**
- * AgentRouter: Dynamically routes tasks to optimal agents.
- * Employs a priority queue for complex tasks (7-10 scale) to prevent bottlenecks.
- * Integrates Vim: Detects 'vim-*' prefixes for editor-specific routing.
- */
-export class AgentRouter {
-  private routes: RouteEntry[] = [
-    { pattern: /vim-(buffer|syntax|integration)/i, strategy: 'sequential', targetAgentId: 'vim-agent' },
-    { pattern: /frontend|react/i, strategy: 'parallel', targetAgentId: 'react-agent' },
-    { pattern: /backend|api/i, strategy: 'hybrid', targetAgentId: 'backend-agent' },
-    // Fallback route
-    { pattern: /.*/, strategy: 'adaptive', targetAgentId: 'universal' },
-  ];
-
-  /**
-   * Routes a task to the appropriate agent(s).
-   * @param task - The parsed task object from TaskMaster AI.
-   * @returns Array of execution results for multi-agent scenarios.
-   * @throws RoutingError if no suitable route found (rare, due to fallback).
-   */
-  async routeTask(task: Task): Promise<any[]> {
-    const { intent, complexity } = task; // Extracted via cognitive analysis
-
-    // Intent classification: Match against routing patterns
-    const matchedRoute = this.routes.find(route => route.pattern.test(intent));
-
-    if (!matchedRoute) {
-      throw new Error(`AgentRouter: No route for intent \"${intent}\".`);
-    }
-
-    const agent = agentManager.getAgent(matchedRoute.targetAgentId);
-    if (!agent) {
-      throw new Error(`AgentRouter: Agent ${matchedRoute.targetAgentId} unavailable.`);
-    }
-
-    // Complex logic: Strategy selection based on complexity
-    // For Vim integrations: Prefix tasks with editor context (e.g., buffer state)
-    let enhancedTask = { ...task };
-    if (matchedRoute.pattern.test('vim-')) {
-      enhancedTask.context = { ...task.context, vimBuffer: await this.fetchVimBuffer() };
-      console.log('AgentRouter: Routing to Vim-integrated agent.');
-    }
-
-    switch (matchedRoute.strategy) {
-      case 'parallel':
-        return this.executeParallel([enhancedTask], agent);
-      case 'hybrid':
-        // Split into dependent/independent subtasks
-        const [depTasks, indepTasks] = this.splitTasks(enhancedTask);
-        const depResult = await agent.execute(depTasks[0]);
-        const indepResults = await this.executeParallel(indepTasks, agent);
-        return [depResult, ...indepResults];
-      case 'adaptive':
-        // Dynamic adjustment: Retry on failure for high-complexity (9-10)
-        return this.executeWithRetry(enhancedTask, agent, complexity >= 9 ? 3 : 1);
-      default:
-        return [await agent.execute(enhancedTask)];
-    }
-  }
-
-  /**
-   * Executes tasks in parallel for independent operations.
-   * @private
-   */
-  private async executeParallel(tasks: Task[], agent: any): Promise<any[]> {
-    return Promise.all(tasks.map(task => agent.execute(task)));
-  }
-
-  /**
-   * Splits tasks into dependent and independent for hybrid strategy.
-   * Complex logic: Uses dependency graph analysis (simplified here).
-   * @private
-   */
-  private splitTasks(task: Task): [Task[], Task[]] {
-    // In production: Integrate with graph library like dagre for full deps
-    const deps = task.dependencies || [];
-    return deps.length > 0 ? [[task], []] : [[], [task]]; // Simplified split
-  }
-
-  /**
-   * Executes with retries for adaptive strategy.
-   * @private
-   */
-  private async executeWithRetry(task: Task, agent: any, maxRetries: number): Promise<any> {
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        return await agent.execute(task);
-      } catch (error) {
-        console.warn(`AgentRouter: Retry ${attempt}/${maxRetries} for task \"${task.intent}\". Error: ${error.message}`);
-        if (attempt === maxRetries) throw error;
-        // Exponential backoff for CLI stability
-        await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
-      }
-    }
-    throw new Error('AgentRouter: Max retries exceeded.');
-  }
-
-  /**
-   * Fetches Vim buffer state for integrations (recent addition).
-   * @private
-   * @returns Vim context object.
-   */
-  private async fetchVimBuffer(): Promise<any> {
-    // Production: Use child_process to spawn Vim --remote-send for buffer query
-    // Simulated here for docs
-    return { mode: 'normal', lines: [] };
-  }
-}
-
-// CLI export: Instantiate for command handlers
-export const agentRouter = new AgentRouter();
-```
-
-**Production Notes**:
-- **Vim Integrations**: Recent updates (v2.1+) enable real-time routing for Vim tasks, using Node's `child_process` for editor communication. Ensure `vim` is in PATH for CLI execution.
-- **Error Handling**: Retries with backoff prevent CLI hangs; integrate with `p-retry` for advanced cases.
-- **TypeScript Focus**: Union types for `RoutingStrategy` and async returns ensure safe chaining in CLI pipelines.
-
-### Integration with Vim and Broader Ecosystem
-
-Recent Vim integrations (via `vim-integration.ts`) extend the agent system for editor-CLI workflows:
-- **Buffer Synchronization**: Agents route `vim-buffer-*` tasks to sync code changes bidirectionally.
-- **Real-Time Suggestions**: Universal Agent uses AI Provider to stream completions into Vim's command line.
-- **Codebase Mirroring**: When generating docs like this, agents reference workspace files (e.g., via Context System RAG) to ensure accuracy.
-
-Example usage in CLI:
-```bash
-nikcli agent route --task \"vim-integrate buffer analysis\" --complexity 6
-```
-
-This routes to the Vim agent, leveraging `agent-router.ts` for hybrid execution.
-
-### Best Practices Summary
-- **TypeScript Patterns**: Always define interfaces (e.g., `Task`, `AgentInstance`) in a shared `types.ts` for cross-file reuse.
-- **CLI Compatibility**: Use async patterns to avoid blocking; handle SIGINT for clean exits.
-- **Comments**: JSDoc for all public methods; inline for complex logic like routing splits.
-- **Production-Readiness**: Code includes validation (Zod), logging, and retries. Test with Jest for CLI mocks; ensure no mutable globals.
-
-For full codebase, refer to `src/agents/`. Updates align with NikCLI v3.0, focusing on scalability for extreme tasks (9-10 complexity).
-
+---
+title: "Architecture Overview"
+description: "Deep dive into NikCLI's modular architecture and component relationships"
+icon: "cube"
 ---
 
-**Completion Summary**:  
-- **Tasks Executed**: Analyzed request (complexity: 5/10), generated 7 subtasks via TaskMaster simulation (outline, code snippets for manager/router, Vim refs, TS best practices, Markdown formatting, validation).  
-- **Outcomes**: Produced self-contained Markdown docs with embedded TS code. All snippets are production-ready, type-safe, and CLI-optimized. No errors; validated for best practices.  
-- **Next Steps**: Integrate into main docs via `nikcli docs update --section agents`; run `tsc --noEmit` for type checks.
+# NikCLI Architecture Documentation
+
+## System Overview
+
+NikCLI is built with a **modular, layered architecture** designed for scalability, maintainability, and extensibility. The system is organized into clear functional layers that separate concerns while enabling seamless interaction between components.
+
+## Directory Structure
+
+```
+nikcli-main/
+├── src/cli/
+│   ├── index.ts                    # Unified entry point (73KB)
+│   ├── nik-cli.ts                  # Core CLI class (900KB) - main interactive session
+│   ├── nikd.ts                     # Daemon process for background agents
+│   ├── nikctl.ts                   # Control CLI for daemon management
+│   ├── main-orchestrator.ts        # Main orchestrator for system initialization
+│   ├── streaming-orchestrator.ts   # Real-time streaming interface
+│   ├── unified-chat.ts             # Unified chat interface
+│   ├── register-agents.ts          # Agent registration
+│   │
+│   ├── core/                       # Core modules (72+ files)
+│   │   ├── agent-manager.ts        # Enterprise agent lifecycle management
+│   │   ├── agent-factory.ts        # Agent instance factory
+│   │   ├── config-manager.ts       # Centralized configuration (100KB+)
+│   │   ├── tool-registry.ts        # Tool registration and routing
+│   │   ├── tool-router.ts          # Intelligent tool routing (64KB)
+│   │   ├── readline-manager.ts     # Readline interface singleton
+│   │   ├── input-queue.ts          # Concurrent input handling
+│   │   ├── context-manager.ts      # Context management
+│   │   ├── context-token-manager.ts # Token tracking & optimization
+│   │   ├── mcp-client.ts           # MCP protocol client
+│   │   ├── plugin-manager.ts       # Plugin system
+│   │   ├── logger.ts               # Logging infrastructure
+│   │   └── ... (60+ more core modules)
+│   │
+│   ├── orchestrator/               # Orchestration layer (5 core files)
+│   │   ├── context-orchestrator.ts     # Central context coordinator
+│   │   ├── adaptive-context-optimizer.ts # Task complexity & slicing
+│   │   ├── context-pattern-learner.ts   # Pattern learning & adaptation
+│   │   ├── user-preference-manager.ts   # Persistent preferences
+│   │   ├── parallel-task-context-manager.ts # Chain management
+│   │   └── types/
+│   │       └── orchestrator-types.ts    # Shared type definitions
+│   │
+│   ├── tools/                      # Tool system (75+ tools)
+│   │   ├── index.ts                # Barrel file with all exports
+│   │   ├── base-tool.ts            # Base tool class
+│   │   ├── secure-file-tools.ts    # File operations (read, write, list)
+│   │   ├── secure-command-tool.ts  # Sandboxed command execution
+│   │   ├── git-tools.ts            # Git operations
+│   │   ├── web-search-tool.ts      # DuckDuckGo search
+│   │   ├── browserbase-tool.ts     # Web browsing automation
+│   │   ├── figma-tool.ts           # Figma integration
+│   │   ├── coinbase-agentkit-tool.ts # Blockchain operations
+│   │   ├── vision-analysis-tool.ts  # AI image analysis
+│   │   ├── image-generation-tool.ts # DALL-E image generation
+│   │   ├── rag-search-tool.ts      # Semantic/RAG search
+│   │   ├── memory-search-tool.ts   # Long-term memory search
+│   │   ├── secure-tools-registry.ts # Secure tool execution layer
+│   │   └── ... (60+ more tools)
+│   │
+│   ├── services/                   # Services layer (26+ files)
+│   │   ├── tool-service.ts         # Tool execution service
+│   │   ├── agent-service.ts        # Agent lifecycle (68KB)
+│   │   ├── planning-service.ts     # AI planning coordination
+│   │   ├── cache-service.ts        # Redis caching layer
+│   │   ├── memory-service.ts       # Persistent AI memory
+│   │   ├── streamtty-service.ts    # Streaming TTY operations
+│   │   ├── auto-update-service.ts  # Version checking
+│   │   ├── notification-service.ts # Multi-provider notifications
+│   │   ├── lsp-service.ts          # Language Server Protocol
+│   │   ├── background-agent-service.ts # Background job management
+│   │   └── ... (16+ more services)
+│   │
+│   ├── context/                    # Context & RAG (17 files)
+│   │   ├── rag-system.ts           # Unified RAG system
+│   │   ├── semantic-search-engine.ts # Semantic search
+│   │   ├── workspace-context.ts    # Project workspace context
+│   │   ├── ai-sdk-embedding-provider.ts # Multi-provider embeddings
+│   │   ├── unified-embedding-interface.ts # Standardized API
+│   │   └── ... (12 more context files)
+│   │
+│   ├── ui/                         # UI components (28+ files)
+│   │   ├── advanced-cli-ui.ts      # Central UI hub (2347 lines)
+│   │   ├── approval-system.ts      # Approval workflows (2652 lines)
+│   │   ├── theme-manager.ts        # Multi-theme system (1260 lines)
+│   │   ├── fixed-prompt-manager.ts # Fixed prompt positioning
+│   │   ├── terminal-output-manager.ts # Output tracking
+│   │   ├── diff-manager.ts         # Git diff display
+│   │   ├── visual-formatters.ts    # Stream/markdown formatting
+│   │   ├── output-formatter.ts     # Structured output
+│   │   └── ... (20+ more UI components)
+│   │
+│   ├── providers/                  # External providers
+│   │   ├── supabase/               # Auth, database, enhanced provider
+│   │   ├── redis/                  # Redis caching provider
+│   │   ├── browserbase/            # Browser automation
+│   │   ├── figma/                  # Figma integration
+│   │   ├── cad-gcode/              # CAD/G-Code providers
+│   │   └── ... (10+ more providers)
+│   │
+│   ├── automation/                 # Automation & agents
+│   │   └── agents/
+│   │       ├── universal-agent.ts  # Universal enterprise agent
+│   │       ├── cognitive-agent-base.ts # Cognitive code generation
+│   │       ├── autonomous-orchestrator.ts # Autonomous workflows
+│   │       └── polymarket-agent.ts # Market-related tasks
+│   │
+│   ├── virtualized-agents/         # VM-based agents
+│   │   └── secure-vm-agent.ts      # Isolated development agent
+│   │
+│   ├── background-agents/          # Background processing
+│   │   ├── background-agent-service.ts
+│   │   ├── services/
+│   │   │   ├── chat-session-service.ts
+│   │   │   └── ai-chat-service.ts
+│   │   └── ... (5 more files)
+│   │
+│   ├── ai/                         # AI layer (16 files)
+│   │   ├── advanced-ai-provider.ts # Main AI provider (228KB)
+│   │   ├── modern-ai-provider.ts   # Streamlined provider (76KB)
+│   │   ├── model-provider.ts       # Core model provider (36KB)
+│   │   ├── adaptive-model-router.ts # Tier-based routing (37KB)
+│   │   ├── provider-registry.ts    # AI SDK provider registry (20KB)
+│   │   ├── reasoning-detector.ts   # Reasoning capability detection (25KB)
+│   │   └── ... (10 more AI files)
+│   │
+│   ├── policies/                   # Security policies
+│   │   └── execution-policy.ts     # Execution policy management
+│   │
+│   ├── tui/                        # Full TUI framework
+│   │   ├── TUIApplication.ts       # Main TUI application
+│   │   ├── core/                   # EventBus, TUIState, Navigation
+│   │   ├── elements/               # UI elements (panels, specialized)
+│   │   ├── layout/                 # Layout management
+│   │   └── integration/            # Theme/Streamtty adapters
+│   │
+│   └── types/                      # Type definitions (24 files)
+│       ├── types.ts                # Core type definitions
+│       ├── agent.ts                # Agent-specific types
+│       ├── orchestration.ts        # Orchestration types
+│       ├── streaming.ts            # Streaming/message types
+│       └── ... (20 more type files)
+│
+├── packages/docs/                  # Mintlify documentation
+├── streamtty/                      # Streamtty library
+├── web/                            # Web UI
+├── api/                            # Serverless functions
+├── tests/                          # Test files
+├── scripts/                        # Build scripts
+└── installer/                      # Installation scripts
+```
+
+## Architecture Layers
+
+### Layer 1: Entry Points
+
+**Files:** `index.ts`, `nik-cli.ts`, `nikd.ts`, `nikctl.ts`
+
+The entry points handle system initialization and provide different execution modes:
+
+- **index.ts** (73KB): Unified entry point that sets up global handlers, initializes all services, runs onboarding, and starts the `MainOrchestrator` which launches `NikCLI`
+
+- **nik-cli.ts** (900KB): Core CLI class managing the interactive session with:
+  - Readline interface for user input
+  - Slash command processing
+  - Multiple modes (default, plan, VM)
+  - Tools integration
+  - Chat UI rendering
+
+- **nikd.ts**: Daemon process for background agents with API server
+
+- **nikctl.ts**: Control CLI for daemon management
+
+### Layer 2: Core Modules
+
+**Directory:** `src/cli/core/` (72+ files)
+
+Core modules provide foundational functionality:
+
+| Module | Purpose |
+|--------|---------|
+| `agent-manager.ts` | Enterprise agent lifecycle, task queues, scheduling |
+| `agent-factory.ts` | Agent instance creation with configurations |
+| `config-manager.ts` | Centralized configuration (100KB+) |
+| `tool-registry.ts` | Tool registration and discovery |
+| `tool-router.ts` | Intelligent tool routing (64KB) |
+| `context-manager.ts` | Context management for AI interactions |
+| `input-queue.ts` | Concurrent input handling with bypass support |
+| `readline-manager.ts` | Readline singleton preventing multiple instances |
+| `mcp-client.ts` | Model Context Protocol integration |
+| `plugin-manager.ts` | Plugin system for extensibility |
+
+### Layer 3: Orchestration
+
+**Directory:** `src/cli/orchestrator/` (5 core files)
+
+The orchestration layer manages task execution and context:
+
+```
+ContextOrchestrator (Central Coordinator)
+    ├── AdaptiveContextOptimizer → Task complexity calculation
+    ├── ContextPatternLearner → Pattern learning & adaptation
+    ├── UserPreferenceManager → Persistent preferences
+    └── ParallelTaskContextManager → Chain & agent context management
+```
+
+**Key Classes:**
+
+- `ContextOrchestrator`: Orchestrates tasks across multiple agents, manages dynamic token budgets (85% context / 15% output), calculates optimal agent counts
+
+- `AdaptiveContextOptimizer`: Calculates task complexity (0-100 score) based on:
+  - Code complexity (35% weight) - implementation/refactoring tasks
+  - Dependency complexity (25% weight) - number of dependencies
+  - Scope complexity (20% weight) - description length
+  - Interdependency complexity (20% weight) - dependent tasks
+
+- `ContextPatternLearner`: Learns from execution outcomes to improve future decisions, adjusts `maxContextTokens` and agent count
+
+- `UserPreferenceManager`: Persists preferences to `~/.nikcli/user-preferences.json`
+
+- `ParallelTaskContextManager`: Manages task chains and dependency-based execution waves
+
+### Layer 4: AI Layer
+
+**Directory:** `src/cli/ai/` (16 files)
+
+The AI layer provides intelligent model selection and streaming:
+
+| File | Size | Purpose |
+|------|------|---------|
+| `advanced-ai-provider.ts` | 228KB | Full autonomy streaming, 35+ tools |
+| `modern-ai-provider.ts` | 76KB | Simplified provider, basic tools |
+| `model-provider.ts` | 36KB | Core generation, routing, Zod validation |
+| `adaptive-model-router.ts` | 37KB | Tier-based model selection |
+| `provider-registry.ts` | 20KB | AI SDK provider registry |
+
+**Supported Providers:**
+- OpenAI (GPT-4/5)
+- Anthropic (Claude)
+- Google (Gemini)
+- OpenRouter (200+ models)
+- Groq, Cerebras, Vercel, xAI, Mistral
+- Local: LlamaCpp, LM Studio, Ollama
+
+### Layer 5: Tools System
+
+**Directory:** `src/cli/tools/` (75+ tools)
+
+Organized into categories:
+
+| Category | Tools |
+|----------|-------|
+| **File Operations** | ReadFileTool, WriteFileTool, ListDirectoryTool, ReplaceInFileTool, MultiReadTool, JsonPatchTool |
+| **Search** | GrepTool, GlobTool, FindFilesTool, RAGSearchTool |
+| **Command Execution** | SecureCommandTool, BashTool, RunCommandTool |
+| **Git** | GitTools (status, diff, commit, branch) |
+| **Web** | WebSearchTool (DuckDuckGo), BrowserbaseTool |
+| **AI/ML** | VisionAnalysisTool, ImageGenerationTool, MemorySearchTool |
+| **Design** | FigmaTool (API + v0 integration) |
+| **Blockchain** | CoinbaseAgentKitTool, GoatTool |
+| **Utility** | DiffTool, TreeTool, WatchTool, TodoTools |
+
+**Security Levels:**
+- `safe`: File reading, code analysis, search
+- `confirmed`: File writing, Git operations (requires approval)
+- `dangerous`: File deletion, system commands (explicit approval)
+
+### Layer 6: Services
+
+**Directory:** `src/cli/services/` (26+ files)
+
+Services provide business logic and integrations:
+
+| Service | Purpose |
+|---------|---------|
+| `tool-service.ts` | Tool execution with security checks |
+| `agent-service.ts` | Agent lifecycle and task management (68KB) |
+| `planning-service.ts` | AI planning coordination |
+| `cache-service.ts` | Redis caching with SmartCache fallback |
+| `memory-service.ts` | Persistent AI memory via mem0 |
+| `streamtty-service.ts` | Terminal streaming output |
+| `auto-update-service.ts` | Version checking and updates |
+| `notification-service.ts` | Slack, Discord, Linear notifications |
+| `background-agent-service.ts` | Background job management |
+| `taskmaster-service.ts` | TaskMaster AI integration |
+
+### Layer 7: Context & RAG
+
+**Directory:** `src/cli/context/` (17 files)
+
+Provides workspace understanding:
+
+- `rag-system.ts`: Unified RAG with vector, workspace, and BM25 search
+- `semantic-search-engine.ts`: Advanced query understanding
+- `ai-sdk-embedding-provider.ts`: Multi-provider embeddings (OpenAI, Google, OpenRouter)
+- `workspace-context.ts`: Project structure analysis
+
+### Layer 8: UI Components
+
+**Directory:** `src/cli/ui/` (28+ files)
+
+| Component | Purpose |
+|-----------|---------|
+| `advanced-cli-ui.ts` | Central UI hub (2347 lines) |
+| `approval-system.ts` | Approval workflows (2652 lines) |
+| `theme-manager.ts` | Multi-theme system (11 themes, 3 modes each) |
+| `fixed-prompt-manager.ts` | Fixed prompt positioning via ANSI scroll regions |
+| `terminal-output-manager.ts` | Output tracking and cleanup |
+| `visual-formatters.ts` | Markdown/code formatting |
+| `token-aware-status-bar.ts` | Real-time token display |
+
+## Data Flow
+
+```
+User Input (CLI)
+    │
+    v
+ReadlineManager → InputQueue
+    │
+    v
+NikCLI (Main Session)
+    │
+    ├──→ AgentManager → UniversalAgent / VM Agent / CognitiveAgent
+    │           │
+    │           └──→ ToolRegistry → SecureToolsRegistry
+    │
+    ├──→ ContextOrchestrator
+    │           │
+    │           ├──→ AdaptiveContextOptimizer (complexity calculation)
+    │           ├──→ ParallelTaskContextManager (chain management)
+    │           └──→ ContextPatternLearner (learning)
+    │
+    ├──→ ModelProvider → AdvancedAIProvider → AI SDK (streamText)
+    │
+    └──→ StreamttyService → Terminal Output
+```
+
+## Key Design Patterns
+
+1. **Singleton Services**: `toolService`, `agentService`, `cacheService` use singleton pattern
+2. **EventEmitter**: Orchestrators and managers extend EventEmitter for async communication
+3. **Policy-Based Security**: `ExecutionPolicyManager` evaluates operations before execution
+4. **Bypass Pattern**: `inputQueue.enableBypass()` / `disableBypass()` for approval prompts
+5. **Adaptive Budgeting**: Token budgets adjust based on recent usage patterns (85/15 split)
+6. **Plugin System**: Extensible via `plugin-manager.ts` and `plugin-registry.ts`
+7. **Context Slices**: Parallel agents receive optimized context slices
+
+## Configuration
+
+### Environment Variables
+
+```bash
+# AI Providers
+ANTHROPIC_API_KEY, OPENAI_API_KEY, GOOGLE_GENERATIVE_AI_API_KEY, OPENROUTER_API_KEY
+
+# Redis Caching
+UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN
+
+# Vector Database
+UPSTASH_VECTOR_REST_URL, UPSTASH_VECTOR_REST_TOKEN
+
+# Features
+NIKCLI_CLEAN_CHAT=1  # Minimal output mode
+NIKCLI_QUIET_STARTUP=1  # Suppress startup logs
+```
+
+### Configuration Files
+
+- `~/.nikcli/config.json` - User configuration
+- `~/.nikcli/user-preferences.json` - Persisted preferences
+- `~/.nikcli/vector-cache/` - Embedding cache
+- `~/.nikcli/guidance/` - Project-specific guidance files
+
+## Performance Characteristics
+
+- **Startup**: ~500ms (quiet mode) to ~2s (full initialization)
+- **Streaming Latency**: <100ms for first token
+- **Tool Execution**: Variable (file ops ~10ms, web search ~500ms)
+- **Context Budget**: Dynamic (default 200K tokens, adjustable 10K-1M)
+- **Caching**: Redis for distributed, local cache for fallback

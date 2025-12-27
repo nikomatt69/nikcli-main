@@ -1,10 +1,10 @@
 import { EventEmitter } from 'node:events'
-import type { AgentTodo } from '../../core/agent-todo-manager'
-import { adaptiveContextOptimizer } from './adaptive-context-optimizer'
-import { contextPatternLearner } from './context-pattern-learner'
-import { parallelTaskContextManager } from './parallel-task-context-manager'
+import type { AgentTodo } from '../core/agent-todo-manager'
+import { AdaptiveContextOptimizer } from './adaptive-context-optimizer'
+import { ContextPatternLearner } from './context-pattern-learner'
+import { ParallelTaskContextManager } from './parallel-task-context-manager'
 import type { OrchestrationConfig, OrchestrationResult } from './types/orchestrator-types'
-import { userPreferenceManager } from './user-preference-manager'
+import { UserPreferenceManager } from './user-preference-manager'
 
 interface SessionUsage {
   sessionId: string
@@ -25,10 +25,10 @@ interface DynamicBudget {
 }
 
 export class ContextOrchestrator extends EventEmitter {
-  private preferenceManager: userPreferenceManager
-  private optimizer: adaptiveContextOptimizer
-  private taskContextManager: parallelTaskContextManager
-  private patternLearner: contextPatternLearner
+  private preferenceManager: UserPreferenceManager
+  private optimizer: AdaptiveContextOptimizer
+  private taskContextManager: ParallelTaskContextManager
+  private patternLearner: ContextPatternLearner
   private config: OrchestrationConfig
   private dynamicBudget: DynamicBudget
   private sessionUsageHistory: Map<string, SessionUsage[]> = new Map()
@@ -36,10 +36,10 @@ export class ContextOrchestrator extends EventEmitter {
 
   constructor(config?: OrchestrationConfig) {
     super()
-    this.preferenceManager = userPreferenceManager
-    this.optimizer = adaptiveContextOptimizer
-    this.taskContextManager = parallelTaskContextManager
-    this.patternLearner = contextPatternLearner
+    this.preferenceManager = new UserPreferenceManager()
+    this.optimizer = new AdaptiveContextOptimizer()
+    this.taskContextManager = new ParallelTaskContextManager()
+    this.patternLearner = new ContextPatternLearner()
     this.config = {
       maxAgents: config?.maxAgents ?? this.preferenceManager.getMaxParallelAgents(),
       enforceBudget: config?.enforceBudget ?? true,
@@ -70,10 +70,6 @@ export class ContextOrchestrator extends EventEmitter {
     const agentCount = this.determineAgentCount(complexity)
 
     const executionPlan = this.taskContextManager.createExecutionPlan(todos, agentCount)
-
-    if (executionPlan.warnings.length > 0) {
-      warnings.push(...executionPlan.warnings)
-    }
 
     const contextSlices = new Map<string, any>()
     for (const chain of executionPlan.chains) {
@@ -217,7 +213,10 @@ export class ContextOrchestrator extends EventEmitter {
     return `${firstLine}\n...\n${lastLines}`
   }
 
-  private getRecentUsageForPrediction(): { tokensUsed: number; success: boolean }[] {
+  private getRecentUsageForPrediction(): {
+    tokensUsed: number
+    success: boolean
+  }[] {
     const history = this.sessionUsageHistory.get(this.currentTaskId ?? '') ?? []
     return history.slice(-10).map((h) => ({
       tokensUsed: h.totalTokens,
@@ -227,7 +226,11 @@ export class ContextOrchestrator extends EventEmitter {
 
   recordUsage(
     sessionId: string,
-    usage: { promptTokens: number; completionTokens: number; totalTokens: number },
+    usage: {
+      promptTokens: number
+      completionTokens: number
+      totalTokens: number
+    },
     model: string
   ): void {
     const sessionUsage: SessionUsage = {
@@ -335,8 +338,16 @@ export class ContextOrchestrator extends EventEmitter {
     activeChains: number
     totalChains: number
     learningStats: { patterns: number; avgSuccessRate: number }
-    preferences: { agentCount: number; maxTokens: number; parallelEnabled: boolean }
-    budget: { baseBudget: number; availableForContext: number; adjustmentFactor: number }
+    preferences: {
+      agentCount: number
+      maxTokens: number
+      parallelEnabled: boolean
+    }
+    budget: {
+      baseBudget: number
+      availableForContext: number
+      adjustmentFactor: number
+    }
   } {
     const chainStatus = this.taskContextManager.getChainStatus()
     const patternStats = this.patternLearner.getStats()

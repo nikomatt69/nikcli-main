@@ -482,7 +482,7 @@ export class AgentManager extends EventEmitter {
 
     let orchestratedContext = ''
     try {
-      orchestratedContext = contextOrchestrator.getAgentContext(agent.taskchainId || 'default', agent.id)
+      orchestratedContext = contextOrchestrator.getAgentContext('default', agent.id)
     } catch {
       advancedUI.logWarning('⚠ Could not get orchestrated context')
     }
@@ -545,9 +545,9 @@ export class AgentManager extends EventEmitter {
 
       const duration = result.endTime && result.startTime ? result.endTime.getTime() - result.startTime.getTime() : 0
 
-      await contextOrchestrator.reportOutcome(agent.taskchainId || 'default', agentId, {
+      await contextOrchestrator.reportOutcome('default', agentId, {
         success: result.status === 'completed',
-        tokensUsed: result.tokenUsage?.total || 0,
+        tokensUsed: result.tokensUsed || 0,
         duration,
         todos: [],
       })

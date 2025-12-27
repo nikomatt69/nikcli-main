@@ -283,7 +283,7 @@ export class AiSdkEmbeddingProvider {
       if (uncachedTexts.length === 0) {
         this.currentProvider = candidate.config.provider
         this.lastUsedDimensions = candidate.config.dimensions
-        advancedUI.logSuccess(`✓ All ${texts.length} embeddings served from cache (${candidate.name})`)
+
         return cachedResults as number[][]
       }
 
@@ -435,10 +435,10 @@ export class AiSdkEmbeddingProvider {
             const modelKey = configManager.getApiKey(config.model)
             const apiKey = config.baseURL?.includes('openrouter.ai')
               ? configManager.getApiKey('openrouter') ||
-                modelKey ||
-                process.env.OPENROUTER_API_KEY ||
-                configManager.getApiKey('openai') ||
-                process.env.OPENAI_API_KEY
+              modelKey ||
+              process.env.OPENROUTER_API_KEY ||
+              configManager.getApiKey('openai') ||
+              process.env.OPENAI_API_KEY
               : modelKey || configManager.getApiKey('openai') || process.env.OPENAI_API_KEY
 
             if (!apiKey) {

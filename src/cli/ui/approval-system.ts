@@ -2,9 +2,9 @@ import { randomBytes } from 'node:crypto'
 import { EventEmitter } from 'node:events'
 import boxen from 'boxen'
 import chalk from 'chalk'
-import inquirer from 'inquirer'
 import { simpleConfigManager as configManager } from '../core/config-manager'
 import { inputQueue } from '../core/input-queue'
+import { PermissionStorage } from '../core/permission-storage'
 import { advancedUI } from './advanced-cli-ui'
 import { DiffViewer, type FileDiff } from './diff-viewer'
 import { themeManager } from './theme-manager'
@@ -282,6 +282,8 @@ export interface EscalationSettings {
 export class ApprovalSystem extends EventEmitter {
   private config: ApprovalConfig
   private pendingRequests: Map<string, ApprovalRequest> = new Map()
+  private lastApprovalKey: string = ''
+  private lastApprovalTime: number = 0
 
   // Enterprise Features
   private users: Map<string, EnterpriseUser> = new Map()
@@ -304,6 +306,114 @@ export class ApprovalSystem extends EventEmitter {
       console.warn(chalk.yellow('⚠︎ Failed to read approval timeout from config, using default 30s'))
       return 30000 // Default fallback
     }
+  }
+
+  /**
+   * TUI list prompt with visual styling matching the approval panel.
+   */
+  async tuiListPrompt<T>(
+    message: string,
+    choices: Array<{ label: string; value: T }>,
+    defaultIndex: number = 0,
+    timeoutMs: number = 30000
+  ): Promise<{ value: T; timedOut: boolean }> {
+    // CRITICAL: Track original input queue state
+    const wasEnabled = inputQueue.isBypassEnabled()
+
+    let selectedIndex = defaultIndex
+    const terminalWidth = Math.max(40, process.stdout.columns || 80)
+    const verticalBar = themeManager.getVerticalBar('default')
+
+    // Calculate max width for all choices to ensure alignment
+    const helpText = '↑↓ to navigate, Enter to confirm'
+    const maxChoiceWidth = Math.max(
+      ...choices.map((c) => this._stripAnsi(c.label).length),
+      this._stripAnsi(helpText).length
+    )
+
+    // Fixed content: verticalBar + '  ' + prefix + '  ' + max content + verticalBar
+    const fixedContentWidth = 1 + 2 + 1 + 2 + maxChoiceWidth // bar + spaces + prefix + spaces + max content
+    const totalWidth = fixedContentWidth + 1 // +1 for closing bar
+    const paddingNeeded = Math.max(0, totalWidth - fixedContentWidth)
+
+    // Suspend main prompt and enable bypass
+    try {
+      ; (global as any).__nikCLI?.suspendPrompt?.()
+    } catch { }
+
+    if (!wasEnabled) {
+      inputQueue.enableBypass()
+    }
+
+    console.log()
+    const displayChoices = () => {
+      choices.forEach((choice, idx) => {
+        const prefix = idx === selectedIndex ? '▶' : ' '
+        const label = idx === selectedIndex ? chalk.cyan.bold(choice.label) : chalk.dim(choice.label)
+        const labelWidth = this._stripAnsi(choice.label).length
+        const extraPadding = maxChoiceWidth - labelWidth
+        const row = `${verticalBar}  ${prefix}  ${label}${' '.repeat(extraPadding)}${verticalBar}`
+        console.log(row)
+      })
+    }
+
+    displayChoices()
+
+    // Enable raw mode for keyboard input
+    process.stdin.setRawMode?.(true)
+    process.stdin.resume()
+    process.stdin.setEncoding('utf8')
+
+    return new Promise<{ value: T; timedOut: boolean }>((resolve) => {
+      const timeoutHandle = setTimeout(() => {
+        process.stdin.removeAllListeners('keypress')
+        process.stdin.setRawMode?.(false)
+        resolve({ value: choices[selectedIndex].value, timedOut: true })
+      }, timeoutMs)
+
+      const onKeyPress = (_: any, key: any) => {
+        if (key.name === 'up' || key.name === 'k') {
+          selectedIndex = Math.max(0, selectedIndex - 1)
+        } else if (key.name === 'down' || key.name === 'j') {
+          selectedIndex = Math.min(choices.length - 1, selectedIndex + 1)
+        } else if (key.name === 'return' || key.name === 'enter') {
+          clearTimeout(timeoutHandle)
+          process.stdin.removeListener('keypress', onKeyPress)
+          process.stdin.setRawMode?.(false)
+          resolve({ value: choices[selectedIndex].value, timedOut: false })
+          return
+        } else if (key.name === 'c' && key.ctrl) {
+          clearTimeout(timeoutHandle)
+          process.stdin.removeListener('keypress', onKeyPress)
+          process.stdin.setRawMode?.(false)
+          resolve({ value: choices[selectedIndex].value, timedOut: false })
+          return
+        }
+
+        // Clear and redraw
+        for (let i = 0; i < choices.length + 1; i++) {
+          process.stdout.write('\x1b[1A\x1b[2K\r')
+        }
+        displayChoices()
+      }
+
+      process.stdin.on('keypress', onKeyPress)
+
+      const helpExtraPadding = maxChoiceWidth - this._stripAnsi(helpText).length
+      console.log(`${verticalBar}  ${chalk.dim(helpText)}${' '.repeat(helpExtraPadding)}${verticalBar}`)
+    }).finally(() => {
+      // Restore original input queue state
+      try {
+        if (!wasEnabled && inputQueue.isBypassEnabled()) {
+          inputQueue.disableBypass()
+        }
+      } catch { }
+
+      // Restore prompt
+      try {
+        ; (global as any).__nikCLI?.resumePromptAndRender?.()
+      } catch { }
+    })
   }
 
   constructor(config: ApprovalConfig = {}) {
@@ -626,47 +736,34 @@ export class ApprovalSystem extends EventEmitter {
 
       // Suspend main prompt and enable bypass only if not already enabled
       try {
-        ;(global as any).__nikCLI?.suspendPrompt?.()
-      } catch {}
+        ; (global as any).__nikCLI?.suspendPrompt?.()
+      } catch { }
 
       if (!wasEnabled) {
         inputQueue.enableBypass()
       }
 
-      // Create inquirer prompt with timeout
-      const promptPromise = inquirer.prompt([
-        {
-          type: 'list',
-          name: 'ok',
-          message: chalk.cyan.bold(`🎯 ${question}`),
-          choices: [
-            { name: '✓ Yes', value: true },
-            { name: '✖ No', value: false },
-          ],
-          default: defaultValue ? 0 : 1,
-          prefix: '', // No prefix for more compact layout
-        },
-      ])
-
-      // Track inquirer instance for cleanup
-      inquirerInstance = promptPromise
-
-      // Add timeout to prevent hanging - returns default value on timeout
-      const timeoutPromise = new Promise((resolve) =>
-        setTimeout(() => {
-          advancedUI.addLiveUpdate({
-            type: 'warning',
-            content: `⏰ Timeout after ${configuredTimeout / 1000}s, proceeding with default (${defaultValue ? 'Yes' : 'No'})`,
-          })
-          resolve({ ok: defaultValue })
-        }, configuredTimeout)
+      const result = await this.tuiListPrompt(
+        question,
+        [
+          { label: '✓ Yes', value: true },
+          { label: '✖ No', value: false },
+        ],
+        defaultValue ? 0 : 1,
+        configuredTimeout
       )
 
-      const answers = await Promise.race([promptPromise, timeoutPromise])
-      return !!(answers as any).ok
+      if (result.timedOut) {
+        advancedUI.addLiveUpdate({
+          type: 'warning',
+          content: `⏰ Timeout after ${configuredTimeout / 1000}s, proceeding with default (${defaultValue ? 'Yes' : 'No'})`,
+        })
+        return defaultValue
+      }
+
+      return result.value
     } catch (error: any) {
       console.log(chalk.red(`✖ Approval failed: ${error.message}`))
-      // Return default value instead of false on error
       console.log(chalk.yellow(`🔄 Proceeding with default (${defaultValue ? 'Yes' : 'No'})`))
       return defaultValue
     } finally {
@@ -685,13 +782,13 @@ export class ApprovalSystem extends EventEmitter {
       if (inquirerInstance) {
         try {
           inquirerInstance.removeAllListeners?.()
-        } catch {}
+        } catch { }
       }
 
       // Immediate prompt restoration for plan mode
       try {
-        ;(global as any).__nikCLI?.resumePromptAndRender?.()
-      } catch {}
+        ; (global as any).__nikCLI?.resumePromptAndRender?.()
+      } catch { }
     }
   }
 
@@ -730,48 +827,33 @@ export class ApprovalSystem extends EventEmitter {
 
       // Suspend main prompt and enable bypass only if not already enabled
       try {
-        ;(global as any).__nikCLI?.suspendPrompt?.()
-      } catch {}
+        ; (global as any).__nikCLI?.suspendPrompt?.()
+      } catch { }
 
       if (!wasEnabled) {
         inputQueue.enableBypass()
       }
 
-      // Create inquirer prompt with timeout
-      const promptPromise = inquirer.prompt([
-        {
-          type: 'list',
-          name: 'ok',
-          message: chalk.cyan.bold(`❓ ${question}`),
-          choices: [
-            { name: 'Yes', value: true },
-            { name: 'No', value: false },
-          ],
-          default: defaultValue ? 0 : 1,
-          prefix: '  ',
-        },
-      ])
-
-      // Track inquirer instance for cleanup
-      inquirerInstance = promptPromise
-
-      // Add timeout to prevent hanging - returns default value on timeout
-      const timeoutPromise = new Promise((resolve) =>
-        setTimeout(() => {
-          advancedUI.addLiveUpdate({
-            type: 'warning',
-            content: `⏰ Timeout after ${configuredTimeout / 1000}s, proceeding with default (${defaultValue ? 'Yes' : 'No'})`,
-          })
-          resolve({ ok: defaultValue })
-        }, configuredTimeout)
+      const result = await this.tuiListPrompt(
+        question,
+        [
+          { label: 'Yes', value: true },
+          { label: 'No', value: false },
+        ],
+        defaultValue ? 0 : 1,
+        configuredTimeout
       )
 
-      const answers = await Promise.race([promptPromise, timeoutPromise])
+      if (result.timedOut) {
+        advancedUI.addLiveUpdate({
+          type: 'warning',
+          content: `⏰ Timeout after ${configuredTimeout / 1000}s, proceeding with default (${defaultValue ? 'Yes' : 'No'})`,
+        })
+      }
       console.log()
-      return !!(answers as any).ok
+      return result.value
     } catch (error: any) {
       console.log(chalk.red(`✖ Confirmation failed: ${error.message}`))
-      // Return default value instead of false on error
       console.log(chalk.yellow(`🔄 Proceeding with default (${defaultValue ? 'Yes' : 'No'})`))
       return defaultValue
     } finally {
@@ -782,7 +864,6 @@ export class ApprovalSystem extends EventEmitter {
         }
       } catch (error) {
         console.error('Failed to restore input queue state:', error)
-        // Force cleanup as last resort
         inputQueue.forceCleanup()
       }
 
@@ -790,13 +871,13 @@ export class ApprovalSystem extends EventEmitter {
       if (inquirerInstance) {
         try {
           inquirerInstance.removeAllListeners?.()
-        } catch {}
+        } catch { }
       }
 
       // Restore prompt after approval interaction
       try {
-        ;(global as any).__nikCLI?.resumePromptAndRender?.()
-      } catch {}
+        ; (global as any).__nikCLI?.resumePromptAndRender?.()
+      } catch { }
     }
   }
 
@@ -816,12 +897,27 @@ export class ApprovalSystem extends EventEmitter {
       preview?: string
     }
   ): Promise<{ approved: boolean; remember: boolean }> {
+    // Check if already approved in permission storage
+    if (PermissionStorage.getInstance().isApproved(toolName, operation)) {
+      return { approved: true, remember: true }
+    }
+
+    // Deduplication: skip if same request within 2 seconds
+    const approvalKey = `${toolName}:${operation}:${details.path || ''}`
+    const now = Date.now()
+    if (approvalKey === this.lastApprovalKey && now - this.lastApprovalTime < 2000) {
+      return { approved: true, remember: false }
+    }
+    this.lastApprovalKey = approvalKey
+    this.lastApprovalTime = now
+
     // Track original input queue state
     const wasEnabled = inputQueue.isBypassEnabled()
     let inquirerInstance: any = null
     const configuredTimeout = this.getApprovalTimeout()
 
     try {
+      const PANEL_WIDTH = 80
       const terminalWidth = Math.max(40, process.stdout.columns || 120)
       const verticalBar = themeManager.getVerticalBar('default')
       const bgColor = chalk.bgHex('#1a1a1a')
@@ -830,33 +926,29 @@ export class ApprovalSystem extends EventEmitter {
       const riskIcon = this.getRiskIcon(riskLevel)
 
       const headerText = `${riskIcon} TOOL APPROVAL`
-      const headerPadding = Math.max(0, terminalWidth - 2 - this._stripAnsi(headerText).length)
+      const headerPadding = Math.max(0, PANEL_WIDTH - 2 - this._stripAnsi(headerText).length)
       console.log(bgColor(`${verticalBar}${chalk.bold(headerText)}${' '.repeat(headerPadding)}`))
 
       const infoText = `Tool: ${toolName} | Op: ${operation} | Risk: ${riskColor(riskLevel.toUpperCase())}`
-      const infoPadding = Math.max(0, terminalWidth - 2 - this._stripAnsi(infoText).length)
+      const infoPadding = Math.max(0, PANEL_WIDTH - 2 - this._stripAnsi(infoText).length)
       console.log(bgColor(`${verticalBar}${infoText}${' '.repeat(infoPadding)}`))
 
       let description = details.description.replace(/\n/g, ' | ')
-      const maxWidth = terminalWidth - 2 - 4
+      const maxWidth = PANEL_WIDTH - 2 - 4
       if (this._stripAnsi(description).length > maxWidth) {
         description = `${this._stripAnsi(description).substring(0, maxWidth - 3)}...`
       }
-      const descriptionPadding = Math.max(0, terminalWidth - 2 - this._stripAnsi(description).length)
+      const descriptionPadding = Math.max(0, PANEL_WIDTH - 2 - this._stripAnsi(description).length)
       console.log(bgColor(`${verticalBar} ${description}${' '.repeat(descriptionPadding)}`))
 
       if (details.path) {
-        const pathPadding = Math.max(0, terminalWidth - 2 - this._stripAnsi(details.path).length)
+        const pathPadding = Math.max(0, PANEL_WIDTH - 2 - this._stripAnsi(details.path).length)
         console.log(bgColor(`${verticalBar} ${chalk.cyan(details.path)}${' '.repeat(pathPadding)}`))
       } else if (details.preview) {
         const preview = details.preview.substring(0, 80) + (details.preview.length > 80 ? '...' : '')
-        const previewPadding = Math.max(0, terminalWidth - 2 - this._stripAnsi(preview).length)
+        const previewPadding = Math.max(0, PANEL_WIDTH - 2 - this._stripAnsi(preview).length)
         console.log(bgColor(`${verticalBar} ${chalk.dim(preview)}${' '.repeat(previewPadding)}`))
       }
-
-      const timeoutText = `Timeout: ${configuredTimeout / 1000}s`
-      const timeoutPadding = Math.max(0, terminalWidth - 2 - this._stripAnsi(timeoutText).length)
-      console.log(bgColor(`${verticalBar}${chalk.hex('#666666')(timeoutText)}${' '.repeat(timeoutPadding)}`))
 
       console.log()
 
@@ -871,58 +963,105 @@ export class ApprovalSystem extends EventEmitter {
 
       // Suspend main prompt and enable bypass only if not already enabled
       try {
-        ;(global as any).__nikCLI?.suspendPrompt?.()
-      } catch {}
+        ; (global as any).__nikCLI?.suspendPrompt?.()
+      } catch { }
 
       if (!wasEnabled) {
         inputQueue.enableBypass()
       }
 
-      // Create inquirer prompt with timeout and remember option
-      const promptPromise = inquirer.prompt([
-        {
-          type: 'list',
-          name: 'approval',
-          message: chalk.cyan.bold('Approve this operation?'),
-          choices: [
-            { name: '✓ Yes', value: 'yes' },
-            { name: '✓ Yes, remember for session', value: 'remember' },
-            { name: '✖ No', value: 'no' },
-          ],
-          default: 1, // Default to "Yes, remember"
-          prefix: '  ',
-        },
-      ])
+      // Custom TUI prompt with same visual style as approval panel
+      const choices = [
+        { label: '✓ Yes', value: 'yes' },
+        { label: '✓ Yes, remember for session', value: 'remember' },
+        { label: '✖ No', value: 'no' },
+      ]
+      let selectedIndex = 1 // Default to "Yes, remember"
 
-      inquirerInstance = promptPromise
+      console.log()
 
-      // Add timeout - defaults to approved with remember=false
-      const timeoutPromise = new Promise((resolve) => {
-        setTimeout(() => {
+      // Display choices with visual style
+      const displayChoices = () => {
+        choices.forEach((choice, idx) => {
+          const prefix = idx === selectedIndex ? '▶' : ' '
+          const label = idx === selectedIndex ? chalk.cyan.bold(choice.label) : chalk.dim(choice.label)
+          const labelWidth = this._stripAnsi(choice.label).length
+          // Format: │ ▶ ✓ Yes
+          // Positions: 0=│, 1=space, 2=arrow, 3=space, 4=space, 5=symbol, 6+=text
+          const padding = Math.max(0, PANEL_WIDTH - 2 - labelWidth - 2)
+          console.log(bgColor(`${verticalBar} ${prefix}  ${label}${' '.repeat(padding)}${verticalBar}`))
+        })
+      }
+
+      displayChoices()
+
+      // Help text on its own line
+      const helpText = '↑↓ to navigate, Enter to confirm'
+      const helpPadding = Math.max(0, PANEL_WIDTH - 2 - this._stripAnsi(helpText).length)
+      console.log(bgColor(`${verticalBar}  ${chalk.dim(helpText)}${' '.repeat(helpPadding)}${verticalBar}`))
+
+      // Custom prompt with TUI styling
+      const result = await new Promise<{ approval: string }>((resolve) => {
+        const timeoutHandle = setTimeout(() => {
+          process.stdin.removeAllListeners('keypress')
           advancedUI.addLiveUpdate({
             type: 'warning',
-            content: `⏰ Approval timeout after ${configuredTimeout / 1000}s, operation denied`,
+            content: `⏰ Approval timeout after ${configuredTimeout / 1000}s`,
           })
           resolve({ approval: 'timeout' })
         }, configuredTimeout)
+
+        const onKeyPress = (_: any, key: any) => {
+          if (key.name === 'up' || key.name === 'k') {
+            selectedIndex = Math.max(0, selectedIndex - 1)
+          } else if (key.name === 'down' || key.name === 'j') {
+            selectedIndex = Math.min(choices.length - 1, selectedIndex + 1)
+          } else if (key.name === 'return' || key.name === 'enter') {
+            clearTimeout(timeoutHandle)
+            process.stdin.removeListener('keypress', onKeyPress)
+            process.stdin.setRawMode?.(false)
+            resolve({ approval: choices[selectedIndex].value })
+            return
+          } else if (key.name === 'c' && key.ctrl) {
+            clearTimeout(timeoutHandle)
+            process.stdin.removeListener('keypress', onKeyPress)
+            process.stdin.setRawMode?.(false)
+            resolve({ approval: 'no' })
+            return
+          }
+
+          // Redraw choices
+          for (let i = 0; i < choices.length; i++) {
+            process.stdout.write('\x1b[1A\x1b[2K\r')
+          }
+          displayChoices()
+        }
+
+        process.stdin.setRawMode?.(true)
+        process.stdin.resume()
+        process.stdin.setEncoding('utf8')
+        process.stdin.on('keypress', onKeyPress)
       })
 
-      const answers = await Promise.race([promptPromise, timeoutPromise])
+      // Drain any buffered input from stdin
+      this.drainStdin()
+
       console.log()
 
-      const approval = (answers as any).approval
-
-      if (approval === 'timeout') {
+      if (result.approval === 'timeout') {
         console.log(chalk.yellow('⚠︎ Operation denied due to timeout'))
         return { approved: false, remember: false }
       }
 
-      if (approval === 'no') {
+      if (result.approval === 'no') {
         console.log(chalk.yellow('✖ Operation cancelled by user'))
         return { approved: false, remember: false }
       }
 
-      const remember = approval === 'remember'
+      const remember = result.approval === 'remember'
+      if (remember) {
+        PermissionStorage.getInstance().approve(toolName, operation)
+      }
       console.log(chalk.green.bold(`✓ Operation approved${remember ? ' (remembered for session)' : ''}`))
 
       return { approved: true, remember }
@@ -944,13 +1083,13 @@ export class ApprovalSystem extends EventEmitter {
       if (inquirerInstance) {
         try {
           inquirerInstance.removeAllListeners?.()
-        } catch {}
+        } catch { }
       }
 
       // Restore prompt after approval interaction
       try {
-        ;(global as any).__nikCLI?.resumePromptAndRender?.()
-      } catch {}
+        ; (global as any).__nikCLI?.resumePromptAndRender?.()
+      } catch { }
     }
   }
 
@@ -971,30 +1110,38 @@ export class ApprovalSystem extends EventEmitter {
 
     // Suspend main prompt and enable bypass to avoid interleaving
     try {
-      ;(global as any).__nikCLI?.suspendPrompt?.()
-    } catch {}
+      ; (global as any).__nikCLI?.suspendPrompt?.()
+    } catch { }
     inputQueue.enableBypass()
     try {
-      const answers = await inquirer.prompt([
-        {
-          type: 'input',
-          name: 'value',
-          message: chalk.cyan(message),
-          default: defaultValue,
-          prefix: '  ',
-        },
-      ])
+      // Simple readline prompt with styling
+      const terminalWidth = Math.max(40, process.stdout.columns || 80)
+      const verticalBar = themeManager.getVerticalBar('default')
+      const bgColor = chalk.bgHex('#1a1a1a')
+      const padding = Math.max(0, terminalWidth - 2 - this._stripAnsi(message).length - (defaultValue ? this._stripAnsi(String(defaultValue)).length + 3 : 0))
+
+      const value = await new Promise<string>((resolve) => {
+        const rl = require('readline').createInterface({
+          input: process.stdin,
+          output: process.stdout,
+        })
+
+        const promptMsg = bgColor(`${verticalBar}  ${chalk.cyan(message)}${defaultValue ? ` (${defaultValue})` : ''}${' '.repeat(padding)}`)
+        rl.question(promptMsg, (answer: string) => {
+          rl.close()
+          resolve(answer.trim() || (defaultValue?.toString() || ''))
+        })
+      })
 
       console.log()
-      return (answers.value ?? '').toString()
+      return value
     } catch {
       return ''
     } finally {
       inputQueue.disableBypass()
-      // Restore prompt after approval interaction
       try {
-        ;(global as any).__nikCLI?.resumePromptAndRender?.()
-      } catch {}
+        ; (global as any).__nikCLI?.resumePromptAndRender?.()
+      } catch { }
     }
   }
 
@@ -1165,9 +1312,9 @@ export class ApprovalSystem extends EventEmitter {
     this.cliInstance.printPanel(
       boxen(
         `${riskIcon} ${chalk.bold(request.title)}\n\n` +
-          `${chalk.gray('Description:')} ${request.description}\n` +
-          `${chalk.gray('Risk Level:')} ${riskColor(request.riskLevel.toUpperCase())}\n` +
-          `${chalk.gray('Actions:')} ${request.actions.length}`,
+        `${chalk.gray('Description:')} ${request.description}\n` +
+        `${chalk.gray('Risk Level:')} ${riskColor(request.riskLevel.toUpperCase())}\n` +
+        `${chalk.gray('Actions:')} ${request.actions.length}`,
         {
           padding: 1,
           margin: { top: 0, bottom: 1, left: 0, right: 0 },
@@ -1224,13 +1371,13 @@ export class ApprovalSystem extends EventEmitter {
     this.cliInstance.printPanel(
       boxen(
         `${riskIcon} ${chalk.bold('🤔 Plan Execution Approval Required')}\n\n` +
-          `${chalk.gray('Plan:')} ${chalk.white.bold(request.title.replace('Execute Plan: ', ''))}\n` +
-          `${chalk.gray('Description:')} ${request.description}\n` +
-          `${chalk.gray('Risk Level:')} ${riskColor(request.riskLevel.toUpperCase())}\n` +
-          `${chalk.gray('Total Steps:')} ${chalk.cyan(planDetails.totalSteps)}\n` +
-          `${chalk.gray('Estimated Duration:')} ${chalk.cyan(`${Math.round(planDetails.estimatedDuration)} minutes`)}\n\n` +
-          `${chalk.yellow.bold('⚠︎  This will execute all steps automatically!\n')}` +
-          `${chalk.gray('The plan will switch to auto mode and run without further prompts.')}`,
+        `${chalk.gray('Plan:')} ${chalk.white.bold(request.title.replace('Execute Plan: ', ''))}\n` +
+        `${chalk.gray('Description:')} ${request.description}\n` +
+        `${chalk.gray('Risk Level:')} ${riskColor(request.riskLevel.toUpperCase())}\n` +
+        `${chalk.gray('Total Steps:')} ${chalk.cyan(planDetails.totalSteps)}\n` +
+        `${chalk.gray('Estimated Duration:')} ${chalk.cyan(`${Math.round(planDetails.estimatedDuration)} minutes`)}\n\n` +
+        `${chalk.yellow.bold('⚠︎  This will execute all steps automatically!\n')}` +
+        `${chalk.gray('The plan will switch to auto mode and run without further prompts.')}`,
         {
           padding: 1,
           margin: { top: 0, bottom: 1, left: 0, right: 0 },
@@ -1373,106 +1520,79 @@ export class ApprovalSystem extends EventEmitter {
     // Add spacing before the prompt
     console.log()
 
-    const questions: any[] = [
-      {
-        type: 'list',
-        name: 'approved',
-        message: chalk.cyan.bold(
-          request.type === 'plan' ? '\n🚀 Execute this plan automatically?' : '\n❓ Do you approve this operation?'
-        ),
-        choices:
-          request.type === 'plan'
-            ? [
-                { name: '✓ Yes, execute the plan now', value: true },
-                { name: '✖ No, return to default mode', value: false },
-              ]
-            : [
-                { name: 'Yes', value: true },
-                { name: 'No', value: false },
-              ],
-        default: request.type === 'plan' ? 1 : request.riskLevel === 'low' ? 0 : 1,
-        prefix: '  ',
-      },
-    ]
+    // Main approval question
+    const mainChoices = request.type === 'plan'
+      ? [
+        { label: '✓ Yes, execute the plan now', value: true },
+        { label: '✖ No, return to default mode', value: false },
+      ]
+      : [
+        { label: 'Yes', value: true },
+        { label: 'No', value: false },
+      ]
+
+    const mainResult = await this.tuiListPrompt(
+      request.type === 'plan' ? 'Execute this plan automatically?' : 'Do you approve this operation?',
+      mainChoices,
+      request.type === 'plan' ? 1 : request.riskLevel === 'low' ? 0 : 1,
+      this.getApprovalTimeout()
+    )
+
+    let approved = mainResult.value
+    let userComments = ''
 
     // For high-risk operations, ask for additional confirmation
-    if (request.riskLevel === 'critical' || request.riskLevel === 'high') {
-      questions.push({
-        type: 'list',
-        name: 'confirmHighRisk',
-        message: chalk.red.bold('⚠︎  This is a high-risk operation. Are you absolutely sure?'),
-        choices: [
-          { name: 'Yes', value: true },
-          { name: 'No', value: false },
+    if (approved && (request.riskLevel === 'critical' || request.riskLevel === 'high')) {
+      const highRiskResult = await this.tuiListPrompt(
+        '⚠︎ This is a high-risk operation. Are you absolutely sure?',
+        [
+          { label: 'Yes', value: true },
+          { label: 'No', value: false },
         ],
-        default: 1,
-        prefix: '  ',
-        when: (answers: any) => answers.approved,
-      })
+        1,
+        this.getApprovalTimeout()
+      )
+      approved = highRiskResult.value
     }
 
     // Option to add comments for complex operations
-    if (request.actions.length > 3) {
-      questions.push({
-        type: 'input',
-        name: 'userComments',
-        message: 'Add any comments (optional):',
-        when: (answers: any) => answers.approved,
+    if (approved && request.actions.length > 3) {
+      console.log()
+      const terminalWidth = Math.max(40, process.stdout.columns || 120)
+      const verticalBar = themeManager.getVerticalBar('default')
+      const bgColor = chalk.bgHex('#1a1a1a')
+      const padding = Math.max(0, terminalWidth - 2 - this._stripAnsi('Add any comments (optional):').length)
+
+      const readline = require('readline')
+      const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout,
+      })
+
+      userComments = await new Promise((resolve) => {
+        rl.question(bgColor(`${verticalBar}  ${chalk.cyan('Add any comments (optional):')}${' '.repeat(padding)}`), (answer: string) => {
+          rl.close()
+          resolve(answer.trim())
+        })
       })
     }
 
-    // Pause advanced UI interactive mode to avoid overwriting inquirer prompt
-    try {
-      const { advancedUI } = await import('./advanced-cli-ui')
-      advancedUI.stopInteractiveMode?.()
-    } catch {}
+    // Add spacing and clear result
+    console.log()
 
-    inputQueue.enableBypass()
-    try {
-      // Small separation to ensure prompt draws on a fresh line
-      try {
-        process.stdout.write('\n')
-      } catch {}
-      const answers = await inquirer.prompt(questions)
+    if (approved) {
+      console.log(chalk.green.bold('✓ Operation approved'))
+    } else {
+      console.log(chalk.yellow.bold('✖ Operation cancelled'))
+    }
 
-      const approved = answers.approved && answers.confirmHighRisk !== false
+    // Add final spacing
+    console.log()
 
-      // Add spacing and clear result
-      console.log()
-
-      if (approved) {
-        console.log(chalk.green.bold('✓ Operation approved'))
-      } else {
-        console.log(chalk.yellow.bold('✖ Operation cancelled'))
-      }
-
-      // Add final spacing
-      console.log()
-
-      return {
-        approved,
-        userComments: answers.userComments,
-        timestamp: new Date(),
-      }
-    } catch (_error) {
-      // Handle Ctrl+C or other interruption
-      console.log(chalk.red('\n✖ Operation cancelled by user'))
-      return {
-        approved: false,
-        timestamp: new Date(),
-      }
-    } finally {
-      inputQueue.disableBypass()
-      // Restore prompt after approval interaction
-      const nik = (global as any).__nikCLI
-      if (nik && typeof nik.renderPromptAfterOutput === 'function') {
-        nik.renderPromptAfterOutput()
-      }
-      // Resume advanced UI interactive mode if needed
-      try {
-        const { advancedUI } = await import('./advanced-cli-ui')
-        advancedUI.startInteractiveMode?.()
-      } catch {}
+    return {
+      approved,
+      userComments,
+      timestamp: new Date(),
     }
   }
 
@@ -1600,15 +1720,38 @@ export class ApprovalSystem extends EventEmitter {
     return str.replace(
       new RegExp(
         escapeSequence +
-          '\\[[0-9;]*[mGK]|' +
-          escapeSequence +
-          '\\[[\\d;]*[A-Za-z]|' +
-          escapeSequence +
-          '\\[[0-9;]*[JKHJIS]',
+        '\\[[0-9;]*[mGK]|' +
+        escapeSequence +
+        '\\[[\\d;]*[A-Za-z]|' +
+        escapeSequence +
+        '\\[[0-9;]*[JKHJIS]',
         'g'
       ),
       ''
     )
+  }
+
+  /**
+   * Drain buffered input from stdin to prevent keys from being queued
+   */
+  private drainStdin(): void {
+    try {
+      if (process.stdin.readable) {
+        // Read and discard any buffered input
+        process.stdin.once('readable', () => {
+          let chunk
+          while ((chunk = process.stdin.read()) !== null) {
+            // Discard buffered input
+          }
+        })
+        // Also try to read synchronously
+        while (process.stdin.read(1024)) {
+          // Discard
+        }
+      }
+    } catch {
+      // Ignore errors when draining stdin
+    }
   }
 
   /**
@@ -1772,8 +1915,8 @@ export class ApprovalSystem extends EventEmitter {
     // Header with enterprise branding
     const header = boxen(
       chalk.cyanBright.bold('🏢 ENTERPRISE APPROVAL SYSTEM') +
-        '\n' +
-        chalk.white('Advanced Workflow Management & Risk Assessment'),
+      '\n' +
+      chalk.white('Advanced Workflow Management & Risk Assessment'),
       {
         padding: 1,
         margin: 1,
@@ -1943,8 +2086,8 @@ export class ApprovalSystem extends EventEmitter {
 
     // Enable bypass for approval inputs and suspend prompt
     try {
-      ;(global as any).__nikCLI?.suspendPrompt?.()
-    } catch {}
+      ; (global as any).__nikCLI?.suspendPrompt?.()
+    } catch { }
     inputQueue.enableBypass()
 
     try {
@@ -1975,8 +2118,8 @@ export class ApprovalSystem extends EventEmitter {
       this.activeWorkflows.delete(request.id)
       this.pendingRequests.delete(request.id)
       try {
-        ;(global as any).__nikCLI?.resumePromptAndRender?.()
-      } catch {}
+        ; (global as any).__nikCLI?.resumePromptAndRender?.()
+      } catch { }
     }
   }
 
@@ -1986,64 +2129,71 @@ export class ApprovalSystem extends EventEmitter {
   private async promptForEnterpriseApproval(request: ApprovalRequest): Promise<ApprovalResponse> {
     const startTime = Date.now()
 
-    const questions = [
-      {
-        type: 'list',
-        name: 'decision',
-        message: chalk.yellow.bold('\n🚀 ENTERPRISE APPROVAL DECISION:'),
-        choices: [
-          { name: '✓ Approve Request', value: 'approve' },
-          { name: '✖ Reject Request', value: 'reject' },
-          { name: '⚠︎  Approve with Conditions', value: 'conditional' },
-          { name: '📋 Request More Information', value: 'info' },
-          { name: '⬆️  Escalate to Manager', value: 'escalate' },
-        ],
-      },
-      {
-        type: 'input',
-        name: 'comments',
-        message: 'Business justification and comments:',
-        when: (answers: any) => answers.decision !== 'info',
-      },
-      {
-        type: 'checkbox',
-        name: 'conditions',
-        message: 'Select enterprise conditions (if conditional approval):',
-        choices: [
-          {
-            name: 'Require additional review after execution',
-            value: 'post_review',
-          },
-          {
-            name: 'Limit to non-production environment only',
-            value: 'non_prod_only',
-          },
-          {
-            name: 'Require continuous monitoring during execution',
-            value: 'monitor_execution',
-          },
-          {
-            name: 'Set expiration for approval (24 hours)',
-            value: 'time_limit',
-          },
-          {
-            name: 'Require compliance officer sign-off',
-            value: 'compliance_review',
-          },
-        ],
-        when: (answers: any) => answers.decision === 'conditional',
-      },
-    ]
+    // Main decision prompt
+    const decisionResult = await this.tuiListPrompt(
+      'ENTERPRISE APPROVAL DECISION:',
+      [
+        { label: '✓ Approve Request', value: 'approve' },
+        { label: '✖ Reject Request', value: 'reject' },
+        { label: '⚠︎ Approve with Conditions', value: 'conditional' },
+        { label: '📋 Request More Information', value: 'info' },
+        { label: '⬆️ Escalate to Manager', value: 'escalate' },
+      ],
+      0,
+      this.getApprovalTimeout()
+    )
 
-    const answers = await inquirer.prompt(questions)
+    const decision = decisionResult.value
+    let comments = ''
+    let conditions: string[] = []
 
-    const approved = answers.decision === 'approve' || answers.decision === 'conditional'
+    // Get comments if not requesting more info
+    if (decision !== 'info') {
+      console.log()
+      const terminalWidth = Math.max(40, process.stdout.columns || 120)
+      const verticalBar = themeManager.getVerticalBar('default')
+      const bgColor = chalk.bgHex('#1a1a1a')
+      const padding = Math.max(0, terminalWidth - 2 - this._stripAnsi('Business justification and comments:').length)
+
+      const readline = require('readline')
+      const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout,
+      })
+
+      comments = await new Promise((resolve) => {
+        rl.question(bgColor(`${verticalBar}  ${chalk.cyan('Business justification and comments:')}${' '.repeat(padding)}`), (answer: string) => {
+          rl.close()
+          resolve(answer.trim())
+        })
+      })
+
+      // Get conditions if conditional approval
+      if (decision === 'conditional') {
+        console.log()
+        const condResult = await this.tuiListPrompt(
+          'Select enterprise conditions:',
+          [
+            { label: 'Require additional review after execution', value: 'post_review' },
+            { label: 'Limit to non-production environment only', value: 'non_prod_only' },
+            { label: 'Require continuous monitoring during execution', value: 'monitor_execution' },
+            { label: 'Set expiration for approval (24 hours)', value: 'time_limit' },
+            { label: 'Require compliance officer sign-off', value: 'compliance_review' },
+          ],
+          0,
+          this.getApprovalTimeout()
+        )
+        conditions = [condResult.value]
+      }
+    }
+
+    const approved = decision === 'approve' || decision === 'conditional'
 
     const response: ApprovalResponse = {
       approved,
       approver: 'enterprise-user',
-      userComments: answers.comments,
-      conditions: answers.conditions?.map((condition: string) => ({
+      userComments: comments,
+      conditions: conditions.map((condition: string) => ({
         type: 'requirement' as const,
         description: condition,
         enforced: true,
@@ -2054,10 +2204,10 @@ export class ApprovalSystem extends EventEmitter {
         {
           timestamp: new Date(),
           actor: 'enterprise-user',
-          action: answers.decision,
+          action: decision,
           details: {
-            comments: answers.comments,
-            conditions: answers.conditions,
+            comments,
+            conditions,
           },
           sessionId: this.sessionId,
         },
@@ -2065,7 +2215,7 @@ export class ApprovalSystem extends EventEmitter {
     }
 
     // Handle escalation
-    if (answers.decision === 'escalate') {
+    if (decision === 'escalate') {
       response.approved = false
       response.userComments = 'Escalated to manager for enterprise review'
       response.escalationLevel = 1
@@ -2076,8 +2226,8 @@ export class ApprovalSystem extends EventEmitter {
     console.log()
     if (approved) {
       console.log(chalk.green.bold('✓ Enterprise Operation Approved'))
-      if (answers.conditions && answers.conditions.length > 0) {
-        console.log(chalk.yellow('⚠︎  Conditional approval with enterprise requirements'))
+      if (conditions.length > 0) {
+        console.log(chalk.yellow('⚠︎ Conditional approval with enterprise requirements'))
       }
     } else {
       console.log(chalk.red.bold('✖ Enterprise Operation Rejected'))
@@ -2414,15 +2564,15 @@ class WorkflowEngine {
       // Display approval box
       const approvalBox = boxen(
         chalk.yellow(`${riskEmoji} Sandbox Permission Required\n\n`) +
-          chalk.bold(`Tool: `) +
-          chalk.cyan(toolName) +
-          '\n' +
-          chalk.bold(`Operation: `) +
-          chalk.white(operationText) +
-          '\n' +
-          chalk.bold(`Risk Level: `) +
-          chalk.red(riskLevel.toUpperCase()) +
-          (details?.reason ? '\n' + chalk.bold(`Reason: `) + chalk.gray(details.reason) : ''),
+        chalk.bold(`Tool: `) +
+        chalk.cyan(toolName) +
+        '\n' +
+        chalk.bold(`Operation: `) +
+        chalk.white(operationText) +
+        '\n' +
+        chalk.bold(`Risk Level: `) +
+        chalk.red(riskLevel.toUpperCase()) +
+        (details?.reason ? '\n' + chalk.bold(`Reason: `) + chalk.gray(details.reason) : ''),
         {
           title: 'Sandbox Permission',
           padding: 1,
@@ -2435,56 +2585,39 @@ class WorkflowEngine {
 
       // Suspend main prompt and enable bypass to prevent interference
       try {
-        ;(global as any).__nikCLI?.suspendPrompt?.()
-      } catch {}
+        ; (global as any).__nikCLI?.suspendPrompt?.()
+      } catch { }
 
       if (!wasEnabled) {
         inputQueue.enableBypass()
       }
 
-      // Create inquirer prompt with arrow selection (no typing required, like plan mode)
-      const promptPromise = inquirer.prompt([
-        {
-          type: 'list',
-          name: 'approved',
-          message: chalk.cyan.bold(`Allow this operation?`),
-          choices: [
-            { name: chalk.green('✓ Allow (this time only)'), value: false },
-            { name: chalk.green('✓ Allow and remember'), value: true },
-            { name: chalk.red('✗ Deny'), value: null },
-          ],
-          default: 2, // Default to Deny (third option)
-          prefix: '  ',
-          pageSize: 3, // Show all 3 options
-          loop: false, // Don't loop around
-        },
-      ])
+      // TUI prompt with arrow selection
+      const result = await approvalSystem.tuiListPrompt(
+        'Allow this operation?',
+        [
+          { label: '✓ Allow (this time only)', value: 'once' },
+          { label: '✓ Allow and remember', value: 'remember' },
+          { label: '✗ Deny', value: 'deny' },
+        ],
+        2, // Default to Deny
+        configuredTimeout
+      )
 
-      // Track inquirer instance for cleanup
-      inquirerInstance = promptPromise
-
-      // Add timeout to prevent hanging
-      const timeoutPromise = new Promise((resolve) =>
-        setTimeout(() => {
+      // If denied
+      if (result.value === 'deny') {
+        if (result.timedOut) {
           advancedUI.addLiveUpdate({
             type: 'warning',
             content: `⏰ Timeout after ${configuredTimeout / 1000}s, permission DENIED (default)`,
           })
-          resolve({ approved: false })
-        }, configuredTimeout)
-      )
-
-      const answers = await Promise.race([promptPromise, timeoutPromise])
-      const approvalResponse = (answers as any).approved
-
-      // If denied
-      if (approvalResponse === null) {
+        }
         console.log(chalk.red('✖ Operation denied by user'))
         return { approved: false, remember: false }
       }
 
-      // If approved - ask about remembering choice
-      if (approvalResponse === true) {
+      // If approved and remember
+      if (result.value === 'remember') {
         console.log(chalk.green('✓ Operation approved and will be remembered'))
         return { approved: true, remember: true }
       }
@@ -2504,21 +2637,13 @@ class WorkflowEngine {
         }
       } catch (error) {
         console.error('Failed to restore input queue state:', error)
-        // Force cleanup as last resort
         inputQueue.forceCleanup()
-      }
-
-      // Clean up inquirer instance
-      if (inquirerInstance) {
-        try {
-          inquirerInstance.removeAllListeners?.()
-        } catch {}
       }
 
       // Restore prompt after approval interaction - CRITICAL for interactive mode
       try {
-        ;(global as any).__nikCLI?.resumePromptAndRender?.()
-      } catch {}
+        ; (global as any).__nikCLI?.resumePromptAndRender?.()
+      } catch { }
     }
   }
 }

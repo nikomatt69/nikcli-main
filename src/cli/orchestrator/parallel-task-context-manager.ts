@@ -1,19 +1,19 @@
 import { EventEmitter } from 'node:events'
-import type { AgentTodo } from '../../core/agent-todo-manager'
-import { adaptiveContextOptimizer } from './adaptive-context-optimizer'
+import type { AgentTodo } from '../core/agent-todo-manager'
+import { AdaptiveContextOptimizer } from './adaptive-context-optimizer'
 import type { AgentContextSlice, ContextBudget, ExecutionPlan, TaskChainContext } from './types/orchestrator-types'
-import { userPreferenceManager } from './user-preference-manager'
+import { UserPreferenceManager } from './user-preference-manager'
 
 export class ParallelTaskContextManager extends EventEmitter {
   private chains: Map<string, TaskChainContext> = new Map()
-  private optimizer: adaptiveContextOptimizer
-  private preferenceManager: userPreferenceManager
+  private optimizer: AdaptiveContextOptimizer
+  private preferenceManager: UserPreferenceManager
   private agentCounter: number = 0
 
   constructor() {
     super()
-    this.optimizer = adaptiveContextOptimizer
-    this.preferenceManager = userPreferenceManager
+    this.optimizer = new AdaptiveContextOptimizer()
+    this.preferenceManager = new UserPreferenceManager()
   }
 
   createChainContext(chainId: string, rootTaskId: string, todos: AgentTodo[], agentIds?: string[]): TaskChainContext {
@@ -54,6 +54,17 @@ export class ParallelTaskContextManager extends EventEmitter {
         sharedContextRatio: sharedRatio,
       })
       budget = firstSlice.budget
+    }
+
+    if (!budget) {
+      budget = {
+        totalBudget: 10000,
+        sharedAllocation: 3000,
+        perAgentAllocation: 2000,
+        reservedForOutput: 2000,
+        currentUsage: 0,
+        agents: new Map(),
+      }
     }
 
     const chainContext: TaskChainContext = {
@@ -111,11 +122,10 @@ export class ParallelTaskContextManager extends EventEmitter {
     if (activeTasks.length > 0) {
       context += `**Active Tasks:**\n${activeTasks.map((t) => `- ${t.title}`).join('\n')}\n`
     } else if (pending > 0) {
-      context += `**Next Tasks:**\n${agentTodos
-        .filter((t) => t.status === 'pending')
-        .slice(0, 3)
-        .map((t) => `- ${t.title}`)
-        .join('\n')}\n`
+      const planningTasks = agentTodos.filter((t) => t.status === 'planning').slice(0, 3)
+      if (planningTasks.length > 0) {
+        context += `**Next Tasks:**\n${planningTasks.map((t) => `- ${t.title}`).join('\n')}\n`
+      }
     }
 
     const dependencies = new Set<string>()
@@ -243,7 +253,11 @@ export class ParallelTaskContextManager extends EventEmitter {
     return 'hybrid'
   }
 
-  getChainStatus(): { totalChains: number; activeChains: number; completedChains: number } {
+  getChainStatus(): {
+    totalChains: number
+    activeChains: number
+    completedChains: number
+  } {
     let active = 0,
       completed = 0
     for (const chain of this.chains.values()) {

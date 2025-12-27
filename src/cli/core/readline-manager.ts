@@ -4,6 +4,7 @@ import * as readline from 'readline'
 import { fixedPromptManager } from '../ui/fixed-prompt-manager'
 import { terminalOutputManager } from '../ui/terminal-output-manager'
 import { AnsiStripper } from '../utils/ansi-strip'
+import { PasteHandler } from '../utils/paste-handler'
 
 /**
  * Singleton readline manager to prevent multiple instances
@@ -16,6 +17,8 @@ export class ReadlineManager {
   private originalRawMode = false
   private eventListeners: Map<string, Set<Function>> = new Map()
   private isInitialized = false
+  private pasteHandler: PasteHandler | null = null
+  private pasteCallback: ((content: string) => void) | null = null
 
   private constructor() {}
 
@@ -24,6 +27,63 @@ export class ReadlineManager {
       ReadlineManager.instance = new ReadlineManager()
     }
     return ReadlineManager.instance
+  }
+
+  /**
+   * Enable bracketed paste mode in the terminal
+   * This allows detection of paste operations vs regular typing
+   */
+  public enablePasteMode(): void {
+    if (process.stdout.isTTY) {
+      process.stdout.write('\x1b[?2004h')
+    }
+  }
+
+  /**
+   * Disable bracketed paste mode in the terminal
+   */
+  public disablePasteMode(): void {
+    if (process.stdout.isTTY) {
+      process.stdout.write('\x1b[?2004l')
+    }
+  }
+
+  /**
+   * Check if currently in paste mode (bracketed paste active)
+   */
+  public isInPasteMode(): boolean {
+    return this.pasteHandler?.isPasting() ?? false
+  }
+
+  /**
+   * Setup paste detection integration with PasteHandler
+   * Should be called during initialization to intercept paste events
+   */
+  public setupPasteDetection(pasteHandler: PasteHandler, onPasteComplete: (content: string) => void): void {
+    this.pasteHandler = pasteHandler
+    this.pasteCallback = onPasteComplete
+
+    // Intercept raw stdin for paste detection BEFORE readline
+    process.stdin.on('data', (chunk: Buffer) => {
+      if (!pasteHandler) return
+
+      const result = pasteHandler.processRawData(chunk.toString())
+
+      if (result.isPasteComplete && result.pastedContent && this.pasteCallback) {
+        // Trigger paste complete callback
+        this.pasteCallback(result.pastedContent)
+      }
+
+      // Passthrough data is handled by readline automatically
+    })
+  }
+
+  /**
+   * Clear paste detection setup
+   */
+  public clearPasteDetection(): void {
+    this.pasteHandler = null
+    this.pasteCallback = null
   }
 
   /**

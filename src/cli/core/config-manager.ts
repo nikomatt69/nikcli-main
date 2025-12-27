@@ -1701,6 +1701,7 @@ export class SimpleConfigManager {
     },
     temperature: 1,
     maxTokens: 6000,
+    autoUpdate: true,
     chatHistory: true,
     maxHistoryLength: 100,
     systemPrompt: undefined,

@@ -868,28 +868,15 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
   }
 
   /**
-   * Check and request approval for tool operations
-   * ALWAYS requests approval when called - bypasses policy manager's skip decision
+   * Request interactive tool approval - shows panel and waits for user confirmation.
    */
   private async checkApproval(toolName: string, operation: string, args: any): Promise<void> {
     const approvalRequest = await this.policyManager.shouldApproveToolOperation(toolName, operation, args)
-
-    // Check if already approved in persistent storage first
-    if (permissionStorage.isApproved(toolName, operation)) {
-      return // Already approved persistently
-    }
-
-    // Check if already approved in session
-    const ts = this.getToolService()
-    if (ts && ts.isOperationApproved && ts.isOperationApproved(toolName, operation)) {
-      return // Already approved in session
-    }
 
     const riskLevel = (approvalRequest?.riskAssessment?.level || 'low') as 'low' | 'medium' | 'high' | 'critical'
     const description =
       approvalRequest?.riskAssessment?.reasons?.join('\n• ') || `Execute ${toolName} with ${operation}`
 
-    // Use interactive approval with inquirer
     const approval = await this.approvalSystem.requestToolApprovalInteractive(toolName, operation, riskLevel, {
       description,
       path: args.path || args.filePath || undefined,
@@ -899,16 +886,6 @@ Please provide corrected arguments for this tool. Only output the corrected JSON
 
     if (!approval.approved) {
       throw new Error(`Operation cancelled by user: ${toolName} - ${operation}`)
-    }
-
-    // Remember persistently if requested
-    if (approval.remember) {
-      permissionStorage.approve(toolName, operation)
-    }
-
-    // Also remember for session if requested
-    if (approval.remember && ts && ts.addSessionApproval) {
-      ts.addSessionApproval(toolName, operation)
     }
   }
 
@@ -2205,6 +2182,9 @@ The tool automatically handles chunking, token limits, and provides continuation
           if (operations.length === 0) {
             return { error: 'No valid edits provided' }
           }
+
+          // Check approval before execution (multi_edit is a write operation)
+          await this.checkApproval('multi_edit', 'edit', { operations })
 
           const isPreview = params.dryRun || params.previewOnly
 

@@ -360,6 +360,12 @@ export class InputQueue {
    * Determina se l'input deve essere messo in coda o bypassato
    */
   shouldQueue(input: string): boolean {
+    // Se la queue è sospesa per paste operations, non mettere in coda
+    const nik = (global as any).__nikCLI
+    if (nik?.isQueueSuspended) {
+      return false
+    }
+
     // Se il bypass è abilitato, non mettere in coda
     if (this.bypassEnabled) {
       return false
